@@ -1,0 +1,624 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WF — Desktop Flyout | UIS-20 Wireframes</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --primary: #3b82f6; --primary-light: #dbeafe; --primary-dark: #2563eb;
+  --success: #10b981; --success-light: #d1fae5;
+  --danger: #ef4444; --danger-light: #fee2e2;
+  --warning: #f59e0b; --warning-light: #fef3c7;
+  --info: #06b6d4; --info-light: #cffafe;
+  --accent: #8b5cf6; --accent-light: #ede9fe;
+  --gray-50: #f9fafb; --gray-100: #f3f4f6; --gray-200: #e5e7eb; --gray-300: #d1d5db;
+  --gray-400: #9ca3af; --gray-500: #6b7280; --gray-600: #4b5563; --gray-700: #374151;
+  --gray-800: #1f2937; --gray-900: #111827; --white: #ffffff;
+  --page-bg: #f3f4f6; --card-bg: #ffffff;
+  --radius-md: 6px; --radius-lg: 8px; --radius-xl: 12px;
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.05); --shadow: 0 1px 3px rgba(0,0,0,0.1), 0 1px 2px rgba(0,0,0,0.06);
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Inter', -apple-system, sans-serif; background: var(--page-bg); color: var(--gray-900); }
+
+.canvas-nav { position: sticky; top: 0; z-index: 100; background: var(--gray-900); border-bottom: 1px solid var(--gray-700); display: flex; align-items: center; padding: 0 20px; height: 48px; gap: 4px; }
+.canvas-nav .logo { font-size: 11px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: var(--gray-400); margin-right: 16px; white-space: nowrap; }
+.canvas-nav button { background: transparent; border: none; color: var(--gray-400); font-family: inherit; font-size: 13px; font-weight: 500; padding: 12px 14px; cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.15s; }
+.canvas-nav button:hover { color: var(--white); }
+.canvas-nav button.active { color: var(--white); border-bottom-color: var(--primary); }
+
+.wireframe { display: none; padding: 20px; min-height: calc(100vh - 48px); }
+.wireframe.active { display: block; }
+.wf-label { display: inline-block; font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--primary); background: var(--primary-light); padding: 3px 10px; border-radius: 4px; margin-bottom: 12px; }
+.wf-title { font-size: 18px; font-weight: 700; color: var(--gray-800); margin-bottom: 4px; }
+.wf-desc { font-size: 13px; color: var(--gray-500); margin-bottom: 20px; }
+
+/* Flyout shell */
+.flyout-shell { display: flex; max-width: 1100px; margin: 0 auto; }
+.flyout-backdrop { flex: 1; background: var(--gray-200); border-radius: var(--radius-xl) 0 0 var(--radius-xl); min-height: 700px; display: flex; align-items: center; justify-content: center; }
+.flyout-backdrop-label { font-size: 14px; color: var(--gray-400); font-weight: 600; text-align: center; }
+.flyout-panel { width: 520px; flex-shrink: 0; background: var(--white); border-radius: 0 var(--radius-xl) var(--radius-xl) 0; border: 1px solid var(--gray-200); display: flex; flex-direction: column; max-height: 780px; box-shadow: -4px 0 24px rgba(0,0,0,0.08); }
+
+.flyout-header { position: sticky; top: 0; z-index: 10; background: var(--white); padding: 16px 20px; border-bottom: 1px solid var(--gray-200); display: flex; align-items: center; justify-content: space-between; }
+.flyout-header-left h2 { font-size: 16px; font-weight: 700; }
+.flyout-header-left .sub { font-size: 12px; color: var(--gray-400); margin-top: 2px; }
+.flyout-close { width: 32px; height: 32px; border-radius: var(--radius-md); border: 1px solid var(--gray-200); background: var(--white); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 16px; color: var(--gray-500); }
+.flyout-close:hover { background: var(--gray-50); color: var(--gray-700); }
+
+.flyout-body { flex: 1; overflow-y: auto; padding: 0; }
+.flyout-footer { border-top: 1px solid var(--gray-200); padding: 12px 20px; display: flex; align-items: center; justify-content: flex-end; gap: 8px; background: var(--white); }
+
+/* Buttons */
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 8px 16px; font-family: inherit; font-size: 13px; font-weight: 600; border-radius: var(--radius-md); border: 1px solid transparent; cursor: pointer; transition: all 0.2s; white-space: nowrap; box-shadow: var(--shadow-sm); }
+.btn-primary { background: var(--primary); color: var(--white); border-color: var(--primary); }
+.btn-primary:hover { background: var(--primary-dark); }
+.btn-outline { background: var(--white); color: var(--gray-700); border-color: var(--gray-300); }
+.btn-outline:hover { background: var(--gray-50); }
+.btn-success { background: var(--success); color: var(--white); border-color: var(--success); }
+.btn-sm { padding: 6px 12px; font-size: 12px; }
+.btn-ghost { background: transparent; border: none; color: var(--gray-500); box-shadow: none; }
+.btn-ghost:hover { color: var(--gray-700); }
+
+/* Badge */
+.badge { display: inline-flex; align-items: center; padding: 2px 8px; font-size: 11px; font-weight: 600; border-radius: 4px; }
+.badge-gray { background: var(--gray-100); color: var(--gray-500); }
+.badge-success { background: var(--success-light); color: var(--success); }
+
+/* Section collapsible */
+.section { border-bottom: 1px solid var(--gray-100); }
+.section:last-child { border-bottom: none; }
+.section-header { display: flex; align-items: center; justify-content: space-between; padding: 14px 20px; cursor: pointer; user-select: none; transition: background 0.15s; }
+.section-header:hover { background: var(--gray-50); }
+.section-header .section-num { width: 22px; height: 22px; border-radius: 50%; background: var(--primary-light); color: var(--primary); font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center; margin-right: 10px; flex-shrink: 0; }
+.section-header .section-title { font-size: 13px; font-weight: 600; color: var(--gray-800); flex: 1; }
+.section-header .section-meta { font-size: 11px; color: var(--gray-400); margin-right: 8px; }
+.section-header .chevron { font-size: 14px; color: var(--gray-400); transition: transform 0.2s; }
+.section.open .chevron { transform: rotate(180deg); }
+.section-content { display: none; padding: 0 20px 16px; }
+.section.open .section-content { display: block; }
+
+/* Form controls */
+.form-group { margin-bottom: 14px; }
+.form-label { display: block; font-size: 12px; font-weight: 600; color: var(--gray-700); margin-bottom: 4px; }
+.form-label .req { color: var(--danger); }
+.form-input { width: 100%; padding: 8px 12px; font-family: inherit; font-size: 13px; border: 1px solid var(--gray-300); border-radius: var(--radius-md); color: var(--gray-800); background: var(--white); transition: border-color 0.15s; }
+.form-input:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 2px var(--primary-light); }
+.form-input::placeholder { color: var(--gray-400); }
+.form-input[readonly] { background: var(--gray-50); color: var(--gray-500); }
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.form-row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+textarea.form-input { min-height: 60px; resize: vertical; }
+select.form-input { appearance: none; padding-right: 28px; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 6px center; background-size: 16px; }
+
+/* Company chip */
+.company-chip { display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px; background: var(--gray-50); border: 1px solid var(--gray-200); border-radius: var(--radius-md); font-size: 13px; font-weight: 500; }
+.company-chip .avatar { width: 24px; height: 24px; border-radius: 50%; background: var(--primary-light); color: var(--primary); font-size: 10px; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+.company-chip .change { font-size: 11px; color: var(--primary); font-weight: 600; cursor: pointer; margin-left: 4px; }
+
+/* Line item editor */
+.line-editor { background: var(--gray-50); border-radius: var(--radius-lg); border: 1px solid var(--gray-200); overflow: hidden; }
+.line-editor-header { display: grid; gap: 0; background: var(--gray-100); border-bottom: 1px solid var(--gray-200); padding: 0; }
+.line-editor-header div { padding: 6px 8px; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.3px; color: var(--gray-500); }
+.line-row { display: grid; gap: 0; border-bottom: 1px solid var(--gray-200); align-items: center; }
+.line-row:last-of-type { border-bottom: none; }
+.line-cell { padding: 6px 8px; }
+.line-cell input { width: 100%; padding: 5px 8px; font-family: inherit; font-size: 12px; border: 1px solid var(--gray-300); border-radius: 4px; background: var(--white); }
+.line-cell input:focus { outline: none; border-color: var(--primary); }
+.line-cell .value { font-size: 12px; font-weight: 600; color: var(--gray-800); }
+.line-delete { width: 24px; height: 24px; border-radius: 4px; border: none; background: transparent; color: var(--gray-400); cursor: pointer; font-size: 14px; display: flex; align-items: center; justify-content: center; }
+.line-delete:hover { background: var(--danger-light); color: var(--danger); }
+.line-add { padding: 8px; }
+.line-add button { display: flex; align-items: center; gap: 4px; background: none; border: 1px dashed var(--gray-300); border-radius: var(--radius-md); padding: 6px 12px; font-family: inherit; font-size: 12px; font-weight: 600; color: var(--primary); cursor: pointer; width: 100%; justify-content: center; }
+.line-add button:hover { background: var(--primary-light); border-color: var(--primary); }
+.line-subtotal { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; background: var(--white); border-top: 1px solid var(--gray-200); }
+.line-subtotal .label { font-size: 12px; font-weight: 600; color: var(--gray-600); }
+.line-subtotal .amount { font-size: 14px; font-weight: 700; color: var(--gray-900); }
+
+/* Summary / pricing */
+.summary-row { display: flex; align-items: center; justify-content: space-between; padding: 6px 0; }
+.summary-row .label { font-size: 13px; color: var(--gray-600); }
+.summary-row .value { font-size: 13px; font-weight: 600; color: var(--gray-800); }
+.summary-row.total { border-top: 2px solid var(--gray-200); padding-top: 10px; margin-top: 4px; }
+.summary-row.total .label { font-size: 14px; font-weight: 700; color: var(--gray-900); }
+.summary-row.total .value { font-size: 18px; font-weight: 800; color: var(--primary); }
+
+/* Photo grid */
+.photo-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.photo-tile { aspect-ratio: 1; border-radius: var(--radius-md); border: 1px solid var(--gray-200); overflow: hidden; background: var(--gray-100); display: flex; align-items: center; justify-content: center; }
+.photo-tile.add { border-style: dashed; cursor: pointer; flex-direction: column; gap: 4px; color: var(--gray-400); font-size: 11px; font-weight: 600; }
+.photo-tile.add:hover { border-color: var(--primary); color: var(--primary); background: var(--primary-light); }
+.photo-tile.add .plus { font-size: 20px; }
+.photo-tile.filled { background: var(--gray-200); }
+.photo-tile.filled .thumb-label { font-size: 9px; color: var(--gray-500); }
+
+/* Signature pad */
+.sig-pad { border: 1px solid var(--gray-300); border-radius: var(--radius-lg); background: var(--gray-50); height: 100px; display: flex; align-items: center; justify-content: center; position: relative; }
+.sig-pad .placeholder { font-size: 12px; color: var(--gray-400); font-style: italic; }
+.sig-pad .clear-btn { position: absolute; top: 6px; right: 6px; font-size: 10px; color: var(--danger); font-weight: 600; cursor: pointer; background: var(--white); padding: 2px 6px; border-radius: 3px; border: 1px solid var(--danger-light); }
+
+/* Labor grid headers */
+.labor-grid { grid-template-columns: 160px 1fr 60px 60px 60px 70px 70px 70px 70px 28px; }
+.material-grid { grid-template-columns: 180px 100px 70px 80px 70px 28px; }
+.equipment-grid { grid-template-columns: 180px 70px 100px 80px 70px 28px; }
+
+@media (max-width: 800px) {
+  .flyout-backdrop { display: none; }
+  .flyout-panel { width: 100%; border-radius: var(--radius-xl); }
+}
+</style>
+</head>
+<body>
+
+<div class="canvas-nav">
+  <div class="logo">UIS-20 Wireframes</div>
+  <button class="active" data-wf="wf-create">WF-4: Create WO</button>
+  <button data-wf="wf-edit">WF-5: Edit WO</button>
+  <button data-wf="wf-labor">WF-6: Labor Editor</button>
+  <button data-wf="wf-material">WF-7: Material Editor</button>
+  <button data-wf="wf-equipment">WF-8: Equipment Editor</button>
+</div>
+
+<!-- ================================================================ -->
+<!-- WF-4: CREATE WORK ORDER FLYOUT                                    -->
+<!-- ================================================================ -->
+<div class="wireframe active" id="wf-create">
+  <div class="wf-label">WF-4 &middot; WO-3</div>
+  <div class="wf-title">Create Work Order — Desktop Flyout</div>
+  <div class="wf-desc">8-section flyout form with sticky header, scrollable body, and fixed footer. Mirrors Appello's JobAddEditForm pattern.</div>
+
+  <div class="flyout-shell">
+    <div class="flyout-backdrop">
+      <div class="flyout-backdrop-label">Jobs List (dimmed)<br><span style="font-size:11px;color:var(--gray-400);">Background page remains visible behind flyout overlay</span></div>
+    </div>
+    <div class="flyout-panel">
+      <div class="flyout-header">
+        <div class="flyout-header-left">
+          <h2>New Work Order</h2>
+          <div class="sub"><span class="badge badge-gray">Draft</span> &nbsp; Auto-assigned on save</div>
+        </div>
+        <button class="flyout-close">&times;</button>
+      </div>
+
+      <div class="flyout-body">
+        <!-- S1: Work Order Info -->
+        <div class="section open" data-section="1">
+          <div class="section-header">
+            <div style="display:flex;align-items:center;"><div class="section-num">1</div><div class="section-title">Work Order Info</div></div>
+            <div style="display:flex;align-items:center;"><div class="section-meta">4 fields</div><div class="chevron">&#9660;</div></div>
+          </div>
+          <div class="section-content">
+            <div class="form-group"><label class="form-label">Work Order Name <span class="req">*</span></label><input class="form-input" placeholder="e.g. Emergency condenser replacement"></div>
+            <div class="form-row">
+              <div class="form-group"><label class="form-label">WO Number</label><input class="form-input" value="WO-008" readonly></div>
+              <div class="form-group"><label class="form-label">Date of Work <span class="req">*</span></label><input class="form-input" type="date" value="2026-03-30"></div>
+            </div>
+            <div class="form-group"><label class="form-label">Customer Reference Number</label><input class="form-input" placeholder="Optional reference from customer"></div>
+            <div class="form-group"><label class="form-label">Description <span class="req">*</span></label><textarea class="form-input" placeholder="Describe the work performed..."></textarea></div>
+          </div>
+        </div>
+
+        <!-- S2: Company & Customer -->
+        <div class="section" data-section="2">
+          <div class="section-header">
+            <div style="display:flex;align-items:center;"><div class="section-num">2</div><div class="section-title">Company &amp; Customer</div></div>
+            <div style="display:flex;align-items:center;"><div class="section-meta">2 fields</div><div class="chevron">&#9660;</div></div>
+          </div>
+          <div class="section-content">
+            <div class="form-group">
+              <label class="form-label">Company <span class="req">*</span></label>
+              <div class="company-chip"><div class="avatar">RR</div> RR Mechanical <span class="change">Change</span></div>
+            </div>
+            <div class="form-group"><label class="form-label">Contact</label><input class="form-input" placeholder="Customer contact name"></div>
+          </div>
+        </div>
+
+        <!-- S3: Labor Items -->
+        <div class="section" data-section="3">
+          <div class="section-header">
+            <div style="display:flex;align-items:center;"><div class="section-num">3</div><div class="section-title">Labor Items</div></div>
+            <div style="display:flex;align-items:center;"><div class="section-meta">2 items &middot; $1,840</div><div class="chevron">&#9660;</div></div>
+          </div>
+          <div class="section-content">
+            <div class="line-editor">
+              <div class="line-editor-header labor-grid">
+                <div>Trade Level</div><div>Description</div><div>ST</div><div>OT</div><div>DT</div><div>Rate</div><div>OT Rate</div><div>DT Rate</div><div>Total</div><div></div>
+              </div>
+              <div class="line-row labor-grid">
+                <div class="line-cell"><select class="form-input" style="padding:4px 6px;font-size:11px;"><option>Journeyman</option></select></div>
+                <div class="line-cell"><input value="Mike S. — condenser swap"></div>
+                <div class="line-cell"><input value="8.0" style="text-align:right;"></div>
+                <div class="line-cell"><input value="2.0" style="text-align:right;"></div>
+                <div class="line-cell"><input value="0" style="text-align:right;"></div>
+                <div class="line-cell"><div class="value">$85.00</div></div>
+                <div class="line-cell"><div class="value">$127.50</div></div>
+                <div class="line-cell"><div class="value">$170.00</div></div>
+                <div class="line-cell"><div class="value">$935.00</div></div>
+                <div class="line-cell"><button class="line-delete">&times;</button></div>
+              </div>
+              <div class="line-row labor-grid">
+                <div class="line-cell"><select class="form-input" style="padding:4px 6px;font-size:11px;"><option>Apprentice</option></select></div>
+                <div class="line-cell"><input value="Jesse T. — assist"></div>
+                <div class="line-cell"><input value="8.0" style="text-align:right;"></div>
+                <div class="line-cell"><input value="2.0" style="text-align:right;"></div>
+                <div class="line-cell"><input value="0" style="text-align:right;"></div>
+                <div class="line-cell"><div class="value">$55.00</div></div>
+                <div class="line-cell"><div class="value">$82.50</div></div>
+                <div class="line-cell"><div class="value">$110.00</div></div>
+                <div class="line-cell"><div class="value">$605.00</div></div>
+                <div class="line-cell"><button class="line-delete">&times;</button></div>
+              </div>
+              <div class="line-add"><button>+ Add Labor Item</button></div>
+              <div class="line-subtotal"><span class="label">Labor Subtotal</span><span class="amount">$1,540.00</span></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- S4: Material Items -->
+        <div class="section" data-section="4">
+          <div class="section-header">
+            <div style="display:flex;align-items:center;"><div class="section-num">4</div><div class="section-title">Material Items</div></div>
+            <div style="display:flex;align-items:center;"><div class="section-meta">1 item &middot; $2,400</div><div class="chevron">&#9660;</div></div>
+          </div>
+          <div class="section-content">
+            <div class="line-editor">
+              <div class="line-editor-header material-grid">
+                <div>Material</div><div>UoM</div><div>Qty</div><div>Unit Cost</div><div>Total</div><div></div>
+              </div>
+              <div class="line-row material-grid">
+                <div class="line-cell"><input value="5-ton condenser unit"></div>
+                <div class="line-cell"><input value="Each"></div>
+                <div class="line-cell"><input value="1" style="text-align:right;"></div>
+                <div class="line-cell"><input value="$2,400.00" style="text-align:right;"></div>
+                <div class="line-cell"><div class="value">$2,400.00</div></div>
+                <div class="line-cell"><button class="line-delete">&times;</button></div>
+              </div>
+              <div class="line-add"><button>+ Add Material Item</button></div>
+              <div class="line-subtotal"><span class="label">Material Subtotal</span><span class="amount">$2,400.00</span></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- S5: Equipment Items -->
+        <div class="section" data-section="5">
+          <div class="section-header">
+            <div style="display:flex;align-items:center;"><div class="section-num">5</div><div class="section-title">Equipment Items</div></div>
+            <div style="display:flex;align-items:center;"><div class="section-meta">1 item &middot; $350</div><div class="chevron">&#9660;</div></div>
+          </div>
+          <div class="section-content">
+            <div class="line-editor">
+              <div class="line-editor-header equipment-grid">
+                <div>Equipment</div><div>Pieces</div><div>UoM</div><div>Rate</div><div>Total</div><div></div>
+              </div>
+              <div class="line-row equipment-grid">
+                <div class="line-cell"><input value="Crane — 20 ton mobile"></div>
+                <div class="line-cell"><input value="1" style="text-align:right;"></div>
+                <div class="line-cell"><input value="Day"></div>
+                <div class="line-cell"><input value="$350.00" style="text-align:right;"></div>
+                <div class="line-cell"><div class="value">$350.00</div></div>
+                <div class="line-cell"><button class="line-delete">&times;</button></div>
+              </div>
+              <div class="line-add"><button>+ Add Equipment Item</button></div>
+              <div class="line-subtotal"><span class="label">Equipment Subtotal</span><span class="amount">$350.00</span></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- S6: Summary & Pricing -->
+        <div class="section open" data-section="6">
+          <div class="section-header">
+            <div style="display:flex;align-items:center;"><div class="section-num">6</div><div class="section-title">Summary &amp; Pricing</div></div>
+            <div style="display:flex;align-items:center;"><div class="chevron">&#9660;</div></div>
+          </div>
+          <div class="section-content">
+            <div class="summary-row"><span class="label">Labor Subtotal</span><span class="value">$1,540.00</span></div>
+            <div class="summary-row"><span class="label">Material Subtotal</span><span class="value">$2,400.00</span></div>
+            <div class="summary-row"><span class="label">Equipment Subtotal</span><span class="value">$350.00</span></div>
+            <div class="summary-row" style="border-top:1px solid var(--gray-200);padding-top:8px;margin-top:4px;"><span class="label">Subtotal</span><span class="value">$4,290.00</span></div>
+            <div class="form-row-3" style="margin-top:12px;">
+              <div class="form-group"><label class="form-label">Markup %</label><input class="form-input" value="10" style="text-align:right;"></div>
+              <div class="form-group"><label class="form-label">Overhead %</label><input class="form-input" value="5" style="text-align:right;"></div>
+              <div class="form-group"><label class="form-label">Tax %</label><input class="form-input" value="8.25" style="text-align:right;"></div>
+            </div>
+            <div class="summary-row"><span class="label">Markup (10%)</span><span class="value">$429.00</span></div>
+            <div class="summary-row"><span class="label">Overhead (5%)</span><span class="value">$214.50</span></div>
+            <div class="summary-row"><span class="label">Tax (8.25%)</span><span class="value">$354.08</span></div>
+            <div class="summary-row total"><span class="label">Grand Total</span><span class="value">$5,287.58</span></div>
+          </div>
+        </div>
+
+        <!-- S7: Photos -->
+        <div class="section" data-section="7">
+          <div class="section-header">
+            <div style="display:flex;align-items:center;"><div class="section-num">7</div><div class="section-title">Photos</div></div>
+            <div style="display:flex;align-items:center;"><div class="section-meta">2 / 30</div><div class="chevron">&#9660;</div></div>
+          </div>
+          <div class="section-content">
+            <div class="photo-grid">
+              <div class="photo-tile filled"><div class="thumb-label">condenser_old.jpg</div></div>
+              <div class="photo-tile filled"><div class="thumb-label">condenser_new.jpg</div></div>
+              <div class="photo-tile add"><div class="plus">+</div>Add Photo</div>
+            </div>
+            <div style="margin-top:8px;font-size:11px;color:var(--gray-400);">Drag &amp; drop or click to browse. Max 30 files (JPEG, PNG, PDF).</div>
+          </div>
+        </div>
+
+        <!-- S8: Signatures -->
+        <div class="section" data-section="8">
+          <div class="section-header">
+            <div style="display:flex;align-items:center;"><div class="section-num">8</div><div class="section-title">Signatures</div></div>
+            <div style="display:flex;align-items:center;"><div class="chevron">&#9660;</div></div>
+          </div>
+          <div class="section-content">
+            <div class="form-group"><label class="form-label">Worker Signature <span class="req">*</span></label>
+              <div class="sig-pad"><div class="placeholder">Tap or draw signature here</div><div class="clear-btn">Clear</div></div>
+            </div>
+            <div class="form-group"><label class="form-label">Signer Name <span class="req">*</span></label><input class="form-input" placeholder="Print name"></div>
+            <div style="border-top:1px solid var(--gray-100);margin:12px 0;"></div>
+            <div class="form-group"><label class="form-label">Customer Signature <span style="font-size:10px;color:var(--gray-400);font-weight:400;">(optional)</span></label>
+              <div class="sig-pad"><div class="placeholder">Customer signature (optional)</div><div class="clear-btn">Clear</div></div>
+            </div>
+            <div class="form-group"><label class="form-label">Customer Name</label><input class="form-input" placeholder="Customer print name"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="flyout-footer">
+        <button class="btn btn-ghost">Cancel</button>
+        <button class="btn btn-outline">Save Draft</button>
+        <button class="btn btn-primary">Submit</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ================================================================ -->
+<!-- WF-5: EDIT WORK ORDER                                             -->
+<!-- ================================================================ -->
+<div class="wireframe" id="wf-edit">
+  <div class="wf-label">WF-5 &middot; WO-3</div>
+  <div class="wf-title">Edit Work Order — Desktop Flyout</div>
+  <div class="wf-desc">Same flyout structure pre-populated with existing data. WO number is read-only, status badge reflects current state.</div>
+
+  <div class="flyout-shell">
+    <div class="flyout-backdrop">
+      <div class="flyout-backdrop-label">WO Detail Page (dimmed)</div>
+    </div>
+    <div class="flyout-panel">
+      <div class="flyout-header">
+        <div class="flyout-header-left">
+          <h2>Edit Work Order</h2>
+          <div class="sub"><span class="badge badge-success">Approved</span> &nbsp; WO-001</div>
+        </div>
+        <button class="flyout-close">&times;</button>
+      </div>
+      <div class="flyout-body">
+        <div class="section open">
+          <div class="section-header">
+            <div style="display:flex;align-items:center;"><div class="section-num">1</div><div class="section-title">Work Order Info</div></div>
+            <div style="display:flex;align-items:center;"><div class="chevron">&#9660;</div></div>
+          </div>
+          <div class="section-content">
+            <div class="form-group"><label class="form-label">Work Order Name <span class="req">*</span></label><input class="form-input" value="Emergency condenser replacement — Bldg A rooftop"></div>
+            <div class="form-row">
+              <div class="form-group"><label class="form-label">WO Number</label><input class="form-input" value="WO-001" readonly></div>
+              <div class="form-group"><label class="form-label">Date of Work <span class="req">*</span></label><input class="form-input" type="date" value="2026-03-12"></div>
+            </div>
+            <div class="form-group"><label class="form-label">Customer Reference Number</label><input class="form-input" value="PO-2026-4421"></div>
+            <div class="form-group"><label class="form-label">Description <span class="req">*</span></label><textarea class="form-input">Replaced failed 5-ton condenser on Building A rooftop. Emergency call — unit was leaking refrigerant. Required crane for rooftop access.</textarea></div>
+          </div>
+        </div>
+        <div class="section">
+          <div class="section-header">
+            <div style="display:flex;align-items:center;"><div class="section-num">2</div><div class="section-title">Company &amp; Customer</div></div>
+            <div style="display:flex;align-items:center;"><div class="section-meta">RR Mechanical</div><div class="chevron">&#9660;</div></div>
+          </div>
+          <div class="section-content"></div>
+        </div>
+        <div class="section">
+          <div class="section-header">
+            <div style="display:flex;align-items:center;"><div class="section-num">3</div><div class="section-title">Labor Items</div></div>
+            <div style="display:flex;align-items:center;"><div class="section-meta">2 items &middot; $1,540</div><div class="chevron">&#9660;</div></div>
+          </div>
+          <div class="section-content"></div>
+        </div>
+        <div class="section">
+          <div class="section-header">
+            <div style="display:flex;align-items:center;"><div class="section-num">4</div><div class="section-title">Material Items</div></div>
+            <div style="display:flex;align-items:center;"><div class="section-meta">1 item &middot; $2,400</div><div class="chevron">&#9660;</div></div>
+          </div>
+          <div class="section-content"></div>
+        </div>
+        <div class="section">
+          <div class="section-header">
+            <div style="display:flex;align-items:center;"><div class="section-num">5</div><div class="section-title">Equipment Items</div></div>
+            <div style="display:flex;align-items:center;"><div class="section-meta">1 item &middot; $350</div><div class="chevron">&#9660;</div></div>
+          </div>
+          <div class="section-content"></div>
+        </div>
+        <div class="section open">
+          <div class="section-header">
+            <div style="display:flex;align-items:center;"><div class="section-num">6</div><div class="section-title">Summary &amp; Pricing</div></div>
+            <div style="display:flex;align-items:center;"><div class="chevron">&#9660;</div></div>
+          </div>
+          <div class="section-content">
+            <div class="summary-row total"><span class="label">Grand Total</span><span class="value">$5,287.58</span></div>
+          </div>
+        </div>
+        <div class="section">
+          <div class="section-header">
+            <div style="display:flex;align-items:center;"><div class="section-num">7</div><div class="section-title">Photos</div></div>
+            <div style="display:flex;align-items:center;"><div class="section-meta">2 / 30</div><div class="chevron">&#9660;</div></div>
+          </div>
+          <div class="section-content"></div>
+        </div>
+        <div class="section">
+          <div class="section-header">
+            <div style="display:flex;align-items:center;"><div class="section-num">8</div><div class="section-title">Signatures</div></div>
+            <div style="display:flex;align-items:center;"><div class="section-meta">2 captured</div><div class="chevron">&#9660;</div></div>
+          </div>
+          <div class="section-content"></div>
+        </div>
+      </div>
+      <div class="flyout-footer">
+        <button class="btn btn-ghost">Cancel</button>
+        <button class="btn btn-primary">Save Changes</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ================================================================ -->
+<!-- WF-6: LABOR LINE-ITEM EDITOR (standalone)                         -->
+<!-- ================================================================ -->
+<div class="wireframe" id="wf-labor">
+  <div class="wf-label">WF-6 &middot; WO-2</div>
+  <div class="wf-title">Labor Line-Item Editor</div>
+  <div class="wf-desc">Repeating-row editor with Trade Level picker, hour type columns (ST/OT/DT), auto-populated rates, and calculated totals.</div>
+
+  <div style="max-width:960px;margin:0 auto;">
+    <div class="line-editor" style="font-size:12px;">
+      <div class="line-editor-header labor-grid" style="font-size:9px;">
+        <div>Trade Level</div><div>Description</div><div style="text-align:right;">ST Hrs</div><div style="text-align:right;">OT Hrs</div><div style="text-align:right;">DT Hrs</div><div style="text-align:right;">Rate</div><div style="text-align:right;">OT Rate</div><div style="text-align:right;">DT Rate</div><div style="text-align:right;">Total</div><div></div>
+      </div>
+      <div class="line-row labor-grid">
+        <div class="line-cell"><select class="form-input" style="padding:4px 6px;font-size:11px;"><option>Journeyman</option><option>Apprentice</option><option>Foreman</option><option>Master</option></select></div>
+        <div class="line-cell"><input value="Mike S. — condenser swap" style="font-size:11px;"></div>
+        <div class="line-cell"><input value="8.0" style="text-align:right;font-size:11px;"></div>
+        <div class="line-cell"><input value="2.0" style="text-align:right;font-size:11px;"></div>
+        <div class="line-cell"><input value="0" style="text-align:right;font-size:11px;"></div>
+        <div class="line-cell"><div class="value" style="text-align:right;">$85.00</div></div>
+        <div class="line-cell"><div class="value" style="text-align:right;">$127.50</div></div>
+        <div class="line-cell"><div class="value" style="text-align:right;">$170.00</div></div>
+        <div class="line-cell"><div class="value" style="text-align:right;color:var(--primary);">$935.00</div></div>
+        <div class="line-cell"><button class="line-delete">&times;</button></div>
+      </div>
+      <div class="line-row labor-grid">
+        <div class="line-cell"><select class="form-input" style="padding:4px 6px;font-size:11px;"><option>Apprentice</option></select></div>
+        <div class="line-cell"><input value="Jesse T. — assist" style="font-size:11px;"></div>
+        <div class="line-cell"><input value="8.0" style="text-align:right;font-size:11px;"></div>
+        <div class="line-cell"><input value="2.0" style="text-align:right;font-size:11px;"></div>
+        <div class="line-cell"><input value="0" style="text-align:right;font-size:11px;"></div>
+        <div class="line-cell"><div class="value" style="text-align:right;">$55.00</div></div>
+        <div class="line-cell"><div class="value" style="text-align:right;">$82.50</div></div>
+        <div class="line-cell"><div class="value" style="text-align:right;">$110.00</div></div>
+        <div class="line-cell"><div class="value" style="text-align:right;color:var(--primary);">$605.00</div></div>
+        <div class="line-cell"><button class="line-delete">&times;</button></div>
+      </div>
+      <div class="line-row labor-grid" style="background:var(--white);">
+        <div class="line-cell"><select class="form-input" style="padding:4px 6px;font-size:11px;color:var(--gray-400);"><option>Select trade level...</option></select></div>
+        <div class="line-cell"><input placeholder="Worker name or description" style="font-size:11px;"></div>
+        <div class="line-cell"><input placeholder="0" style="text-align:right;font-size:11px;"></div>
+        <div class="line-cell"><input placeholder="0" style="text-align:right;font-size:11px;"></div>
+        <div class="line-cell"><input placeholder="0" style="text-align:right;font-size:11px;"></div>
+        <div class="line-cell"><div class="value" style="text-align:right;color:var(--gray-300);">—</div></div>
+        <div class="line-cell"><div class="value" style="text-align:right;color:var(--gray-300);">—</div></div>
+        <div class="line-cell"><div class="value" style="text-align:right;color:var(--gray-300);">—</div></div>
+        <div class="line-cell"><div class="value" style="text-align:right;color:var(--gray-300);">$0.00</div></div>
+        <div class="line-cell"><button class="line-delete" style="visibility:hidden;">&times;</button></div>
+      </div>
+      <div class="line-add"><button>+ Add Labor Item</button></div>
+      <div class="line-subtotal"><span class="label">Labor Subtotal (2 items)</span><span class="amount">$1,540.00</span></div>
+    </div>
+    <div style="margin-top:12px;padding:12px 16px;background:var(--info-light);border-radius:var(--radius-md);font-size:12px;color:#0e7490;">
+      <strong>Auto-pricing:</strong> Rates are pulled from the Trade Level configuration. When a trade level is selected, ST Rate, OT Rate (1.5&times;), and DT Rate (2&times;) auto-populate. Line totals recalculate on every hour change.
+    </div>
+  </div>
+</div>
+
+<!-- ================================================================ -->
+<!-- WF-7: MATERIAL LINE-ITEM EDITOR                                   -->
+<!-- ================================================================ -->
+<div class="wireframe" id="wf-material">
+  <div class="wf-label">WF-7 &middot; WO-2</div>
+  <div class="wf-title">Material Line-Item Editor</div>
+  <div class="wf-desc">Material catalog combobox with unit of measure, quantity, and unit cost. Same add/remove pattern as labor.</div>
+
+  <div style="max-width:700px;margin:0 auto;">
+    <div class="line-editor">
+      <div class="line-editor-header material-grid">
+        <div>Material</div><div>UoM</div><div style="text-align:right;">Qty</div><div style="text-align:right;">Unit Cost</div><div style="text-align:right;">Total</div><div></div>
+      </div>
+      <div class="line-row material-grid">
+        <div class="line-cell"><input value="5-ton condenser unit" style="font-size:11px;"></div>
+        <div class="line-cell"><input value="Each" style="font-size:11px;"></div>
+        <div class="line-cell"><input value="1" style="text-align:right;font-size:11px;"></div>
+        <div class="line-cell"><input value="$2,400.00" style="text-align:right;font-size:11px;"></div>
+        <div class="line-cell"><div class="value" style="text-align:right;color:var(--primary);">$2,400.00</div></div>
+        <div class="line-cell"><button class="line-delete">&times;</button></div>
+      </div>
+      <div class="line-row material-grid">
+        <div class="line-cell"><input value="Copper refrigerant line set" style="font-size:11px;"></div>
+        <div class="line-cell"><input value="LF" style="font-size:11px;"></div>
+        <div class="line-cell"><input value="40" style="text-align:right;font-size:11px;"></div>
+        <div class="line-cell"><input value="$12.50" style="text-align:right;font-size:11px;"></div>
+        <div class="line-cell"><div class="value" style="text-align:right;color:var(--primary);">$500.00</div></div>
+        <div class="line-cell"><button class="line-delete">&times;</button></div>
+      </div>
+      <div class="line-row material-grid">
+        <div class="line-cell"><input value="R-410A refrigerant" style="font-size:11px;"></div>
+        <div class="line-cell"><input value="LB" style="font-size:11px;"></div>
+        <div class="line-cell"><input value="15" style="text-align:right;font-size:11px;"></div>
+        <div class="line-cell"><input value="$18.00" style="text-align:right;font-size:11px;"></div>
+        <div class="line-cell"><div class="value" style="text-align:right;color:var(--primary);">$270.00</div></div>
+        <div class="line-cell"><button class="line-delete">&times;</button></div>
+      </div>
+      <div class="line-add"><button>+ Add Material Item</button></div>
+      <div class="line-subtotal"><span class="label">Material Subtotal (3 items)</span><span class="amount">$3,170.00</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- ================================================================ -->
+<!-- WF-8: EQUIPMENT LINE-ITEM EDITOR                                  -->
+<!-- ================================================================ -->
+<div class="wireframe" id="wf-equipment">
+  <div class="wf-label">WF-8 &middot; WO-2</div>
+  <div class="wf-title">Equipment Line-Item Editor</div>
+  <div class="wf-desc">Equipment catalog combobox with pieces, unit of measure, and rate. Linked to Appello's equipment module.</div>
+
+  <div style="max-width:700px;margin:0 auto;">
+    <div class="line-editor">
+      <div class="line-editor-header equipment-grid">
+        <div>Equipment</div><div style="text-align:right;">Pieces</div><div>UoM</div><div style="text-align:right;">Rate</div><div style="text-align:right;">Total</div><div></div>
+      </div>
+      <div class="line-row equipment-grid">
+        <div class="line-cell"><input value="Crane — 20 ton mobile" style="font-size:11px;"></div>
+        <div class="line-cell"><input value="1" style="text-align:right;font-size:11px;"></div>
+        <div class="line-cell"><input value="Day" style="font-size:11px;"></div>
+        <div class="line-cell"><input value="$350.00" style="text-align:right;font-size:11px;"></div>
+        <div class="line-cell"><div class="value" style="text-align:right;color:var(--primary);">$350.00</div></div>
+        <div class="line-cell"><button class="line-delete">&times;</button></div>
+      </div>
+      <div class="line-row equipment-grid">
+        <div class="line-cell"><input value="Scissor lift" style="font-size:11px;"></div>
+        <div class="line-cell"><input value="1" style="text-align:right;font-size:11px;"></div>
+        <div class="line-cell"><input value="Day" style="font-size:11px;"></div>
+        <div class="line-cell"><input value="$175.00" style="text-align:right;font-size:11px;"></div>
+        <div class="line-cell"><div class="value" style="text-align:right;color:var(--primary);">$175.00</div></div>
+        <div class="line-cell"><button class="line-delete">&times;</button></div>
+      </div>
+      <div class="line-add"><button>+ Add Equipment Item</button></div>
+      <div class="line-subtotal"><span class="label">Equipment Subtotal (2 items)</span><span class="amount">$525.00</span></div>
+    </div>
+  </div>
+</div>
+
+<script>
+document.querySelectorAll('.canvas-nav button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.canvas-nav button').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.wireframe').forEach(w => w.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById(btn.dataset.wf).classList.add('active');
+  });
+});
+document.querySelectorAll('.section-header').forEach(hdr => {
+  hdr.addEventListener('click', () => {
+    hdr.closest('.section').classList.toggle('open');
+  });
+});
+</script>
+</body>
+</html>

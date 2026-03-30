@@ -1,0 +1,302 @@
+{
+    "featureId": "UIS-20",
+    "featureTitle": "T&M Work Orders & Change Order Log",
+    "featureSlug": "tm-work-orders",
+    "parentUIS": "uis-20-tm-work-orders.html",
+    "totalComplexityScore": 71,
+    "estimatedDays": 40,
+    "prerequisite": "Emma's Job DataModel refactor (task/Q21030-11271/job-project-optional) merged",
+    "hamburgers": [
+        {
+            "slug": "wo-1-job-type-config",
+            "sequenceNumber": 1,
+            "title": "WO-1: Job Type-Specific Configuration",
+            "description": "Extend the Job DataModel so different jobType values trigger different form configurations, status workflows, and UI behavior. Add isWorkOrder flag, WO-specific PropertyValue seeds, and DataModel form configurations.",
+            "predecessors": [],
+            "hasUiInterfaces": true,
+            "complexityScore": 7,
+            "estimatedDays": 4,
+            "changeSurface": {
+                "new": [
+                    "apps/api/prisma/migrations/YYYYMMDDHHMMSS_add_work_order_fields/migration.sql"
+                ],
+                "modified": [
+                    "apps/api/prisma/schema.prisma",
+                    "apps/api/src/models/Job.ts",
+                    "apps/api/src/graphql/models/Job.ts",
+                    "apps/frontend/src/pages/jobs/index.tsx",
+                    "apps/frontend/src/components/Forms/JobAddEditForm/JobDataModelForm.tsx"
+                ],
+                "deleted": []
+            },
+            "acceptanceCriteria": [
+                "JobType 'T&M Work Order' available in PropertyValue seed data",
+                "Selecting WO type on job creation sets isWorkOrder = true on the Job record",
+                "WO-specific status workflow loaded: Draft, Submitted, Awaiting Signature, Signed, Approved, Invoiced, Void",
+                "DataModel forms for WO jobType are distinct from standard Job forms",
+                "Job list page has filter/toggle for All Jobs / Project Jobs / Work Orders",
+                "Work Orders can be created without a project (projectId optional)",
+                "Filter persists across page navigations within session"
+            ],
+            "uis": "uis-20a-job-type-config.html"
+        },
+        {
+            "slug": "wo-2-line-item-tables",
+            "sequenceNumber": 2,
+            "title": "WO-2: Work Order Line Item Tables",
+            "description": "New Prisma models for structured labor, material, and equipment line items on Work Order jobs, with auto-pricing from existing rate tables (TradeLevel, Material, Equipment catalogs).",
+            "predecessors": ["wo-1-job-type-config"],
+            "hasUiInterfaces": true,
+            "complexityScore": 11,
+            "estimatedDays": 5,
+            "changeSurface": {
+                "new": [
+                    "apps/api/prisma/migrations/YYYYMMDDHHMMSS_add_work_order_line_items/migration.sql",
+                    "apps/api/src/models/WorkOrderLaborItem.ts",
+                    "apps/api/src/models/WorkOrderMaterialItem.ts",
+                    "apps/api/src/models/WorkOrderEquipmentItem.ts",
+                    "apps/api/src/graphql/models/WorkOrderLineItems.ts",
+                    "apps/frontend/src/components/Forms/WorkOrderLineItems/WorkOrderLaborItemEditor.tsx",
+                    "apps/frontend/src/components/Forms/WorkOrderLineItems/WorkOrderMaterialItemEditor.tsx",
+                    "apps/frontend/src/components/Forms/WorkOrderLineItems/WorkOrderEquipmentItemEditor.tsx",
+                    "apps/frontend/src/components/Forms/WorkOrderLineItems/index.ts",
+                    "apps/frontend/src/graphql/queries/workOrderLineItems.graphql",
+                    "apps/frontend/src/graphql/mutations/workOrderLineItems.graphql"
+                ],
+                "modified": [
+                    "apps/api/prisma/schema.prisma",
+                    "apps/api/src/graphql/schema.ts"
+                ],
+                "deleted": []
+            },
+            "acceptanceCriteria": [
+                "Labor line item has trade level combobox, description, ST/OT/DT hours, auto-populated rate, auto-calculated total",
+                "Changing trade level auto-populates base rate, OT rate (1.5x), DT rate (2x) from TradeLevel + WageRegion",
+                "Material line item has material combobox, description, quantity, auto-populated unit cost, auto-calculated total",
+                "Equipment line item has equipment combobox, description, hours, auto-populated rate, auto-calculated total",
+                "Multiple line items supported per category (repeating rows with add/remove)",
+                "Line items are reorderable with drag handles and persisted orderNo",
+                "Auto-pricing service correctly resolves rates from TradeLevel, Material catalog, and Equipment catalog",
+                "All monetary values stored as Decimal(10,2)"
+            ],
+            "uis": "uis-20b-line-item-tables.html"
+        },
+        {
+            "slug": "wo-3-create-edit-form",
+            "sequenceNumber": 3,
+            "title": "WO-3: Work Order Create/Edit Form",
+            "description": "Custom Tier 2 form for creating/editing T&M Work Orders as Jobs, opened in a full vertical Flyout, with embedded line item editors, photo upload, and signature capture.",
+            "predecessors": ["wo-1-job-type-config", "wo-2-line-item-tables"],
+            "hasUiInterfaces": true,
+            "complexityScore": 11,
+            "estimatedDays": 6,
+            "changeSurface": {
+                "new": [
+                    "apps/frontend/src/components/Forms/WorkOrderForm/WorkOrderForm.tsx",
+                    "apps/frontend/src/components/Forms/WorkOrderForm/validation.ts",
+                    "apps/frontend/src/components/Forms/WorkOrderForm/types.ts"
+                ],
+                "modified": [],
+                "deleted": []
+            },
+            "acceptanceCriteria": [
+                "New Work Order button opens flyout with WorkOrderForm (full vertical flyout with overflow override)",
+                "Form sections: Info, Company/Customer, Labor Items, Material Items, Equipment Items, Summary, Photos, Signatures",
+                "WO Number auto-sequenced per job or globally",
+                "Save Draft button saves WO in Draft status; draft WOs appear in WO Log with Draft badge",
+                "Photo section supports multiple file uploads with camera launch on mobile",
+                "Signature pad captures field worker signature with geolocation coordinates and timestamp",
+                "Optional second signature pad for customer/GC signature",
+                "Edit mode opens same form pre-populated; Signed/Approved WOs are read-only",
+                "Summary auto-calculates: subtotals, markup, overhead, tax, grand total"
+            ],
+            "uis": "uis-20c-create-edit-form.html"
+        },
+        {
+            "slug": "wo-4-detail-page",
+            "sequenceNumber": 4,
+            "title": "WO-4: Work Order Detail Page",
+            "description": "Enhanced Job detail page with WO-specific tabs (Overview, Line Items, Signatures, Files, Settings) and header actions (Convert to CO, Generate Invoice, Print PDF) when isWorkOrder is true.",
+            "predecessors": ["wo-1-job-type-config", "wo-2-line-item-tables", "wo-3-create-edit-form"],
+            "hasUiInterfaces": true,
+            "complexityScore": 9,
+            "estimatedDays": 5,
+            "changeSurface": {
+                "new": [
+                    "apps/frontend/src/components/DetailsPage/JobDetailsPage/Tabs/WorkOrderOverview/index.tsx",
+                    "apps/frontend/src/components/DetailsPage/JobDetailsPage/Tabs/WorkOrderLineItems/index.tsx",
+                    "apps/frontend/src/components/DetailsPage/JobDetailsPage/Tabs/WorkOrderSignatures/index.tsx"
+                ],
+                "modified": [
+                    "apps/frontend/src/components/DetailsPage/JobDetailsPage/index.tsx",
+                    "apps/frontend/src/pages/jobs/[id]/index.tsx"
+                ],
+                "deleted": []
+            },
+            "acceptanceCriteria": [
+                "WO detail page uses existing DetailsPageWrapper + DetailsPageTabs layout",
+                "Tab ordering: Overview, Line Items, Signatures, Files, Settings",
+                "Overview shows summary cards: Total Value, Labor Hours, Material Cost, Equipment Cost, Status, Date of Work",
+                "Status badge shows WO-specific status with allowed workflow transitions",
+                "Print PDF button generates professional PDF with company logo, line items, totals, signatures",
+                "Convert to CO button visible when status >= Signed (opens confirmation modal)",
+                "Generate Invoice button visible when status = Approved (opens confirmation modal)"
+            ],
+            "uis": "uis-20d-detail-page.html"
+        },
+        {
+            "slug": "wo-5-tm-log",
+            "sequenceNumber": 5,
+            "title": "WO-5: T&M Work Order Log Dashboard",
+            "description": "New portfolio-wide list page at /work-orders showing all Work Order-type jobs with labor hours summary matrix, status overview panels, and ListTableViews table.",
+            "predecessors": ["wo-1-job-type-config", "wo-3-create-edit-form"],
+            "hasUiInterfaces": true,
+            "complexityScore": 8,
+            "estimatedDays": 5,
+            "changeSurface": {
+                "new": [
+                    "apps/frontend/src/pages/work-orders/index.tsx",
+                    "apps/frontend/src/components/WorkOrderLog/WorkOrderLog.tsx",
+                    "apps/frontend/src/components/WorkOrderLog/WorkOrderLaborHoursSummary.tsx",
+                    "apps/frontend/src/components/WorkOrderLog/WorkOrderStatusOverview.tsx",
+                    "apps/api/prisma/views/WorkOrderListFeed.sql",
+                    "apps/api/src/graphql/models/WorkOrderLog.ts",
+                    "apps/frontend/src/graphql/queries/workOrderLogSummary.graphql"
+                ],
+                "modified": [
+                    "apps/api/src/graphql/models/TableFeed/types.ts",
+                    "apps/api/src/graphql/schema.ts",
+                    "apps/frontend/src/lib/routes.ts",
+                    "apps/frontend/src/lib/static-data/staticSideBarData.ts"
+                ],
+                "deleted": []
+            },
+            "acceptanceCriteria": [
+                "New page at /work-orders accessible from sidebar navigation",
+                "Top summary panels: Labor Hours Summary matrix (status x hour type) and Status Overview (count + $ by status)",
+                "ListTableViews table with columns: WO#, Title, Customer Ref, Date, Company, Project, Status, Total Value",
+                "Click row navigates to WO detail page",
+                "Search by WO number, title, customer reference",
+                "Filter by project, company, status, date range",
+                "Export to CSV with all visible columns respecting current filters",
+                "New Work Order button opens WO-3 create form in flyout"
+            ],
+            "uis": "uis-20e-tm-log.html"
+        },
+        {
+            "slug": "wo-6-co-log",
+            "sequenceNumber": 6,
+            "title": "WO-6: Change Order Log Dashboard",
+            "description": "New portfolio-wide page at /change-order-log aggregating all EstimateChangeOrderRecords with contract summary, status breakdown, aging metrics, and filterable table.",
+            "predecessors": [],
+            "hasUiInterfaces": true,
+            "complexityScore": 10,
+            "estimatedDays": 6,
+            "changeSurface": {
+                "new": [
+                    "apps/frontend/src/pages/change-order-log/index.tsx",
+                    "apps/frontend/src/components/ChangeOrderLog/ChangeOrderLog.tsx",
+                    "apps/frontend/src/components/ChangeOrderLog/ContractSummaryPanel.tsx",
+                    "apps/frontend/src/components/ChangeOrderLog/StatusSummaryPanel.tsx",
+                    "apps/frontend/src/components/ChangeOrderLog/ChangeOrderOverviewMetrics.tsx",
+                    "apps/api/prisma/views/ChangeOrderLogFeed.sql",
+                    "apps/api/src/graphql/models/ChangeOrderLog.ts",
+                    "apps/frontend/src/graphql/queries/changeOrderLogSummary.graphql"
+                ],
+                "modified": [
+                    "apps/api/prisma/schema.prisma",
+                    "apps/api/src/graphql/schema.ts",
+                    "apps/frontend/src/lib/routes.ts",
+                    "apps/frontend/src/lib/static-data/staticSideBarData.ts"
+                ],
+                "deleted": []
+            },
+            "acceptanceCriteria": [
+                "New page at /change-order-log accessible from sidebar navigation",
+                "Contract Summary panel: Original Contract Value, Approved CO Value, Pending, In Review, Void",
+                "Status Summary: color-coded $ amounts by status (Won, Lost, Pending, Contemplated, Draft)",
+                "Overview metrics: Count by status, Average Days in Review, Average Requested Value",
+                "ListTableViews table: CO#, Title, Date Submitted, Requested Amount, Company, Project, Status, Days in Review",
+                "Click row navigates to CO detail page (existing EstimateChangeOrderDetails)",
+                "Filter by project, company, status, date range",
+                "Export CSV and PDF with summary panels + table respecting active filters",
+                "statusChangedAt column added to EstimateChangeOrderRecord for aging calculation"
+            ],
+            "uis": "uis-20f-co-log.html"
+        },
+        {
+            "slug": "wo-7-conversion",
+            "sequenceNumber": 7,
+            "title": "WO-7: WO to CO/Invoice Conversion",
+            "description": "One-click conversion from an approved Work Order to either a Change Order (EstimateChangeOrderRecord) or an Invoice (JobBill), with line items pre-populated from WO data.",
+            "predecessors": ["wo-2-line-item-tables", "wo-4-detail-page"],
+            "hasUiInterfaces": true,
+            "complexityScore": 6,
+            "estimatedDays": 4,
+            "changeSurface": {
+                "new": [
+                    "apps/api/src/graphql/models/WorkOrderConversion.ts",
+                    "apps/frontend/src/graphql/mutations/workOrderConversion.graphql"
+                ],
+                "modified": [
+                    "apps/api/prisma/schema.prisma",
+                    "apps/api/src/models/Job.ts",
+                    "apps/api/src/graphql/schema.ts"
+                ],
+                "deleted": []
+            },
+            "acceptanceCriteria": [
+                "Convert to CO mutation creates EstimateChangeOrderRecord linked to WO's job with bid from grand total",
+                "CO line items populated from WO labor/material/equipment items",
+                "CO statusId set to initial CO status; linked back to source WO via sourceWorkOrderJobId",
+                "Generate Invoice mutation creates JobBill with line items from WO data",
+                "Invoice total matches WO grand total; linked back to source WO",
+                "WO detail page shows Converted to CO badge with link after conversion",
+                "Conversion buttons disabled/hidden after conversion completes"
+            ],
+            "uis": "uis-20g-conversion.html"
+        },
+        {
+            "slug": "wo-8-mobile-creation",
+            "sequenceNumber": 8,
+            "title": "WO-8: Mobile Work Order Creation",
+            "description": "Enable field workers to create T&M Work Orders from the Appello mobile app (PWA), with simplified multi-step form, camera-based photo capture, touch signature, and draft management.",
+            "predecessors": ["wo-1-job-type-config", "wo-2-line-item-tables", "wo-3-create-edit-form"],
+            "hasUiInterfaces": true,
+            "complexityScore": 9,
+            "estimatedDays": 6,
+            "changeSurface": {
+                "new": [
+                    "apps/mobile/src/pages/job-sites/[id]/work-order/new.tsx",
+                    "apps/mobile/src/components/WorkOrderForm/MobileWorkOrderForm.tsx",
+                    "apps/mobile/src/components/WorkOrderForm/steps/DateInfoStep.tsx",
+                    "apps/mobile/src/components/WorkOrderForm/steps/LaborStep.tsx",
+                    "apps/mobile/src/components/WorkOrderForm/steps/MaterialStep.tsx",
+                    "apps/mobile/src/components/WorkOrderForm/steps/EquipmentStep.tsx",
+                    "apps/mobile/src/components/WorkOrderForm/steps/PhotoStep.tsx",
+                    "apps/mobile/src/components/WorkOrderForm/steps/SignatureStep.tsx",
+                    "apps/mobile/src/components/SelectionSlideups/TradeLevelSelectionModal.tsx",
+                    "apps/mobile/src/components/SelectionSlideups/MaterialSelectionModal.tsx",
+                    "apps/mobile/src/components/SelectionSlideups/EquipmentSelectionModal.tsx"
+                ],
+                "modified": [
+                    "apps/mobile/src/components/JobViews/SimplifiedJobTasks.tsx",
+                    "apps/mobile/src/components/SelectionSlideups/index.ts"
+                ],
+                "deleted": []
+            },
+            "acceptanceCriteria": [
+                "Mobile WO creation accessible from job site detail page via + Work Order action",
+                "Multi-step form: Date/Info, Labor Items, Material Items, Equipment Items, Photos, Signatures",
+                "Trade level/material/equipment selection via SelectionSlideup modals (60px touch targets)",
+                "Auto-pricing from rate tables on selection (no manual rate entry needed)",
+                "Camera launch for photo capture with thumbnail preview (max 5 photos)",
+                "Touch-based signature canvas for field worker and optional customer signature with geolocation",
+                "Multiple WO drafts can be open simultaneously (no single-ticket limitation)",
+                "Supervisor notification on WO submission",
+                "ProgressionBar shows step progress; fixed bottom Next/Submit button"
+            ],
+            "uis": "uis-20h-mobile-creation.html"
+        }
+    ]
+}

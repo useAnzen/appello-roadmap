@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>UIS-20h: Mobile Work Order Creation</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Inter', -apple-system, sans-serif; background: #f1f5f9; color: #0f172a; }
+.uis-wrap { max-width: 960px; margin: 0 auto; padding: 40px 24px 80px; }
+.uis-hero { margin-bottom: 32px; }
+.uis-badges { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+.uis-badge { font-size: 11px; font-weight: 700; padding: 4px 12px; border-radius: 6px; display: inline-flex; align-items: center; gap: 5px; }
+.badge-q { background: #0f172a; color: #fff; }
+.badge-lane { background: #10b981; color: #fff; }
+.badge-status { background: #fef3c7; color: #92400e; }
+.badge-priority { background: #fee2e2; color: #dc2626; }
+.badge-child { background: #7c3aed; color: #fff; }
+.uis-h1 { font-size: 30px; font-weight: 800; color: #0f172a; margin: 0 0 8px; letter-spacing: -0.01em; }
+.uis-sub { font-size: 15px; color: #64748b; line-height: 1.5; margin: 0; }
+.uis-meta { display: flex; gap: 24px; flex-wrap: wrap; margin-top: 14px; font-size: 13px; color: #64748b; }
+.uis-meta strong { color: #0f172a; }
+.uis-toc { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px 28px; margin-bottom: 16px; }
+.uis-toc h3 { font-size: 13px; font-weight: 700; color: #0f172a; margin: 0 0 10px; text-transform: uppercase; letter-spacing: 0.5px; }
+.uis-toc ol { margin: 0; padding-left: 20px; }
+.uis-toc li { font-size: 14px; color: #3b82f6; margin-bottom: 4px; }
+.uis-toc a { color: #3b82f6; text-decoration: none; }
+.uis-section { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px 28px; margin-bottom: 16px; }
+.uis-section h2 { font-size: 17px; font-weight: 700; color: #0f172a; margin: 0 0 14px; padding-bottom: 10px; border-bottom: 2px solid #e2e8f0; }
+.uis-section h3 { font-size: 15px; font-weight: 700; color: #0f172a; margin: 16px 0 8px; }
+.uis-section p, .uis-section li { font-size: 14px; color: #334155; line-height: 1.65; }
+.uis-section ul, .uis-section ol { padding-left: 20px; margin: 8px 0; }
+.customer-quote { background: #fef3c7; border-left: 3px solid #f59e0b; padding: 12px 16px; border-radius: 0 8px 8px 0; margin: 14px 0; font-style: italic; font-size: 14px; color: #92400e; }
+.customer-quote .attribution { font-style: normal; font-weight: 600; display: block; margin-top: 6px; }
+.competitor-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin: 12px 0; }
+.competitor-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px; }
+.competitor-card strong { font-size: 14px; color: #0f172a; display: block; margin-bottom: 4px; }
+.competitor-card span { font-size: 12px; color: #64748b; }
+.comp-status { font-size: 10px; font-weight: 700; text-transform: uppercase; padding: 2px 8px; border-radius: 4px; display: inline-block; margin-bottom: 6px; }
+.comp-has { background: #dcfce7; color: #166534; }
+.value-cards { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin: 12px 0; }
+.value-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px; }
+.value-card .v-icon { font-size: 20px; margin-bottom: 6px; }
+.value-card .v-title { font-size: 13px; font-weight: 700; color: #0f172a; margin-bottom: 4px; }
+.value-card .v-detail { font-size: 12px; color: #64748b; line-height: 1.5; }
+.jira-chip { display: inline-flex; padding: 4px 12px; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 6px; font-family: monospace; font-size: 11px; font-weight: 600; color: #3b82f6; margin-right: 6px; margin-bottom: 6px; }
+.scope-tag { display: inline-block; font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 5px; margin-right: 6px; }
+.scope-in { background: #dcfce7; color: #166534; }
+.scope-out { background: #fee2e2; color: #dc2626; }
+.mockup-container { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; margin: 14px 0; }
+.mockup-bar { background: #f1f5f9; padding: 8px 14px; font-size: 12px; font-weight: 600; color: #64748b; border-bottom: 1px solid #e2e8f0; display: flex; align-items: center; gap: 8px; }
+.mockup-dots { display: flex; gap: 5px; }
+.mockup-dot { width: 8px; height: 8px; border-radius: 50%; }
+.mockup-dot-r { background: #f87171; }
+.mockup-dot-y { background: #fbbf24; }
+.mockup-dot-g { background: #34d399; }
+.mockup-body { padding: 24px; min-height: 200px; font-size: 13px; color: #334155; line-height: 1.6; }
+.collapsible-toggle { display: flex; align-items: center; justify-content: space-between; cursor: pointer; user-select: none; }
+.collapsible-toggle .toggle-icon { font-size: 14px; color: #94a3b8; transition: transform 0.2s; }
+.collapsible-toggle.open .toggle-icon { transform: rotate(180deg); }
+.collapsible-body { display: none; margin-top: 14px; }
+.collapsible-body.open { display: block; }
+pre { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; overflow-x: auto; font-size: 13px; line-height: 1.5; font-family: monospace; color: #334155; }
+table.schema-table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 12px 0; }
+table.schema-table th { text-align: left; padding: 8px 12px; background: #f8fafc; border-bottom: 2px solid #e2e8f0; font-weight: 600; }
+table.schema-table td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; }
+table.schema-table code { font-family: monospace; background: #f1f5f9; padding: 1px 5px; border-radius: 3px; font-size: 12px; color: #7c3aed; }
+.blast-summary { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 16px 20px; margin-bottom: 16px; }
+.blast-row { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; }
+.blast-row:not(:last-child) { border-bottom: 1px solid #f1f5f9; }
+.blast-label { font-size: 13px; color: #64748b; }
+.blast-value { font-size: 13px; font-weight: 700; color: #0f172a; }
+.action-new { background: #dcfce7; color: #166534; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 4px; }
+.action-mod { background: #fef3c7; color: #92400e; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 4px; }
+.criteria-list { list-style: none; padding: 0; }
+.criteria-list li { padding: 8px 0; border-bottom: 1px solid #f1f5f9; display: flex; gap: 10px; align-items: flex-start; font-size: 14px; color: #334155; }
+.criteria-list li:last-child { border-bottom: none; }
+.criteria-check { width: 18px; height: 18px; border: 2px solid #cbd5e1; border-radius: 4px; flex-shrink: 0; margin-top: 1px; }
+.dep-tag { display: inline-block; font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 5px; margin-right: 6px; margin-bottom: 6px; text-decoration: none; }
+.dep-none { background: #dcfce7; color: #166534; }
+.dep-requires { background: #fef3c7; color: #92400e; }
+.dep-enables { background: #eff6ff; color: #1d4ed8; }
+.uis-footer { text-align: center; padding: 24px; font-size: 12px; color: #94a3b8; }
+.uis-footer a { color: #3b82f6; text-decoration: none; }
+.mockup-row { display: flex; gap: 8px; padding: 6px 0; border-bottom: 1px solid #f1f5f9; align-items: center; }
+.mockup-cell { flex: 1; }
+.mockup-header { font-weight: 700; background: #f1f5f9; padding: 8px; border-radius: 4px; margin-bottom: 4px; }
+.mockup-input { background: #fff; border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px 12px; color: #94a3b8; font-size: 12px; }
+.mockup-btn { display: inline-block; padding: 6px 14px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; border: none; }
+.mockup-btn-primary { background: #3b82f6; color: #fff; }
+.mockup-btn-success { background: #10b981; color: #fff; }
+.mockup-btn-outline { background: #fff; color: #3b82f6; border: 1px solid #3b82f6; }
+.mockup-badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 700; }
+.mockup-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px; }
+.mockup-metric { text-align: center; }
+.mockup-metric .metric-value { font-size: 24px; font-weight: 800; color: #0f172a; }
+.mockup-metric .metric-label { font-size: 11px; color: #64748b; margin-top: 4px; }
+.mobile-frame { max-width: 375px; margin: 0 auto; border: 2px solid #e2e8f0; border-radius: 24px; overflow: hidden; }
+.mobile-header { background: #0f172a; color: #fff; padding: 12px 16px; font-size: 14px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+.mobile-body { padding: 16px; background: #fff; min-height: 400px; }
+.mobile-footer { background: #0f172a; padding: 12px 16px; display: flex; justify-content: center; }
+.mobile-input { width: 100%; height: 52px; border: 1px solid #e2e8f0; border-radius: 10px; padding: 0 14px; font-size: 14px; margin-bottom: 12px; display: flex; align-items: center; color: #94a3b8; }
+.mobile-btn { width: 100%; padding: 14px; border-radius: 10px; font-size: 16px; font-weight: 600; text-align: center; border: none; }
+.mobile-btn-primary { background: #3b82f6; color: #fff; }
+.mobile-btn-success { background: #10b981; color: #fff; }
+.progress-bar { height: 4px; background: #e2e8f0; border-radius: 2px; margin-bottom: 16px; }
+.progress-fill { height: 100%; background: #3b82f6; border-radius: 2px; }
+</style>
+</head>
+<body>
+<div class="uis-wrap">
+
+    <div class="uis-hero">
+        <div class="uis-badges">
+            <span class="uis-badge badge-q">UIS-20h</span>
+            <span class="uis-badge badge-lane">Field Operations</span>
+            <span class="uis-badge badge-status">Draft</span>
+            <span class="uis-badge badge-priority">P0</span>
+            <span class="uis-badge badge-child">Child of UIS-20</span>
+        </div>
+        <h1 class="uis-h1">Mobile Work Order Creation</h1>
+        <p class="uis-sub">6-step mobile form enabling field workers to create complete T&amp;M work orders on-site — labor, materials, equipment, photos, and signatures — from their phones.</p>
+        <div class="uis-meta">
+            <span><strong>Author:</strong> Appello Product</span>
+            <span><strong>Created:</strong> 2026-03-30</span>
+            <span><strong>Parent:</strong> UIS-20</span>
+        </div>
+    </div>
+
+    <div class="uis-toc">
+        <h3>Contents</h3>
+        <ol>
+            <li><a href="#business-case">Business Case</a></li>
+            <li><a href="#scope">Scope</a></li>
+            <li><a href="#ui-concepts">UI Concepts</a></li>
+            <li><a href="#data-model">Data Model</a></li>
+            <li><a href="#api-surface">API Surface</a></li>
+            <li><a href="#change-surface">Change Surface</a></li>
+            <li><a href="#acceptance-criteria">Acceptance Criteria</a></li>
+            <li><a href="#dependencies">Dependencies</a></li>
+        </ol>
+    </div>
+
+    <!-- Section 1 -->
+    <div class="uis-section" id="business-case">
+        <h2 class="collapsible-toggle open" onclick="toggleSection(this)">1. Business Case <span class="toggle-icon">▼</span></h2>
+        <div class="collapsible-body open">
+            <p>Field workers need to create T&amp;M work orders <strong>on-site, from their phones</strong>, at the end of a shift or when extra work is performed. This is the single most critical mobile feature for T&amp;M workflow adoption. Without it, field data capture falls back to paper forms and WhatsApp photos — the exact problem Appello is solving.</p>
+            <p style="margin-top:10px;">Every customer interviewed uses some form of mobile field entry today — whether it's Clearstory's app, a custom form library, or paper. Appello must provide a native, purpose-built mobile WO creation experience.</p>
+
+            <h3>Customer Evidence</h3>
+            <div class="customer-quote">
+                "The work order has been submitted from the field. They go into the form library, grab the work order template, answer the questions, and submit. It's clunky but it works."
+                <span class="attribution">— Tear Systems</span>
+            </div>
+            <div class="customer-quote">
+                "Our supervisors use the form library as a workaround. They fill out the T&amp;M form with a supervisor PIN for sign-off. We need a proper work order flow."
+                <span class="attribution">— Pedersen Corp</span>
+            </div>
+            <div class="customer-quote">
+                "T&amp;M form accessible via mobile app for field workers to fill out at end of shift. That's the core requirement."
+                <span class="attribution">— AB Insulation</span>
+            </div>
+
+            <h3>Competitive Landscape</h3>
+            <div class="competitor-grid">
+                <div class="competitor-card">
+                    <span class="comp-status comp-has">HAS THIS</span>
+                    <strong>Clearstory</strong>
+                    <span>Full mobile T&amp;M entry with trade-level pickers, photo capture, and electronic signatures.</span>
+                </div>
+                <div class="competitor-card">
+                    <span class="comp-status comp-has">HAS THIS</span>
+                    <strong>Procore</strong>
+                    <span>Mobile T&amp;M ticket creation with labor, materials, and photo upload.</span>
+                </div>
+            </div>
+
+            <h3>Value Proposition</h3>
+            <div class="value-cards">
+                <div class="value-card">
+                    <div class="v-icon">📱</div>
+                    <div class="v-title">On-Site Capture</div>
+                    <div class="v-detail">Field workers create WOs from their phone — no more paper forms or WhatsApp photos.</div>
+                </div>
+                <div class="value-card">
+                    <div class="v-icon">✍️</div>
+                    <div class="v-title">Electronic Signatures</div>
+                    <div class="v-detail">Touch-based signature capture for worker and optional customer sign-off.</div>
+                </div>
+                <div class="value-card">
+                    <div class="v-icon">📷</div>
+                    <div class="v-title">Photo Documentation</div>
+                    <div class="v-detail">Camera-based photo capture attached directly to the work order record.</div>
+                </div>
+                <div class="value-card">
+                    <div class="v-icon">💾</div>
+                    <div class="v-title">Draft Management</div>
+                    <div class="v-detail">Save multiple concurrent drafts — start a WO, finish it later.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 2 -->
+    <div class="uis-section" id="scope">
+        <h2 class="collapsible-toggle open" onclick="toggleSection(this)">2. Scope <span class="toggle-icon">▼</span></h2>
+        <div class="collapsible-body open">
+            <h3>In Scope</h3>
+            <ul>
+                <li><span class="scope-tag scope-in">IN</span> 6-step mobile form: Date/Info, Labor, Materials, Equipment, Photos, Signatures</li>
+                <li><span class="scope-tag scope-in">IN</span> <code>SelectionSlideup</code> pickers for TradeLevel, Material, and Equipment selection</li>
+                <li><span class="scope-tag scope-in">IN</span> Camera-based photo capture (up to 5 photos per WO)</li>
+                <li><span class="scope-tag scope-in">IN</span> Touch-based signature canvas for worker and optional customer signatures</li>
+                <li><span class="scope-tag scope-in">IN</span> Draft management — save and resume multiple concurrent drafts</li>
+                <li><span class="scope-tag scope-in">IN</span> Auto-pricing based on selected trade levels and hour types</li>
+                <li><span class="scope-tag scope-in">IN</span> Supervisor notification on WO submission</li>
+            </ul>
+
+            <h3>Out of Scope</h3>
+            <ul>
+                <li><span class="scope-tag scope-out">OUT</span> Full offline mode with background sync (Phase 2)</li>
+                <li><span class="scope-tag scope-out">OUT</span> Barcode/QR scanning for materials</li>
+                <li><span class="scope-tag scope-out">OUT</span> Voice-to-text for description fields</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Section 3 -->
+    <div class="uis-section" id="ui-concepts">
+        <h2 class="collapsible-toggle open" onclick="toggleSection(this)">3. UI Concepts <span class="toggle-icon">▼</span></h2>
+        <div class="collapsible-body open">
+
+            <h3>Step 1: Date &amp; Info</h3>
+            <div class="mobile-frame">
+                <div class="mobile-header">
+                    <span style="font-size:18px;">←</span>
+                    Work Order
+                    <span style="flex:1;"></span>
+                    <span style="font-size:12px; opacity:0.7;">Step 1 of 6</span>
+                </div>
+                <div class="mobile-body">
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width:16.6%;"></div>
+                    </div>
+
+                    <div style="font-size:16px; font-weight:700; margin-bottom:16px;">Date &amp; Info</div>
+
+                    <div style="font-size:12px; font-weight:600; color:#64748b; margin-bottom:6px;">Date *</div>
+                    <div class="mobile-input">
+                        <span>📅</span>
+                        <span style="margin-left:8px;">March 30, 2026</span>
+                    </div>
+
+                    <div style="font-size:12px; font-weight:600; color:#64748b; margin-bottom:6px;">Customer Reference</div>
+                    <div class="mobile-input">
+                        <span style="color:#94a3b8;">Enter reference number...</span>
+                    </div>
+
+                    <div style="font-size:12px; font-weight:600; color:#64748b; margin-bottom:6px;">Company *</div>
+                    <div class="mobile-input" style="justify-content:space-between;">
+                        <span>Select Company</span>
+                        <span style="color:#0f172a;">›</span>
+                    </div>
+
+                    <div style="font-size:12px; font-weight:600; color:#64748b; margin-bottom:6px;">Description</div>
+                    <div class="mobile-input" style="height:80px; align-items:flex-start; padding-top:12px;">
+                        <span style="color:#94a3b8;">Describe the work performed...</span>
+                    </div>
+
+                    <div style="margin-top:20px;">
+                        <div class="mobile-btn mobile-btn-primary">Next →</div>
+                    </div>
+                </div>
+            </div>
+
+            <h3 style="margin-top:24px;">Step 2: Labor Items</h3>
+            <div class="mobile-frame">
+                <div class="mobile-header">
+                    <span style="font-size:18px;">←</span>
+                    Work Order
+                    <span style="flex:1;"></span>
+                    <span style="font-size:12px; opacity:0.7;">Step 2 of 6</span>
+                </div>
+                <div class="mobile-body">
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width:33.2%;"></div>
+                    </div>
+
+                    <div style="font-size:16px; font-weight:700; margin-bottom:16px;">Labor Items</div>
+
+                    <!-- Labor item card -->
+                    <div style="border:1px solid #e2e8f0; border-radius:10px; padding:14px; margin-bottom:12px;">
+                        <div style="font-size:12px; font-weight:600; color:#64748b; margin-bottom:6px;">Trade Level *</div>
+                        <div class="mobile-input" style="height:44px; justify-content:space-between;">
+                            <span style="color:#0f172a; font-weight:600;">Journeyman Insulator</span>
+                            <span style="color:#0f172a;">›</span>
+                        </div>
+
+                        <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:8px;">
+                            <div>
+                                <div style="font-size:11px; font-weight:600; color:#64748b; margin-bottom:4px;">ST Hours</div>
+                                <div class="mobile-input" style="height:44px; justify-content:center;">
+                                    <span style="color:#0f172a; font-weight:700;">8.0</span>
+                                </div>
+                            </div>
+                            <div>
+                                <div style="font-size:11px; font-weight:600; color:#64748b; margin-bottom:4px;">OT Hours</div>
+                                <div class="mobile-input" style="height:44px; justify-content:center;">
+                                    <span style="color:#0f172a; font-weight:700;">2.0</span>
+                                </div>
+                            </div>
+                            <div>
+                                <div style="font-size:11px; font-weight:600; color:#64748b; margin-bottom:4px;">DT Hours</div>
+                                <div class="mobile-input" style="height:44px; justify-content:center;">
+                                    <span style="color:#94a3b8;">0.0</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div style="display:flex; justify-content:space-between; margin-top:10px; padding-top:10px; border-top:1px solid #f1f5f9; font-size:12px;">
+                            <span style="color:#64748b;">Rate: $65.00/hr</span>
+                            <span style="font-weight:700; color:#0f172a;">Total: $715.00</span>
+                        </div>
+                    </div>
+
+                    <div style="border:1px dashed #e2e8f0; border-radius:10px; padding:14px; text-align:center; margin-bottom:16px;">
+                        <span style="font-size:14px; font-weight:600; color:#3b82f6;">+ Add Labor Item</span>
+                    </div>
+
+                    <div style="display:flex; gap:8px;">
+                        <div class="mobile-btn" style="flex:1; background:#f1f5f9; color:#0f172a;">← Back</div>
+                        <div class="mobile-btn mobile-btn-primary" style="flex:1;">Next →</div>
+                    </div>
+                </div>
+            </div>
+
+            <h3 style="margin-top:24px;">Step 5: Photos</h3>
+            <div class="mobile-frame">
+                <div class="mobile-header">
+                    <span style="font-size:18px;">←</span>
+                    Work Order
+                    <span style="flex:1;"></span>
+                    <span style="font-size:12px; opacity:0.7;">Step 5 of 6</span>
+                </div>
+                <div class="mobile-body">
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width:83%;"></div>
+                    </div>
+
+                    <div style="font-size:16px; font-weight:700; margin-bottom:16px;">Photos</div>
+
+                    <!-- Photo grid -->
+                    <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:8px; margin-bottom:16px;">
+                        <div style="aspect-ratio:1; background:#f1f5f9; border-radius:10px; display:flex; align-items:center; justify-content:center; border:1px solid #e2e8f0;">
+                            <div style="text-align:center;">
+                                <div style="font-size:24px;">🖼️</div>
+                                <div style="font-size:10px; color:#64748b; margin-top:4px;">IMG_001.jpg</div>
+                            </div>
+                        </div>
+                        <div style="aspect-ratio:1; background:#f1f5f9; border-radius:10px; display:flex; align-items:center; justify-content:center; border:1px solid #e2e8f0;">
+                            <div style="text-align:center;">
+                                <div style="font-size:24px;">🖼️</div>
+                                <div style="font-size:10px; color:#64748b; margin-top:4px;">IMG_002.jpg</div>
+                            </div>
+                        </div>
+                        <div style="aspect-ratio:1; background:#fff; border-radius:10px; display:flex; align-items:center; justify-content:center; border:2px dashed #e2e8f0;">
+                            <div style="text-align:center;">
+                                <div style="font-size:24px; color:#94a3b8;">+</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mobile-btn mobile-btn-primary" style="margin-bottom:8px;">📷 Upload Photos</div>
+                    <div style="text-align:center; font-size:12px; color:#94a3b8; margin-bottom:20px;">Maximum 5 photos</div>
+
+                    <div style="display:flex; gap:8px;">
+                        <div class="mobile-btn" style="flex:1; background:#f1f5f9; color:#0f172a;">← Back</div>
+                        <div class="mobile-btn mobile-btn-primary" style="flex:1;">Next →</div>
+                    </div>
+                </div>
+            </div>
+
+            <h3 style="margin-top:24px;">Step 6: Signatures</h3>
+            <div class="mobile-frame">
+                <div class="mobile-header">
+                    <span style="font-size:18px;">←</span>
+                    Work Order
+                    <span style="flex:1;"></span>
+                    <span style="font-size:12px; opacity:0.7;">Step 6 of 6</span>
+                </div>
+                <div class="mobile-body" style="min-height:480px;">
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width:100%;"></div>
+                    </div>
+
+                    <div style="font-size:16px; font-weight:700; margin-bottom:16px;">Signatures</div>
+
+                    <!-- Worker Signature -->
+                    <div style="font-size:12px; font-weight:600; color:#64748b; margin-bottom:6px;">Your Signature *</div>
+                    <div class="mobile-input">
+                        <span style="color:#94a3b8;">Print your name...</span>
+                    </div>
+                    <div style="width:100%; height:120px; border:2px dashed #e2e8f0; border-radius:10px; display:flex; align-items:center; justify-content:center; margin-bottom:16px;">
+                        <span style="font-size:13px; color:#94a3b8;">Tap to sign</span>
+                    </div>
+
+                    <!-- Customer Signature -->
+                    <div style="font-size:12px; font-weight:600; color:#64748b; margin-bottom:6px;">Customer Signature (optional)</div>
+                    <div class="mobile-input">
+                        <span style="color:#94a3b8;">Print customer name...</span>
+                    </div>
+                    <div style="width:100%; height:120px; border:2px dashed #e2e8f0; border-radius:10px; display:flex; align-items:center; justify-content:center; margin-bottom:20px;">
+                        <span style="font-size:13px; color:#94a3b8;">Tap to sign</span>
+                    </div>
+
+                    <div class="mobile-btn mobile-btn-success">Submit Work Order</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 4 -->
+    <div class="uis-section" id="data-model">
+        <h2 class="collapsible-toggle open" onclick="toggleSection(this)">4. Data Model <span class="toggle-icon">▼</span></h2>
+        <div class="collapsible-body open">
+            <p>No new Prisma schema changes are required. The mobile form consumes the same work order models established in WO-1 (Job with <code>jobType: WORK_ORDER</code>), WO-2 (WorkOrderLineItem), and WO-3 (WorkOrderSignature, Asset for photos).</p>
+
+            <h3>Shared Models Used</h3>
+            <table class="schema-table">
+                <thead>
+                    <tr><th>Model</th><th>Source</th><th>Mobile Usage</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td><code>Job</code></td><td>WO-1</td><td>Work order record (jobType = WORK_ORDER)</td></tr>
+                    <tr><td><code>WorkOrderLineItem</code></td><td>WO-2</td><td>Labor, material, and equipment line items</td></tr>
+                    <tr><td><code>WorkOrderSignature</code></td><td>WO-3</td><td>Worker and customer signatures</td></tr>
+                    <tr><td><code>Asset</code></td><td>Existing</td><td>Photo attachments via createAsset mutation</td></tr>
+                    <tr><td><code>TradeLevel</code></td><td>Existing</td><td>Trade level picker for labor items</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Section 5 -->
+    <div class="uis-section" id="api-surface">
+        <h2 class="collapsible-toggle open" onclick="toggleSection(this)">5. API Surface <span class="toggle-icon">▼</span></h2>
+        <div class="collapsible-body open">
+            <p>The mobile form uses the same GraphQL mutations as the desktop WO creation (WO-3). No new API endpoints are required.</p>
+
+            <h3>Mutations Used</h3>
+            <table class="schema-table">
+                <thead>
+                    <tr><th>Mutation</th><th>Source</th><th>Mobile Usage</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td><code>createWorkOrder</code></td><td>WO-3</td><td>Create the work order job record</td></tr>
+                    <tr><td><code>upsertWorkOrderLineItems</code></td><td>WO-3</td><td>Save labor, material, and equipment line items</td></tr>
+                    <tr><td><code>createAsset</code></td><td>Existing</td><td>Upload photos from camera</td></tr>
+                </tbody>
+            </table>
+
+            <h3>Queries Used</h3>
+            <table class="schema-table">
+                <thead>
+                    <tr><th>Query</th><th>Mobile Usage</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td><code>tradeLevels</code></td><td>Populate trade level picker in SelectionSlideup</td></tr>
+                    <tr><td><code>materials</code></td><td>Populate material picker in SelectionSlideup</td></tr>
+                    <tr><td><code>equipment</code></td><td>Populate equipment picker in SelectionSlideup</td></tr>
+                    <tr><td><code>companies</code></td><td>Populate company picker in SelectionSlideup</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Section 6 -->
+    <div class="uis-section" id="change-surface">
+        <h2 class="collapsible-toggle open" onclick="toggleSection(this)">6. Change Surface <span class="toggle-icon">▼</span></h2>
+        <div class="collapsible-body open">
+            <div class="blast-summary">
+                <div class="blast-row"><span class="blast-label">New Files</span><span class="blast-value">11</span></div>
+                <div class="blast-row"><span class="blast-label">Modified Files</span><span class="blast-value">2</span></div>
+                <div class="blast-row"><span class="blast-label">Deleted Files</span><span class="blast-value">0</span></div>
+            </div>
+
+            <h3>New Files</h3>
+            <ul>
+                <li><span class="action-new">NEW</span> <code>apps/mobile/src/pages/work-orders/create.tsx</code> — Mobile WO creation page</li>
+                <li><span class="action-new">NEW</span> <code>apps/mobile/src/components/WorkOrders/WorkOrderForm.tsx</code> — Multi-step form container</li>
+                <li><span class="action-new">NEW</span> <code>apps/mobile/src/components/WorkOrders/Steps/DateInfoStep.tsx</code> — Step 1: Date &amp; Info</li>
+                <li><span class="action-new">NEW</span> <code>apps/mobile/src/components/WorkOrders/Steps/LaborStep.tsx</code> — Step 2: Labor Items</li>
+                <li><span class="action-new">NEW</span> <code>apps/mobile/src/components/WorkOrders/Steps/MaterialsStep.tsx</code> — Step 3: Materials</li>
+                <li><span class="action-new">NEW</span> <code>apps/mobile/src/components/WorkOrders/Steps/EquipmentStep.tsx</code> — Step 4: Equipment</li>
+                <li><span class="action-new">NEW</span> <code>apps/mobile/src/components/WorkOrders/Steps/PhotosStep.tsx</code> — Step 5: Photos</li>
+                <li><span class="action-new">NEW</span> <code>apps/mobile/src/components/WorkOrders/Steps/SignaturesStep.tsx</code> — Step 6: Signatures</li>
+                <li><span class="action-new">NEW</span> <code>apps/mobile/src/components/WorkOrders/Pickers/TradeLevelPicker.tsx</code> — Trade level SelectionSlideup</li>
+                <li><span class="action-new">NEW</span> <code>apps/mobile/src/components/WorkOrders/Pickers/MaterialPicker.tsx</code> — Material SelectionSlideup</li>
+                <li><span class="action-new">NEW</span> <code>apps/mobile/src/components/WorkOrders/Pickers/EquipmentPicker.tsx</code> — Equipment SelectionSlideup</li>
+            </ul>
+
+            <h3>Modified Files</h3>
+            <ul>
+                <li><span class="action-mod">MOD</span> <code>apps/mobile/src/components/SimplifiedJobTasks.tsx</code> — Add WO creation entry point</li>
+                <li><span class="action-mod">MOD</span> <code>apps/mobile/src/components/SelectionSlideups/index.ts</code> — Export new picker components</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Section 7 -->
+    <div class="uis-section" id="acceptance-criteria">
+        <h2 class="collapsible-toggle open" onclick="toggleSection(this)">7. Acceptance Criteria <span class="toggle-icon">▼</span></h2>
+        <div class="collapsible-body open">
+            <ul class="criteria-list">
+                <li><div class="criteria-check"></div><span>User can navigate to work order creation from the mobile app and see a 6-step guided form.</span></li>
+                <li><div class="criteria-check"></div><span>Progress bar updates correctly as user advances through steps.</span></li>
+                <li><div class="criteria-check"></div><span>SelectionSlideup pickers for trade level, material, and equipment display correct options from the API.</span></li>
+                <li><div class="criteria-check"></div><span>Labor item auto-calculates total based on selected trade level rates and entered hours (ST/OT/DT).</span></li>
+                <li><div class="criteria-check"></div><span>User can capture up to 5 photos using the device camera and see thumbnails in the grid.</span></li>
+                <li><div class="criteria-check"></div><span>Touch-based signature canvas captures worker signature (required) and optional customer signature.</span></li>
+                <li><div class="criteria-check"></div><span>User can save a draft at any step and resume it later; multiple concurrent drafts are supported.</span></li>
+                <li><div class="criteria-check"></div><span>On submission, a notification is sent to the designated supervisor.</span></li>
+                <li><div class="criteria-check"></div><span>Form handles validation errors inline (required fields, minimum 1 labor item).</span></li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Section 8 -->
+    <div class="uis-section" id="dependencies">
+        <h2 class="collapsible-toggle open" onclick="toggleSection(this)">8. Dependencies <span class="toggle-icon">▼</span></h2>
+        <div class="collapsible-body open">
+            <p><strong>Parent:</strong> <a class="dep-tag dep-enables" href="uis-20-tm-work-orders.html">UIS-20 — T&amp;M Work Orders</a></p>
+            <h3>Requires</h3>
+            <p>
+                <span class="dep-tag dep-requires">WO-1: Data Model &amp; Schema</span>
+                <span class="dep-tag dep-requires">WO-2: Work Order Line Items</span>
+                <span class="dep-tag dep-requires">WO-3: Desktop Detail Page (shared mutations)</span>
+            </p>
+            <p style="margin-top:8px; font-size:13px; color:#64748b;">The data model (WO-1), line item schema (WO-2), and GraphQL mutations (WO-3) must all be in place before the mobile form can persist data.</p>
+
+            <h3>Enables</h3>
+            <p><span class="dep-tag dep-none">Leaf — no downstream dependents</span></p>
+        </div>
+    </div>
+
+    <div class="uis-footer">
+        Appello UIS &middot; Generated 2026-03-30 &middot; <a href="uis-20-tm-work-orders.html">Back to Parent UIS-20</a>
+    </div>
+
+</div>
+
+<script>
+function toggleSection(el) {
+    el.classList.toggle('open');
+    const body = el.nextElementSibling;
+    if (body) body.classList.toggle('open');
+}
+</script>
+</body>
+</html>

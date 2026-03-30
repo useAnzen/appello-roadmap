@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UIS-20b: Work Order Line Item Tables</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Inter', -apple-system, sans-serif; background: #f1f5f9; color: #0f172a; }
+.uis-wrap { max-width: 960px; margin: 0 auto; padding: 40px 24px 80px; }
+.uis-hero { margin-bottom: 32px; }
+.uis-badges { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+.uis-badge { font-size: 11px; font-weight: 700; padding: 4px 12px; border-radius: 6px; display: inline-flex; align-items: center; gap: 5px; }
+.badge-q { background: #0f172a; color: #fff; }
+.badge-lane { background: #10b981; color: #fff; }
+.badge-status { background: #fef3c7; color: #92400e; }
+.badge-priority { background: #fee2e2; color: #dc2626; }
+.badge-child { background: #7c3aed; color: #fff; }
+.uis-h1 { font-size: 30px; font-weight: 800; color: #0f172a; margin: 0 0 8px; letter-spacing: -0.01em; }
+.uis-sub { font-size: 15px; color: #64748b; line-height: 1.5; margin: 0; }
+.uis-meta { display: flex; gap: 24px; flex-wrap: wrap; margin-top: 14px; font-size: 13px; color: #64748b; }
+.uis-meta strong { color: #0f172a; }
+.uis-toc { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px 28px; margin-bottom: 16px; }
+.uis-toc h3 { font-size: 13px; font-weight: 700; color: #0f172a; margin: 0 0 10px; text-transform: uppercase; letter-spacing: 0.5px; }
+.uis-toc ol { margin: 0; padding-left: 20px; }
+.uis-toc li { font-size: 14px; color: #3b82f6; margin-bottom: 4px; }
+.uis-toc a { color: #3b82f6; text-decoration: none; }
+.uis-section { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px 28px; margin-bottom: 16px; }
+.uis-section h2 { font-size: 17px; font-weight: 700; color: #0f172a; margin: 0 0 14px; padding-bottom: 10px; border-bottom: 2px solid #e2e8f0; }
+.uis-section h3 { font-size: 15px; font-weight: 700; color: #0f172a; margin: 16px 0 8px; }
+.uis-section p, .uis-section li { font-size: 14px; color: #334155; line-height: 1.65; }
+.uis-section ul, .uis-section ol { padding-left: 20px; margin: 8px 0; }
+.customer-quote { background: #fef3c7; border-left: 3px solid #f59e0b; padding: 12px 16px; border-radius: 0 8px 8px 0; margin: 14px 0; font-style: italic; font-size: 14px; color: #92400e; }
+.customer-quote .attribution { font-style: normal; font-weight: 600; display: block; margin-top: 6px; }
+.competitor-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin: 12px 0; }
+.competitor-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px; }
+.competitor-card strong { font-size: 14px; color: #0f172a; display: block; margin-bottom: 4px; }
+.competitor-card span { font-size: 12px; color: #64748b; }
+.comp-status { font-size: 10px; font-weight: 700; text-transform: uppercase; padding: 2px 8px; border-radius: 4px; display: inline-block; margin-bottom: 6px; }
+.comp-has { background: #dcfce7; color: #166534; }
+.value-cards { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin: 12px 0; }
+.value-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px; }
+.value-card .v-icon { font-size: 20px; margin-bottom: 6px; }
+.value-card .v-title { font-size: 13px; font-weight: 700; color: #0f172a; margin-bottom: 4px; }
+.value-card .v-detail { font-size: 12px; color: #64748b; line-height: 1.5; }
+.jira-chip { display: inline-flex; align-items: center; padding: 4px 12px; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 6px; font-family: monospace; font-size: 11px; font-weight: 600; color: #3b82f6; margin-right: 6px; margin-bottom: 6px; }
+.scope-tag { display: inline-block; font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 5px; margin-right: 6px; }
+.scope-in { background: #dcfce7; color: #166534; }
+.scope-out { background: #fee2e2; color: #dc2626; }
+.mockup-container { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; margin: 14px 0; }
+.mockup-bar { background: #f1f5f9; padding: 8px 14px; font-size: 12px; font-weight: 600; color: #64748b; border-bottom: 1px solid #e2e8f0; display: flex; align-items: center; gap: 8px; }
+.mockup-dots { display: flex; gap: 5px; }
+.mockup-dot { width: 8px; height: 8px; border-radius: 50%; }
+.mockup-dot-r { background: #f87171; }
+.mockup-dot-y { background: #fbbf24; }
+.mockup-dot-g { background: #34d399; }
+.mockup-body { padding: 24px; min-height: 200px; font-size: 13px; color: #334155; line-height: 1.6; }
+.collapsible-toggle { display: flex; align-items: center; justify-content: space-between; cursor: pointer; user-select: none; }
+.collapsible-toggle .toggle-icon { font-size: 14px; color: #94a3b8; transition: transform 0.2s; }
+.collapsible-toggle.open .toggle-icon { transform: rotate(180deg); }
+.collapsible-body { display: none; margin-top: 14px; }
+.collapsible-body.open { display: block; }
+pre { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; overflow-x: auto; font-size: 13px; line-height: 1.5; font-family: monospace; color: #334155; }
+table.schema-table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 12px 0; }
+table.schema-table th { text-align: left; padding: 8px 12px; background: #f8fafc; border-bottom: 2px solid #e2e8f0; font-weight: 600; }
+table.schema-table td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; }
+table.schema-table code { font-family: monospace; background: #f1f5f9; padding: 1px 5px; border-radius: 3px; font-size: 12px; color: #7c3aed; }
+.blast-summary { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 16px 20px; margin-bottom: 16px; }
+.blast-row { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; }
+.blast-row:not(:last-child) { border-bottom: 1px solid #f1f5f9; }
+.blast-label { font-size: 13px; color: #64748b; }
+.blast-value { font-size: 13px; font-weight: 700; color: #0f172a; }
+.action-new { background: #dcfce7; color: #166534; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 4px; }
+.action-mod { background: #fef3c7; color: #92400e; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 4px; }
+.criteria-list { list-style: none; padding: 0; }
+.criteria-list li { padding: 8px 0; border-bottom: 1px solid #f1f5f9; display: flex; gap: 10px; align-items: flex-start; font-size: 14px; color: #334155; }
+.criteria-list li:last-child { border-bottom: none; }
+.criteria-check { width: 18px; height: 18px; border: 2px solid #cbd5e1; border-radius: 4px; flex-shrink: 0; margin-top: 1px; }
+.dep-tag { display: inline-block; font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 5px; margin-right: 6px; margin-bottom: 6px; text-decoration: none; }
+.dep-none { background: #dcfce7; color: #166534; }
+.dep-requires { background: #fef3c7; color: #92400e; }
+.dep-enables { background: #eff6ff; color: #1d4ed8; }
+.uis-footer { text-align: center; padding: 24px; font-size: 12px; color: #94a3b8; }
+.uis-footer a { color: #3b82f6; text-decoration: none; }
+.mockup-row { display: flex; gap: 8px; padding: 6px 0; border-bottom: 1px solid #f1f5f9; align-items: center; }
+.mockup-cell { flex: 1; }
+.mockup-header { font-weight: 700; background: #f1f5f9; padding: 8px; border-radius: 4px; margin-bottom: 4px; }
+.mockup-input { background: #fff; border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px 12px; color: #94a3b8; font-size: 12px; }
+.mockup-btn { display: inline-block; padding: 6px 14px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; border: none; }
+.mockup-btn-primary { background: #3b82f6; color: #fff; }
+.mockup-btn-success { background: #10b981; color: #fff; }
+.mockup-btn-outline { background: #fff; color: #3b82f6; border: 1px solid #3b82f6; }
+.mockup-badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 700; }
+    </style>
+</head>
+<body>
+<div class="uis-wrap">
+
+    <div class="uis-hero">
+        <div class="uis-badges">
+            <span class="uis-badge badge-q">UIS-20b</span>
+            <span class="uis-badge badge-lane">Field Operations</span>
+            <span class="uis-badge badge-status">Draft</span>
+            <span class="uis-badge badge-priority">P0</span>
+            <span class="uis-badge badge-child">Child of UIS-20</span>
+        </div>
+        <h1 class="uis-h1">Work Order Line Item Tables</h1>
+        <p class="uis-sub">Structured labor, material, and equipment line items with auto-pricing from existing rate tables — the core data backbone of every T&amp;M work order.</p>
+        <div class="uis-meta">
+            <span><strong>Parent:</strong> UIS-20 T&amp;M Work Orders</span>
+            <span><strong>Slice:</strong> WO-2</span>
+            <span><strong>Est:</strong> 5–8 days</span>
+        </div>
+    </div>
+
+    <div class="uis-toc">
+        <h3>Contents</h3>
+        <ol>
+            <li><a href="#s1">Business Case &amp; Customer Evidence</a></li>
+            <li><a href="#s2">Scope</a></li>
+            <li><a href="#s3">UI Concepts</a></li>
+            <li><a href="#s4">Data Model</a></li>
+            <li><a href="#s5">API Surface</a></li>
+            <li><a href="#s6">Change Surface</a></li>
+            <li><a href="#s7">Acceptance Criteria</a></li>
+            <li><a href="#s8">Dependencies</a></li>
+        </ol>
+    </div>
+
+    <!-- Section 1 -->
+    <div class="uis-section" id="s1">
+        <h2 class="collapsible-toggle open" onclick="toggleSection(this)">
+            1 &middot; Business Case &amp; Customer Evidence
+            <span class="toggle-icon">&#9660;</span>
+        </h2>
+        <div class="collapsible-body open">
+            <p>Structured line items are what separates a first-class work order system from a form-based workaround. Without discrete labor, material, and equipment rows, there is no way to auto-price, subtotal, or generate accurate invoices. Auto-pricing from existing rate tables (TradeLevel, Material catalog, Equipment rates) means field workers don't need to know rates — they select a category and the system fills in the rest.</p>
+
+            <h3>Customer Evidence</h3>
+            <div class="customer-quote">
+                "Selecting labor categories should auto-populate rates, markups, and taxes. Our field guys shouldn't have to look up rates — they just pick 'Journeyman' and enter hours."
+                <span class="attribution">— Tear Systems (Product Discovery)</span>
+            </div>
+            <div class="customer-quote">
+                "We need separate sections for labor, materials, and equipment on every T&amp;M ticket. Each has different markup rules."
+                <span class="attribution">— AB Insulation (Requirements Workshop)</span>
+            </div>
+
+            <div class="value-cards">
+                <div class="value-card">
+                    <div class="v-icon">⚡</div>
+                    <div class="v-title">Auto-Pricing</div>
+                    <div class="v-detail">Rates pulled from TradeLevel, Material, and Equipment tables — no manual entry of dollar amounts by field workers.</div>
+                </div>
+                <div class="value-card">
+                    <div class="v-icon">📊</div>
+                    <div class="v-title">Structured Data</div>
+                    <div class="v-detail">Discrete rows enable accurate subtotals, markup calculations, and downstream invoice generation.</div>
+                </div>
+                <div class="value-card">
+                    <div class="v-icon">🔗</div>
+                    <div class="v-title">Rate Table Integration</div>
+                    <div class="v-detail">Leverages existing TradeLevel and Material models — no new rate management UI needed.</div>
+                </div>
+                <div class="value-card">
+                    <div class="v-icon">📱</div>
+                    <div class="v-title">Mobile-Ready Data</div>
+                    <div class="v-detail">Repeating-row structure works identically on desktop and mobile (WO-8).</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 2 -->
+    <div class="uis-section" id="s2">
+        <h2 class="collapsible-toggle open" onclick="toggleSection(this)">
+            2 &middot; Scope
+            <span class="toggle-icon">&#9660;</span>
+        </h2>
+        <div class="collapsible-body open">
+            <h3>In Scope</h3>
+            <ul>
+                <li><span class="scope-tag scope-in">IN</span> 3 new Prisma models: <code>WorkOrderLaborItem</code>, <code>WorkOrderMaterialItem</code>, <code>WorkOrderEquipmentItem</code></li>
+                <li><span class="scope-tag scope-in">IN</span> Auto-pricing service that pulls rates from TradeLevel, Material, and Equipment tables</li>
+                <li><span class="scope-tag scope-in">IN</span> Repeating-row editor components for each line item type</li>
+                <li><span class="scope-tag scope-in">IN</span> Row-level total calculation (hours × rate for each pay type)</li>
+                <li><span class="scope-tag scope-in">IN</span> Upsert mutation for batch save of all line items</li>
+                <li><span class="scope-tag scope-in">IN</span> Recalculate totals mutation to update Job subtotals and grandTotal</li>
+            </ul>
+
+            <h3>Out of Scope</h3>
+            <ul>
+                <li><span class="scope-tag scope-out">OUT</span> Drag-and-drop reordering (Phase 1 uses manual <code>orderNo</code>)</li>
+                <li><span class="scope-tag scope-out">OUT</span> Bulk import from external price sheets</li>
+                <li><span class="scope-tag scope-out">OUT</span> Custom column visibility per user</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Section 3 -->
+    <div class="uis-section" id="s3">
+        <h2 class="collapsible-toggle open" onclick="toggleSection(this)">
+            3 &middot; UI Concepts
+            <span class="toggle-icon">&#9660;</span>
+        </h2>
+        <div class="collapsible-body open">
+            <h3>Labor Line Item Editor</h3>
+            <div class="mockup-container">
+                <div class="mockup-bar">
+                    <div class="mockup-dots">
+                        <div class="mockup-dot mockup-dot-r"></div>
+                        <div class="mockup-dot mockup-dot-y"></div>
+                        <div class="mockup-dot mockup-dot-g"></div>
+                    </div>
+                    Labor Items — Repeating Row Editor
+                </div>
+                <div class="mockup-body" style="overflow-x: auto;">
+                    <div style="min-width: 700px;">
+                        <div style="display: flex; gap: 6px; padding: 8px 0; font-weight: 700; font-size: 11px; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 2px solid #e2e8f0;">
+                            <div style="flex: 2;">Trade Level</div>
+                            <div style="flex: 2;">Description</div>
+                            <div style="flex: 1; text-align: right;">ST Hrs</div>
+                            <div style="flex: 1; text-align: right;">OT Hrs</div>
+                            <div style="flex: 1; text-align: right;">DT Hrs</div>
+                            <div style="flex: 1; text-align: right;">Rate ($)</div>
+                            <div style="flex: 1; text-align: right;">OT Rate</div>
+                            <div style="flex: 1; text-align: right;">DT Rate</div>
+                            <div style="flex: 1; text-align: right;">Total ($)</div>
+                            <div style="width: 40px; text-align: center;">⋯</div>
+                        </div>
+                        <div style="display: flex; gap: 6px; padding: 10px 0; border-bottom: 1px solid #f1f5f9; align-items: center;">
+                            <div style="flex: 2;">
+                                <div style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 5px; padding: 6px 10px; font-size: 12px; color: #1d4ed8; font-weight: 600;">Journeyman ▾</div>
+                            </div>
+                            <div style="flex: 2;">
+                                <div class="mockup-input" style="color: #334155;">Electrical rough-in</div>
+                            </div>
+                            <div style="flex: 1; text-align: right;">
+                                <div class="mockup-input" style="text-align: right; color: #334155;">8.0</div>
+                            </div>
+                            <div style="flex: 1; text-align: right;">
+                                <div class="mockup-input" style="text-align: right; color: #334155;">2.0</div>
+                            </div>
+                            <div style="flex: 1; text-align: right;">
+                                <div class="mockup-input" style="text-align: right; color: #94a3b8;">0.0</div>
+                            </div>
+                            <div style="flex: 1; text-align: right; font-size: 12px; font-weight: 600; color: #0f172a;">$55.00</div>
+                            <div style="flex: 1; text-align: right; font-size: 12px; color: #64748b;">$82.50</div>
+                            <div style="flex: 1; text-align: right; font-size: 12px; color: #64748b;">$110.00</div>
+                            <div style="flex: 1; text-align: right; font-size: 13px; font-weight: 700; color: #0f172a;">$605.00</div>
+                            <div style="width: 40px; text-align: center; color: #f87171; cursor: pointer; font-size: 16px;">×</div>
+                        </div>
+                        <div style="display: flex; gap: 6px; padding: 10px 0; border-bottom: 1px solid #f1f5f9; align-items: center;">
+                            <div style="flex: 2;">
+                                <div style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 5px; padding: 6px 10px; font-size: 12px; color: #1d4ed8; font-weight: 600;">Apprentice ▾</div>
+                            </div>
+                            <div style="flex: 2;">
+                                <div class="mockup-input" style="color: #334155;">Wire pulling assist</div>
+                            </div>
+                            <div style="flex: 1; text-align: right;">
+                                <div class="mockup-input" style="text-align: right; color: #334155;">8.0</div>
+                            </div>
+                            <div style="flex: 1; text-align: right;">
+                                <div class="mockup-input" style="text-align: right; color: #94a3b8;">0.0</div>
+                            </div>
+                            <div style="flex: 1; text-align: right;">
+                                <div class="mockup-input" style="text-align: right; color: #94a3b8;">0.0</div>
+                            </div>
+                            <div style="flex: 1; text-align: right; font-size: 12px; font-weight: 600; color: #0f172a;">$35.00</div>
+                            <div style="flex: 1; text-align: right; font-size: 12px; color: #64748b;">$52.50</div>
+                            <div style="flex: 1; text-align: right; font-size: 12px; color: #64748b;">$70.00</div>
+                            <div style="flex: 1; text-align: right; font-size: 13px; font-weight: 700; color: #0f172a;">$280.00</div>
+                            <div style="width: 40px; text-align: center; color: #f87171; cursor: pointer; font-size: 16px;">×</div>
+                        </div>
+                        <div style="padding: 12px 0;">
+                            <span class="mockup-btn mockup-btn-outline">+ Add Labor Item</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <p style="margin-top: 8px; font-size: 13px; color: #64748b;">Trade Level combobox triggers auto-pricing: ST Rate pulled from TradeLevel record, OT = 1.5×, DT = 2×. Total = (ST Hrs × Rate) + (OT Hrs × OT Rate) + (DT Hrs × DT Rate).</p>
+        </div>
+    </div>
+
+    <!-- Section 4 -->
+    <div class="uis-section" id="s4">
+        <h2 class="collapsible-toggle open" onclick="toggleSection(this)">
+            4 &middot; Data Model
+            <span class="toggle-icon">&#9660;</span>
+        </h2>
+        <div class="collapsible-body open">
+            <h3>WorkOrderLaborItem</h3>
+            <pre>model WorkOrderLaborItem {
+  id                String    @id @default(nanoid()) @db.VarChar(21)
+  instanceId        String    @db.VarChar(21)
+  jobId             String    @db.VarChar(21)
+  tradeLevelId      String?   @db.VarChar(21)
+  description       String?   @db.VarChar(500)
+  straightTimeHours Decimal?  @db.Decimal(10, 2)
+  overtimeHours     Decimal?  @db.Decimal(10, 2)
+  doubleTimeHours   Decimal?  @db.Decimal(10, 2)
+  rate              Decimal?  @db.Decimal(10, 2)
+  overtimeRate      Decimal?  @db.Decimal(10, 2)
+  doubleTimeRate    Decimal?  @db.Decimal(10, 2)
+  total             Decimal?  @db.Decimal(10, 2)
+  orderNo           Int       @default(0)
+  isDeleted         Boolean   @default(false)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  Instance          Instance  @relation(fields: [instanceId], references: [id])
+  Job               Job       @relation(fields: [jobId], references: [id])
+  TradeLevel        TradeLevel? @relation(fields: [tradeLevelId], references: [id])
+
+  @@index([jobId])
+  @@index([instanceId])
+}</pre>
+
+            <h3>WorkOrderMaterialItem</h3>
+            <pre>model WorkOrderMaterialItem {
+  id            String    @id @default(nanoid()) @db.VarChar(21)
+  instanceId    String    @db.VarChar(21)
+  jobId         String    @db.VarChar(21)
+  materialId    String?   @db.VarChar(21)
+  description   String?   @db.VarChar(500)
+  quantity      Decimal?  @db.Decimal(10, 2)
+  unitCost      Decimal?  @db.Decimal(10, 2)
+  total         Decimal?  @db.Decimal(10, 2)
+  orderNo       Int       @default(0)
+  isDeleted     Boolean   @default(false)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  Instance      Instance  @relation(fields: [instanceId], references: [id])
+  Job           Job       @relation(fields: [jobId], references: [id])
+  Material      Material? @relation(fields: [materialId], references: [id])
+
+  @@index([jobId])
+  @@index([instanceId])
+}</pre>
+
+            <h3>WorkOrderEquipmentItem</h3>
+            <pre>model WorkOrderEquipmentItem {
+  id            String    @id @default(nanoid()) @db.VarChar(21)
+  instanceId    String    @db.VarChar(21)
+  jobId         String    @db.VarChar(21)
+  equipmentId   String?   @db.VarChar(21)
+  description   String?   @db.VarChar(500)
+  quantity      Decimal?  @db.Decimal(10, 2)
+  unitCost      Decimal?  @db.Decimal(10, 2)
+  total         Decimal?  @db.Decimal(10, 2)
+  orderNo       Int       @default(0)
+  isDeleted     Boolean   @default(false)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  Instance      Instance  @relation(fields: [instanceId], references: [id])
+  Job           Job       @relation(fields: [jobId], references: [id])
+  Equipment     Equipment? @relation(fields: [equipmentId], references: [id])
+
+  @@index([jobId])
+  @@index([instanceId])
+}</pre>
+        </div>
+    </div>
+
+    <!-- Section 5 -->
+    <div class="uis-section" id="s5">
+        <h2 class="collapsible-toggle open" onclick="toggleSection(this)">
+            5 &middot; API Surface
+            <span class="toggle-icon">&#9660;</span>
+        </h2>
+        <div class="collapsible-body open">
+            <h3>GraphQL Types</h3>
+            <pre>type WorkOrderLaborItem {
+  id: ID!
+  jobId: String!
+  tradeLevelId: String
+  description: String
+  straightTimeHours: Float
+  overtimeHours: Float
+  doubleTimeHours: Float
+  rate: Float
+  overtimeRate: Float
+  doubleTimeRate: Float
+  total: Float
+  orderNo: Int!
+  TradeLevel: TradeLevel
+}
+
+type WorkOrderMaterialItem {
+  id: ID!
+  jobId: String!
+  materialId: String
+  description: String
+  quantity: Float
+  unitCost: Float
+  total: Float
+  orderNo: Int!
+  Material: Material
+}
+
+type WorkOrderEquipmentItem {
+  id: ID!
+  jobId: String!
+  equipmentId: String
+  description: String
+  quantity: Float
+  unitCost: Float
+  total: Float
+  orderNo: Int!
+  Equipment: Equipment
+}</pre>
+
+            <h3>Input Types</h3>
+            <pre>input CreateWorkOrderLaborItemInput {
+  tradeLevelId: String
+  description: String
+  straightTimeHours: Float
+  overtimeHours: Float
+  doubleTimeHours: Float
+  rate: Float
+  orderNo: Int
+}
+
+input CreateWorkOrderMaterialItemInput {
+  materialId: String
+  description: String
+  quantity: Float
+  unitCost: Float
+  orderNo: Int
+}
+
+input CreateWorkOrderEquipmentItemInput {
+  equipmentId: String
+  description: String
+  quantity: Float
+  unitCost: Float
+  orderNo: Int
+}
+
+input UpsertWorkOrderLineItemsInput {
+  jobId: String!
+  laborItems: [CreateWorkOrderLaborItemInput!]
+  materialItems: [CreateWorkOrderMaterialItemInput!]
+  equipmentItems: [CreateWorkOrderEquipmentItemInput!]
+}</pre>
+
+            <h3>Queries &amp; Mutations</h3>
+            <pre>type Query {
+  workOrderLaborItems(jobId: String!): [WorkOrderLaborItem!]!
+  workOrderMaterialItems(jobId: String!): [WorkOrderMaterialItem!]!
+  workOrderEquipmentItems(jobId: String!): [WorkOrderEquipmentItem!]!
+}
+
+type Mutation {
+  upsertWorkOrderLineItems(input: UpsertWorkOrderLineItemsInput!): Boolean!
+  recalculateWorkOrderTotals(jobId: String!): Job!
+}</pre>
+        </div>
+    </div>
+
+    <!-- Section 6 -->
+    <div class="uis-section" id="s6">
+        <h2 class="collapsible-toggle open" onclick="toggleSection(this)">
+            6 &middot; Change Surface
+            <span class="toggle-icon">&#9660;</span>
+        </h2>
+        <div class="collapsible-body open">
+            <div class="blast-summary">
+                <div class="blast-row">
+                    <span class="blast-label">New Files</span>
+                    <span class="blast-value">11</span>
+                </div>
+                <div class="blast-row">
+                    <span class="blast-label">Modified Files</span>
+                    <span class="blast-value">2</span>
+                </div>
+                <div class="blast-row">
+                    <span class="blast-label">Total Touched</span>
+                    <span class="blast-value">13</span>
+                </div>
+            </div>
+
+            <table class="schema-table">
+                <thead>
+                    <tr><th>Action</th><th>File</th><th>Change</th></tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><span class="action-new">NEW</span></td>
+                        <td><code>apps/api/prisma/migrations/…_add_work_order_line_items/migration.sql</code></td>
+                        <td>Create WorkOrderLaborItem, WorkOrderMaterialItem, WorkOrderEquipmentItem tables with indexes</td>
+                    </tr>
+                    <tr>
+                        <td><span class="action-new">NEW</span></td>
+                        <td><code>apps/api/src/models/WorkOrderLaborItem.ts</code></td>
+                        <td>CRUD + auto-pricing from TradeLevel (OT = 1.5×, DT = 2×)</td>
+                    </tr>
+                    <tr>
+                        <td><span class="action-new">NEW</span></td>
+                        <td><code>apps/api/src/models/WorkOrderMaterialItem.ts</code></td>
+                        <td>CRUD + auto-pricing from Material catalog</td>
+                    </tr>
+                    <tr>
+                        <td><span class="action-new">NEW</span></td>
+                        <td><code>apps/api/src/models/WorkOrderEquipmentItem.ts</code></td>
+                        <td>CRUD + auto-pricing from Equipment rates</td>
+                    </tr>
+                    <tr>
+                        <td><span class="action-new">NEW</span></td>
+                        <td><code>apps/api/src/graphql/models/WorkOrderLineItems.ts</code></td>
+                        <td>GraphQL resolver: types, queries, upsert + recalculate mutations</td>
+                    </tr>
+                    <tr>
+                        <td><span class="action-new">NEW</span></td>
+                        <td><code>apps/frontend/src/components/WorkOrder/LaborItemEditor.tsx</code></td>
+                        <td>Repeating-row editor for labor line items with TradeLevel combobox</td>
+                    </tr>
+                    <tr>
+                        <td><span class="action-new">NEW</span></td>
+                        <td><code>apps/frontend/src/components/WorkOrder/MaterialItemEditor.tsx</code></td>
+                        <td>Repeating-row editor for material line items with Material combobox</td>
+                    </tr>
+                    <tr>
+                        <td><span class="action-new">NEW</span></td>
+                        <td><code>apps/frontend/src/components/WorkOrder/EquipmentItemEditor.tsx</code></td>
+                        <td>Repeating-row editor for equipment line items</td>
+                    </tr>
+                    <tr>
+                        <td><span class="action-new">NEW</span></td>
+                        <td><code>apps/frontend/src/components/WorkOrder/index.ts</code></td>
+                        <td>Barrel export for all WorkOrder editor components</td>
+                    </tr>
+                    <tr>
+                        <td><span class="action-new">NEW</span></td>
+                        <td><code>apps/frontend/src/graphql/queries/workOrderLineItems.graphql</code></td>
+                        <td>Query definitions for labor/material/equipment items</td>
+                    </tr>
+                    <tr>
+                        <td><span class="action-new">NEW</span></td>
+                        <td><code>apps/frontend/src/graphql/mutations/workOrderLineItems.graphql</code></td>
+                        <td>Mutation definitions for upsert + recalculate</td>
+                    </tr>
+                    <tr>
+                        <td><span class="action-mod">MOD</span></td>
+                        <td><code>apps/api/prisma/schema.prisma</code></td>
+                        <td>Add 3 new model definitions + relations on Job, TradeLevel, Material, Equipment</td>
+                    </tr>
+                    <tr>
+                        <td><span class="action-mod">MOD</span></td>
+                        <td><code>apps/api/src/graphql/schema.ts</code></td>
+                        <td>Register WorkOrderLineItems resolver (import, typeDef, Query, Mutation)</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Section 7 -->
+    <div class="uis-section" id="s7">
+        <h2 class="collapsible-toggle open" onclick="toggleSection(this)">
+            7 &middot; Acceptance Criteria
+            <span class="toggle-icon">&#9660;</span>
+        </h2>
+        <div class="collapsible-body open">
+            <ul class="criteria-list">
+                <li><div class="criteria-check"></div>Labor items can be created with a TradeLevel selection and the rate, OT rate (1.5×), and DT rate (2×) are auto-populated</li>
+                <li><div class="criteria-check"></div>Material items can be created with a Material selection and the unit cost is auto-populated from the Material catalog</li>
+                <li><div class="criteria-check"></div>Equipment items can be created with an Equipment selection and the unit cost is auto-populated</li>
+                <li><div class="criteria-check"></div>Row-level totals calculate correctly: Labor = (ST × Rate) + (OT × OT Rate) + (DT × DT Rate); Material/Equipment = Quantity × Unit Cost</li>
+                <li><div class="criteria-check"></div>The <code>upsertWorkOrderLineItems</code> mutation saves all 3 item types in a single transaction</li>
+                <li><div class="criteria-check"></div>The <code>recalculateWorkOrderTotals</code> mutation updates the Job's laborSubtotal, materialSubtotal, equipmentSubtotal, and grandTotal</li>
+                <li><div class="criteria-check"></div>Deleting a line item (setting <code>isDeleted: true</code>) recalculates totals and removes the row from the UI</li>
+                <li><div class="criteria-check"></div>The repeating-row editor allows adding, editing, and removing rows without a page reload</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Section 8 -->
+    <div class="uis-section" id="s8">
+        <h2 class="collapsible-toggle open" onclick="toggleSection(this)">
+            8 &middot; Dependencies
+            <span class="toggle-icon">&#9660;</span>
+        </h2>
+        <div class="collapsible-body open">
+            <h3>Requires</h3>
+            <p><a class="dep-tag dep-requires" href="uis-20a-job-type-config.html">WO-1: Job Type Configuration</a></p>
+
+            <h3>Enables</h3>
+            <p>
+                <a class="dep-tag dep-enables" href="uis-20c-create-edit-form.html">WO-3: Create/Edit Form</a>
+                <span class="dep-tag dep-enables">WO-7: Invoice Generation</span>
+            </p>
+
+            <h3>Siblings</h3>
+            <p>
+                <a class="dep-tag dep-none" href="uis-20a-job-type-config.html">WO-1</a>
+                <a class="dep-tag dep-none" href="uis-20c-create-edit-form.html">WO-3</a>
+                <a class="dep-tag dep-none" href="uis-20d-detail-page.html">WO-4</a>
+                <span class="dep-tag dep-none">WO-5</span>
+                <span class="dep-tag dep-none">WO-6</span>
+                <span class="dep-tag dep-none">WO-7</span>
+                <span class="dep-tag dep-none">WO-8</span>
+            </p>
+
+            <h3>Parent</h3>
+            <p><a class="dep-tag dep-none" href="../uis-20-tm-work-orders.html">UIS-20: T&amp;M Work Orders</a></p>
+        </div>
+    </div>
+
+    <div class="uis-footer">
+        UIS-20b &middot; Work Order Line Item Tables &middot; Generated for <a href="../uis-20-tm-work-orders.html">UIS-20</a>
+    </div>
+</div>
+
+<script>
+function toggleSection(el) {
+    el.classList.toggle("open");
+    const body = el.nextElementSibling;
+    if (body) body.classList.toggle("open");
+}
+</script>
+</body>
+</html>

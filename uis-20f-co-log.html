@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>UIS-20f: Change Order Log Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Inter', -apple-system, sans-serif; background: #f1f5f9; color: #0f172a; }
+.uis-wrap { max-width: 960px; margin: 0 auto; padding: 40px 24px 80px; }
+.uis-hero { margin-bottom: 32px; }
+.uis-badges { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+.uis-badge { font-size: 11px; font-weight: 700; padding: 4px 12px; border-radius: 6px; display: inline-flex; align-items: center; gap: 5px; }
+.badge-q { background: #0f172a; color: #fff; }
+.badge-lane { background: #10b981; color: #fff; }
+.badge-status { background: #fef3c7; color: #92400e; }
+.badge-priority { background: #fee2e2; color: #dc2626; }
+.badge-child { background: #7c3aed; color: #fff; }
+.uis-h1 { font-size: 30px; font-weight: 800; color: #0f172a; margin: 0 0 8px; letter-spacing: -0.01em; }
+.uis-sub { font-size: 15px; color: #64748b; line-height: 1.5; margin: 0; }
+.uis-meta { display: flex; gap: 24px; flex-wrap: wrap; margin-top: 14px; font-size: 13px; color: #64748b; }
+.uis-meta strong { color: #0f172a; }
+.uis-toc { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px 28px; margin-bottom: 16px; }
+.uis-toc h3 { font-size: 13px; font-weight: 700; color: #0f172a; margin: 0 0 10px; text-transform: uppercase; letter-spacing: 0.5px; }
+.uis-toc ol { margin: 0; padding-left: 20px; }
+.uis-toc li { font-size: 14px; color: #3b82f6; margin-bottom: 4px; }
+.uis-toc a { color: #3b82f6; text-decoration: none; }
+.uis-section { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px 28px; margin-bottom: 16px; }
+.uis-section h2 { font-size: 17px; font-weight: 700; color: #0f172a; margin: 0 0 14px; padding-bottom: 10px; border-bottom: 2px solid #e2e8f0; }
+.uis-section h3 { font-size: 15px; font-weight: 700; color: #0f172a; margin: 16px 0 8px; }
+.uis-section p, .uis-section li { font-size: 14px; color: #334155; line-height: 1.65; }
+.uis-section ul, .uis-section ol { padding-left: 20px; margin: 8px 0; }
+.customer-quote { background: #fef3c7; border-left: 3px solid #f59e0b; padding: 12px 16px; border-radius: 0 8px 8px 0; margin: 14px 0; font-style: italic; font-size: 14px; color: #92400e; }
+.customer-quote .attribution { font-style: normal; font-weight: 600; display: block; margin-top: 6px; }
+.competitor-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin: 12px 0; }
+.competitor-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px; }
+.competitor-card strong { font-size: 14px; color: #0f172a; display: block; margin-bottom: 4px; }
+.competitor-card span { font-size: 12px; color: #64748b; }
+.comp-status { font-size: 10px; font-weight: 700; text-transform: uppercase; padding: 2px 8px; border-radius: 4px; display: inline-block; margin-bottom: 6px; }
+.comp-has { background: #dcfce7; color: #166534; }
+.value-cards { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin: 12px 0; }
+.value-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px; }
+.value-card .v-icon { font-size: 20px; margin-bottom: 6px; }
+.value-card .v-title { font-size: 13px; font-weight: 700; color: #0f172a; margin-bottom: 4px; }
+.value-card .v-detail { font-size: 12px; color: #64748b; line-height: 1.5; }
+.jira-chip { display: inline-flex; padding: 4px 12px; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 6px; font-family: monospace; font-size: 11px; font-weight: 600; color: #3b82f6; margin-right: 6px; margin-bottom: 6px; }
+.scope-tag { display: inline-block; font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 5px; margin-right: 6px; }
+.scope-in { background: #dcfce7; color: #166534; }
+.scope-out { background: #fee2e2; color: #dc2626; }
+.mockup-container { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; margin: 14px 0; }
+.mockup-bar { background: #f1f5f9; padding: 8px 14px; font-size: 12px; font-weight: 600; color: #64748b; border-bottom: 1px solid #e2e8f0; display: flex; align-items: center; gap: 8px; }
+.mockup-dots { display: flex; gap: 5px; }
+.mockup-dot { width: 8px; height: 8px; border-radius: 50%; }
+.mockup-dot-r { background: #f87171; }
+.mockup-dot-y { background: #fbbf24; }
+.mockup-dot-g { background: #34d399; }
+.mockup-body { padding: 24px; min-height: 200px; font-size: 13px; color: #334155; line-height: 1.6; }
+.collapsible-toggle { display: flex; align-items: center; justify-content: space-between; cursor: pointer; user-select: none; }
+.collapsible-toggle .toggle-icon { font-size: 14px; color: #94a3b8; transition: transform 0.2s; }
+.collapsible-toggle.open .toggle-icon { transform: rotate(180deg); }
+.collapsible-body { display: none; margin-top: 14px; }
+.collapsible-body.open { display: block; }
+pre { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; overflow-x: auto; font-size: 13px; line-height: 1.5; font-family: monospace; color: #334155; }
+table.schema-table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 12px 0; }
+table.schema-table th { text-align: left; padding: 8px 12px; background: #f8fafc; border-bottom: 2px solid #e2e8f0; font-weight: 600; }
+table.schema-table td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; }
+table.schema-table code { font-family: monospace; background: #f1f5f9; padding: 1px 5px; border-radius: 3px; font-size: 12px; color: #7c3aed; }
+.blast-summary { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 16px 20px; margin-bottom: 16px; }
+.blast-row { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; }
+.blast-row:not(:last-child) { border-bottom: 1px solid #f1f5f9; }
+.blast-label { font-size: 13px; color: #64748b; }
+.blast-value { font-size: 13px; font-weight: 700; color: #0f172a; }
+.action-new { background: #dcfce7; color: #166534; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 4px; }
+.action-mod { background: #fef3c7; color: #92400e; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 4px; }
+.criteria-list { list-style: none; padding: 0; }
+.criteria-list li { padding: 8px 0; border-bottom: 1px solid #f1f5f9; display: flex; gap: 10px; align-items: flex-start; font-size: 14px; color: #334155; }
+.criteria-list li:last-child { border-bottom: none; }
+.criteria-check { width: 18px; height: 18px; border: 2px solid #cbd5e1; border-radius: 4px; flex-shrink: 0; margin-top: 1px; }
+.dep-tag { display: inline-block; font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 5px; margin-right: 6px; margin-bottom: 6px; text-decoration: none; }
+.dep-none { background: #dcfce7; color: #166534; }
+.dep-requires { background: #fef3c7; color: #92400e; }
+.dep-enables { background: #eff6ff; color: #1d4ed8; }
+.uis-footer { text-align: center; padding: 24px; font-size: 12px; color: #94a3b8; }
+.uis-footer a { color: #3b82f6; text-decoration: none; }
+.mockup-row { display: flex; gap: 8px; padding: 6px 0; border-bottom: 1px solid #f1f5f9; align-items: center; }
+.mockup-cell { flex: 1; }
+.mockup-header { font-weight: 700; background: #f1f5f9; padding: 8px; border-radius: 4px; margin-bottom: 4px; }
+.mockup-input { background: #fff; border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px 12px; color: #94a3b8; font-size: 12px; }
+.mockup-btn { display: inline-block; padding: 6px 14px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; border: none; }
+.mockup-btn-primary { background: #3b82f6; color: #fff; }
+.mockup-btn-success { background: #10b981; color: #fff; }
+.mockup-btn-outline { background: #fff; color: #3b82f6; border: 1px solid #3b82f6; }
+.mockup-badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 700; }
+.mockup-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px; }
+.mockup-metric { text-align: center; }
+.mockup-metric .metric-value { font-size: 24px; font-weight: 800; color: #0f172a; }
+.mockup-metric .metric-label { font-size: 11px; color: #64748b; margin-top: 4px; }
+.mobile-frame { max-width: 375px; margin: 0 auto; border: 2px solid #e2e8f0; border-radius: 24px; overflow: hidden; }
+.mobile-header { background: #0f172a; color: #fff; padding: 12px 16px; font-size: 14px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+.mobile-body { padding: 16px; background: #fff; min-height: 400px; }
+.mobile-footer { background: #0f172a; padding: 12px 16px; display: flex; justify-content: center; }
+.mobile-input { width: 100%; height: 52px; border: 1px solid #e2e8f0; border-radius: 10px; padding: 0 14px; font-size: 14px; margin-bottom: 12px; display: flex; align-items: center; color: #94a3b8; }
+.mobile-btn { width: 100%; padding: 14px; border-radius: 10px; font-size: 16px; font-weight: 600; text-align: center; border: none; }
+.mobile-btn-primary { background: #3b82f6; color: #fff; }
+.mobile-btn-success { background: #10b981; color: #fff; }
+.progress-bar { height: 4px; background: #e2e8f0; border-radius: 2px; margin-bottom: 16px; }
+.progress-fill { height: 100%; background: #3b82f6; border-radius: 2px; }
+</style>
+</head>
+<body>
+<div class="uis-wrap">
+
+    <div class="uis-hero">
+        <div class="uis-badges">
+            <span class="uis-badge badge-q">UIS-20f</span>
+            <span class="uis-badge badge-lane">Field Operations</span>
+            <span class="uis-badge badge-status">Draft</span>
+            <span class="uis-badge badge-priority">P1</span>
+            <span class="uis-badge badge-child">Child of UIS-20</span>
+        </div>
+        <h1 class="uis-h1">Change Order Log Dashboard</h1>
+        <p class="uis-sub">Portfolio-wide change order visibility with contract summary, status breakdown, aging metrics, and full filtering and export capabilities.</p>
+        <div class="uis-meta">
+            <span><strong>Author:</strong> Appello Product</span>
+            <span><strong>Created:</strong> 2026-03-30</span>
+            <span><strong>Parent:</strong> UIS-20</span>
+        </div>
+    </div>
+
+    <div class="uis-toc">
+        <h3>Contents</h3>
+        <ol>
+            <li><a href="#business-case">Business Case</a></li>
+            <li><a href="#scope">Scope</a></li>
+            <li><a href="#ui-concepts">UI Concepts</a></li>
+            <li><a href="#data-model">Data Model</a></li>
+            <li><a href="#api-surface">API Surface</a></li>
+            <li><a href="#change-surface">Change Surface</a></li>
+            <li><a href="#acceptance-criteria">Acceptance Criteria</a></li>
+            <li><a href="#dependencies">Dependencies</a></li>
+        </ol>
+    </div>
+
+    <!-- Section 1 -->
+    <div class="uis-section" id="business-case">
+        <h2 class="collapsible-toggle open" onclick="toggleSection(this)">1. Business Case <span class="toggle-icon">▼</span></h2>
+        <div class="collapsible-body open">
+            <p>Change orders are currently only visible within individual job pages. There is <strong>no portfolio-wide view</strong> to see all change orders across all projects — making it impossible to track outstanding revenue, aging COs, or overall contract adjustments at a glance.</p>
+            <p style="margin-top:10px;">Clearstory's COR Log is their signature feature, offering a contract summary with original/approved/pending/in-review/void breakdowns, aging reports, and full export. This is table stakes for specialty contractors managing dozens of active COs.</p>
+
+            <h3>Customer Evidence</h3>
+            <div class="customer-quote">
+                "Is there a way to export the change order log to PDF? We need to pull that data for our monthly reporting."
+                <span class="attribution">— Vanos Insulation (Q21030-8245)</span>
+            </div>
+            <div class="customer-quote">
+                "We need to track what's paid and what's outstanding across all our projects. Right now there's no single place to see that."
+                <span class="attribution">— Rival Insulation</span>
+            </div>
+
+            <h3>Competitive Landscape</h3>
+            <div class="competitor-grid">
+                <div class="competitor-card">
+                    <span class="comp-status comp-has">HAS THIS</span>
+                    <strong>Clearstory</strong>
+                    <span>COR Log is their signature feature — contract summary, aging, Ball-in-Court tracking. Full PDF/CSV export.</span>
+                </div>
+                <div class="competitor-card">
+                    <span class="comp-status comp-has">HAS THIS</span>
+                    <strong>Procore</strong>
+                    <span>Change Events and Change Orders with portfolio-level reporting and contract impact tracking.</span>
+                </div>
+            </div>
+
+            <h3>Value Proposition</h3>
+            <div class="value-cards">
+                <div class="value-card">
+                    <div class="v-icon">📋</div>
+                    <div class="v-title">Contract Clarity</div>
+                    <div class="v-detail">Instant view of original contract value vs. approved/pending/voided changes.</div>
+                </div>
+                <div class="value-card">
+                    <div class="v-icon">⏳</div>
+                    <div class="v-title">Aging Visibility</div>
+                    <div class="v-detail">See how many days each CO has been in review — surface stalled approvals.</div>
+                </div>
+                <div class="value-card">
+                    <div class="v-icon">📊</div>
+                    <div class="v-title">Status Breakdown</div>
+                    <div class="v-detail">Color-coded dollar totals by status for instant financial snapshot.</div>
+                </div>
+                <div class="value-card">
+                    <div class="v-icon">📤</div>
+                    <div class="v-title">CSV + PDF Export</div>
+                    <div class="v-detail">Export for accounting, client reporting, and monthly close processes.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 2 -->
+    <div class="uis-section" id="scope">
+        <h2 class="collapsible-toggle open" onclick="toggleSection(this)">2. Scope <span class="toggle-icon">▼</span></h2>
+        <div class="collapsible-body open">
+            <h3>In Scope</h3>
+            <ul>
+                <li><span class="scope-tag scope-in">IN</span> New page at <code>/change-order-log</code> accessible from sidebar navigation</li>
+                <li><span class="scope-tag scope-in">IN</span> Contract Summary panel — Original Contract / Approved COs / Pending COs / In Review / Void values</li>
+                <li><span class="scope-tag scope-in">IN</span> Status Summary — color-coded dollar totals by status (Won, Pending, Lost, Draft)</li>
+                <li><span class="scope-tag scope-in">IN</span> CO Log Overview metrics — total count, average days in review, average CO value</li>
+                <li><span class="scope-tag scope-in">IN</span> <code>ListTableViews</code> table with CO data (CO#, Title, Date Submitted, Requested Amount, Company, Project, Status, Days in Review)</li>
+                <li><span class="scope-tag scope-in">IN</span> Filters: project, company, status, date range</li>
+                <li><span class="scope-tag scope-in">IN</span> CSV and PDF export of filtered data</li>
+            </ul>
+
+            <h3>Out of Scope</h3>
+            <ul>
+                <li><span class="scope-tag scope-out">OUT</span> Sent/Received tabs (requires multi-tenant CO model)</li>
+                <li><span class="scope-tag scope-out">OUT</span> Ball-in-Court historical analytics (Phase 2)</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Section 3 -->
+    <div class="uis-section" id="ui-concepts">
+        <h2 class="collapsible-toggle open" onclick="toggleSection(this)">3. UI Concepts <span class="toggle-icon">▼</span></h2>
+        <div class="collapsible-body open">
+            <div class="mockup-container">
+                <div class="mockup-bar">
+                    <div class="mockup-dots">
+                        <div class="mockup-dot mockup-dot-r"></div>
+                        <div class="mockup-dot mockup-dot-y"></div>
+                        <div class="mockup-dot mockup-dot-g"></div>
+                    </div>
+                    appello.app/change-order-log
+                </div>
+                <div class="mockup-body">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+                        <div style="font-size:18px; font-weight:800; color:#0f172a;">Change Order Log</div>
+                        <div style="display:flex; gap:8px;">
+                            <span class="mockup-btn mockup-btn-outline">Export CSV</span>
+                            <span class="mockup-btn mockup-btn-outline">Export PDF</span>
+                        </div>
+                    </div>
+
+                    <!-- Three summary cards -->
+                    <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:12px; margin-bottom:16px;">
+                        <!-- Contract Summary -->
+                        <div class="mockup-card">
+                            <div style="font-size:13px; font-weight:700; color:#0f172a; margin-bottom:10px;">Contract Summary</div>
+                            <div style="display:flex; flex-direction:column; gap:6px; font-size:12px;">
+                                <div style="display:flex; justify-content:space-between;">
+                                    <span style="color:#64748b;">Original Contract</span>
+                                    <span style="font-weight:700;">$1,250,000</span>
+                                </div>
+                                <div style="display:flex; justify-content:space-between;">
+                                    <span style="color:#64748b;">Approved COs</span>
+                                    <span style="font-weight:700; color:#10b981;">+$185,400</span>
+                                </div>
+                                <div style="display:flex; justify-content:space-between;">
+                                    <span style="color:#64748b;">Pending COs</span>
+                                    <span style="font-weight:700; color:#f59e0b;">+$42,800</span>
+                                </div>
+                                <div style="display:flex; justify-content:space-between;">
+                                    <span style="color:#64748b;">In Review</span>
+                                    <span style="font-weight:700; color:#3b82f6;">+$28,500</span>
+                                </div>
+                                <div style="display:flex; justify-content:space-between;">
+                                    <span style="color:#64748b;">Void</span>
+                                    <span style="font-weight:700; color:#ef4444;">-$12,000</span>
+                                </div>
+                                <div style="display:flex; justify-content:space-between; border-top:2px solid #e2e8f0; padding-top:6px; margin-top:4px;">
+                                    <span style="font-weight:700;">Revised Contract</span>
+                                    <span style="font-weight:800; color:#0f172a;">$1,494,700</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Status Summary -->
+                        <div class="mockup-card">
+                            <div style="font-size:13px; font-weight:700; color:#0f172a; margin-bottom:10px;">Status Summary</div>
+                            <div style="display:flex; flex-direction:column; gap:8px;">
+                                <div style="display:flex; align-items:center; gap:8px;">
+                                    <span style="width:8px; height:8px; border-radius:50%; background:#10b981;"></span>
+                                    <span style="font-size:12px; flex:1;">Won</span>
+                                    <span style="font-size:12px; font-weight:700;">$185,400</span>
+                                </div>
+                                <div style="display:flex; align-items:center; gap:8px;">
+                                    <span style="width:8px; height:8px; border-radius:50%; background:#f59e0b;"></span>
+                                    <span style="font-size:12px; flex:1;">Pending</span>
+                                    <span style="font-size:12px; font-weight:700;">$42,800</span>
+                                </div>
+                                <div style="display:flex; align-items:center; gap:8px;">
+                                    <span style="width:8px; height:8px; border-radius:50%; background:#ef4444;"></span>
+                                    <span style="font-size:12px; flex:1;">Lost</span>
+                                    <span style="font-size:12px; font-weight:700;">$18,200</span>
+                                </div>
+                                <div style="display:flex; align-items:center; gap:8px;">
+                                    <span style="width:8px; height:8px; border-radius:50%; background:#94a3b8;"></span>
+                                    <span style="font-size:12px; flex:1;">Draft</span>
+                                    <span style="font-size:12px; font-weight:700;">$8,600</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- CO Log Overview -->
+                        <div class="mockup-card">
+                            <div style="font-size:13px; font-weight:700; color:#0f172a; margin-bottom:10px;">CO Log Overview</div>
+                            <div style="display:grid; grid-template-columns:1fr; gap:12px;">
+                                <div class="mockup-metric">
+                                    <div class="metric-value">34</div>
+                                    <div class="metric-label">Total Change Orders</div>
+                                </div>
+                                <div class="mockup-metric">
+                                    <div class="metric-value">12.4</div>
+                                    <div class="metric-label">Avg Days in Review</div>
+                                </div>
+                                <div class="mockup-metric">
+                                    <div class="metric-value">$7,500</div>
+                                    <div class="metric-label">Avg CO Value</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Filters row -->
+                    <div style="display:flex; gap:8px; margin-bottom:12px; flex-wrap:wrap;">
+                        <div class="mockup-input" style="width:200px;">🔍 Search change orders...</div>
+                        <div class="mockup-input" style="width:140px;">All Projects ▾</div>
+                        <div class="mockup-input" style="width:140px;">All Companies ▾</div>
+                        <div class="mockup-input" style="width:120px;">All Statuses ▾</div>
+                        <div class="mockup-input" style="width:140px;">Date Range ▾</div>
+                    </div>
+
+                    <!-- Table -->
+                    <div style="border:1px solid #e2e8f0; border-radius:8px; overflow:hidden;">
+                        <div class="mockup-row mockup-header" style="display:flex; gap:8px; padding:8px; font-size:11px; color:#64748b;">
+                            <div style="flex:0.8;">CO #</div>
+                            <div style="flex:2;">Title</div>
+                            <div style="flex:1;">Date Submitted</div>
+                            <div style="flex:1;">Requested Amt</div>
+                            <div style="flex:1.2;">Company</div>
+                            <div style="flex:1.2;">Project</div>
+                            <div style="flex:0.8;">Status</div>
+                            <div style="flex:0.8;">Days</div>
+                        </div>
+                        <div class="mockup-row" style="font-size:12px; padding:8px;">
+                            <div style="flex:0.8; font-weight:600; color:#3b82f6;">CO-038</div>
+                            <div style="flex:2;">Additional fireproofing — Levels 8-12</div>
+                            <div style="flex:1;">Mar 15, 2026</div>
+                            <div style="flex:1; font-weight:600;">$24,500.00</div>
+                            <div style="flex:1.2;">Rival Insulation</div>
+                            <div style="flex:1.2;">Metro Tower</div>
+                            <div style="flex:0.8;"><span class="mockup-badge" style="background:#dcfce7; color:#166534;">Won</span></div>
+                            <div style="flex:0.8;">8</div>
+                        </div>
+                        <div class="mockup-row" style="font-size:12px; padding:8px;">
+                            <div style="flex:0.8; font-weight:600; color:#3b82f6;">CO-039</div>
+                            <div style="flex:2;">Scope change — mechanical room</div>
+                            <div style="flex:1;">Mar 18, 2026</div>
+                            <div style="flex:1; font-weight:600;">$12,800.00</div>
+                            <div style="flex:1.2;">AB Insulation</div>
+                            <div style="flex:1.2;">Riverside Complex</div>
+                            <div style="flex:0.8;"><span class="mockup-badge" style="background:#fef3c7; color:#92400e;">Pending</span></div>
+                            <div style="flex:0.8;">12</div>
+                        </div>
+                        <div class="mockup-row" style="font-size:12px; padding:8px;">
+                            <div style="flex:0.8; font-weight:600; color:#3b82f6;">CO-040</div>
+                            <div style="flex:2;">Emergency duct insulation</div>
+                            <div style="flex:1;">Mar 20, 2026</div>
+                            <div style="flex:1; font-weight:600;">$8,250.00</div>
+                            <div style="flex:1.2;">Pedersen Corp</div>
+                            <div style="flex:1.2;">Harbor Point</div>
+                            <div style="flex:0.8;"><span class="mockup-badge" style="background:#dbeafe; color:#1e40af;">In Review</span></div>
+                            <div style="flex:0.8;">5</div>
+                        </div>
+                        <div class="mockup-row" style="font-size:12px; padding:8px;">
+                            <div style="flex:0.8; font-weight:600; color:#3b82f6;">CO-041</div>
+                            <div style="flex:2;">Spray foam addition — Parking B1</div>
+                            <div style="flex:1;">Mar 22, 2026</div>
+                            <div style="flex:1; font-weight:600;">$15,600.00</div>
+                            <div style="flex:1.2;">Tear Systems</div>
+                            <div style="flex:1.2;">Metro Tower</div>
+                            <div style="flex:0.8;"><span class="mockup-badge" style="background:#fee2e2; color:#dc2626;">Lost</span></div>
+                            <div style="flex:0.8;">18</div>
+                        </div>
+                        <div class="mockup-row" style="font-size:12px; padding:8px; border-bottom:none;">
+                            <div style="flex:0.8; font-weight:600; color:#3b82f6;">CO-042</div>
+                            <div style="flex:2;">Window seal replacement</div>
+                            <div style="flex:1;">Mar 25, 2026</div>
+                            <div style="flex:1; font-weight:600;">$4,200.00</div>
+                            <div style="flex:1.2;">Vanos Insulation</div>
+                            <div style="flex:1.2;">Sunrise Mall</div>
+                            <div style="flex:0.8;"><span class="mockup-badge" style="background:#f1f5f9; color:#64748b;">Draft</span></div>
+                            <div style="flex:0.8;">—</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 4 -->
+    <div class="uis-section" id="data-model">
+        <h2 class="collapsible-toggle open" onclick="toggleSection(this)">4. Data Model <span class="toggle-icon">▼</span></h2>
+        <div class="collapsible-body open">
+            <h3>ChangeOrderLogFeed SQL View</h3>
+            <p>A new database view joining <code>EstimateChangeOrderRecord</code> with projects, companies, and jobs for efficient list rendering and aggregation.</p>
+            <pre>CREATE OR REPLACE VIEW ChangeOrderLogFeed AS
+SELECT
+    eco.id,
+    eco.estimateNumber AS coNumber,
+    eco.name AS title,
+    eco.createdAt AS dateSubmitted,
+    eco.totalPrice AS requestedAmount,
+    eco.status,
+    eco.statusChangedAt,
+    DATEDIFF(NOW(), eco.createdAt) AS daysInReview,
+    p.id AS projectId,
+    p.name AS projectName,
+    c.id AS companyId,
+    c.name AS companyName,
+    j.id AS jobId,
+    j.name AS jobName,
+    eco.instanceId
+FROM EstimateChangeOrderRecord eco
+LEFT JOIN Job j ON eco.jobId = j.id
+LEFT JOIN Project p ON j.projectId = p.id
+LEFT JOIN Company c ON j.companyId = c.id
+WHERE eco.isDeleted = 0
+  AND eco.isArchived = 0
+  AND eco.estimateType = 'CHANGE_ORDER';</pre>
+
+            <h3>Schema Change: statusChangedAt</h3>
+            <p>Add a <code>statusChangedAt</code> column to <code>EstimateChangeOrderRecord</code> to track when the status last changed, enabling accurate "Days in Review" calculations.</p>
+            <pre>ALTER TABLE `EstimateChangeOrderRecord`
+ADD COLUMN `statusChangedAt` DATETIME(3) NULL;</pre>
+
+            <h3>New GraphQL Types</h3>
+            <table class="schema-table">
+                <thead>
+                    <tr><th>Type</th><th>Field</th><th>Type</th><th>Description</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td rowspan="4"><code>ChangeOrderLogSummary</code></td><td><code>contractSummary</code></td><td><code>ContractSummary!</code></td><td>Original + approved + pending + void values</td></tr>
+                    <tr><td><code>statusCounts</code></td><td><code>[ChangeOrderStatusCount!]!</code></td><td>Count + $ total per status</td></tr>
+                    <tr><td><code>totalCount</code></td><td><code>Int!</code></td><td>Total change orders</td></tr>
+                    <tr><td><code>avgDaysInReview</code></td><td><code>Float!</code></td><td>Average days in review</td></tr>
+                    <tr><td rowspan="5"><code>ContractSummary</code></td><td><code>originalContract</code></td><td><code>Float!</code></td><td>Base contract value</td></tr>
+                    <tr><td><code>approvedCOs</code></td><td><code>Float!</code></td><td>Sum of approved CO values</td></tr>
+                    <tr><td><code>pendingCOs</code></td><td><code>Float!</code></td><td>Sum of pending CO values</td></tr>
+                    <tr><td><code>inReview</code></td><td><code>Float!</code></td><td>Sum of in-review CO values</td></tr>
+                    <tr><td><code>voidCOs</code></td><td><code>Float!</code></td><td>Sum of voided CO values</td></tr>
+                    <tr><td rowspan="3"><code>ChangeOrderStatusCount</code></td><td><code>status</code></td><td><code>String!</code></td><td>Status label</td></tr>
+                    <tr><td><code>count</code></td><td><code>Int!</code></td><td>Number of COs</td></tr>
+                    <tr><td><code>totalValue</code></td><td><code>Float!</code></td><td>Sum of $ values</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Section 5 -->
+    <div class="uis-section" id="api-surface">
+        <h2 class="collapsible-toggle open" onclick="toggleSection(this)">5. API Surface <span class="toggle-icon">▼</span></h2>
+        <div class="collapsible-body open">
+            <h3>Query: changeOrderLogSummary</h3>
+            <pre>query ChangeOrderLogSummary(
+    $projectId: String
+    $companyId: String
+    $status: String
+    $dateFrom: DateTime
+    $dateTo: DateTime
+) {
+    changeOrderLogSummary(
+        projectId: $projectId
+        companyId: $companyId
+        status: $status
+        dateFrom: $dateFrom
+        dateTo: $dateTo
+    ) {
+        contractSummary {
+            originalContract
+            approvedCOs
+            pendingCOs
+            inReview
+            voidCOs
+        }
+        statusCounts {
+            status
+            count
+            totalValue
+        }
+        totalCount
+        avgDaysInReview
+    }
+}</pre>
+            <p>The change order list is served by <code>TableFeed</code> using the <code>ChangeOrderLogFeed</code> view, leveraging existing ListTableViews infrastructure.</p>
+        </div>
+    </div>
+
+    <!-- Section 6 -->
+    <div class="uis-section" id="change-surface">
+        <h2 class="collapsible-toggle open" onclick="toggleSection(this)">6. Change Surface <span class="toggle-icon">▼</span></h2>
+        <div class="collapsible-body open">
+            <div class="blast-summary">
+                <div class="blast-row"><span class="blast-label">New Files</span><span class="blast-value">8</span></div>
+                <div class="blast-row"><span class="blast-label">Modified Files</span><span class="blast-value">4</span></div>
+                <div class="blast-row"><span class="blast-label">Deleted Files</span><span class="blast-value">0</span></div>
+            </div>
+
+            <h3>New Files</h3>
+            <ul>
+                <li><span class="action-new">NEW</span> <code>apps/frontend/src/pages/change-order-log/index.tsx</code> — Change Order Log page</li>
+                <li><span class="action-new">NEW</span> <code>apps/frontend/src/components/ChangeOrderLog/ChangeOrderLogSummary.tsx</code> — Summary cards container</li>
+                <li><span class="action-new">NEW</span> <code>apps/frontend/src/components/ChangeOrderLog/ContractSummaryCard.tsx</code> — Contract summary panel</li>
+                <li><span class="action-new">NEW</span> <code>apps/frontend/src/components/ChangeOrderLog/StatusSummaryCard.tsx</code> — Status breakdown panel</li>
+                <li><span class="action-new">NEW</span> <code>apps/frontend/src/components/ChangeOrderLog/COLogOverviewCard.tsx</code> — Metrics panel</li>
+                <li><span class="action-new">NEW</span> <code>apps/api/prisma/views/ChangeOrderLogFeed.sql</code> — SQL view for CO list</li>
+                <li><span class="action-new">NEW</span> <code>apps/api/src/graphql/models/ChangeOrderLog.ts</code> — GraphQL resolver for summary query</li>
+                <li><span class="action-new">NEW</span> <code>apps/frontend/src/graphql/queries/changeOrderLogSummary.graphql</code> — Frontend query file</li>
+            </ul>
+
+            <h3>Modified Files</h3>
+            <ul>
+                <li><span class="action-mod">MOD</span> <code>apps/api/src/graphql/models/TableFeed/types.ts</code> — Add ChangeOrderLogFeed to TableFeed types</li>
+                <li><span class="action-mod">MOD</span> <code>apps/api/src/graphql/schema.ts</code> — Register ChangeOrderLog resolvers</li>
+                <li><span class="action-mod">MOD</span> <code>apps/frontend/src/lib/routes.ts</code> — Add /change-order-log route</li>
+                <li><span class="action-mod">MOD</span> <code>apps/frontend/src/lib/static-data/staticSideBarData.ts</code> — Add Change Order Log menu item</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Section 7 -->
+    <div class="uis-section" id="acceptance-criteria">
+        <h2 class="collapsible-toggle open" onclick="toggleSection(this)">7. Acceptance Criteria <span class="toggle-icon">▼</span></h2>
+        <div class="collapsible-body open">
+            <ul class="criteria-list">
+                <li><div class="criteria-check"></div><span>User can navigate to /change-order-log from the sidebar and see all change orders across all jobs.</span></li>
+                <li><div class="criteria-check"></div><span>Contract Summary panel displays correct original contract, approved, pending, in-review, and void values with revised contract total.</span></li>
+                <li><div class="criteria-check"></div><span>Status Summary shows color-coded dollar totals for Won, Pending, Lost, and Draft statuses.</span></li>
+                <li><div class="criteria-check"></div><span>CO Log Overview displays accurate total count, average days in review, and average CO value.</span></li>
+                <li><div class="criteria-check"></div><span>User can filter the change order list by project, company, status, and date range.</span></li>
+                <li><div class="criteria-check"></div><span>User can export the current filtered view as CSV and PDF files.</span></li>
+                <li><div class="criteria-check"></div><span>"Days in Review" column shows correct aging based on statusChangedAt or createdAt.</span></li>
+                <li><div class="criteria-check"></div><span>Page respects user permissions — users with viewOnlyMine see only their change orders.</span></li>
+                <li><div class="criteria-check"></div><span>Loading, error, and empty states are properly handled.</span></li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Section 8 -->
+    <div class="uis-section" id="dependencies">
+        <h2 class="collapsible-toggle open" onclick="toggleSection(this)">8. Dependencies <span class="toggle-icon">▼</span></h2>
+        <div class="collapsible-body open">
+            <p><strong>Parent:</strong> <a class="dep-tag dep-enables" href="uis-20-tm-work-orders.html">UIS-20 — T&amp;M Work Orders</a></p>
+            <h3>Requires</h3>
+            <p><span class="dep-tag dep-none">No prerequisite WOs — uses existing EstimateChangeOrderRecord model</span></p>
+            <p style="margin-top:8px; font-size:13px; color:#64748b;">This feature builds on the existing ECO model and does not depend on any new work order infrastructure.</p>
+
+            <h3>Enables</h3>
+            <p><span class="dep-tag dep-none">Leaf — no downstream dependents</span></p>
+        </div>
+    </div>
+
+    <div class="uis-footer">
+        Appello UIS &middot; Generated 2026-03-30 &middot; <a href="uis-20-tm-work-orders.html">Back to Parent UIS-20</a>
+    </div>
+
+</div>
+
+<script>
+function toggleSection(el) {
+    el.classList.toggle('open');
+    const body = el.nextElementSibling;
+    if (body) body.classList.toggle('open');
+}
+</script>
+</body>
+</html>

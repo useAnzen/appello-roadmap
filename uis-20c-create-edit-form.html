@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UIS-20c: Work Order Create/Edit Form</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Inter', -apple-system, sans-serif; background: #f1f5f9; color: #0f172a; }
+.uis-wrap { max-width: 960px; margin: 0 auto; padding: 40px 24px 80px; }
+.uis-hero { margin-bottom: 32px; }
+.uis-badges { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+.uis-badge { font-size: 11px; font-weight: 700; padding: 4px 12px; border-radius: 6px; display: inline-flex; align-items: center; gap: 5px; }
+.badge-q { background: #0f172a; color: #fff; }
+.badge-lane { background: #10b981; color: #fff; }
+.badge-status { background: #fef3c7; color: #92400e; }
+.badge-priority { background: #fee2e2; color: #dc2626; }
+.badge-child { background: #7c3aed; color: #fff; }
+.uis-h1 { font-size: 30px; font-weight: 800; color: #0f172a; margin: 0 0 8px; letter-spacing: -0.01em; }
+.uis-sub { font-size: 15px; color: #64748b; line-height: 1.5; margin: 0; }
+.uis-meta { display: flex; gap: 24px; flex-wrap: wrap; margin-top: 14px; font-size: 13px; color: #64748b; }
+.uis-meta strong { color: #0f172a; }
+.uis-toc { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px 28px; margin-bottom: 16px; }
+.uis-toc h3 { font-size: 13px; font-weight: 700; color: #0f172a; margin: 0 0 10px; text-transform: uppercase; letter-spacing: 0.5px; }
+.uis-toc ol { margin: 0; padding-left: 20px; }
+.uis-toc li { font-size: 14px; color: #3b82f6; margin-bottom: 4px; }
+.uis-toc a { color: #3b82f6; text-decoration: none; }
+.uis-section { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px 28px; margin-bottom: 16px; }
+.uis-section h2 { font-size: 17px; font-weight: 700; color: #0f172a; margin: 0 0 14px; padding-bottom: 10px; border-bottom: 2px solid #e2e8f0; }
+.uis-section h3 { font-size: 15px; font-weight: 700; color: #0f172a; margin: 16px 0 8px; }
+.uis-section p, .uis-section li { font-size: 14px; color: #334155; line-height: 1.65; }
+.uis-section ul, .uis-section ol { padding-left: 20px; margin: 8px 0; }
+.customer-quote { background: #fef3c7; border-left: 3px solid #f59e0b; padding: 12px 16px; border-radius: 0 8px 8px 0; margin: 14px 0; font-style: italic; font-size: 14px; color: #92400e; }
+.customer-quote .attribution { font-style: normal; font-weight: 600; display: block; margin-top: 6px; }
+.competitor-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin: 12px 0; }
+.competitor-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px; }
+.competitor-card strong { font-size: 14px; color: #0f172a; display: block; margin-bottom: 4px; }
+.competitor-card span { font-size: 12px; color: #64748b; }
+.comp-status { font-size: 10px; font-weight: 700; text-transform: uppercase; padding: 2px 8px; border-radius: 4px; display: inline-block; margin-bottom: 6px; }
+.comp-has { background: #dcfce7; color: #166534; }
+.value-cards { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin: 12px 0; }
+.value-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px; }
+.value-card .v-icon { font-size: 20px; margin-bottom: 6px; }
+.value-card .v-title { font-size: 13px; font-weight: 700; color: #0f172a; margin-bottom: 4px; }
+.value-card .v-detail { font-size: 12px; color: #64748b; line-height: 1.5; }
+.jira-chip { display: inline-flex; align-items: center; padding: 4px 12px; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 6px; font-family: monospace; font-size: 11px; font-weight: 600; color: #3b82f6; margin-right: 6px; margin-bottom: 6px; }
+.scope-tag { display: inline-block; font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 5px; margin-right: 6px; }
+.scope-in { background: #dcfce7; color: #166534; }
+.scope-out { background: #fee2e2; color: #dc2626; }
+.mockup-container { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; margin: 14px 0; }
+.mockup-bar { background: #f1f5f9; padding: 8px 14px; font-size: 12px; font-weight: 600; color: #64748b; border-bottom: 1px solid #e2e8f0; display: flex; align-items: center; gap: 8px; }
+.mockup-dots { display: flex; gap: 5px; }
+.mockup-dot { width: 8px; height: 8px; border-radius: 50%; }
+.mockup-dot-r { background: #f87171; }
+.mockup-dot-y { background: #fbbf24; }
+.mockup-dot-g { background: #34d399; }
+.mockup-body { padding: 24px; min-height: 200px; font-size: 13px; color: #334155; line-height: 1.6; }
+.collapsible-toggle { display: flex; align-items: center; justify-content: space-between; cursor: pointer; user-select: none; }
+.collapsible-toggle .toggle-icon { font-size: 14px; color: #94a3b8; transition: transform 0.2s; }
+.collapsible-toggle.open .toggle-icon { transform: rotate(180deg); }
+.collapsible-body { display: none; margin-top: 14px; }
+.collapsible-body.open { display: block; }
+pre { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; overflow-x: auto; font-size: 13px; line-height: 1.5; font-family: monospace; color: #334155; }
+table.schema-table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 12px 0; }
+table.schema-table th { text-align: left; padding: 8px 12px; background: #f8fafc; border-bottom: 2px solid #e2e8f0; font-weight: 600; }
+table.schema-table td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; }
+table.schema-table code { font-family: monospace; background: #f1f5f9; padding: 1px 5px; border-radius: 3px; font-size: 12px; color: #7c3aed; }
+.blast-summary { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 16px 20px; margin-bottom: 16px; }
+.blast-row { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; }
+.blast-row:not(:last-child) { border-bottom: 1px solid #f1f5f9; }
+.blast-label { font-size: 13px; color: #64748b; }
+.blast-value { font-size: 13px; font-weight: 700; color: #0f172a; }
+.action-new { background: #dcfce7; color: #166534; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 4px; }
+.action-mod { background: #fef3c7; color: #92400e; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 4px; }
+.criteria-list { list-style: none; padding: 0; }
+.criteria-list li { padding: 8px 0; border-bottom: 1px solid #f1f5f9; display: flex; gap: 10px; align-items: flex-start; font-size: 14px; color: #334155; }
+.criteria-list li:last-child { border-bottom: none; }
+.criteria-check { width: 18px; height: 18px; border: 2px solid #cbd5e1; border-radius: 4px; flex-shrink: 0; margin-top: 1px; }
+.dep-tag { display: inline-block; font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 5px; margin-right: 6px; margin-bottom: 6px; text-decoration: none; }
+.dep-none { background: #dcfce7; color: #166534; }
+.dep-requires { background: #fef3c7; color: #92400e; }
+.dep-enables { background: #eff6ff; color: #1d4ed8; }
+.uis-footer { text-align: center; padding: 24px; font-size: 12px; color: #94a3b8; }
+.uis-footer a { color: #3b82f6; text-decoration: none; }
+.mockup-row { display: flex; gap: 8px; padding: 6px 0; border-bottom: 1px solid #f1f5f9; align-items: center; }
+.mockup-cell { flex: 1; }
+.mockup-header { font-weight: 700; background: #f1f5f9; padding: 8px; border-radius: 4px; margin-bottom: 4px; }
+.mockup-input { background: #fff; border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px 12px; color: #94a3b8; font-size: 12px; }
+.mockup-btn { display: inline-block; padding: 6px 14px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; border: none; }
+.mockup-btn-primary { background: #3b82f6; color: #fff; }
+.mockup-btn-success { background: #10b981; color: #fff; }
+.mockup-btn-outline { background: #fff; color: #3b82f6; border: 1px solid #3b82f6; }
+.mockup-badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 700; }
+    </style>
+</head>
+<body>
+<div class="uis-wrap">
+
+    <div class="uis-hero">
+        <div class="uis-badges">
+            <span class="uis-badge badge-q">UIS-20c</span>
+            <span class="uis-badge badge-lane">Field Operations</span>
+            <span class="uis-badge badge-status">Draft</span>
+            <span class="uis-badge badge-priority">P0</span>
+            <span class="uis-badge badge-child">Child of UIS-20</span>
+        </div>
+        <h1 class="uis-h1">Work Order Create/Edit Form</h1>
+        <p class="uis-sub">The primary interaction point for creating and editing T&amp;M work orders — an 8-section flyout form with structured line items, auto-pricing, and signature capture.</p>
+        <div class="uis-meta">
+            <span><strong>Parent:</strong> UIS-20 T&amp;M Work Orders</span>
+            <span><strong>Slice:</strong> WO-3</span>
+            <span><strong>Est:</strong> 5–7 days</span>
+        </div>
+    </div>
+
+    <div class="uis-toc">
+        <h3>Contents</h3>
+        <ol>
+            <li><a href="#s1">Business Case &amp; Customer Evidence</a></li>
+            <li><a href="#s2">Scope</a></li>
+            <li><a href="#s3">UI Concepts</a></li>
+            <li><a href="#s4">Data Model</a></li>
+            <li><a href="#s5">API Surface</a></li>
+            <li><a href="#s6">Change Surface</a></li>
+            <li><a href="#s7">Acceptance Criteria</a></li>
+            <li><a href="#s8">Dependencies</a></li>
+        </ol>
+    </div>
+
+    <!-- Section 1 -->
+    <div class="uis-section" id="s1">
+        <h2 class="collapsible-toggle open" onclick="toggleSection(this)">
+            1 &middot; Business Case &amp; Customer Evidence
+            <span class="toggle-icon">&#9660;</span>
+        </h2>
+        <div class="collapsible-body open">
+            <p>The create/edit form is the primary interaction point for T&amp;M work orders. It mirrors the existing <code>JobAddEditForm</code> pattern (flyout-based, section-by-section) but adds structured line items, auto-pricing from rate tables, and on-device signature capture. PMs create work orders from desktop; field workers will create from mobile (WO-8).</p>
+
+            <h3>Customer Evidence</h3>
+            <div class="customer-quote">
+                "We need a single form where the PM can fill in the job info, add labor and material lines, and capture a customer signature — all in one flow, not bouncing between screens."
+                <span class="attribution">— Tear Systems (UX Workshop)</span>
+            </div>
+            <div class="customer-quote">
+                "Draft saving is critical. Our guys start a work order in the morning, add lines throughout the day, and submit at end of shift."
+                <span class="attribution">— AB Insulation (Field Observation)</span>
+            </div>
+
+            <div class="value-cards">
+                <div class="value-card">
+                    <div class="v-icon">📝</div>
+                    <div class="v-title">Single-Flow Creation</div>
+                    <div class="v-detail">All 8 form sections in one flyout — no multi-page wizard or tab switching required.</div>
+                </div>
+                <div class="value-card">
+                    <div class="v-icon">💾</div>
+                    <div class="v-title">Draft Save</div>
+                    <div class="v-detail">Save incomplete work orders as Draft status, return and complete later.</div>
+                </div>
+                <div class="value-card">
+                    <div class="v-icon">🔢</div>
+                    <div class="v-title">Auto-Sequenced Numbers</div>
+                    <div class="v-detail">WO number auto-generated on create (WO-001, WO-002, ...) — no manual entry.</div>
+                </div>
+                <div class="value-card">
+                    <div class="v-icon">✍️</div>
+                    <div class="v-title">Signature Capture</div>
+                    <div class="v-detail">Canvas-based signature pad with GPS stamping, stored as asset attachments.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 2 -->
+    <div class="uis-section" id="s2">
+        <h2 class="collapsible-toggle open" onclick="toggleSection(this)">
+            2 &middot; Scope
+            <span class="toggle-icon">&#9660;</span>
+        </h2>
+        <div class="collapsible-body open">
+            <h3>In Scope — 8 Form Sections</h3>
+            <ol>
+                <li><span class="scope-tag scope-in">IN</span> <strong>Work Order Info</strong> — Name, WO number (auto), date of work, customer reference, status</li>
+                <li><span class="scope-tag scope-in">IN</span> <strong>Company &amp; Customer</strong> — Company selector (AssignViewButton), contact person</li>
+                <li><span class="scope-tag scope-in">IN</span> <strong>Labor Items</strong> — Repeating-row editor (from WO-2 LaborItemEditor)</li>
+                <li><span class="scope-tag scope-in">IN</span> <strong>Material Items</strong> — Repeating-row editor (from WO-2 MaterialItemEditor)</li>
+                <li><span class="scope-tag scope-in">IN</span> <strong>Equipment Items</strong> — Repeating-row editor (from WO-2 EquipmentItemEditor)</li>
+                <li><span class="scope-tag scope-in">IN</span> <strong>Summary &amp; Pricing</strong> — Auto-calculated subtotals, markup %, overhead %, tax %, grand total</li>
+                <li><span class="scope-tag scope-in">IN</span> <strong>Photos</strong> — Photo upload via existing asset system</li>
+                <li><span class="scope-tag scope-in">IN</span> <strong>Signatures</strong> — Canvas signature pad with GPS capture</li>
+            </ol>
+
+            <h3>Additional In-Scope</h3>
+            <ul>
+                <li><span class="scope-tag scope-in">IN</span> Draft save functionality (save without validation)</li>
+                <li><span class="scope-tag scope-in">IN</span> Auto-sequenced WO number via <code>generateWorkOrderNumber</code></li>
+                <li><span class="scope-tag scope-in">IN</span> Full vertical flyout form (matches JobAddEditForm pattern)</li>
+            </ul>
+
+            <h3>Out of Scope</h3>
+            <ul>
+                <li><span class="scope-tag scope-out">OUT</span> Offline form drafting (Phase 2 — requires service worker)</li>
+                <li><span class="scope-tag scope-out">OUT</span> Voice-to-text entry for description fields</li>
+                <li><span class="scope-tag scope-out">OUT</span> Template-based pre-fill (Phase 2)</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Section 3 -->
+    <div class="uis-section" id="s3">
+        <h2 class="collapsible-toggle open" onclick="toggleSection(this)">
+            3 &middot; UI Concepts
+            <span class="toggle-icon">&#9660;</span>
+        </h2>
+        <div class="collapsible-body open">
+            <h3>Work Order Flyout Form</h3>
+            <div class="mockup-container">
+                <div class="mockup-bar">
+                    <div class="mockup-dots">
+                        <div class="mockup-dot mockup-dot-r"></div>
+                        <div class="mockup-dot mockup-dot-y"></div>
+                        <div class="mockup-dot mockup-dot-g"></div>
+                    </div>
+                    WorkOrderForm.tsx — Flyout
+                </div>
+                <div class="mockup-body">
+                    <!-- Sticky Header -->
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; background: #fff; border-bottom: 2px solid #e2e8f0; border-radius: 8px 8px 0 0; margin-bottom: 16px;">
+                        <div>
+                            <div style="font-size: 16px; font-weight: 700; color: #0f172a;">New Work Order</div>
+                            <div style="font-size: 11px; color: #64748b;">WO-003 &middot; Draft</div>
+                        </div>
+                        <div style="font-size: 18px; color: #94a3b8; cursor: pointer;">✕</div>
+                    </div>
+
+                    <!-- Section 1: Info -->
+                    <div style="border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px; margin-bottom: 12px;">
+                        <div style="font-size: 13px; font-weight: 700; color: #0f172a; margin-bottom: 10px;">① Work Order Info</div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                            <div><div style="font-size: 11px; color: #64748b; margin-bottom: 4px;">Name *</div><div class="mockup-input" style="color: #334155;">HVAC Repair — Bldg 4</div></div>
+                            <div><div style="font-size: 11px; color: #64748b; margin-bottom: 4px;">WO Number</div><div class="mockup-input" style="color: #334155; background: #f8fafc;">WO-003 (auto)</div></div>
+                            <div><div style="font-size: 11px; color: #64748b; margin-bottom: 4px;">Date of Work *</div><div class="mockup-input" style="color: #334155;">03/28/2026</div></div>
+                            <div><div style="font-size: 11px; color: #64748b; margin-bottom: 4px;">Customer Ref #</div><div class="mockup-input">PO-44521</div></div>
+                        </div>
+                    </div>
+
+                    <!-- Section 2: Company -->
+                    <div style="border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px; margin-bottom: 12px;">
+                        <div style="font-size: 13px; font-weight: 700; color: #0f172a; margin-bottom: 10px;">② Company &amp; Customer</div>
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <div style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 6px; padding: 8px 14px; font-size: 12px; color: #1d4ed8; font-weight: 600;">Clearstory Construction ✓</div>
+                            <span class="mockup-btn mockup-btn-outline" style="font-size: 11px; padding: 4px 10px;">Change</span>
+                        </div>
+                        <div style="margin-top: 8px;"><div style="font-size: 11px; color: #64748b; margin-bottom: 4px;">Contact</div><div class="mockup-input" style="color: #334155;">Mike Johnson</div></div>
+                    </div>
+
+                    <!-- Section 3-5: Line Items -->
+                    <div style="border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px; margin-bottom: 12px;">
+                        <div style="font-size: 13px; font-weight: 700; color: #0f172a; margin-bottom: 10px;">③ Labor Items</div>
+                        <div style="font-size: 12px; color: #64748b; background: #f8fafc; padding: 10px; border-radius: 6px; text-align: center;">LaborItemEditor component (from WO-2) &middot; 2 rows added</div>
+                    </div>
+                    <div style="border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px; margin-bottom: 12px;">
+                        <div style="font-size: 13px; font-weight: 700; color: #0f172a; margin-bottom: 10px;">④ Material Items</div>
+                        <div style="font-size: 12px; color: #64748b; background: #f8fafc; padding: 10px; border-radius: 6px; text-align: center;">MaterialItemEditor component (from WO-2) &middot; 1 row added</div>
+                    </div>
+                    <div style="border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px; margin-bottom: 12px;">
+                        <div style="font-size: 13px; font-weight: 700; color: #0f172a; margin-bottom: 10px;">⑤ Equipment Items</div>
+                        <div style="font-size: 12px; color: #64748b; background: #f8fafc; padding: 10px; border-radius: 6px; text-align: center;">EquipmentItemEditor component (from WO-2) &middot; 0 rows</div>
+                    </div>
+
+                    <!-- Section 6: Summary -->
+                    <div style="border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px; margin-bottom: 12px;">
+                        <div style="font-size: 13px; font-weight: 700; color: #0f172a; margin-bottom: 10px;">⑥ Summary &amp; Pricing</div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 10px;">
+                            <div style="background: #f8fafc; border-radius: 6px; padding: 10px; text-align: center;">
+                                <div style="font-size: 11px; color: #64748b;">Labor</div>
+                                <div style="font-size: 14px; font-weight: 700; color: #0f172a;">$885.00</div>
+                            </div>
+                            <div style="background: #f8fafc; border-radius: 6px; padding: 10px; text-align: center;">
+                                <div style="font-size: 11px; color: #64748b;">Material</div>
+                                <div style="font-size: 14px; font-weight: 700; color: #0f172a;">$342.50</div>
+                            </div>
+                            <div style="background: #f8fafc; border-radius: 6px; padding: 10px; text-align: center;">
+                                <div style="font-size: 11px; color: #64748b;">Equipment</div>
+                                <div style="font-size: 14px; font-weight: 700; color: #0f172a;">$0.00</div>
+                            </div>
+                        </div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 10px;">
+                            <div><div style="font-size: 11px; color: #64748b; margin-bottom: 4px;">Markup %</div><div class="mockup-input" style="color: #334155;">15.0</div></div>
+                            <div><div style="font-size: 11px; color: #64748b; margin-bottom: 4px;">Overhead %</div><div class="mockup-input" style="color: #334155;">10.0</div></div>
+                            <div><div style="font-size: 11px; color: #64748b; margin-bottom: 4px;">Tax %</div><div class="mockup-input" style="color: #334155;">8.25</div></div>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; align-items: center; background: #0f172a; border-radius: 6px; padding: 12px 16px;">
+                            <div style="font-size: 13px; color: #94a3b8;">Grand Total</div>
+                            <div style="font-size: 18px; font-weight: 800; color: #fff;">$1,635.42</div>
+                        </div>
+                    </div>
+
+                    <!-- Section 7: Photos -->
+                    <div style="border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px; margin-bottom: 12px;">
+                        <div style="font-size: 13px; font-weight: 700; color: #0f172a; margin-bottom: 10px;">⑦ Photos</div>
+                        <div style="border: 2px dashed #e2e8f0; border-radius: 8px; padding: 20px; text-align: center;">
+                            <div style="font-size: 20px; margin-bottom: 6px;">📷</div>
+                            <div style="font-size: 12px; color: #64748b;">Drag photos here or <span style="color: #3b82f6; text-decoration: underline;">browse</span></div>
+                        </div>
+                    </div>
+
+                    <!-- Section 8: Signatures -->
+                    <div style="border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px; margin-bottom: 16px;">
+                        <div style="font-size: 13px; font-weight: 700; color: #0f172a; margin-bottom: 10px;">⑧ Signatures</div>
+                        <div style="border: 1px solid #e2e8f0; border-radius: 8px; background: #fff; height: 80px; display: flex; align-items: center; justify-content: center; margin-bottom: 8px;">
+                            <span style="font-size: 12px; color: #94a3b8; font-style: italic;">Sign here...</span>
+                        </div>
+                        <div style="display: flex; gap: 8px;">
+                            <div style="flex: 1;"><div style="font-size: 11px; color: #64748b; margin-bottom: 4px;">Signer Name</div><div class="mockup-input">Customer name</div></div>
+                            <span class="mockup-btn mockup-btn-outline" style="align-self: flex-end;">Clear</span>
+                        </div>
+                    </div>
+
+                    <!-- Action buttons -->
+                    <div style="display: flex; gap: 8px; justify-content: flex-end;">
+                        <span class="mockup-btn mockup-btn-outline">Cancel</span>
+                        <span class="mockup-btn" style="background: #64748b; color: #fff;">Save Draft</span>
+                        <span class="mockup-btn mockup-btn-success">Submit</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 4 -->
+    <div class="uis-section" id="s4">
+        <h2 class="collapsible-toggle open" onclick="toggleSection(this)">
+            4 &middot; Data Model
+            <span class="toggle-icon">&#9660;</span>
+        </h2>
+        <div class="collapsible-body open">
+            <p>No new schema models are introduced in this slice. The form consumes models from WO-1 (Job extensions) and WO-2 (line item tables).</p>
+
+            <h3>useForm Hook Initialization</h3>
+            <pre>const { formValues, handleChange, formErrors, dirtyFormValues } = useForm(
+  {
+    name: "",
+    dateOfWork: null,
+    customerReferenceNumber: "",
+    companyId: "",
+    contactId: "",
+    markupPercent: 0,
+    overheadPercent: 0,
+    taxPercent: 0,
+    status: "Draft"
+  },
+  workOrderValidation
+);</pre>
+
+            <h3>Validation Rules</h3>
+            <table class="schema-table">
+                <thead>
+                    <tr><th>Field</th><th>Rule</th><th>When Required</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td><code>name</code></td><td>Required, max 200 chars</td><td>Always</td></tr>
+                    <tr><td><code>dateOfWork</code></td><td>Required, valid date</td><td>On Submit (not Draft)</td></tr>
+                    <tr><td><code>companyId</code></td><td>Required</td><td>On Submit</td></tr>
+                    <tr><td><code>markupPercent</code></td><td>0–100 range</td><td>If provided</td></tr>
+                    <tr><td><code>overheadPercent</code></td><td>0–100 range</td><td>If provided</td></tr>
+                    <tr><td><code>taxPercent</code></td><td>0–100 range</td><td>If provided</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Section 5 -->
+    <div class="uis-section" id="s5">
+        <h2 class="collapsible-toggle open" onclick="toggleSection(this)">
+            5 &middot; API Surface
+            <span class="toggle-icon">&#9660;</span>
+        </h2>
+        <div class="collapsible-body open">
+            <p>This slice consumes existing mutations — no new API endpoints are introduced.</p>
+
+            <h3>Consumed Mutations</h3>
+            <table class="schema-table">
+                <thead>
+                    <tr><th>Mutation</th><th>Source</th><th>Purpose</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td><code>createJob</code></td><td>WO-1</td><td>Creates the work order with <code>isWorkOrder: true</code></td></tr>
+                    <tr><td><code>editJob</code></td><td>WO-1</td><td>Updates work order fields (name, dates, percentages)</td></tr>
+                    <tr><td><code>upsertWorkOrderLineItems</code></td><td>WO-2</td><td>Batch saves labor, material, and equipment items</td></tr>
+                    <tr><td><code>recalculateWorkOrderTotals</code></td><td>WO-2</td><td>Recomputes subtotals and grand total after line item changes</td></tr>
+                    <tr><td><code>createAsset</code></td><td>Existing</td><td>Uploads photos and signature images</td></tr>
+                </tbody>
+            </table>
+
+            <h3>Form Submission Flow</h3>
+            <pre>1. createJob({ isWorkOrder: true, name, dateOfWork, ... })  → jobId
+2. upsertWorkOrderLineItems({ jobId, laborItems, materialItems, equipmentItems })
+3. createAsset() × N  (for each photo and signature)
+4. recalculateWorkOrderTotals({ jobId })
+5. If status !== "Draft": editJob({ status: "Submitted" })</pre>
+        </div>
+    </div>
+
+    <!-- Section 6 -->
+    <div class="uis-section" id="s6">
+        <h2 class="collapsible-toggle open" onclick="toggleSection(this)">
+            6 &middot; Change Surface
+            <span class="toggle-icon">&#9660;</span>
+        </h2>
+        <div class="collapsible-body open">
+            <div class="blast-summary">
+                <div class="blast-row">
+                    <span class="blast-label">New Files</span>
+                    <span class="blast-value">3</span>
+                </div>
+                <div class="blast-row">
+                    <span class="blast-label">Modified Files</span>
+                    <span class="blast-value">0</span>
+                </div>
+                <div class="blast-row">
+                    <span class="blast-label">Total Touched</span>
+                    <span class="blast-value">3</span>
+                </div>
+            </div>
+
+            <table class="schema-table">
+                <thead>
+                    <tr><th>Action</th><th>File</th><th>Change</th></tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><span class="action-new">NEW</span></td>
+                        <td><code>apps/frontend/src/components/WorkOrder/WorkOrderForm.tsx</code></td>
+                        <td>Main flyout form component with 8 sections, draft save, submit flow. Uses useFlyout for open/close, useForm for state management. Imports LaborItemEditor, MaterialItemEditor, EquipmentItemEditor from WO-2.</td>
+                    </tr>
+                    <tr>
+                        <td><span class="action-new">NEW</span></td>
+                        <td><code>apps/frontend/src/components/WorkOrder/validation.ts</code></td>
+                        <td>Validation rules for the work order form. Draft mode skips most validation; Submit mode enforces required fields.</td>
+                    </tr>
+                    <tr>
+                        <td><span class="action-new">NEW</span></td>
+                        <td><code>apps/frontend/src/components/WorkOrder/types.ts</code></td>
+                        <td>TypeScript interfaces: WorkOrderFormValues, WorkOrderFormProps, SignatureData</td>
+                    </tr>
+                </tbody>
+            </table>
+            <p style="margin-top: 8px; font-size: 13px; color: #64748b;">No files are modified — all line item editor components are imported from WO-2's barrel export.</p>
+        </div>
+    </div>
+
+    <!-- Section 7 -->
+    <div class="uis-section" id="s7">
+        <h2 class="collapsible-toggle open" onclick="toggleSection(this)">
+            7 &middot; Acceptance Criteria
+            <span class="toggle-icon">&#9660;</span>
+        </h2>
+        <div class="collapsible-body open">
+            <ul class="criteria-list">
+                <li><div class="criteria-check"></div>The flyout form opens with all 8 sections visible and scrollable</li>
+                <li><div class="criteria-check"></div>WO number is auto-generated on form open (e.g. "WO-003") and displayed as read-only</li>
+                <li><div class="criteria-check"></div>Company can be selected via AssignViewButton and displays the selected company name</li>
+                <li><div class="criteria-check"></div>Labor, Material, and Equipment item editors render inline and support add/edit/remove rows</li>
+                <li><div class="criteria-check"></div>Summary section auto-calculates subtotals and grand total as line items are added/modified</li>
+                <li><div class="criteria-check"></div>"Save Draft" saves the work order with status "Draft" without enforcing required field validation</li>
+                <li><div class="criteria-check"></div>"Submit" validates all required fields and sets status to "Submitted"</li>
+                <li><div class="criteria-check"></div>Photos can be uploaded via drag-and-drop or file browser and are stored as assets</li>
+                <li><div class="criteria-check"></div>Signature pad captures a drawn signature, stores it as an asset, and records signer name + GPS coordinates</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Section 8 -->
+    <div class="uis-section" id="s8">
+        <h2 class="collapsible-toggle open" onclick="toggleSection(this)">
+            8 &middot; Dependencies
+            <span class="toggle-icon">&#9660;</span>
+        </h2>
+        <div class="collapsible-body open">
+            <h3>Requires</h3>
+            <p>
+                <a class="dep-tag dep-requires" href="uis-20a-job-type-config.html">WO-1: Job Type Configuration</a>
+                <a class="dep-tag dep-requires" href="uis-20b-line-item-tables.html">WO-2: Line Item Tables</a>
+            </p>
+
+            <h3>Enables</h3>
+            <p>
+                <a class="dep-tag dep-enables" href="uis-20d-detail-page.html">WO-4: Detail Page</a>
+                <span class="dep-tag dep-enables">WO-5: PDF Generation</span>
+                <span class="dep-tag dep-enables">WO-8: Mobile Form</span>
+            </p>
+
+            <h3>Parent</h3>
+            <p><a class="dep-tag dep-none" href="../uis-20-tm-work-orders.html">UIS-20: T&amp;M Work Orders</a></p>
+        </div>
+    </div>
+
+    <div class="uis-footer">
+        UIS-20c &middot; Work Order Create/Edit Form &middot; Generated for <a href="../uis-20-tm-work-orders.html">UIS-20</a>
+    </div>
+</div>
+
+<script>
+function toggleSection(el) {
+    el.classList.toggle("open");
+    const body = el.nextElementSibling;
+    if (body) body.classList.toggle("open");
+}
+</script>
+</body>
+</html>

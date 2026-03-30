@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>UIS-20: T&amp;M Work Orders &amp; Change Order Log — Appello</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Inter', -apple-system, sans-serif; background: #f1f5f9; color: #0f172a; }
+  .uis-wrap { max-width: 960px; margin: 0 auto; padding: 40px 24px 80px; }
+  .uis-hero { margin-bottom: 32px; }
+  .uis-badges { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+  .uis-badge { font-size: 11px; font-weight: 700; padding: 4px 12px; border-radius: 6px; display: inline-flex; align-items: center; gap: 5px; }
+  .badge-q { background: #0f172a; color: #fff; }
+  .badge-lane { background: #10b981; color: #fff; }
+  .badge-status { background: #7c3aed; color: #fff; }
+  .badge-priority { background: #fee2e2; color: #dc2626; }
+  .uis-h1 { font-size: 30px; font-weight: 800; color: #0f172a; margin: 0 0 8px; letter-spacing: -0.01em; }
+  .uis-sub { font-size: 15px; color: #64748b; line-height: 1.5; margin: 0; }
+  .uis-meta { display: flex; gap: 24px; flex-wrap: wrap; margin-top: 14px; font-size: 13px; color: #64748b; }
+  .uis-meta strong { color: #0f172a; }
+  .uis-toc { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px 28px; margin-bottom: 16px; }
+  .uis-toc h3 { font-size: 13px; font-weight: 700; color: #0f172a; margin: 0 0 10px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .uis-toc ol { margin: 0; padding-left: 20px; }
+  .uis-toc li { font-size: 14px; color: #3b82f6; margin-bottom: 4px; }
+  .uis-toc a { color: #3b82f6; text-decoration: none; }
+  .uis-toc a:hover { text-decoration: underline; }
+  .uis-section { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px 28px; margin-bottom: 16px; }
+  .uis-section h2 { font-size: 17px; font-weight: 700; color: #0f172a; margin: 0 0 14px; padding-bottom: 10px; border-bottom: 2px solid #e2e8f0; }
+  .uis-section h3 { font-size: 15px; font-weight: 700; color: #0f172a; margin: 16px 0 8px; }
+  .uis-section p, .uis-section li { font-size: 14px; color: #334155; line-height: 1.65; }
+  .uis-section ul, .uis-section ol { padding-left: 20px; margin: 8px 0; }
+  .customer-quote { background: #fef3c7; border-left: 3px solid #f59e0b; padding: 12px 16px; border-radius: 0 8px 8px 0; margin: 14px 0; font-style: italic; font-size: 14px; color: #92400e; }
+  .customer-quote .attribution { font-style: normal; font-weight: 600; display: block; margin-top: 6px; }
+  .competitor-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin: 12px 0; }
+  .competitor-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px; }
+  .competitor-card strong { font-size: 14px; color: #0f172a; display: block; margin-bottom: 4px; }
+  .competitor-card span { font-size: 12px; color: #64748b; }
+  .comp-status { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; padding: 2px 8px; border-radius: 4px; display: inline-block; margin-bottom: 6px; }
+  .comp-has { background: #dcfce7; color: #166534; }
+  .comp-missing { background: #f1f5f9; color: #64748b; }
+  .value-cards { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin: 12px 0; }
+  .value-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px; }
+  .value-card .v-icon { font-size: 20px; margin-bottom: 6px; }
+  .value-card .v-title { font-size: 13px; font-weight: 700; color: #0f172a; margin-bottom: 4px; }
+  .value-card .v-detail { font-size: 12px; color: #64748b; line-height: 1.5; }
+  .jira-chip { display: inline-flex; align-items: center; padding: 4px 12px; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 6px; font-family: 'SF Mono', monospace; font-size: 11px; font-weight: 600; color: #3b82f6; margin-right: 6px; margin-bottom: 6px; }
+  .child-spec-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; margin: 20px 0; }
+  .child-spec-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; transition: box-shadow 0.2s; }
+  .child-spec-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+  .child-spec-card h4 { font-size: 16px; font-weight: 700; color: #0f172a; margin: 0 0 8px; }
+  .child-spec-card p { font-size: 13px; color: #64748b; margin: 0 0 12px; }
+  .child-spec-card ul { padding-left: 16px; margin: 0 0 14px; font-size: 13px; color: #334155; }
+  .child-spec-card ul li { margin-bottom: 4px; }
+  .child-spec-card a.child-link { display: inline-block; padding: 6px 16px; background: #3b82f6; color: #fff; border-radius: 6px; font-size: 12px; font-weight: 600; text-decoration: none; }
+  .child-spec-card a.child-link:hover { background: #2563eb; }
+  .seq-badge { display: inline-block; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 4px; margin-bottom: 8px; }
+  .seq-foundation { background: #dbeafe; color: #1e40af; }
+  .seq-core { background: #dcfce7; color: #166534; }
+  .seq-dashboard { background: #fef3c7; color: #92400e; }
+  .seq-conversion { background: #ede9fe; color: #6d28d9; }
+  .seq-mobile { background: #fce7f3; color: #be185d; }
+  .dep-flow { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; margin: 16px 0; font-family: 'SF Mono', monospace; font-size: 13px; line-height: 2; color: #334155; }
+  .blast-summary { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 16px 20px; margin-bottom: 16px; }
+  .blast-row { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; }
+  .blast-row:not(:last-child) { border-bottom: 1px solid #f1f5f9; }
+  .blast-label { font-size: 13px; color: #64748b; }
+  .blast-value { font-size: 13px; font-weight: 700; color: #0f172a; }
+  .uis-footer { text-align: center; padding: 24px; font-size: 12px; color: #94a3b8; }
+  .uis-footer a { color: #3b82f6; text-decoration: none; }
+</style>
+</head>
+<body>
+<main class="uis-wrap">
+
+  <div class="uis-hero">
+    <div class="uis-badges">
+      <span class="uis-badge badge-q">UIS-20</span>
+      <span class="uis-badge badge-lane">Field Operations</span>
+      <span class="uis-badge badge-status">Parent</span>
+      <span class="uis-badge badge-priority">P0 &mdash; Deal Blocker</span>
+    </div>
+    <h1 class="uis-h1">UIS-20: T&amp;M Work Orders &amp; Change Order Log</h1>
+    <p class="uis-sub">Bring Clearstory-caliber T&amp;M work order capture and portfolio-wide change order visibility into Appello. Field workers create structured Work Orders from mobile with auto-pricing from existing rate tables, one-click conversion to Change Orders and Invoices, and a centralized Change Order Log dashboard with aging analytics. This is the #1 deal blocker across the pipeline.</p>
+    <div class="uis-meta">
+      <span><strong>Author:</strong> Cursor SDLC Agent</span>
+      <span><strong>Created:</strong> March 30, 2026</span>
+      <span><strong>Status:</strong> Draft</span>
+      <span><strong>Children:</strong> 8 specs</span>
+      <span><strong>Est. Duration:</strong> 6&ndash;8 weeks</span>
+    </div>
+  </div>
+
+  <div class="uis-toc">
+    <h3>Contents</h3>
+    <ol>
+      <li><a href="#s1">Business Case</a></li>
+      <li><a href="#s2">Scope &amp; Child Specs</a></li>
+      <li><a href="#s3">Architecture Overview</a></li>
+      <li><a href="#s4">Delivery Sequence</a></li>
+      <li><a href="#s5">Summary Metrics</a></li>
+    </ol>
+  </div>
+
+  <!-- Section 1: Business Case -->
+  <div class="uis-section" id="s1">
+    <h2>1. Business Case</h2>
+    <p>T&amp;M Work Orders are the #1 missing feature across Appello's customer base and sales pipeline. Six customers have explicitly requested this capability, and one deal (Tear Systems) is directly blocked until it ships. The gap forces customers into form-based workarounds that lack structured line items, auto-pricing, and conversion workflows.</p>
+
+    <h3>Customer Evidence</h3>
+    <div class="customer-quote">
+      "Decision: Tear Systems will not switch until the T&amp;M feature is live. Primary Gap: Inability to create and invoice T&amp;M jobs directly from the field."
+      <span class="attribution">&mdash; Blayne Thompson, Tear Systems &middot; Follow-Up Call &middot; March 26, 2026</span>
+    </div>
+    <div class="customer-quote">
+      "We'll quote 20 of them and eight get approved. And then we do a couple work orders or timesheets. And then at the end of the job, we just want to make sure we're getting paid for all the ones we're supposed to get paid for."
+      <span class="attribution">&mdash; Chris Tremberth, Rival Insulation &middot; Onboarding Call</span>
+    </div>
+    <div class="customer-quote">
+      "Workers can only have one T&amp;M ticket open at a time... workers often need to submit multiple tickets per day for separate work items."
+      <span class="attribution">&mdash; LJ Insulation &middot; Support Ticket</span>
+    </div>
+
+    <h3>Competitive Landscape</h3>
+    <div class="competitor-grid">
+      <div class="competitor-card">
+        <strong>Clearstory</strong>
+        <span class="comp-status comp-has">Has This</span>
+        <span>Purpose-built T&amp;M Tags + COR Log with signatures, auto-pricing, aging analytics</span>
+      </div>
+      <div class="competitor-card">
+        <strong>Procore</strong>
+        <span class="comp-status comp-has">Has This</span>
+        <span>T&amp;M Tickets tool with e-signatures, mobile capture, change request generation</span>
+      </div>
+      <div class="competitor-card">
+        <strong>BuildOps</strong>
+        <span class="comp-status comp-has">Has This</span>
+        <span>Flexible T&amp;M quoting for commercial contractors with automated pricing</span>
+      </div>
+      <div class="competitor-card">
+        <strong>ServiceTitan</strong>
+        <span class="comp-status comp-has">Has This</span>
+        <span>Full work order + invoicing flow for field service with price book</span>
+      </div>
+    </div>
+    <p><em>4 of 4 tracked competitors offer native T&amp;M work orders. This is table stakes.</em></p>
+
+    <h3>Strategic Value</h3>
+    <div class="value-cards">
+      <div class="value-card">
+        <div class="v-icon">&#127919;</div>
+        <div class="v-title">Gap Priority</div>
+        <div class="v-detail">Tier 1 &mdash; P0 Deal Blocker. #1 requested feature across pipeline.</div>
+      </div>
+      <div class="value-card">
+        <div class="v-icon">&#128176;</div>
+        <div class="v-title">Revenue Impact</div>
+        <div class="v-detail">Direct: Tear Systems deal. Indirect: retention of 4+ existing customers using workarounds.</div>
+      </div>
+      <div class="value-card">
+        <div class="v-icon">&#127959;</div>
+        <div class="v-title">Implementation Leverage</div>
+        <div class="v-detail">~80% of building blocks exist (rate tables, materials, equipment, signatures, invoicing). This is a workflow layer, not greenfield.</div>
+      </div>
+      <div class="value-card">
+        <div class="v-icon">&#128279;</div>
+        <div class="v-title">Enables</div>
+        <div class="v-detail">Allowance tracking, CO analytics, Vista/Sage integration, portfolio financial dashboards.</div>
+      </div>
+    </div>
+
+    <h3>Related Jira Tickets</h3>
+    <div>
+      <span class="jira-chip">Q21030-8997</span>
+      <span class="jira-chip">Q21030-8958</span>
+      <span class="jira-chip">Q21030-9029</span>
+      <span class="jira-chip">Q21030-8245</span>
+      <span class="jira-chip">Q21030-4714</span>
+    </div>
+  </div>
+
+  <!-- Section 2: Scope & Child Specs -->
+  <div class="uis-section" id="s2">
+    <h2>2. Scope &amp; Child Specs</h2>
+    <p>This feature decomposes into 8 individually-shippable work items (complexity score: 71). Each child spec is a full UIS document with its own data model, API surface, UI mockups, and acceptance criteria.</p>
+
+    <div class="child-spec-grid">
+      <div class="child-spec-card">
+        <span class="seq-badge seq-foundation">Foundation</span>
+        <h4>WO-1: Job Type Configuration</h4>
+        <p>Extend Job DataModel for Work Order type-specific forms, statuses, and behavior.</p>
+        <ul>
+          <li><code>isWorkOrder</code> flag on Job</li>
+          <li>WO-specific status workflow seeds</li>
+          <li>DataModel form configs per job type</li>
+          <li>Job list type filter toggle</li>
+        </ul>
+        <a class="child-link" href="uis-20a-job-type-config.html">View Spec &rarr;</a>
+      </div>
+
+      <div class="child-spec-card">
+        <span class="seq-badge seq-foundation">Foundation</span>
+        <h4>WO-2: Line Item Tables</h4>
+        <p>Prisma models for structured labor, material, and equipment line items with auto-pricing.</p>
+        <ul>
+          <li>3 new Prisma models</li>
+          <li>Auto-pricing from TradeLevel, Material, Equipment catalogs</li>
+          <li>Repeating row editor components</li>
+        </ul>
+        <a class="child-link" href="uis-20b-line-item-tables.html">View Spec &rarr;</a>
+      </div>
+
+      <div class="child-spec-card">
+        <span class="seq-badge seq-core">Core UX</span>
+        <h4>WO-3: Create/Edit Form</h4>
+        <p>Custom Tier 2 flyout form with embedded line item editors, photos, and signatures.</p>
+        <ul>
+          <li>8 form sections in vertical flyout</li>
+          <li>Auto-sequenced WO number</li>
+          <li>Draft save support</li>
+          <li>Signature + geolocation capture</li>
+        </ul>
+        <a class="child-link" href="uis-20c-create-edit-form.html">View Spec &rarr;</a>
+      </div>
+
+      <div class="child-spec-card">
+        <span class="seq-badge seq-core">Core UX</span>
+        <h4>WO-4: Detail Page</h4>
+        <p>Enhanced Job detail with WO-specific tabs and conversion action buttons.</p>
+        <ul>
+          <li>Tabs: Overview, Line Items, Signatures, Files, Settings</li>
+          <li>Convert to CO / Generate Invoice buttons</li>
+          <li>Professional PDF generation</li>
+        </ul>
+        <a class="child-link" href="uis-20d-detail-page.html">View Spec &rarr;</a>
+      </div>
+
+      <div class="child-spec-card">
+        <span class="seq-badge seq-dashboard">Dashboard</span>
+        <h4>WO-5: T&amp;M Work Order Log</h4>
+        <p>Portfolio-wide WO list page with labor hours summary and status overview.</p>
+        <ul>
+          <li>New page at <code>/work-orders</code></li>
+          <li>Labor Hours Summary matrix</li>
+          <li>Status Overview with $ totals</li>
+          <li>ListTableViews + filters + CSV export</li>
+        </ul>
+        <a class="child-link" href="uis-20e-tm-log.html">View Spec &rarr;</a>
+      </div>
+
+      <div class="child-spec-card">
+        <span class="seq-badge seq-dashboard">Dashboard</span>
+        <h4>WO-6: Change Order Log</h4>
+        <p>Portfolio-wide CO dashboard with contract summary, status breakdown, and aging metrics.</p>
+        <ul>
+          <li>New page at <code>/change-order-log</code></li>
+          <li>Contract Summary + Status Summary panels</li>
+          <li>Average Days in Review metric</li>
+          <li>Existing ECO model &mdash; no schema dependency</li>
+        </ul>
+        <a class="child-link" href="uis-20f-co-log.html">View Spec &rarr;</a>
+      </div>
+
+      <div class="child-spec-card">
+        <span class="seq-badge seq-conversion">Conversion</span>
+        <h4>WO-7: WO &rarr; CO/Invoice</h4>
+        <p>One-click conversion with pre-populated line items from Work Order data.</p>
+        <ul>
+          <li>WO &rarr; EstimateChangeOrderRecord</li>
+          <li>WO &rarr; JobBill (Invoice)</li>
+          <li>Source linking + conversion badges</li>
+        </ul>
+        <a class="child-link" href="uis-20g-conversion.html">View Spec &rarr;</a>
+      </div>
+
+      <div class="child-spec-card">
+        <span class="seq-badge seq-mobile">Mobile</span>
+        <h4>WO-8: Mobile WO Creation</h4>
+        <p>Multi-step mobile form with camera, signature, and draft management for field workers.</p>
+        <ul>
+          <li>6-step form flow (mirrors QAFormWrapper)</li>
+          <li>SelectionSlideup pickers</li>
+          <li>Camera photo capture + signature canvas</li>
+          <li>Multiple concurrent drafts</li>
+        </ul>
+        <a class="child-link" href="uis-20h-mobile-creation.html">View Spec &rarr;</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Section 3: Architecture Overview -->
+  <div class="uis-section" id="s3">
+    <h2>3. Architecture Overview</h2>
+    <p><strong>Key decision:</strong> A T&amp;M Work Order is a <strong>type of Job</strong> (Tier 2 entity), not a new entity. This leverages everything Jobs already have: scheduling, timesheets, equipment, files, notes, permissions, financial summary, and the entire invoicing pipeline.</p>
+
+    <h3>Data Flow</h3>
+    <div class="dep-flow">
+      Field Worker (Mobile) &rarr; WorkOrderForm &rarr; Job (isWorkOrder=true)<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;+ WorkOrderLaborItem[] (auto-priced from TradeLevel + WageRegion)<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;+ WorkOrderMaterialItem[] (auto-priced from Material catalog)<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;+ WorkOrderEquipmentItem[] (auto-priced from Equipment catalog)<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;+ Signatures (geolocation-stamped PNG assets)<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;+ Photos (S3 assets via existing file system)<br>
+      <br>
+      PM (Desktop) &rarr; Work Order Log &rarr; Review + Approve<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&rarr; Convert to Change Order (EstimateChangeOrderRecord)<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&rarr; Generate Invoice (JobBill)<br>
+      <br>
+      PM (Desktop) &rarr; Change Order Log &rarr; Track aging + status across portfolio
+    </div>
+
+    <h3>Prerequisite</h3>
+    <p>Emma's Job DataModel refactor (<code>task/Q21030-11271/job-project-optional</code>) <strong>must be merged first</strong>. It provides: <code>projectId</code> optional on Job, Job forms driven by DataModel, and job-level settings independent of project.</p>
+  </div>
+
+  <!-- Section 4: Delivery Sequence -->
+  <div class="uis-section" id="s4">
+    <h2>4. Delivery Sequence</h2>
+
+    <h3>Critical Path</h3>
+    <div class="dep-flow">
+      Emma's Refactor &rarr; WO-1 &rarr; WO-2 &rarr; WO-3 &rarr; WO-4 &rarr; WO-7
+    </div>
+
+    <h3>Parallel Opportunities</h3>
+    <ul>
+      <li><strong>WO-6</strong> (Change Order Log) can start immediately after merge &mdash; independent of WO-1 through WO-5</li>
+      <li><strong>WO-5</strong> and <strong>WO-8</strong> can start after WO-3 completes (parallel to WO-4)</li>
+    </ul>
+
+    <h3>Timeline Estimate</h3>
+    <div class="blast-summary">
+      <div class="blast-row"><span class="blast-label">WO-1: Job Type Config</span><span class="blast-value">3&ndash;5 days</span></div>
+      <div class="blast-row"><span class="blast-label">WO-2: Line Item Tables</span><span class="blast-value">4&ndash;5 days</span></div>
+      <div class="blast-row"><span class="blast-label">WO-3: Create/Edit Form</span><span class="blast-value">5&ndash;7 days</span></div>
+      <div class="blast-row"><span class="blast-label">WO-4: Detail Page</span><span class="blast-value">4&ndash;5 days</span></div>
+      <div class="blast-row"><span class="blast-label">WO-5: T&amp;M Log</span><span class="blast-value">4&ndash;5 days</span></div>
+      <div class="blast-row"><span class="blast-label">WO-6: CO Log (parallel)</span><span class="blast-value">5&ndash;7 days</span></div>
+      <div class="blast-row"><span class="blast-label">WO-7: Conversion</span><span class="blast-value">3&ndash;4 days</span></div>
+      <div class="blast-row"><span class="blast-label">WO-8: Mobile (parallel)</span><span class="blast-value">5&ndash;7 days</span></div>
+      <div class="blast-row" style="border-top:2px solid #e2e8f0;padding-top:8px;margin-top:4px">
+        <span class="blast-label" style="font-weight:700;color:#0f172a">Total (with parallelism)</span>
+        <span class="blast-value">~6&ndash;8 weeks</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Section 5: Summary Metrics -->
+  <div class="uis-section" id="s5">
+    <h2>5. Summary Metrics</h2>
+    <div class="blast-summary">
+      <div class="blast-row"><span class="blast-label">Total Child Specs</span><span class="blast-value">8</span></div>
+      <div class="blast-row"><span class="blast-label">Total Complexity Score</span><span class="blast-value">71</span></div>
+      <div class="blast-row"><span class="blast-label">New Prisma Models</span><span class="blast-value">3</span></div>
+      <div class="blast-row"><span class="blast-label">New SQL Views</span><span class="blast-value">2</span></div>
+      <div class="blast-row"><span class="blast-label">New GraphQL Resolvers</span><span class="blast-value">4</span></div>
+      <div class="blast-row"><span class="blast-label">New Frontend Pages</span><span class="blast-value">2 desktop + 1 mobile</span></div>
+      <div class="blast-row"><span class="blast-label">New Frontend Components</span><span class="blast-value">~26</span></div>
+      <div class="blast-row"><span class="blast-label">New Files (total)</span><span class="blast-value">42</span></div>
+      <div class="blast-row"><span class="blast-label">Modified Files (total)</span><span class="blast-value">12</span></div>
+      <div class="blast-row"><span class="blast-label">Customers Requesting</span><span class="blast-value">6</span></div>
+      <div class="blast-row"><span class="blast-label">Deals Blocked</span><span class="blast-value">1 confirmed + 1 at risk</span></div>
+    </div>
+  </div>
+
+</main>
+
+<div class="uis-footer">UIS-20: T&amp;M Work Orders &amp; Change Order Log &middot; Appello SDLC &middot; March 2026</div>
+
+</body>
+</html>

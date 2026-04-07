@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UIS-MAT-6: Receiving + Three-Way Match</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Inter', -apple-system, sans-serif; background: #f1f5f9; color: #0f172a; }
+.uis-wrap { max-width: 960px; margin: 0 auto; padding: 40px 24px 80px; }
+.uis-hero { margin-bottom: 32px; }
+.uis-badges { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+.uis-badge { font-size: 11px; font-weight: 700; padding: 4px 12px; border-radius: 6px; display: inline-flex; align-items: center; gap: 5px; }
+.badge-q { background: #0f172a; color: #fff; }
+.badge-lane { background: #10b981; color: #fff; }
+.badge-status { background: #fef3c7; color: #92400e; }
+.badge-priority { background: #fee2e2; color: #dc2626; }
+.badge-child { background: #7c3aed; color: #fff; }
+.uis-h1 { font-size: 30px; font-weight: 800; color: #0f172a; margin: 0 0 8px; letter-spacing: -0.01em; }
+.uis-sub { font-size: 15px; color: #64748b; line-height: 1.5; margin: 0; }
+.uis-meta { display: flex; gap: 24px; flex-wrap: wrap; margin-top: 14px; font-size: 13px; color: #64748b; }
+.uis-meta strong { color: #0f172a; }
+.uis-toc { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px 28px; margin-bottom: 16px; }
+.uis-toc h3 { font-size: 13px; font-weight: 700; color: #0f172a; margin: 0 0 10px; text-transform: uppercase; letter-spacing: 0.5px; }
+.uis-toc ol { margin: 0; padding-left: 20px; }
+.uis-toc li { font-size: 14px; color: #3b82f6; margin-bottom: 4px; }
+.uis-toc a { color: #3b82f6; text-decoration: none; }
+.uis-section { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px 28px; margin-bottom: 16px; }
+.uis-section h2 { font-size: 17px; font-weight: 700; color: #0f172a; margin: 0 0 14px; padding-bottom: 10px; border-bottom: 2px solid #e2e8f0; }
+.uis-section h3 { font-size: 15px; font-weight: 700; color: #0f172a; margin: 16px 0 8px; }
+.uis-section p, .uis-section li { font-size: 14px; color: #334155; line-height: 1.65; }
+.uis-section ul, .uis-section ol { padding-left: 20px; margin: 8px 0; }
+.customer-quote { background: #fef3c7; border-left: 3px solid #f59e0b; padding: 12px 16px; border-radius: 0 8px 8px 0; margin: 14px 0; font-style: italic; font-size: 14px; color: #92400e; }
+.customer-quote .attribution { font-style: normal; font-weight: 600; display: block; margin-top: 6px; }
+.competitor-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin: 12px 0; }
+.competitor-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px; }
+.competitor-card strong { font-size: 14px; color: #0f172a; display: block; margin-bottom: 4px; }
+.competitor-card span { font-size: 12px; color: #64748b; }
+.comp-status { font-size: 10px; font-weight: 700; text-transform: uppercase; padding: 2px 8px; border-radius: 4px; display: inline-block; margin-bottom: 6px; }
+.comp-has { background: #dcfce7; color: #166534; }
+.comp-none { background: #fee2e2; color: #dc2626; }
+.value-cards { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin: 12px 0; }
+.value-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px; }
+.value-card .v-icon { font-size: 20px; margin-bottom: 6px; }
+.value-card .v-title { font-size: 13px; font-weight: 700; color: #0f172a; margin-bottom: 4px; }
+.value-card .v-detail { font-size: 12px; color: #64748b; line-height: 1.5; }
+.jira-chip { display: inline-flex; align-items: center; padding: 4px 12px; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 6px; font-family: monospace; font-size: 11px; font-weight: 600; color: #3b82f6; margin-right: 6px; margin-bottom: 6px; }
+.scope-tag { display: inline-block; font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 5px; margin-right: 6px; }
+.scope-in { background: #dcfce7; color: #166534; }
+.scope-out { background: #fee2e2; color: #dc2626; }
+.mockup-container { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; margin: 14px 0; }
+.mockup-bar { background: #f1f5f9; padding: 8px 14px; font-size: 12px; font-weight: 600; color: #64748b; border-bottom: 1px solid #e2e8f0; display: flex; align-items: center; gap: 8px; }
+.mockup-dots { display: flex; gap: 5px; }
+.mockup-dot { width: 8px; height: 8px; border-radius: 50%; }
+.mockup-dot-r { background: #f87171; }
+.mockup-dot-y { background: #fbbf24; }
+.mockup-dot-g { background: #34d399; }
+.mockup-body { padding: 24px; min-height: 200px; font-size: 13px; color: #334155; line-height: 1.6; }
+.collapsible-toggle { display: flex; align-items: center; justify-content: space-between; cursor: pointer; user-select: none; }
+.collapsible-toggle .toggle-icon { font-size: 14px; color: #94a3b8; transition: transform 0.2s; }
+.collapsible-toggle.open .toggle-icon { transform: rotate(180deg); }
+.collapsible-body { display: none; margin-top: 14px; }
+.collapsible-body.open { display: block; }
+pre { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; overflow-x: auto; font-size: 13px; line-height: 1.5; font-family: monospace; color: #334155; }
+table.schema-table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 12px 0; }
+table.schema-table th { text-align: left; padding: 8px 12px; background: #f8fafc; border-bottom: 2px solid #e2e8f0; font-weight: 600; }
+table.schema-table td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; }
+table.schema-table code { font-family: monospace; background: #f1f5f9; padding: 1px 5px; border-radius: 3px; font-size: 12px; color: #7c3aed; }
+.blast-summary { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 16px 20px; margin-bottom: 16px; }
+.blast-row { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; }
+.blast-row:not(:last-child) { border-bottom: 1px solid #f1f5f9; }
+.blast-label { font-size: 13px; color: #64748b; }
+.blast-value { font-size: 13px; font-weight: 700; color: #0f172a; }
+.action-new { background: #dcfce7; color: #166534; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 4px; }
+.action-mod { background: #fef3c7; color: #92400e; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 4px; }
+.criteria-list { list-style: none; padding: 0; }
+.criteria-list li { padding: 8px 0; border-bottom: 1px solid #f1f5f9; display: flex; gap: 10px; align-items: flex-start; font-size: 14px; color: #334155; }
+.criteria-list li:last-child { border-bottom: none; }
+.criteria-check { width: 18px; height: 18px; border: 2px solid #cbd5e1; border-radius: 4px; flex-shrink: 0; margin-top: 1px; }
+.dep-tag { display: inline-block; font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 5px; margin-right: 6px; margin-bottom: 6px; text-decoration: none; }
+.dep-none { background: #dcfce7; color: #166534; }
+.dep-requires { background: #fef3c7; color: #92400e; }
+.dep-enables { background: #eff6ff; color: #1d4ed8; }
+.uis-footer { text-align: center; padding: 24px; font-size: 12px; color: #94a3b8; }
+.uis-footer a { color: #3b82f6; text-decoration: none; }
+.mockup-row { display: flex; gap: 8px; padding: 6px 0; border-bottom: 1px solid #f1f5f9; align-items: center; }
+.mockup-cell { flex: 1; }
+.mockup-header { font-weight: 700; background: #f1f5f9; padding: 8px; border-radius: 4px; margin-bottom: 4px; }
+.mockup-input { background: #fff; border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px 12px; color: #94a3b8; font-size: 12px; }
+.mockup-btn { display: inline-block; padding: 6px 14px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; border: none; }
+.mockup-btn-primary { background: #3b82f6; color: #fff; }
+.mockup-btn-success { background: #10b981; color: #fff; }
+.mockup-btn-outline { background: #fff; color: #3b82f6; border: 1px solid #3b82f6; }
+.mockup-badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 700; }
+.match-green { background: #dcfce7; color: #166534; }
+.match-yellow { background: #fef3c7; color: #92400e; }
+.match-red { background: #fee2e2; color: #dc2626; }
+    </style>
+</head>
+<body>
+<div class="uis-wrap">
+
+    <div class="uis-hero">
+        <div class="uis-badges">
+            <span class="uis-badge badge-q">MAT-6</span>
+            <span class="uis-badge badge-lane">Procurement</span>
+            <span class="uis-badge badge-status">Draft</span>
+            <span class="uis-badge badge-priority">P1</span>
+            <span class="uis-badge badge-child">Child of Release 1.34</span>
+        </div>
+        <h1 class="uis-h1">Receiving + Three-Way Match</h1>
+        <p class="uis-sub">Receive deliveries against Supplier POs with partial/complete receipts, quantity matching, back-order tracking, and three-way match (PO vs Received vs Invoiced).</p>
+        <div class="uis-meta">
+            <span><strong>Parent:</strong> Release 1.34</span>
+            <span><strong>Slice:</strong> MAT-6</span>
+            <span><strong>Est:</strong> 4&ndash;5 days</span>
+        </div>
+    </div>
+
+    <div class="uis-toc">
+        <h3>Contents</h3>
+        <ol>
+            <li><a href="#s1">Business Case &amp; Customer Evidence</a></li>
+            <li><a href="#s2">Scope</a></li>
+            <li><a href="#s3">UI Concepts</a></li>
+            <li><a href="#s4">Data Model</a></li>
+            <li><a href="#s5">API Surface</a></li>
+            <li><a href="#s6">Change Surface</a></li>
+            <li><a href="#s7">Acceptance Criteria</a></li>
+            <li><a href="#s8">Dependencies</a></li>
+        </ol>
+    </div>
+
+    <!-- Section 1 -->
+    <div class="uis-section" id="s1">
+        <h2 class="collapsible-toggle open" onclick="toggleSection(this)">
+            1 &middot; Business Case &amp; Customer Evidence
+            <span class="toggle-icon">&#9660;</span>
+        </h2>
+        <div class="collapsible-body open">
+            <p>Without receiving, there is no proof of delivery, no way to dispute short shipments, and no automated invoice approval. Accountants manually compare every supplier invoice against orders &mdash; a process that breaks at scale. Receiving closes the loop between procurement and accounts payable.</p>
+
+            <h3>Customer Evidence</h3>
+            <div class="customer-quote">
+                "Match packing slip / bill of lading against purchase order. Mark full receipt or partial receipt. Handle back-orders."
+                <span class="attribution">&mdash; Product vision (Nov 2025)</span>
+            </div>
+            <div class="customer-quote">
+                "If a vendor has a credit, it starts with receiving &mdash; you can't know what's wrong until you confirm what arrived."
+                <span class="attribution">&mdash; Corey Shelson</span>
+            </div>
+
+            <h3>Value Delivered</h3>
+            <div class="value-cards">
+                <div class="value-card">
+                    <div class="v-icon">📦</div>
+                    <div class="v-title">Delivery Confirmation</div>
+                    <div class="v-detail">Formal record of what arrived, when, and who received it &mdash; evidence for disputes and audits.</div>
+                </div>
+                <div class="value-card">
+                    <div class="v-icon">📋</div>
+                    <div class="v-title">Partial Receipts</div>
+                    <div class="v-detail">Receive what arrived, track what&rsquo;s back-ordered. Multiple receipts per PO until fully received.</div>
+                </div>
+                <div class="value-card">
+                    <div class="v-icon">🔀</div>
+                    <div class="v-title">Three-Way Match</div>
+                    <div class="v-detail">PO qty vs Received qty vs Invoiced qty &mdash; instant visibility into discrepancies before paying.</div>
+                </div>
+                <div class="value-card">
+                    <div class="v-icon">🔄</div>
+                    <div class="v-title">PO Status Auto-Transition</div>
+                    <div class="v-detail">PO status automatically moves through Partially Received &rarr; Fully Received as receipts are logged.</div>
+                </div>
+            </div>
+
+            <h3>Competitive Landscape</h3>
+            <div class="competitor-grid">
+                <div class="competitor-card">
+                    <span class="comp-status comp-has">HAS</span>
+                    <strong>Procore</strong>
+                    <span>Receiving against PO with partial receipt tracking</span>
+                </div>
+                <div class="competitor-card">
+                    <span class="comp-status comp-has">HAS</span>
+                    <strong>Sage 300</strong>
+                    <span>Full receiving + AP matching with three-way match</span>
+                </div>
+                <div class="competitor-card">
+                    <span class="comp-status comp-has">HAS</span>
+                    <strong>ServiceTitan</strong>
+                    <span>Inventory receiving workflow</span>
+                </div>
+                <div class="competitor-card">
+                    <span class="comp-status comp-none">NONE</span>
+                    <strong>Appello</strong>
+                    <span><code>backOrderValue</code> field only &mdash; no receiving workflow</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 2 -->
+    <div class="uis-section" id="s2">
+        <h2 class="collapsible-toggle open" onclick="toggleSection(this)">
+            2 &middot; Scope
+            <span class="toggle-icon">&#9660;</span>
+        </h2>
+        <div class="collapsible-body open">
+            <h3>In Scope</h3>
+            <ul>
+                <li><span class="scope-tag scope-in">IN</span> <code>PurchaseOrderReceipt</code> + <code>ReceiptLineItem</code> Prisma models</li>
+                <li><span class="scope-tag scope-in">IN</span> Extensions to <code>PurchaseOrderLineItem</code> (<code>receivedQty</code>, <code>backOrderQty</code> &mdash; computed from receipts)</li>
+                <li><span class="scope-tag scope-in">IN</span> Receiving form: select PO, enter received qty per line item</li>
+                <li><span class="scope-tag scope-in">IN</span> Three-way match view on PO detail (PO vs Received vs Invoiced)</li>
+                <li><span class="scope-tag scope-in">IN</span> PO status auto-transitions: <code>PartiallyReceived</code>, <code>FullyReceived</code></li>
+                <li><span class="scope-tag scope-in">IN</span> Committed material costs in Job Financial Summary</li>
+                <li><span class="scope-tag scope-in">IN</span> Receipt history tab on PO detail page</li>
+            </ul>
+
+            <h3>Out of Scope</h3>
+            <ul>
+                <li><span class="scope-tag scope-out">OUT</span> Mobile receiving</li>
+                <li><span class="scope-tag scope-out">OUT</span> Barcode/QR scanning on receipt</li>
+                <li><span class="scope-tag scope-out">OUT</span> Supplier invoice matching (AP integration)</li>
+                <li><span class="scope-tag scope-out">OUT</span> Automatic inventory creation (MAT-7)</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Section 3 -->
+    <div class="uis-section" id="s3">
+        <h2 class="collapsible-toggle open" onclick="toggleSection(this)">
+            3 &middot; UI Concepts
+            <span class="toggle-icon">&#9660;</span>
+        </h2>
+        <div class="collapsible-body open">
+
+            <h3>3.1 &mdash; Receiving Form</h3>
+            <div class="mockup-container">
+                <div class="mockup-bar">
+                    <div class="mockup-dots"><div class="mockup-dot mockup-dot-r"></div><div class="mockup-dot mockup-dot-y"></div><div class="mockup-dot mockup-dot-g"></div></div>
+                    Receive Against SPO-0001
+                </div>
+                <div class="mockup-body">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; padding-bottom:12px; border-bottom:1px solid #e2e8f0;">
+                        <div>
+                            <div style="font-size:16px; font-weight:700;">SPO-0001</div>
+                            <div style="font-size:12px; color:#64748b;">Wolseley Canada</div>
+                        </div>
+                        <span class="mockup-badge" style="background:#eff6ff; color:#1d4ed8;">Partially Received</span>
+                    </div>
+                    <div class="mockup-row mockup-header" style="font-size:11px;">
+                        <div class="mockup-cell">Material</div>
+                        <div class="mockup-cell" style="flex:0.5;">Ordered</div>
+                        <div class="mockup-cell" style="flex:0.6;">Previously Received</div>
+                        <div class="mockup-cell" style="flex:0.5;">Receiving Now</div>
+                        <div class="mockup-cell" style="flex:0.5;">Back Order</div>
+                    </div>
+                    <div class="mockup-row">
+                        <div class="mockup-cell">3/4" Copper Pipe (10ft)</div>
+                        <div class="mockup-cell" style="flex:0.5;">50</div>
+                        <div class="mockup-cell" style="flex:0.6;">30</div>
+                        <div class="mockup-cell" style="flex:0.5;"><div class="mockup-input" style="width:60px; color:#0f172a; font-weight:600;">20</div></div>
+                        <div class="mockup-cell" style="flex:0.5; color:#64748b;">0</div>
+                    </div>
+                    <div class="mockup-row">
+                        <div class="mockup-cell">1" Ball Valve</div>
+                        <div class="mockup-cell" style="flex:0.5;">24</div>
+                        <div class="mockup-cell" style="flex:0.6;">0</div>
+                        <div class="mockup-cell" style="flex:0.5;"><div class="mockup-input" style="width:60px; color:#0f172a; font-weight:600;">18</div></div>
+                        <div class="mockup-cell" style="flex:0.5; color:#dc2626; font-weight:600;">6</div>
+                    </div>
+                    <div style="margin-top:16px;">
+                        <div style="font-size:11px; font-weight:600; color:#64748b; margin-bottom:4px;">Notes</div>
+                        <div class="mockup-input" style="width:100%; min-height:40px;">6 ball valves on back-order, ETA next week per driver.</div>
+                    </div>
+                    <div style="margin-top:16px; display:flex; gap:8px; justify-content:flex-end;">
+                        <span class="mockup-btn mockup-btn-outline">Cancel</span>
+                        <span class="mockup-btn mockup-btn-success">Receive Items</span>
+                    </div>
+                </div>
+            </div>
+
+            <h3>3.2 &mdash; Three-Way Match View</h3>
+            <div class="mockup-container">
+                <div class="mockup-bar">
+                    <div class="mockup-dots"><div class="mockup-dot mockup-dot-r"></div><div class="mockup-dot mockup-dot-y"></div><div class="mockup-dot mockup-dot-g"></div></div>
+                    SPO-0001 &mdash; Three-Way Match
+                </div>
+                <div class="mockup-body">
+                    <div class="mockup-row mockup-header" style="font-size:11px;">
+                        <div class="mockup-cell">Material</div>
+                        <div class="mockup-cell" style="flex:0.5;">PO Qty</div>
+                        <div class="mockup-cell" style="flex:0.5;">Received</div>
+                        <div class="mockup-cell" style="flex:0.5;">Invoiced</div>
+                        <div class="mockup-cell" style="flex:0.5;">Status</div>
+                    </div>
+                    <div class="mockup-row">
+                        <div class="mockup-cell">3/4" Copper Pipe (10ft)</div>
+                        <div class="mockup-cell" style="flex:0.5;">50</div>
+                        <div class="mockup-cell" style="flex:0.5;">50</div>
+                        <div class="mockup-cell" style="flex:0.5;">50</div>
+                        <div class="mockup-cell" style="flex:0.5;"><span class="mockup-badge match-green">Matched</span></div>
+                    </div>
+                    <div class="mockup-row">
+                        <div class="mockup-cell">1" Ball Valve</div>
+                        <div class="mockup-cell" style="flex:0.5;">24</div>
+                        <div class="mockup-cell" style="flex:0.5;">18</div>
+                        <div class="mockup-cell" style="flex:0.5;">24</div>
+                        <div class="mockup-cell" style="flex:0.5;"><span class="mockup-badge match-red">Discrepancy</span></div>
+                    </div>
+                    <div class="mockup-row">
+                        <div class="mockup-cell">1/2" Elbow Fitting</div>
+                        <div class="mockup-cell" style="flex:0.5;">100</div>
+                        <div class="mockup-cell" style="flex:0.5;">80</div>
+                        <div class="mockup-cell" style="flex:0.5;">80</div>
+                        <div class="mockup-cell" style="flex:0.5;"><span class="mockup-badge match-yellow">Partial</span></div>
+                    </div>
+                    <p style="font-size:12px; color:#64748b; margin-top:12px;"><strong>Legend:</strong> <span class="mockup-badge match-green" style="margin:0 4px;">Matched</span> PO = Received = Invoiced &nbsp; <span class="mockup-badge match-yellow" style="margin:0 4px;">Partial</span> Received &lt; PO, Invoiced = Received &nbsp; <span class="mockup-badge match-red" style="margin:0 4px;">Discrepancy</span> Invoiced &ne; Received</p>
+                </div>
+            </div>
+
+            <h3>3.3 &mdash; PO Detail &mdash; Receipts Tab</h3>
+            <div class="mockup-container">
+                <div class="mockup-bar">
+                    <div class="mockup-dots"><div class="mockup-dot mockup-dot-r"></div><div class="mockup-dot mockup-dot-y"></div><div class="mockup-dot mockup-dot-g"></div></div>
+                    SPO-0001 &mdash; Receipts
+                </div>
+                <div class="mockup-body">
+                    <div class="mockup-row mockup-header" style="font-size:11px;">
+                        <div class="mockup-cell" style="flex:0.5;">Receipt #</div>
+                        <div class="mockup-cell" style="flex:0.6;">Date</div>
+                        <div class="mockup-cell">Received By</div>
+                        <div class="mockup-cell" style="flex:0.4;">Items</div>
+                        <div class="mockup-cell">Notes</div>
+                    </div>
+                    <div class="mockup-row">
+                        <div class="mockup-cell" style="flex:0.5; font-weight:600; color:#3b82f6;">RCV-001</div>
+                        <div class="mockup-cell" style="flex:0.6;">Apr 5, 2026</div>
+                        <div class="mockup-cell">Mike Johnson</div>
+                        <div class="mockup-cell" style="flex:0.4;">2 items</div>
+                        <div class="mockup-cell" style="color:#64748b;">Initial delivery, 6 valves on B/O</div>
+                    </div>
+                    <div class="mockup-row">
+                        <div class="mockup-cell" style="flex:0.5; font-weight:600; color:#3b82f6;">RCV-002</div>
+                        <div class="mockup-cell" style="flex:0.6;">Apr 8, 2026</div>
+                        <div class="mockup-cell">Sarah Chen</div>
+                        <div class="mockup-cell" style="flex:0.4;">2 items</div>
+                        <div class="mockup-cell" style="color:#64748b;">Remaining pipe + back-ordered valves</div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Section 4 -->
+    <div class="uis-section" id="s4">
+        <h2 class="collapsible-toggle open" onclick="toggleSection(this)">
+            4 &middot; Data Model
+            <span class="toggle-icon">&#9660;</span>
+        </h2>
+        <div class="collapsible-body open">
+            <h3>PurchaseOrderReceipt</h3>
+            <pre>model PurchaseOrderReceipt {
+  id              String    @id @db.VarChar(21)
+  isDeleted       Boolean   @default(false)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @default(now()) @updatedAt
+  purchaseOrderId String    @db.VarChar(21)
+  PurchaseOrder   PurchaseOrder @relation(fields: [purchaseOrderId], references: [id])
+  receivedById    String    @db.VarChar(21)
+  receivedDate    DateTime  @default(now())
+  notes           String?   @db.Text
+  LineItems       ReceiptLineItem[]
+  @@index([purchaseOrderId, isDeleted])
+}</pre>
+
+            <h3>ReceiptLineItem</h3>
+            <pre>model ReceiptLineItem {
+  id                      String    @id @db.VarChar(21)
+  isDeleted               Boolean   @default(false)
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @default(now()) @updatedAt
+  receiptId               String    @db.VarChar(21)
+  Receipt                 PurchaseOrderReceipt @relation(fields: [receiptId], references: [id])
+  purchaseOrderLineItemId String    @db.VarChar(21)
+  PurchaseOrderLineItem   PurchaseOrderLineItem @relation(fields: [purchaseOrderLineItemId], references: [id])
+  quantityReceived        Decimal   @db.Decimal(10, 2)
+  quantityDamaged         Decimal?  @db.Decimal(10, 2)
+  notes                   String?   @db.Text
+  @@index([receiptId, isDeleted])
+}</pre>
+
+            <h3>PurchaseOrderLineItem Extensions</h3>
+            <table class="schema-table">
+                <thead><tr><th>Field</th><th>Type</th><th>Notes</th></tr></thead>
+                <tbody>
+                    <tr><td><code>receivedQty</code></td><td>Computed</td><td>Sum of <code>ReceiptLineItem.quantityReceived</code> across all receipts for this line</td></tr>
+                    <tr><td><code>backOrderQty</code></td><td>Computed</td><td><code>quantity - receivedQty</code> &mdash; remaining quantity not yet received</td></tr>
+                </tbody>
+            </table>
+            <p style="font-size:12px; color:#64748b; margin-top:4px;">Both <code>receivedQty</code> and <code>backOrderQty</code> are computed at query time from receipt data &mdash; not stored as columns. This avoids drift between receipts and summary fields.</p>
+        </div>
+    </div>
+
+    <!-- Section 5 -->
+    <div class="uis-section" id="s5">
+        <h2 class="collapsible-toggle open" onclick="toggleSection(this)">
+            5 &middot; API Surface
+            <span class="toggle-icon">&#9660;</span>
+        </h2>
+        <div class="collapsible-body open">
+            <h3>GraphQL Types</h3>
+            <pre>type PurchaseOrderReceipt {
+  id: ID!
+  purchaseOrderId: String!
+  PurchaseOrder: PurchaseOrder!
+  receivedById: String!
+  ReceivedBy: User!
+  receivedDate: DateTime!
+  notes: String
+  LineItems: [ReceiptLineItem!]!
+  createdAt: DateTime!
+}
+
+type ReceiptLineItem {
+  id: ID!
+  receiptId: String!
+  purchaseOrderLineItemId: String!
+  PurchaseOrderLineItem: PurchaseOrderLineItem!
+  quantityReceived: Float!
+  quantityDamaged: Float
+  notes: String
+}
+
+extend type PurchaseOrderLineItem {
+  receivedQty: Float!
+  backOrderQty: Float!
+  Receipts: [ReceiptLineItem!]!
+}</pre>
+
+            <h3>Input Types</h3>
+            <pre>input ReceiveItemInput {
+  purchaseOrderLineItemId: String!
+  quantityReceived: Float!
+  quantityDamaged: Float
+  notes: String
+}
+
+input ReceivePurchaseOrderInput {
+  purchaseOrderId: String!
+  receivedDate: DateTime
+  notes: String
+  lineItems: [ReceiveItemInput!]!
+}</pre>
+
+            <h3>Queries &amp; Mutations</h3>
+            <pre>type Query {
+  purchaseOrderReceipts(purchaseOrderId: String!): [PurchaseOrderReceipt!]!
+  purchaseOrderReceipt(id: ID!): PurchaseOrderReceipt!
+}
+
+type Mutation {
+  receivePurchaseOrder(input: ReceivePurchaseOrderInput!): PurchaseOrderReceipt!
+}</pre>
+            <p style="font-size:12px; color:#64748b; margin-top:8px;">The <code>receivePurchaseOrder</code> mutation validates that <code>quantityReceived &le; remainingQty</code> per line, creates receipt + line item records in a transaction, and auto-transitions PO status to <code>PartiallyReceived</code> or <code>FullyReceived</code>.</p>
+        </div>
+    </div>
+
+    <!-- Section 6 -->
+    <div class="uis-section" id="s6">
+        <h2 class="collapsible-toggle open" onclick="toggleSection(this)">
+            6 &middot; Change Surface
+            <span class="toggle-icon">&#9660;</span>
+        </h2>
+        <div class="collapsible-body open">
+            <div class="blast-summary">
+                <div class="blast-row">
+                    <span class="blast-label">New Files</span>
+                    <span class="blast-value">4</span>
+                </div>
+                <div class="blast-row">
+                    <span class="blast-label">Modified Files</span>
+                    <span class="blast-value">3</span>
+                </div>
+                <div class="blast-row">
+                    <span class="blast-label">Total Touched</span>
+                    <span class="blast-value">7</span>
+                </div>
+            </div>
+
+            <table class="schema-table">
+                <thead>
+                    <tr><th>Action</th><th>File</th><th>Change</th></tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><span class="action-new">NEW</span></td>
+                        <td><code>apps/api/prisma/migrations/…_add_po_receiving/migration.sql</code></td>
+                        <td>Create PurchaseOrderReceipt and ReceiptLineItem tables with indexes</td>
+                    </tr>
+                    <tr>
+                        <td><span class="action-new">NEW</span></td>
+                        <td><code>apps/api/src/models/PurchaseOrderReceipt.ts</code></td>
+                        <td>Receipt CRUD, quantity validation, PO status auto-transition logic</td>
+                    </tr>
+                    <tr>
+                        <td><span class="action-new">NEW</span></td>
+                        <td><code>apps/api/src/graphql/models/PurchaseOrderReceipt.ts</code></td>
+                        <td>GraphQL resolver: types, queries, receivePurchaseOrder mutation</td>
+                    </tr>
+                    <tr>
+                        <td><span class="action-new">NEW</span></td>
+                        <td><code>apps/frontend/src/components/PurchaseOrder/ReceivingForm.tsx</code></td>
+                        <td>Receiving form with per-line quantity inputs and back-order display</td>
+                    </tr>
+                    <tr>
+                        <td><span class="action-mod">MOD</span></td>
+                        <td><code>apps/api/prisma/schema.prisma</code></td>
+                        <td>Add PurchaseOrderReceipt, ReceiptLineItem models + relations on PurchaseOrder and PurchaseOrderLineItem</td>
+                    </tr>
+                    <tr>
+                        <td><span class="action-mod">MOD</span></td>
+                        <td><code>apps/api/src/graphql/schema.ts</code></td>
+                        <td>Register PurchaseOrderReceipt resolver (import, typeDef, Query, Mutation)</td>
+                    </tr>
+                    <tr>
+                        <td><span class="action-mod">MOD</span></td>
+                        <td><code>apps/api/src/models/JobFinancialSummaryService.ts</code></td>
+                        <td>Include committed material costs from issued POs in Financial Summary calculations</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Section 7 -->
+    <div class="uis-section" id="s7">
+        <h2 class="collapsible-toggle open" onclick="toggleSection(this)">
+            7 &middot; Acceptance Criteria
+            <span class="toggle-icon">&#9660;</span>
+        </h2>
+        <div class="collapsible-body open">
+            <ul class="criteria-list">
+                <li><div class="criteria-check"></div>A full quantity can be received against a Supplier PO in a single receipt</li>
+                <li><div class="criteria-check"></div>Partial quantities can be received, leaving a back-order balance on remaining lines</li>
+                <li><div class="criteria-check"></div>Back-order quantity is correctly computed as <code>ordered - receivedQty</code></li>
+                <li><div class="criteria-check"></div>PO status auto-transitions to <code>PartiallyReceived</code> when some (but not all) lines are fully received</li>
+                <li><div class="criteria-check"></div>PO status auto-transitions to <code>FullyReceived</code> when all lines reach ordered quantity</li>
+                <li><div class="criteria-check"></div>Three-way match view displays PO qty, received qty, and invoiced qty per line with status indicators</li>
+                <li><div class="criteria-check"></div>Three-way match highlights discrepancies (invoiced &ne; received) with red indicator</li>
+                <li><div class="criteria-check"></div>Receipt history tab on PO detail shows all receipts with date, receiver, item count, and notes</li>
+                <li><div class="criteria-check"></div>Permission check: <code>materialorder.edit</code> required to receive against a PO</li>
+                <li><div class="criteria-check"></div>Validation: received quantity cannot exceed remaining quantity (<code>ordered - previouslyReceived</code>)</li>
+                <li><div class="criteria-check"></div>Committed material costs from issued POs appear in the Job Financial Summary</li>
+                <li><div class="criteria-check"></div>Damaged quantity can be recorded per line item during receiving</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Section 8 -->
+    <div class="uis-section" id="s8">
+        <h2 class="collapsible-toggle open" onclick="toggleSection(this)">
+            8 &middot; Dependencies
+            <span class="toggle-icon">&#9660;</span>
+        </h2>
+        <div class="collapsible-body open">
+            <h3>Requires</h3>
+            <p>
+                <a class="dep-tag dep-requires" href="uis-MAT-5-supplier-po.html">MAT-5: Supplier Purchase Orders</a>
+            </p>
+
+            <h3>Enables</h3>
+            <p>
+                <span class="dep-tag dep-enables">MAT-7: Inventory (receiving feeds stock)</span>
+                <span class="dep-tag dep-enables">MAT-8: Vendor Credits (receipts identify issues)</span>
+            </p>
+
+            <h3>Siblings</h3>
+            <p><em>None</em></p>
+
+            <h3>Parent</h3>
+            <p><span class="dep-tag dep-none">Release 1.34</span></p>
+        </div>
+    </div>
+
+    <div class="uis-footer">
+        MAT-6 &middot; Receiving + Three-Way Match &middot; Generated for <span>Release 1.34</span>
+    </div>
+</div>
+
+<script>
+function toggleSection(el) {
+    el.classList.toggle("open");
+    const body = el.nextElementSibling;
+    if (body) body.classList.toggle("open");
+}
+</script>
+</body>
+</html>

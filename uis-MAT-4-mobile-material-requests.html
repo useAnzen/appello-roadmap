@@ -1,0 +1,709 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MAT-4: Mobile Material Requests</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Inter', -apple-system, sans-serif; background: #f1f5f9; color: #0f172a; }
+.uis-wrap { max-width: 960px; margin: 0 auto; padding: 40px 24px 80px; }
+.uis-hero { margin-bottom: 32px; }
+.uis-badges { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+.uis-badge { font-size: 11px; font-weight: 700; padding: 4px 12px; border-radius: 6px; display: inline-flex; align-items: center; gap: 5px; }
+.badge-q { background: #0f172a; color: #fff; }
+.badge-lane { background: #10b981; color: #fff; }
+.badge-status { background: #fef3c7; color: #92400e; }
+.badge-priority { background: #fee2e2; color: #dc2626; }
+.badge-child { background: #7c3aed; color: #fff; }
+.uis-h1 { font-size: 30px; font-weight: 800; color: #0f172a; margin: 0 0 8px; letter-spacing: -0.01em; }
+.uis-sub { font-size: 15px; color: #64748b; line-height: 1.5; margin: 0; }
+.uis-meta { display: flex; gap: 24px; flex-wrap: wrap; margin-top: 14px; font-size: 13px; color: #64748b; }
+.uis-meta strong { color: #0f172a; }
+.uis-toc { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px 28px; margin-bottom: 16px; }
+.uis-toc h3 { font-size: 13px; font-weight: 700; color: #0f172a; margin: 0 0 10px; text-transform: uppercase; letter-spacing: 0.5px; }
+.uis-toc ol { margin: 0; padding-left: 20px; }
+.uis-toc li { font-size: 14px; color: #3b82f6; margin-bottom: 4px; }
+.uis-toc a { color: #3b82f6; text-decoration: none; }
+.uis-section { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px 28px; margin-bottom: 16px; }
+.uis-section h2 { font-size: 17px; font-weight: 700; color: #0f172a; margin: 0 0 14px; padding-bottom: 10px; border-bottom: 2px solid #e2e8f0; }
+.uis-section h3 { font-size: 15px; font-weight: 700; color: #0f172a; margin: 16px 0 8px; }
+.uis-section p, .uis-section li { font-size: 14px; color: #334155; line-height: 1.65; }
+.uis-section ul, .uis-section ol { padding-left: 20px; margin: 8px 0; }
+.customer-quote { background: #fef3c7; border-left: 3px solid #f59e0b; padding: 12px 16px; border-radius: 0 8px 8px 0; margin: 14px 0; font-style: italic; font-size: 14px; color: #92400e; }
+.customer-quote .attribution { font-style: normal; font-weight: 600; display: block; margin-top: 6px; }
+.competitor-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin: 12px 0; }
+.competitor-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px; }
+.competitor-card strong { font-size: 14px; color: #0f172a; display: block; margin-bottom: 4px; }
+.competitor-card span { font-size: 12px; color: #64748b; }
+.comp-status { font-size: 10px; font-weight: 700; text-transform: uppercase; padding: 2px 8px; border-radius: 4px; display: inline-block; margin-bottom: 6px; }
+.comp-has { background: #dcfce7; color: #166534; }
+.comp-partial { background: #fef3c7; color: #92400e; }
+.comp-none { background: #fee2e2; color: #dc2626; }
+.value-cards { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin: 12px 0; }
+.value-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px; }
+.value-card .v-icon { font-size: 20px; margin-bottom: 6px; }
+.value-card .v-title { font-size: 13px; font-weight: 700; color: #0f172a; margin-bottom: 4px; }
+.value-card .v-detail { font-size: 12px; color: #64748b; line-height: 1.5; }
+.jira-chip { display: inline-flex; align-items: center; padding: 4px 12px; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 6px; font-family: monospace; font-size: 11px; font-weight: 600; color: #3b82f6; margin-right: 6px; margin-bottom: 6px; }
+.scope-tag { display: inline-block; font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 5px; margin-right: 6px; }
+.scope-in { background: #dcfce7; color: #166534; }
+.scope-out { background: #fee2e2; color: #dc2626; }
+.mockup-container { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; margin: 14px 0; }
+.mockup-bar { background: #f1f5f9; padding: 8px 14px; font-size: 12px; font-weight: 600; color: #64748b; border-bottom: 1px solid #e2e8f0; display: flex; align-items: center; gap: 8px; }
+.mockup-dots { display: flex; gap: 5px; }
+.mockup-dot { width: 8px; height: 8px; border-radius: 50%; }
+.mockup-dot-r { background: #f87171; }
+.mockup-dot-y { background: #fbbf24; }
+.mockup-dot-g { background: #34d399; }
+.mockup-body { padding: 24px; min-height: 200px; font-size: 13px; color: #334155; line-height: 1.6; }
+.collapsible-toggle { display: flex; align-items: center; justify-content: space-between; cursor: pointer; user-select: none; }
+.collapsible-toggle .toggle-icon { font-size: 14px; color: #94a3b8; transition: transform 0.2s; }
+.collapsible-toggle.open .toggle-icon { transform: rotate(180deg); }
+.collapsible-body { display: none; margin-top: 14px; }
+.collapsible-body.open { display: block; }
+pre { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; overflow-x: auto; font-size: 13px; line-height: 1.5; font-family: monospace; color: #334155; }
+table.schema-table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 12px 0; }
+table.schema-table th { text-align: left; padding: 8px 12px; background: #f8fafc; border-bottom: 2px solid #e2e8f0; font-weight: 600; }
+table.schema-table td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; }
+table.schema-table code { font-family: monospace; background: #f1f5f9; padding: 1px 5px; border-radius: 3px; font-size: 12px; color: #7c3aed; }
+.blast-summary { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 16px 20px; margin-bottom: 16px; }
+.blast-row { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; }
+.blast-row:not(:last-child) { border-bottom: 1px solid #f1f5f9; }
+.blast-label { font-size: 13px; color: #64748b; }
+.blast-value { font-size: 13px; font-weight: 700; color: #0f172a; }
+.action-new { background: #dcfce7; color: #166534; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 4px; }
+.action-mod { background: #fef3c7; color: #92400e; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 4px; }
+.criteria-list { list-style: none; padding: 0; }
+.criteria-list li { padding: 8px 0; border-bottom: 1px solid #f1f5f9; display: flex; gap: 10px; align-items: flex-start; font-size: 14px; color: #334155; }
+.criteria-list li:last-child { border-bottom: none; }
+.criteria-check { width: 18px; height: 18px; border: 2px solid #cbd5e1; border-radius: 4px; flex-shrink: 0; margin-top: 1px; }
+.dep-tag { display: inline-block; font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 5px; margin-right: 6px; margin-bottom: 6px; text-decoration: none; }
+.dep-none { background: #dcfce7; color: #166534; }
+.dep-requires { background: #fef3c7; color: #92400e; }
+.dep-enables { background: #eff6ff; color: #1d4ed8; }
+.uis-footer { text-align: center; padding: 24px; font-size: 12px; color: #94a3b8; }
+.uis-footer a { color: #3b82f6; text-decoration: none; }
+.mockup-row { display: flex; gap: 8px; padding: 6px 0; border-bottom: 1px solid #f1f5f9; align-items: center; }
+.mockup-cell { flex: 1; }
+.mockup-header { font-weight: 700; background: #f1f5f9; padding: 8px; border-radius: 4px; margin-bottom: 4px; }
+.mockup-input { background: #fff; border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px 12px; color: #94a3b8; font-size: 12px; }
+.mockup-btn { display: inline-block; padding: 6px 14px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; border: none; }
+.mockup-btn-primary { background: #3b82f6; color: #fff; }
+.mockup-btn-success { background: #10b981; color: #fff; }
+.mockup-btn-outline { background: #fff; color: #3b82f6; border: 1px solid #3b82f6; }
+.mockup-badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 700; }
+.mobile-frame { max-width: 360px; margin: 0 auto; border: 2px solid #e2e8f0; border-radius: 24px; overflow: hidden; background: #fff; }
+.mobile-status-bar { background: #0f172a; color: #fff; padding: 6px 16px; font-size: 10px; display: flex; justify-content: space-between; font-weight: 600; }
+.mobile-nav { background: #0f172a; color: #fff; padding: 12px 16px; font-size: 15px; font-weight: 700; display: flex; align-items: center; gap: 12px; }
+.mobile-body { padding: 16px; min-height: 400px; }
+.mobile-field { margin-bottom: 14px; }
+.mobile-label { font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+.mobile-input { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 12px; font-size: 14px; color: #334155; width: 100%; box-sizing: border-box; }
+.mobile-btn { display: block; width: 100%; padding: 12px; border-radius: 10px; font-size: 14px; font-weight: 700; text-align: center; border: none; cursor: pointer; margin-top: 8px; }
+    </style>
+</head>
+<body>
+<div class="uis-wrap">
+
+    <div class="uis-hero">
+        <div class="uis-badges">
+            <span class="uis-badge badge-q">MAT-4</span>
+            <span class="uis-badge badge-lane">Mobile</span>
+            <span class="uis-badge badge-status">Draft</span>
+            <span class="uis-badge badge-priority">P0</span>
+            <span class="uis-badge badge-child">Child of Release 1.34</span>
+        </div>
+        <h1 class="uis-h1">Mobile Material Requests</h1>
+        <p class="uis-sub">Field-to-office material request workflow. Field workers submit what they need from their phone; office receives, triages, and fulfills requests.</p>
+        <div class="uis-meta">
+            <span><strong>Parent:</strong> Release 1.34</span>
+            <span><strong>Slice:</strong> MAT-4</span>
+            <span><strong>Est:</strong> 5&ndash;7 days</span>
+            <span><span class="jira-chip">Q21030-5927</span></span>
+        </div>
+    </div>
+
+    <div class="uis-toc">
+        <h3>Contents</h3>
+        <ol>
+            <li><a href="#s1">Business Case &amp; Customer Evidence</a></li>
+            <li><a href="#s2">Scope</a></li>
+            <li><a href="#s3">UI Concepts</a></li>
+            <li><a href="#s4">Data Model</a></li>
+            <li><a href="#s5">API Surface</a></li>
+            <li><a href="#s6">Change Surface</a></li>
+            <li><a href="#s7">Acceptance Criteria</a></li>
+            <li><a href="#s8">Dependencies</a></li>
+        </ol>
+    </div>
+
+    <!-- Section 1 -->
+    <div class="uis-section" id="s1">
+        <h2 class="collapsible-toggle open" onclick="toggleSection(this)">
+            1 &middot; Business Case &amp; Customer Evidence
+            <span class="toggle-icon">&#9660;</span>
+        </h2>
+        <div class="collapsible-body open">
+            <p>The single most requested mobile capability. Today, material requests happen via text, WhatsApp, and phone calls &mdash; untracked, uncosted, and unlinked to jobs.</p>
+
+            <h3>Customer Evidence</h3>
+            <div class="customer-quote">
+                "Amazon-style product database&hellip; coming very soon"
+                <span class="attribution">&mdash; SCT Mechanical (Product Demo)</span>
+            </div>
+            <div class="customer-quote">
+                "I have a material management problem. Come solve it."
+                <span class="attribution">&mdash; Matt Vanos, Vanos Insulation (Origin Story)</span>
+            </div>
+            <div class="customer-quote">
+                "The person who gets the request says, this can be fulfilled from inventory, this needs a PO."
+                <span class="attribution">&mdash; Corey Shelson (Nov 2025)</span>
+            </div>
+
+            <div class="value-cards">
+                <div class="value-card">
+                    <div class="v-icon">📱</div>
+                    <div class="v-title">Field-First</div>
+                    <div class="v-detail">Purpose-built mobile form &mdash; field workers submit requests in under 30 seconds from the job site.</div>
+                </div>
+                <div class="value-card">
+                    <div class="v-icon">📦</div>
+                    <div class="v-title">Catalog + Free-Text</div>
+                    <div class="v-detail">Pick from the material catalog or type in a free-text description for items not yet cataloged.</div>
+                </div>
+                <div class="value-card">
+                    <div class="v-icon">📸</div>
+                    <div class="v-title">Photo Attachments</div>
+                    <div class="v-detail">Snap a photo of the product label, spec sheet, or installed item for the office team to reference.</div>
+                </div>
+                <div class="value-card">
+                    <div class="v-icon">📥</div>
+                    <div class="v-title">Desktop Inbox</div>
+                    <div class="v-detail">Office team sees all incoming requests in a filterable inbox &mdash; acknowledge, assign, and convert to PO.</div>
+                </div>
+            </div>
+
+            <h3>Competitive Landscape</h3>
+            <div class="competitor-grid">
+                <div class="competitor-card">
+                    <span class="comp-status comp-partial">PARTIAL</span>
+                    <strong>Clearstory</strong>
+                    <span>Material requests from T&amp;M tickets</span>
+                </div>
+                <div class="competitor-card">
+                    <span class="comp-status comp-partial">PARTIAL</span>
+                    <strong>Procore</strong>
+                    <span>RFIs with material context</span>
+                </div>
+                <div class="competitor-card">
+                    <span class="comp-status comp-has">HAS</span>
+                    <strong>ServiceTitan</strong>
+                    <span>Parts request from work order</span>
+                </div>
+                <div class="competitor-card">
+                    <span class="comp-status comp-none">NONE</span>
+                    <strong>Appello</strong>
+                    <span>No mobile material pages</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 2 -->
+    <div class="uis-section" id="s2">
+        <h2 class="collapsible-toggle open" onclick="toggleSection(this)">
+            2 &middot; Scope
+            <span class="toggle-icon">&#9660;</span>
+        </h2>
+        <div class="collapsible-body open">
+            <h3>In Scope</h3>
+            <ul>
+                <li><span class="scope-tag scope-in">IN</span> <code>MaterialRequest</code> + <code>MaterialRequestItem</code> Prisma models</li>
+                <li><span class="scope-tag scope-in">IN</span> Mobile request form: catalog picker + free-text + photo capture</li>
+                <li><span class="scope-tag scope-in">IN</span> Desktop Material Request Inbox page with filtering</li>
+                <li><span class="scope-tag scope-in">IN</span> One-click acknowledge and assign actions</li>
+                <li><span class="scope-tag scope-in">IN</span> Notification on new request (push to office users)</li>
+                <li><span class="scope-tag scope-in">IN</span> Request history on Job detail page</li>
+                <li><span class="scope-tag scope-in">IN</span> Priority via <code>PropertyValue</code></li>
+            </ul>
+
+            <h3>Out of Scope</h3>
+            <ul>
+                <li><span class="scope-tag scope-out">OUT</span> Auto-PO generation from requests (future)</li>
+                <li><span class="scope-tag scope-out">OUT</span> Inventory fulfillment check</li>
+                <li><span class="scope-tag scope-out">OUT</span> Request approval workflow</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Section 3 -->
+    <div class="uis-section" id="s3">
+        <h2 class="collapsible-toggle open" onclick="toggleSection(this)">
+            3 &middot; UI Concepts
+            <span class="toggle-icon">&#9660;</span>
+        </h2>
+        <div class="collapsible-body open">
+            <h3>Mobile &mdash; New Material Request</h3>
+            <div class="mockup-container">
+                <div class="mockup-bar">
+                    <div class="mockup-dots">
+                        <div class="mockup-dot mockup-dot-r"></div>
+                        <div class="mockup-dot mockup-dot-y"></div>
+                        <div class="mockup-dot mockup-dot-g"></div>
+                    </div>
+                    Mobile &mdash; New Material Request
+                </div>
+                <div class="mockup-body" style="padding: 0;">
+                    <div class="mobile-frame">
+                        <div class="mobile-status-bar">
+                            <span>9:41 AM</span>
+                            <span>&#9679;&#9679;&#9679;&#9679;&#9675;</span>
+                        </div>
+                        <div class="mobile-nav">
+                            <span style="font-size: 18px;">&larr;</span>
+                            New Material Request
+                        </div>
+                        <div style="background: #eff6ff; padding: 10px 16px; font-size: 12px; color: #1d4ed8; font-weight: 600; border-bottom: 1px solid #bfdbfe;">
+                            📋 Job: VANOS-2026-047 &mdash; Riverside Mall HVAC
+                        </div>
+                        <div class="mobile-body">
+                            <div class="mobile-field">
+                                <div class="mobile-label">Material</div>
+                                <div class="mobile-input" style="display: flex; justify-content: space-between; align-items: center;">
+                                    <span style="color: #334155;">🔍 Search catalog&hellip;</span>
+                                    <span style="color: #3b82f6; font-size: 11px; font-weight: 700;">BROWSE</span>
+                                </div>
+                            </div>
+                            <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 12px; margin-bottom: 14px;">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                                    <span style="font-size: 13px; font-weight: 600; color: #0f172a;">4&quot; Fiberglass Batt R-13</span>
+                                    <span style="font-size: 10px; background: #dcfce7; color: #166534; padding: 2px 6px; border-radius: 4px; font-weight: 700;">CATALOG</span>
+                                </div>
+                                <div style="font-size: 11px; color: #64748b;">SKU: CRS-FIBER-4IN &middot; $12.50/sqft</div>
+                            </div>
+                            <div style="display: flex; gap: 10px; margin-bottom: 14px;">
+                                <div style="flex: 1;">
+                                    <div class="mobile-label">Quantity</div>
+                                    <div class="mobile-input" style="text-align: center; color: #334155; font-weight: 700;">250</div>
+                                </div>
+                                <div style="flex: 1;">
+                                    <div class="mobile-label">Unit</div>
+                                    <div class="mobile-input" style="color: #334155;">SQFT ▾</div>
+                                </div>
+                                <div style="flex: 1;">
+                                    <div class="mobile-label">Priority</div>
+                                    <div class="mobile-input" style="color: #dc2626; font-weight: 600;">Urgent ▾</div>
+                                </div>
+                            </div>
+                            <div class="mobile-field">
+                                <div class="mobile-label">Or describe what you need</div>
+                                <div class="mobile-input" style="min-height: 60px; color: #94a3b8;">Type free-text description&hellip;</div>
+                            </div>
+                            <div class="mobile-field">
+                                <div class="mobile-label">Photos</div>
+                                <div style="display: flex; gap: 8px;">
+                                    <div style="width: 64px; height: 64px; background: #f1f5f9; border: 2px dashed #cbd5e1; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 24px; color: #94a3b8;">📷</div>
+                                    <div style="width: 64px; height: 64px; background: #e0f2fe; border: 1px solid #bae6fd; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 10px; color: #0284c7; font-weight: 700;">IMG_01.jpg</div>
+                                </div>
+                            </div>
+                            <div class="mobile-field">
+                                <div class="mobile-label">Notes</div>
+                                <div class="mobile-input" style="color: #334155;">Need by Thursday for 2nd floor install</div>
+                            </div>
+                            <div class="mobile-btn" style="background: #3b82f6; color: #fff;">Submit Request</div>
+                            <div class="mobile-btn" style="background: transparent; color: #64748b; font-weight: 500; margin-top: 4px;">+ Add Another Item</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <h3>Desktop &mdash; Material Request Inbox</h3>
+            <div class="mockup-container">
+                <div class="mockup-bar">
+                    <div class="mockup-dots">
+                        <div class="mockup-dot mockup-dot-r"></div>
+                        <div class="mockup-dot mockup-dot-y"></div>
+                        <div class="mockup-dot mockup-dot-g"></div>
+                    </div>
+                    Desktop &mdash; Material Request Inbox
+                </div>
+                <div class="mockup-body" style="overflow-x: auto;">
+                    <div style="display: flex; gap: 8px; margin-bottom: 12px; align-items: center;">
+                        <div class="mockup-input" style="flex: 1; color: #334155;">🔍 Search requests&hellip;</div>
+                        <div class="mockup-input" style="width: 120px; color: #334155;">All Status ▾</div>
+                        <div class="mockup-input" style="width: 120px; color: #334155;">All Jobs ▾</div>
+                        <div class="mockup-input" style="width: 120px; color: #334155;">All Priority ▾</div>
+                    </div>
+                    <div style="min-width: 700px;">
+                        <div style="display: flex; gap: 6px; padding: 8px 0; font-weight: 700; font-size: 11px; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 2px solid #e2e8f0;">
+                            <div style="width: 80px;">Request #</div>
+                            <div style="flex: 2;">Job</div>
+                            <div style="flex: 1;">Requested By</div>
+                            <div style="flex: 1;">Items</div>
+                            <div style="flex: 1;">Priority</div>
+                            <div style="flex: 1;">Status</div>
+                            <div style="flex: 1;">Date</div>
+                        </div>
+                        <div style="display: flex; gap: 6px; padding: 10px 0; border-bottom: 1px solid #f1f5f9; align-items: center; background: #fefce8; margin: 0 -24px; padding-left: 24px; padding-right: 24px;">
+                            <div style="width: 80px; font-size: 12px; font-weight: 700; color: #0f172a;">MR-0047</div>
+                            <div style="flex: 2; font-size: 12px; color: #334155;">Riverside Mall HVAC</div>
+                            <div style="flex: 1; font-size: 12px; color: #334155;">Jake Torres</div>
+                            <div style="flex: 1; font-size: 12px; font-weight: 600;">3 items</div>
+                            <div style="flex: 1;"><span class="mockup-badge" style="background: #fee2e2; color: #dc2626;">URGENT</span></div>
+                            <div style="flex: 1;"><span class="mockup-badge" style="background: #fef3c7; color: #92400e;">SUBMITTED</span></div>
+                            <div style="flex: 1; font-size: 12px; color: #64748b;">Apr 7, 10:32 AM</div>
+                        </div>
+                        <div style="display: flex; gap: 6px; padding: 10px 0; border-bottom: 1px solid #f1f5f9; align-items: center;">
+                            <div style="width: 80px; font-size: 12px; font-weight: 700; color: #0f172a;">MR-0046</div>
+                            <div style="flex: 2; font-size: 12px; color: #334155;">Oakville Condos Ph2</div>
+                            <div style="flex: 1; font-size: 12px; color: #334155;">Maria Chen</div>
+                            <div style="flex: 1; font-size: 12px; font-weight: 600;">1 item</div>
+                            <div style="flex: 1;"><span class="mockup-badge" style="background: #dcfce7; color: #166534;">NORMAL</span></div>
+                            <div style="flex: 1;"><span class="mockup-badge" style="background: #dbeafe; color: #1d4ed8;">ACKNOWLEDGED</span></div>
+                            <div style="flex: 1; font-size: 12px; color: #64748b;">Apr 7, 9:15 AM</div>
+                        </div>
+                        <div style="display: flex; gap: 6px; padding: 10px 0; border-bottom: 1px solid #f1f5f9; align-items: center;">
+                            <div style="width: 80px; font-size: 12px; font-weight: 700; color: #0f172a;">MR-0045</div>
+                            <div style="flex: 2; font-size: 12px; color: #334155;">Downtown Office Tower</div>
+                            <div style="flex: 1; font-size: 12px; color: #334155;">Liam Park</div>
+                            <div style="flex: 1; font-size: 12px; font-weight: 600;">5 items</div>
+                            <div style="flex: 1;"><span class="mockup-badge" style="background: #dcfce7; color: #166534;">NORMAL</span></div>
+                            <div style="flex: 1;"><span class="mockup-badge" style="background: #dcfce7; color: #166534;">FULFILLED</span></div>
+                            <div style="flex: 1; font-size: 12px; color: #64748b;">Apr 6, 3:47 PM</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <h3>Desktop &mdash; Request Detail Slideout</h3>
+            <div class="mockup-container">
+                <div class="mockup-bar">
+                    <div class="mockup-dots">
+                        <div class="mockup-dot mockup-dot-r"></div>
+                        <div class="mockup-dot mockup-dot-y"></div>
+                        <div class="mockup-dot mockup-dot-g"></div>
+                    </div>
+                    Request Detail &mdash; MR-0047
+                </div>
+                <div class="mockup-body">
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px;">
+                        <div>
+                            <div style="font-size: 16px; font-weight: 800; color: #0f172a; margin-bottom: 4px;">MR-0047</div>
+                            <div style="font-size: 13px; color: #64748b;">Riverside Mall HVAC &middot; Jake Torres &middot; Apr 7, 10:32 AM</div>
+                        </div>
+                        <span class="mockup-badge" style="background: #fee2e2; color: #dc2626; font-size: 11px; padding: 4px 10px;">URGENT</span>
+                    </div>
+                    <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; margin-bottom: 12px;">
+                        <div style="font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; margin-bottom: 8px;">Requested Items</div>
+                        <div style="display: flex; gap: 6px; padding: 6px 0; border-bottom: 1px solid #e2e8f0; font-size: 11px; font-weight: 700; color: #64748b;">
+                            <div style="flex: 2;">Item</div>
+                            <div style="flex: 1; text-align: right;">Qty</div>
+                            <div style="flex: 1;">Unit</div>
+                        </div>
+                        <div style="display: flex; gap: 6px; padding: 8px 0; border-bottom: 1px solid #f1f5f9; font-size: 13px;">
+                            <div style="flex: 2; font-weight: 600; color: #0f172a;">4&quot; Fiberglass Batt R-13 <span style="font-size: 10px; background: #dcfce7; color: #166534; padding: 1px 5px; border-radius: 3px;">CATALOG</span></div>
+                            <div style="flex: 1; text-align: right;">250</div>
+                            <div style="flex: 1; color: #64748b;">SQFT</div>
+                        </div>
+                        <div style="display: flex; gap: 6px; padding: 8px 0; border-bottom: 1px solid #f1f5f9; font-size: 13px;">
+                            <div style="flex: 2; font-weight: 600; color: #0f172a;">Duct sealant &mdash; gray, 5 gal bucket <span style="font-size: 10px; background: #fef3c7; color: #92400e; padding: 1px 5px; border-radius: 3px;">FREE-TEXT</span></div>
+                            <div style="flex: 1; text-align: right;">2</div>
+                            <div style="flex: 1; color: #64748b;">EA</div>
+                        </div>
+                        <div style="display: flex; gap: 6px; padding: 8px 0; font-size: 13px;">
+                            <div style="flex: 2; font-weight: 600; color: #0f172a;">3&quot; metal strapping <span style="font-size: 10px; background: #fef3c7; color: #92400e; padding: 1px 5px; border-radius: 3px;">FREE-TEXT</span></div>
+                            <div style="flex: 1; text-align: right;">100</div>
+                            <div style="flex: 1; color: #64748b;">FT</div>
+                        </div>
+                    </div>
+                    <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; margin-bottom: 12px;">
+                        <div style="font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; margin-bottom: 6px;">📸 Photos (1)</div>
+                        <div style="width: 80px; height: 60px; background: #e0f2fe; border: 1px solid #bae6fd; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 10px; color: #0284c7; font-weight: 600;">label.jpg</div>
+                    </div>
+                    <div style="background: #fef3c7; border-radius: 8px; padding: 10px 12px; margin-bottom: 16px; font-size: 13px; color: #92400e;">
+                        <strong>Notes:</strong> Need by Thursday for 2nd floor install
+                    </div>
+                    <div style="display: flex; gap: 8px;">
+                        <span class="mockup-btn mockup-btn-success">✓ Acknowledge</span>
+                        <span class="mockup-btn mockup-btn-primary">Assign To&hellip;</span>
+                        <span class="mockup-btn mockup-btn-outline">Convert to PO</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 4 -->
+    <div class="uis-section" id="s4">
+        <h2 class="collapsible-toggle open" onclick="toggleSection(this)">
+            4 &middot; Data Model
+            <span class="toggle-icon">&#9660;</span>
+        </h2>
+        <div class="collapsible-body open">
+            <h3>MaterialRequest</h3>
+            <pre>model MaterialRequest {
+  id            String    @id @default(nanoid()) @db.VarChar(21)
+  instanceId    String    @db.VarChar(21)
+  isDeleted     Boolean   @default(false)
+  isArchived    Boolean   @default(false)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @default(now()) @updatedAt
+  jobId         String    @db.VarChar(21)
+  requestedById String    @db.VarChar(21)
+  priorityId    String?   @db.VarChar(21)
+  status        String    @default("Submitted") @db.VarChar(50)
+  notes         String?   @db.Text
+
+  Instance      Instance  @relation(fields: [instanceId], references: [id])
+  Job           Job       @relation(fields: [jobId], references: [id])
+  RequestedBy   User      @relation(fields: [requestedById], references: [id])
+  Priority      PropertyValue? @relation(fields: [priorityId], references: [id])
+  Items         MaterialRequestItem[]
+
+  @@index([jobId, isDeleted])
+  @@index([instanceId])
+  @@index([requestedById])
+}</pre>
+
+            <h3>MaterialRequestItem</h3>
+            <pre>model MaterialRequestItem {
+  id                String    @id @default(nanoid()) @db.VarChar(21)
+  isDeleted         Boolean   @default(false)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @default(now()) @updatedAt
+  materialRequestId String    @db.VarChar(21)
+  materialId        String?   @db.VarChar(21)
+  description       String?   @db.VarChar(500)
+  quantity          Decimal   @db.Decimal(10, 2)
+  unitOfMeasure     String?   @db.VarChar(50)
+
+  MaterialRequest   MaterialRequest @relation(fields: [materialRequestId], references: [id])
+  Material          Material?       @relation(fields: [materialId], references: [id])
+
+  @@index([materialRequestId, isDeleted])
+}</pre>
+            <p style="margin-top: 8px; font-size: 13px; color: #64748b;">Status constants: <code>Submitted</code>, <code>Acknowledged</code>, <code>InProgress</code>, <code>Fulfilled</code>, <code>Cancelled</code>.</p>
+        </div>
+    </div>
+
+    <!-- Section 5 -->
+    <div class="uis-section" id="s5">
+        <h2 class="collapsible-toggle open" onclick="toggleSection(this)">
+            5 &middot; API Surface
+            <span class="toggle-icon">&#9660;</span>
+        </h2>
+        <div class="collapsible-body open">
+            <h3>GraphQL Types</h3>
+            <pre>type MaterialRequest {
+  id: ID!
+  jobId: String!
+  requestedById: String!
+  priorityId: String
+  status: String!
+  notes: String
+  createdAt: DateTime!
+  updatedAt: DateTime!
+  Job: Job
+  RequestedBy: User
+  Priority: PropertyValue
+  Items: [MaterialRequestItem!]!
+}
+
+type MaterialRequestItem {
+  id: ID!
+  materialRequestId: String!
+  materialId: String
+  description: String
+  quantity: Float!
+  unitOfMeasure: String
+  Material: Material
+}</pre>
+
+            <h3>Input Types</h3>
+            <pre>input CreateMaterialRequestInput {
+  jobId: String!
+  priorityId: String
+  notes: String
+  items: [CreateMaterialRequestItemInput!]!
+}
+
+input CreateMaterialRequestItemInput {
+  materialId: String
+  description: String
+  quantity: Float!
+  unitOfMeasure: String
+}
+
+input UpdateMaterialRequestStatusInput {
+  id: String!
+  status: String!
+  assignedToId: String
+}
+
+input GetMaterialRequestsOptions {
+  jobId: String
+  status: String
+  requestedById: String
+}</pre>
+
+            <h3>Queries &amp; Mutations</h3>
+            <pre>type Query {
+  materialRequests(options: GetMaterialRequestsOptions): [MaterialRequest!]!
+  materialRequest(id: String!): MaterialRequest
+  materialRequestsByJob(jobId: String!): [MaterialRequest!]!
+}
+
+type Mutation {
+  createMaterialRequest(input: CreateMaterialRequestInput!): MaterialRequest!
+  updateMaterialRequestStatus(input: UpdateMaterialRequestStatusInput!): MaterialRequest!
+  cancelMaterialRequest(id: String!): MaterialRequest!
+}</pre>
+        </div>
+    </div>
+
+    <!-- Section 6 -->
+    <div class="uis-section" id="s6">
+        <h2 class="collapsible-toggle open" onclick="toggleSection(this)">
+            6 &middot; Change Surface
+            <span class="toggle-icon">&#9660;</span>
+        </h2>
+        <div class="collapsible-body open">
+            <div class="blast-summary">
+                <div class="blast-row">
+                    <span class="blast-label">New Files</span>
+                    <span class="blast-value">7</span>
+                </div>
+                <div class="blast-row">
+                    <span class="blast-label">Modified Files</span>
+                    <span class="blast-value">3</span>
+                </div>
+                <div class="blast-row">
+                    <span class="blast-label">Total Touched</span>
+                    <span class="blast-value">10</span>
+                </div>
+            </div>
+
+            <table class="schema-table">
+                <thead>
+                    <tr><th>Action</th><th>File</th><th>Change</th></tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><span class="action-new">NEW</span></td>
+                        <td><code>apps/api/prisma/migrations/…_add_material_requests/migration.sql</code></td>
+                        <td>Create MaterialRequest + MaterialRequestItem tables with indexes</td>
+                    </tr>
+                    <tr>
+                        <td><span class="action-new">NEW</span></td>
+                        <td><code>apps/api/src/models/MaterialRequest.ts</code></td>
+                        <td>CRUD + status transitions + notification trigger</td>
+                    </tr>
+                    <tr>
+                        <td><span class="action-new">NEW</span></td>
+                        <td><code>apps/api/src/graphql/models/MaterialRequest.ts</code></td>
+                        <td>GraphQL resolver: types, queries, mutations</td>
+                    </tr>
+                    <tr>
+                        <td><span class="action-new">NEW</span></td>
+                        <td><code>apps/mobile/src/pages/material-requests/new.tsx</code></td>
+                        <td>Mobile material request form with catalog picker + free-text + photos</td>
+                    </tr>
+                    <tr>
+                        <td><span class="action-new">NEW</span></td>
+                        <td><code>apps/frontend/src/pages/material-requests/index.tsx</code></td>
+                        <td>Desktop inbox page with filtering and bulk actions</td>
+                    </tr>
+                    <tr>
+                        <td><span class="action-new">NEW</span></td>
+                        <td><code>apps/frontend/src/components/MaterialRequests/MaterialRequestDetail.tsx</code></td>
+                        <td>Slideout component: items list, photos, actions</td>
+                    </tr>
+                    <tr>
+                        <td><span class="action-new">NEW</span></td>
+                        <td><code>apps/frontend/src/graphql/mutations/materialRequest.graphql</code></td>
+                        <td>Mutation + query definitions</td>
+                    </tr>
+                    <tr>
+                        <td><span class="action-mod">MOD</span></td>
+                        <td><code>apps/api/prisma/schema.prisma</code></td>
+                        <td>Add MaterialRequest + MaterialRequestItem models + Job relation</td>
+                    </tr>
+                    <tr>
+                        <td><span class="action-mod">MOD</span></td>
+                        <td><code>apps/api/src/graphql/schema.ts</code></td>
+                        <td>Register MaterialRequest resolver</td>
+                    </tr>
+                    <tr>
+                        <td><span class="action-mod">MOD</span></td>
+                        <td><code>apps/frontend/src/lib/static-data/staticSideBarData.ts</code></td>
+                        <td>Add Material Requests menu item under Procurement</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Section 7 -->
+    <div class="uis-section" id="s7">
+        <h2 class="collapsible-toggle open" onclick="toggleSection(this)">
+            7 &middot; Acceptance Criteria
+            <span class="toggle-icon">&#9660;</span>
+        </h2>
+        <div class="collapsible-body open">
+            <ul class="criteria-list">
+                <li><div class="criteria-check"></div>Mobile form submits a material request linked to the current Job context</li>
+                <li><div class="criteria-check"></div>Catalog picker searches existing Material records by name or SKU</li>
+                <li><div class="criteria-check"></div>Free-text items are supported when the material is not in the catalog</li>
+                <li><div class="criteria-check"></div>Photos can be attached to the request from the device camera or gallery</li>
+                <li><div class="criteria-check"></div>Desktop inbox shows all material requests with columns: Request #, Job, Requested By, Items, Priority, Status, Date</li>
+                <li><div class="criteria-check"></div>Inbox can be filtered by status, job, and priority</li>
+                <li><div class="criteria-check"></div>Acknowledging a request updates status to <code>Acknowledged</code> and sends a notification to the requester</li>
+                <li><div class="criteria-check"></div>Request detail slideout shows all items, photos, notes, and action buttons</li>
+                <li><div class="criteria-check"></div>Request history is visible on the Job detail page</li>
+                <li><div class="criteria-check"></div>Permission <code>materialorder.create</code> is required to submit a request</li>
+                <li><div class="criteria-check"></div>Office users receive a notification when a new request is submitted</li>
+                <li><div class="criteria-check"></div>Priority is selectable via <code>PropertyValue</code> dropdown (Normal, Urgent, Critical)</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Section 8 -->
+    <div class="uis-section" id="s8">
+        <h2 class="collapsible-toggle open" onclick="toggleSection(this)">
+            8 &middot; Dependencies
+            <span class="toggle-icon">&#9660;</span>
+        </h2>
+        <div class="collapsible-body open">
+            <h3>Requires</h3>
+            <p><span class="dep-tag dep-requires">Material Catalog (existing)</span></p>
+
+            <h3>Enables</h3>
+            <p><span class="dep-tag dep-enables">Future: Auto-PO generation from fulfilled requests</span></p>
+
+            <h3>Siblings</h3>
+            <p>
+                <span class="dep-tag dep-none">MAT-3</span>
+                <span class="dep-tag dep-none">MAT-2b</span>
+            </p>
+
+            <h3>Parent</h3>
+            <p><span class="dep-tag dep-none">Release 1.34</span></p>
+        </div>
+    </div>
+
+    <div class="uis-footer">
+        MAT-4 &middot; Mobile Material Requests &middot; Release 1.34
+    </div>
+</div>
+
+<script>
+function toggleSection(el) {
+    el.classList.toggle("open");
+    const body = el.nextElementSibling;
+    if (body) body.classList.toggle("open");
+}
+</script>
+</body>
+</html>

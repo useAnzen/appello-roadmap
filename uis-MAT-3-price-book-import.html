@@ -1,0 +1,658 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MAT-3: Price Book Import</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Inter', -apple-system, sans-serif; background: #f1f5f9; color: #0f172a; }
+.uis-wrap { max-width: 960px; margin: 0 auto; padding: 40px 24px 80px; }
+.uis-hero { margin-bottom: 32px; }
+.uis-badges { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+.uis-badge { font-size: 11px; font-weight: 700; padding: 4px 12px; border-radius: 6px; display: inline-flex; align-items: center; gap: 5px; }
+.badge-q { background: #0f172a; color: #fff; }
+.badge-lane { background: #10b981; color: #fff; }
+.badge-status { background: #fef3c7; color: #92400e; }
+.badge-priority { background: #fee2e2; color: #dc2626; }
+.badge-child { background: #7c3aed; color: #fff; }
+.uis-h1 { font-size: 30px; font-weight: 800; color: #0f172a; margin: 0 0 8px; letter-spacing: -0.01em; }
+.uis-sub { font-size: 15px; color: #64748b; line-height: 1.5; margin: 0; }
+.uis-meta { display: flex; gap: 24px; flex-wrap: wrap; margin-top: 14px; font-size: 13px; color: #64748b; }
+.uis-meta strong { color: #0f172a; }
+.uis-toc { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px 28px; margin-bottom: 16px; }
+.uis-toc h3 { font-size: 13px; font-weight: 700; color: #0f172a; margin: 0 0 10px; text-transform: uppercase; letter-spacing: 0.5px; }
+.uis-toc ol { margin: 0; padding-left: 20px; }
+.uis-toc li { font-size: 14px; color: #3b82f6; margin-bottom: 4px; }
+.uis-toc a { color: #3b82f6; text-decoration: none; }
+.uis-section { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px 28px; margin-bottom: 16px; }
+.uis-section h2 { font-size: 17px; font-weight: 700; color: #0f172a; margin: 0 0 14px; padding-bottom: 10px; border-bottom: 2px solid #e2e8f0; }
+.uis-section h3 { font-size: 15px; font-weight: 700; color: #0f172a; margin: 16px 0 8px; }
+.uis-section p, .uis-section li { font-size: 14px; color: #334155; line-height: 1.65; }
+.uis-section ul, .uis-section ol { padding-left: 20px; margin: 8px 0; }
+.customer-quote { background: #fef3c7; border-left: 3px solid #f59e0b; padding: 12px 16px; border-radius: 0 8px 8px 0; margin: 14px 0; font-style: italic; font-size: 14px; color: #92400e; }
+.customer-quote .attribution { font-style: normal; font-weight: 600; display: block; margin-top: 6px; }
+.competitor-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin: 12px 0; }
+.competitor-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px; }
+.competitor-card strong { font-size: 14px; color: #0f172a; display: block; margin-bottom: 4px; }
+.competitor-card span { font-size: 12px; color: #64748b; }
+.comp-status { font-size: 10px; font-weight: 700; text-transform: uppercase; padding: 2px 8px; border-radius: 4px; display: inline-block; margin-bottom: 6px; }
+.comp-has { background: #dcfce7; color: #166534; }
+.comp-none { background: #fee2e2; color: #dc2626; }
+.value-cards { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin: 12px 0; }
+.value-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px; }
+.value-card .v-icon { font-size: 20px; margin-bottom: 6px; }
+.value-card .v-title { font-size: 13px; font-weight: 700; color: #0f172a; margin-bottom: 4px; }
+.value-card .v-detail { font-size: 12px; color: #64748b; line-height: 1.5; }
+.jira-chip { display: inline-flex; align-items: center; padding: 4px 12px; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 6px; font-family: monospace; font-size: 11px; font-weight: 600; color: #3b82f6; margin-right: 6px; margin-bottom: 6px; }
+.scope-tag { display: inline-block; font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 5px; margin-right: 6px; }
+.scope-in { background: #dcfce7; color: #166534; }
+.scope-out { background: #fee2e2; color: #dc2626; }
+.mockup-container { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; margin: 14px 0; }
+.mockup-bar { background: #f1f5f9; padding: 8px 14px; font-size: 12px; font-weight: 600; color: #64748b; border-bottom: 1px solid #e2e8f0; display: flex; align-items: center; gap: 8px; }
+.mockup-dots { display: flex; gap: 5px; }
+.mockup-dot { width: 8px; height: 8px; border-radius: 50%; }
+.mockup-dot-r { background: #f87171; }
+.mockup-dot-y { background: #fbbf24; }
+.mockup-dot-g { background: #34d399; }
+.mockup-body { padding: 24px; min-height: 200px; font-size: 13px; color: #334155; line-height: 1.6; }
+.collapsible-toggle { display: flex; align-items: center; justify-content: space-between; cursor: pointer; user-select: none; }
+.collapsible-toggle .toggle-icon { font-size: 14px; color: #94a3b8; transition: transform 0.2s; }
+.collapsible-toggle.open .toggle-icon { transform: rotate(180deg); }
+.collapsible-body { display: none; margin-top: 14px; }
+.collapsible-body.open { display: block; }
+pre { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; overflow-x: auto; font-size: 13px; line-height: 1.5; font-family: monospace; color: #334155; }
+table.schema-table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 12px 0; }
+table.schema-table th { text-align: left; padding: 8px 12px; background: #f8fafc; border-bottom: 2px solid #e2e8f0; font-weight: 600; }
+table.schema-table td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; }
+table.schema-table code { font-family: monospace; background: #f1f5f9; padding: 1px 5px; border-radius: 3px; font-size: 12px; color: #7c3aed; }
+.blast-summary { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 16px 20px; margin-bottom: 16px; }
+.blast-row { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; }
+.blast-row:not(:last-child) { border-bottom: 1px solid #f1f5f9; }
+.blast-label { font-size: 13px; color: #64748b; }
+.blast-value { font-size: 13px; font-weight: 700; color: #0f172a; }
+.action-new { background: #dcfce7; color: #166534; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 4px; }
+.action-mod { background: #fef3c7; color: #92400e; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 4px; }
+.criteria-list { list-style: none; padding: 0; }
+.criteria-list li { padding: 8px 0; border-bottom: 1px solid #f1f5f9; display: flex; gap: 10px; align-items: flex-start; font-size: 14px; color: #334155; }
+.criteria-list li:last-child { border-bottom: none; }
+.criteria-check { width: 18px; height: 18px; border: 2px solid #cbd5e1; border-radius: 4px; flex-shrink: 0; margin-top: 1px; }
+.dep-tag { display: inline-block; font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 5px; margin-right: 6px; margin-bottom: 6px; text-decoration: none; }
+.dep-none { background: #dcfce7; color: #166534; }
+.dep-requires { background: #fef3c7; color: #92400e; }
+.dep-enables { background: #eff6ff; color: #1d4ed8; }
+.uis-footer { text-align: center; padding: 24px; font-size: 12px; color: #94a3b8; }
+.uis-footer a { color: #3b82f6; text-decoration: none; }
+.mockup-row { display: flex; gap: 8px; padding: 6px 0; border-bottom: 1px solid #f1f5f9; align-items: center; }
+.mockup-cell { flex: 1; }
+.mockup-header { font-weight: 700; background: #f1f5f9; padding: 8px; border-radius: 4px; margin-bottom: 4px; }
+.mockup-input { background: #fff; border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px 12px; color: #94a3b8; font-size: 12px; }
+.mockup-btn { display: inline-block; padding: 6px 14px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; border: none; }
+.mockup-btn-primary { background: #3b82f6; color: #fff; }
+.mockup-btn-success { background: #10b981; color: #fff; }
+.mockup-btn-outline { background: #fff; color: #3b82f6; border: 1px solid #3b82f6; }
+.mockup-badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 700; }
+    </style>
+</head>
+<body>
+<div class="uis-wrap">
+
+    <div class="uis-hero">
+        <div class="uis-badges">
+            <span class="uis-badge badge-q">MAT-3</span>
+            <span class="uis-badge badge-lane">Procurement</span>
+            <span class="uis-badge badge-status">Draft</span>
+            <span class="uis-badge badge-priority">P1</span>
+            <span class="uis-badge badge-child">Child of Release 1.34</span>
+        </div>
+        <h1 class="uis-h1">Price Book Import</h1>
+        <p class="uis-sub">CSV/Excel import wizard for distributor pricing into ManufacturerProduct + DistributorPrice. Column mapping, preview, validation, and import history.</p>
+        <div class="uis-meta">
+            <span><strong>Parent:</strong> Release 1.34</span>
+            <span><strong>Slice:</strong> MAT-3</span>
+            <span><strong>Est:</strong> 5&ndash;6 days</span>
+        </div>
+    </div>
+
+    <div class="uis-toc">
+        <h3>Contents</h3>
+        <ol>
+            <li><a href="#s1">Business Case &amp; Customer Evidence</a></li>
+            <li><a href="#s2">Scope</a></li>
+            <li><a href="#s3">UI Concepts</a></li>
+            <li><a href="#s4">Data Model</a></li>
+            <li><a href="#s5">API Surface</a></li>
+            <li><a href="#s6">Change Surface</a></li>
+            <li><a href="#s7">Acceptance Criteria</a></li>
+            <li><a href="#s8">Dependencies</a></li>
+        </ol>
+    </div>
+
+    <!-- Section 1 -->
+    <div class="uis-section" id="s1">
+        <h2 class="collapsible-toggle open" onclick="toggleSection(this)">
+            1 &middot; Business Case &amp; Customer Evidence
+            <span class="toggle-icon">&#9660;</span>
+        </h2>
+        <div class="collapsible-body open">
+            <p>Contractors receive price books from distributors &mdash; spreadsheets with thousands of SKUs and prices. Manual entry is unsustainable. M-X Insulation explicitly needs Crossroads price book ingestion.</p>
+
+            <h3>Customer Evidence</h3>
+            <div class="customer-quote">
+                "Ingesting all of the Crossroads price books with all the discounts"
+                <span class="attribution">&mdash; M-X Insulation</span>
+            </div>
+            <div class="customer-quote">
+                "300-page Excel files from our distributors &mdash; we can&rsquo;t type all that in"
+                <span class="attribution">&mdash; Vanos Insulation</span>
+            </div>
+
+            <div class="value-cards">
+                <div class="value-card">
+                    <div class="v-icon">📦</div>
+                    <div class="v-title">Bulk Ingestion</div>
+                    <div class="v-detail">Import thousands of SKUs and prices from a single spreadsheet upload instead of manual entry.</div>
+                </div>
+                <div class="value-card">
+                    <div class="v-icon">🔗</div>
+                    <div class="v-title">Column Mapping Wizard</div>
+                    <div class="v-detail">Intelligent auto-detect maps source columns to target fields with manual override capability.</div>
+                </div>
+                <div class="value-card">
+                    <div class="v-icon">📊</div>
+                    <div class="v-title">Price Comparison</div>
+                    <div class="v-detail">Side-by-side view of old vs new pricing so operators can see what changed before committing.</div>
+                </div>
+                <div class="value-card">
+                    <div class="v-icon">📋</div>
+                    <div class="v-title">Import History</div>
+                    <div class="v-detail">Full audit trail of every import &mdash; who imported, when, row counts, and error logs.</div>
+                </div>
+            </div>
+
+            <h3>Competitive Landscape</h3>
+            <div class="competitor-grid">
+                <div class="competitor-card">
+                    <span class="comp-status comp-has">HAS</span>
+                    <strong>Procore</strong>
+                    <span>Vendor invoice / PO import</span>
+                </div>
+                <div class="competitor-card">
+                    <span class="comp-status comp-has">HAS</span>
+                    <strong>ServiceTitan</strong>
+                    <span>Price book management</span>
+                </div>
+                <div class="competitor-card">
+                    <span class="comp-status comp-has">HAS</span>
+                    <strong>Sage</strong>
+                    <span>Price list import</span>
+                </div>
+                <div class="competitor-card">
+                    <span class="comp-status comp-none">NONE</span>
+                    <strong>Appello</strong>
+                    <span>Manual entry only</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 2 -->
+    <div class="uis-section" id="s2">
+        <h2 class="collapsible-toggle open" onclick="toggleSection(this)">
+            2 &middot; Scope
+            <span class="toggle-icon">&#9660;</span>
+        </h2>
+        <div class="collapsible-body open">
+            <h3>In Scope</h3>
+            <ul>
+                <li><span class="scope-tag scope-in">IN</span> <code>PriceBookImport</code> Prisma model for tracking import history</li>
+                <li><span class="scope-tag scope-in">IN</span> <code>Material.sku</code> field extension for SKU-based matching</li>
+                <li><span class="scope-tag scope-in">IN</span> Backend import engine: <code>parseFile</code>, <code>mapColumns</code>, <code>validateRows</code>, <code>importRows</code></li>
+                <li><span class="scope-tag scope-in">IN</span> 4-step frontend wizard: Upload &rarr; Map Columns &rarr; Preview &rarr; Import</li>
+                <li><span class="scope-tag scope-in">IN</span> Price comparison view on Supplier detail page</li>
+            </ul>
+
+            <h3>Out of Scope</h3>
+            <ul>
+                <li><span class="scope-tag scope-out">OUT</span> EDI / API integration with distributors</li>
+                <li><span class="scope-tag scope-out">OUT</span> Automatic scheduled imports</li>
+                <li><span class="scope-tag scope-out">OUT</span> Export price books</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Section 3 -->
+    <div class="uis-section" id="s3">
+        <h2 class="collapsible-toggle open" onclick="toggleSection(this)">
+            3 &middot; UI Concepts
+            <span class="toggle-icon">&#9660;</span>
+        </h2>
+        <div class="collapsible-body open">
+            <h3>Step 1 &mdash; Upload</h3>
+            <div class="mockup-container">
+                <div class="mockup-bar">
+                    <div class="mockup-dots">
+                        <div class="mockup-dot mockup-dot-r"></div>
+                        <div class="mockup-dot mockup-dot-y"></div>
+                        <div class="mockup-dot mockup-dot-g"></div>
+                    </div>
+                    Price Book Import &mdash; Step 1 of 4
+                </div>
+                <div class="mockup-body">
+                    <div style="text-align: center; padding: 32px 0;">
+                        <div style="border: 2px dashed #cbd5e1; border-radius: 12px; padding: 40px 24px; margin-bottom: 16px;">
+                            <div style="font-size: 32px; margin-bottom: 8px;">📁</div>
+                            <div style="font-size: 14px; font-weight: 600; color: #0f172a; margin-bottom: 4px;">Drop CSV or Excel file here</div>
+                            <div style="font-size: 12px; color: #94a3b8;">or click to browse &middot; .csv, .xlsx, .xls supported</div>
+                        </div>
+                        <div style="display: flex; gap: 12px; justify-content: center; align-items: center; margin-top: 16px;">
+                            <div style="flex: 1; max-width: 260px;">
+                                <div style="font-size: 11px; font-weight: 600; color: #64748b; text-transform: uppercase; margin-bottom: 4px; text-align: left;">Distributor</div>
+                                <div class="mockup-input" style="text-align: left; color: #334155;">Crossroads Supply ▾</div>
+                            </div>
+                            <div style="flex: 1; max-width: 160px;">
+                                <div style="font-size: 11px; font-weight: 600; color: #64748b; text-transform: uppercase; margin-bottom: 4px; text-align: left;">File Type</div>
+                                <div class="mockup-input" style="text-align: left; color: #334155;">Auto-Detect ▾</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <h3>Step 2 &mdash; Map Columns</h3>
+            <div class="mockup-container">
+                <div class="mockup-bar">
+                    <div class="mockup-dots">
+                        <div class="mockup-dot mockup-dot-r"></div>
+                        <div class="mockup-dot mockup-dot-y"></div>
+                        <div class="mockup-dot mockup-dot-g"></div>
+                    </div>
+                    Price Book Import &mdash; Step 2 of 4
+                </div>
+                <div class="mockup-body">
+                    <div style="display: flex; gap: 6px; padding: 8px 0; font-weight: 700; font-size: 11px; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 2px solid #e2e8f0;">
+                        <div style="flex: 1;">Source Column</div>
+                        <div style="width: 40px; text-align: center;">&rarr;</div>
+                        <div style="flex: 1;">Target Field</div>
+                        <div style="flex: 1;">Sample Data</div>
+                    </div>
+                    <div style="display: flex; gap: 6px; padding: 10px 0; border-bottom: 1px solid #f1f5f9; align-items: center;">
+                        <div style="flex: 1; font-size: 13px; font-weight: 600; color: #0f172a;">Part Number</div>
+                        <div style="width: 40px; text-align: center; color: #10b981;">✓</div>
+                        <div style="flex: 1;"><div style="background: #dcfce7; border: 1px solid #bbf7d0; border-radius: 5px; padding: 6px 10px; font-size: 12px; color: #166534; font-weight: 600;">SKU ▾</div></div>
+                        <div style="flex: 1; font-size: 12px; color: #64748b;">CRS-FIBER-4IN</div>
+                    </div>
+                    <div style="display: flex; gap: 6px; padding: 10px 0; border-bottom: 1px solid #f1f5f9; align-items: center;">
+                        <div style="flex: 1; font-size: 13px; font-weight: 600; color: #0f172a;">Description</div>
+                        <div style="width: 40px; text-align: center; color: #10b981;">✓</div>
+                        <div style="flex: 1;"><div style="background: #dcfce7; border: 1px solid #bbf7d0; border-radius: 5px; padding: 6px 10px; font-size: 12px; color: #166534; font-weight: 600;">Product Name ▾</div></div>
+                        <div style="flex: 1; font-size: 12px; color: #64748b;">Fiberglass Batt 4"</div>
+                    </div>
+                    <div style="display: flex; gap: 6px; padding: 10px 0; border-bottom: 1px solid #f1f5f9; align-items: center;">
+                        <div style="flex: 1; font-size: 13px; font-weight: 600; color: #0f172a;">List Price</div>
+                        <div style="width: 40px; text-align: center; color: #10b981;">✓</div>
+                        <div style="flex: 1;"><div style="background: #dcfce7; border: 1px solid #bbf7d0; border-radius: 5px; padding: 6px 10px; font-size: 12px; color: #166534; font-weight: 600;">Unit Price ▾</div></div>
+                        <div style="flex: 1; font-size: 12px; color: #64748b;">$12.50</div>
+                    </div>
+                    <div style="display: flex; gap: 6px; padding: 10px 0; align-items: center;">
+                        <div style="flex: 1; font-size: 13px; font-weight: 600; color: #0f172a;">UOM</div>
+                        <div style="width: 40px; text-align: center; color: #f59e0b;">?</div>
+                        <div style="flex: 1;"><div style="background: #fef3c7; border: 1px solid #fde68a; border-radius: 5px; padding: 6px 10px; font-size: 12px; color: #92400e; font-weight: 600;">Select field&hellip; ▾</div></div>
+                        <div style="flex: 1; font-size: 12px; color: #64748b;">SQFT</div>
+                    </div>
+                    <p style="margin-top: 12px; font-size: 12px; color: #64748b;">Green = auto-detected match &middot; Yellow = needs manual mapping</p>
+                </div>
+            </div>
+
+            <h3>Step 3 &mdash; Preview &amp; Validate</h3>
+            <div class="mockup-container">
+                <div class="mockup-bar">
+                    <div class="mockup-dots">
+                        <div class="mockup-dot mockup-dot-r"></div>
+                        <div class="mockup-dot mockup-dot-y"></div>
+                        <div class="mockup-dot mockup-dot-g"></div>
+                    </div>
+                    Price Book Import &mdash; Step 3 of 4
+                </div>
+                <div class="mockup-body">
+                    <div style="display: flex; gap: 16px; margin-bottom: 16px;">
+                        <div style="background: #dcfce7; border-radius: 8px; padding: 12px 16px; flex: 1; text-align: center;">
+                            <div style="font-size: 20px; font-weight: 800; color: #166534;">1,247</div>
+                            <div style="font-size: 11px; color: #166534; font-weight: 600;">Ready to Import</div>
+                        </div>
+                        <div style="background: #fee2e2; border-radius: 8px; padding: 12px 16px; flex: 1; text-align: center;">
+                            <div style="font-size: 20px; font-weight: 800; color: #dc2626;">3</div>
+                            <div style="font-size: 11px; color: #dc2626; font-weight: 600;">Validation Errors</div>
+                        </div>
+                        <div style="background: #fef3c7; border-radius: 8px; padding: 12px 16px; flex: 1; text-align: center;">
+                            <div style="font-size: 20px; font-weight: 800; color: #92400e;">42</div>
+                            <div style="font-size: 11px; color: #92400e; font-weight: 600;">Price Changes</div>
+                        </div>
+                    </div>
+                    <div style="display: flex; gap: 6px; padding: 8px 0; font-weight: 700; font-size: 11px; color: #64748b; text-transform: uppercase; border-bottom: 2px solid #e2e8f0;">
+                        <div style="width: 40px;">Row</div>
+                        <div style="flex: 1;">SKU</div>
+                        <div style="flex: 2;">Product Name</div>
+                        <div style="flex: 1; text-align: right;">Old Price</div>
+                        <div style="flex: 1; text-align: right;">New Price</div>
+                        <div style="flex: 1;">Status</div>
+                    </div>
+                    <div style="display: flex; gap: 6px; padding: 8px 0; border-bottom: 1px solid #f1f5f9; align-items: center;">
+                        <div style="width: 40px; font-size: 12px; color: #94a3b8;">1</div>
+                        <div style="flex: 1; font-size: 12px; font-family: monospace; color: #7c3aed;">CRS-FIBER-4IN</div>
+                        <div style="flex: 2; font-size: 12px;">Fiberglass Batt 4&quot;</div>
+                        <div style="flex: 1; text-align: right; font-size: 12px; color: #94a3b8; text-decoration: line-through;">$11.25</div>
+                        <div style="flex: 1; text-align: right; font-size: 12px; font-weight: 700; color: #dc2626;">$12.50</div>
+                        <div style="flex: 1;"><span class="mockup-badge" style="background: #fef3c7; color: #92400e;">UPDATED</span></div>
+                    </div>
+                    <div style="display: flex; gap: 6px; padding: 8px 0; border-bottom: 1px solid #f1f5f9; align-items: center;">
+                        <div style="width: 40px; font-size: 12px; color: #94a3b8;">2</div>
+                        <div style="flex: 1; font-size: 12px; font-family: monospace; color: #7c3aed;">CRS-SPRAY-2LB</div>
+                        <div style="flex: 2; font-size: 12px;">Spray Foam 2lb Closed Cell</div>
+                        <div style="flex: 1; text-align: right; font-size: 12px; color: #94a3b8;">&mdash;</div>
+                        <div style="flex: 1; text-align: right; font-size: 12px; font-weight: 700; color: #166534;">$8.75</div>
+                        <div style="flex: 1;"><span class="mockup-badge" style="background: #dcfce7; color: #166534;">NEW</span></div>
+                    </div>
+                    <div style="display: flex; gap: 6px; padding: 8px 0; align-items: center; background: #fef2f2; margin: 0 -24px; padding-left: 24px; padding-right: 24px;">
+                        <div style="width: 40px; font-size: 12px; color: #dc2626; font-weight: 700;">847</div>
+                        <div style="flex: 1; font-size: 12px; font-family: monospace; color: #dc2626;">???</div>
+                        <div style="flex: 2; font-size: 12px; color: #dc2626;">Missing SKU</div>
+                        <div style="flex: 1;"></div>
+                        <div style="flex: 1; text-align: right; font-size: 12px;">$0.00</div>
+                        <div style="flex: 1;"><span class="mockup-badge" style="background: #fee2e2; color: #dc2626;">ERROR</span></div>
+                    </div>
+                </div>
+            </div>
+
+            <h3>Step 4 &mdash; Import Complete</h3>
+            <div class="mockup-container">
+                <div class="mockup-bar">
+                    <div class="mockup-dots">
+                        <div class="mockup-dot mockup-dot-r"></div>
+                        <div class="mockup-dot mockup-dot-y"></div>
+                        <div class="mockup-dot mockup-dot-g"></div>
+                    </div>
+                    Price Book Import &mdash; Step 4 of 4
+                </div>
+                <div class="mockup-body" style="text-align: center; padding: 40px 24px;">
+                    <div style="font-size: 48px; margin-bottom: 12px;">✅</div>
+                    <div style="font-size: 18px; font-weight: 800; color: #0f172a; margin-bottom: 8px;">Import Complete</div>
+                    <div style="font-size: 14px; color: #64748b; margin-bottom: 24px;">Crossroads Supply &mdash; price_book_2026_q2.xlsx</div>
+                    <div style="display: flex; gap: 16px; justify-content: center; margin-bottom: 24px;">
+                        <div style="text-align: center;">
+                            <div style="font-size: 24px; font-weight: 800; color: #166534;">1,247</div>
+                            <div style="font-size: 11px; color: #64748b;">Imported</div>
+                        </div>
+                        <div style="text-align: center;">
+                            <div style="font-size: 24px; font-weight: 800; color: #dc2626;">3</div>
+                            <div style="font-size: 11px; color: #64748b;">Errors</div>
+                        </div>
+                        <div style="text-align: center;">
+                            <div style="font-size: 24px; font-weight: 800; color: #92400e;">42</div>
+                            <div style="font-size: 11px; color: #64748b;">Price Changes</div>
+                        </div>
+                    </div>
+                    <div style="display: flex; gap: 12px; justify-content: center;">
+                        <span class="mockup-btn mockup-btn-primary">View Import History</span>
+                        <span class="mockup-btn mockup-btn-outline">Download Error Log</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 4 -->
+    <div class="uis-section" id="s4">
+        <h2 class="collapsible-toggle open" onclick="toggleSection(this)">
+            4 &middot; Data Model
+            <span class="toggle-icon">&#9660;</span>
+        </h2>
+        <div class="collapsible-body open">
+            <h3>PriceBookImport</h3>
+            <pre>model PriceBookImport {
+  id            String    @id @default(nanoid()) @db.VarChar(21)
+  instanceId    String    @db.VarChar(21)
+  distributorId String    @db.VarChar(21)
+  fileName      String    @db.VarChar(500)
+  status        String    @default("Processing") @db.VarChar(50)
+  rowCount      Int       @default(0)
+  successCount  Int       @default(0)
+  errorCount    Int       @default(0)
+  errorLog      String?   @db.Text
+  importedById  String    @db.VarChar(21)
+  isDeleted     Boolean   @default(false)
+  isArchived    Boolean   @default(false)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @default(now()) @updatedAt
+
+  Instance      Instance     @relation(fields: [instanceId], references: [id])
+  Distributor   Company      @relation(fields: [distributorId], references: [id])
+  ImportedBy    User         @relation(fields: [importedById], references: [id])
+
+  @@index([instanceId])
+  @@index([distributorId])
+  @@index([importedById])
+}</pre>
+            <p style="margin-top: 8px; font-size: 13px; color: #64748b;">Status values: <code>Processing</code>, <code>Complete</code>, <code>Failed</code>, <code>PartialSuccess</code>.</p>
+
+            <h3>Material.sku Extension</h3>
+            <pre>// Add to existing Material model
+model Material {
+  // ... existing fields ...
+  sku           String?   @db.VarChar(100)
+
+  @@index([sku])
+}</pre>
+        </div>
+    </div>
+
+    <!-- Section 5 -->
+    <div class="uis-section" id="s5">
+        <h2 class="collapsible-toggle open" onclick="toggleSection(this)">
+            5 &middot; API Surface
+            <span class="toggle-icon">&#9660;</span>
+        </h2>
+        <div class="collapsible-body open">
+            <h3>GraphQL Types</h3>
+            <pre>type PriceBookImport {
+  id: ID!
+  distributorId: String!
+  fileName: String!
+  status: String!
+  rowCount: Int!
+  successCount: Int!
+  errorCount: Int!
+  errorLog: String
+  importedById: String!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+  Distributor: Company
+  ImportedBy: User
+}
+
+type PriceBookImportResult {
+  import: PriceBookImport!
+  newProducts: Int!
+  updatedPrices: Int!
+  errors: [PriceBookImportError!]!
+}
+
+type PriceBookImportError {
+  row: Int!
+  column: String
+  message: String!
+  value: String
+}
+
+type PriceBookColumnMapping {
+  sourceColumn: String!
+  targetField: String!
+  confidence: Float!
+  sampleValues: [String!]!
+}</pre>
+
+            <h3>Input Types</h3>
+            <pre>input ImportPriceBookInput {
+  distributorId: String!
+  fileBase64: String!
+  fileName: String!
+  columnMappings: [ColumnMappingInput!]!
+  duplicateStrategy: PriceBookDuplicateStrategy!
+}
+
+input ColumnMappingInput {
+  sourceColumn: String!
+  targetField: String!
+}
+
+enum PriceBookDuplicateStrategy {
+  UPDATE_EXISTING
+  SKIP
+  CREATE_NEW
+}</pre>
+
+            <h3>Queries &amp; Mutations</h3>
+            <pre>type Query {
+  priceBookImports(distributorId: String): [PriceBookImport!]!
+  priceBookImport(id: String!): PriceBookImport
+  previewPriceBookColumns(
+    fileBase64: String!
+    fileName: String!
+  ): [PriceBookColumnMapping!]!
+}
+
+type Mutation {
+  importPriceBook(input: ImportPriceBookInput!): PriceBookImportResult!
+}</pre>
+        </div>
+    </div>
+
+    <!-- Section 6 -->
+    <div class="uis-section" id="s6">
+        <h2 class="collapsible-toggle open" onclick="toggleSection(this)">
+            6 &middot; Change Surface
+            <span class="toggle-icon">&#9660;</span>
+        </h2>
+        <div class="collapsible-body open">
+            <div class="blast-summary">
+                <div class="blast-row">
+                    <span class="blast-label">New Files</span>
+                    <span class="blast-value">5</span>
+                </div>
+                <div class="blast-row">
+                    <span class="blast-label">Modified Files</span>
+                    <span class="blast-value">2</span>
+                </div>
+                <div class="blast-row">
+                    <span class="blast-label">Total Touched</span>
+                    <span class="blast-value">7</span>
+                </div>
+            </div>
+
+            <table class="schema-table">
+                <thead>
+                    <tr><th>Action</th><th>File</th><th>Change</th></tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><span class="action-new">NEW</span></td>
+                        <td><code>apps/api/prisma/migrations/…_add_price_book_import/migration.sql</code></td>
+                        <td>Create PriceBookImport table + add sku column to Material</td>
+                    </tr>
+                    <tr>
+                        <td><span class="action-new">NEW</span></td>
+                        <td><code>apps/api/src/models/PriceBookImport.ts</code></td>
+                        <td>Import engine: parseFile, mapColumns, validateRows, importRows</td>
+                    </tr>
+                    <tr>
+                        <td><span class="action-new">NEW</span></td>
+                        <td><code>apps/api/src/graphql/models/PriceBookImport.ts</code></td>
+                        <td>GraphQL resolver: type, queries, importPriceBook mutation</td>
+                    </tr>
+                    <tr>
+                        <td><span class="action-new">NEW</span></td>
+                        <td><code>apps/frontend/src/components/PriceBookImport/PriceBookImportWizard.tsx</code></td>
+                        <td>4-step wizard: Upload, Map Columns, Preview, Import</td>
+                    </tr>
+                    <tr>
+                        <td><span class="action-new">NEW</span></td>
+                        <td><code>apps/frontend/src/graphql/mutations/priceBookImport.graphql</code></td>
+                        <td>Mutation + query definitions for import workflow</td>
+                    </tr>
+                    <tr>
+                        <td><span class="action-mod">MOD</span></td>
+                        <td><code>apps/api/prisma/schema.prisma</code></td>
+                        <td>Add PriceBookImport model + sku field on Material</td>
+                    </tr>
+                    <tr>
+                        <td><span class="action-mod">MOD</span></td>
+                        <td><code>apps/api/src/graphql/schema.ts</code></td>
+                        <td>Register PriceBookImport resolver (import, typeDef, Query, Mutation)</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Section 7 -->
+    <div class="uis-section" id="s7">
+        <h2 class="collapsible-toggle open" onclick="toggleSection(this)">
+            7 &middot; Acceptance Criteria
+            <span class="toggle-icon">&#9660;</span>
+        </h2>
+        <div class="collapsible-body open">
+            <ul class="criteria-list">
+                <li><div class="criteria-check"></div>User can upload a CSV file and the system parses it into rows and columns</li>
+                <li><div class="criteria-check"></div>User can upload an Excel (.xlsx) file and the system parses it into rows and columns</li>
+                <li><div class="criteria-check"></div>Column mapping auto-detects common field names (SKU, Description, Price, UOM) with &ge;80% accuracy</li>
+                <li><div class="criteria-check"></div>User can manually override any auto-detected column mapping</li>
+                <li><div class="criteria-check"></div>Preview step shows total row count, validation error count, and price change count</li>
+                <li><div class="criteria-check"></div>Rows with validation errors are highlighted red with error description</li>
+                <li><div class="criteria-check"></div>Successful rows create <code>ManufacturerProduct</code> + <code>DistributorPrice</code> records</li>
+                <li><div class="criteria-check"></div>Duplicate handling supports both "Update Existing" and "Skip" strategies</li>
+                <li><div class="criteria-check"></div>Price comparison shows old price vs new price for existing products</li>
+                <li><div class="criteria-check"></div>Import history is viewable with row counts, error counts, and timestamps</li>
+                <li><div class="criteria-check"></div>Error log is downloadable after import</li>
+                <li><div class="criteria-check"></div>Permission check: <code>material.create</code> required to initiate import</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Section 8 -->
+    <div class="uis-section" id="s8">
+        <h2 class="collapsible-toggle open" onclick="toggleSection(this)">
+            8 &middot; Dependencies
+            <span class="toggle-icon">&#9660;</span>
+        </h2>
+        <div class="collapsible-body open">
+            <h3>Requires</h3>
+            <p><span class="dep-tag dep-requires">MAT-0: ManufacturerProduct + DistributorPrice</span></p>
+
+            <h3>Enables</h3>
+            <p><span class="dep-tag dep-enables">MAT-9: Discount Management (references imported products)</span></p>
+
+            <h3>Siblings</h3>
+            <p>
+                <span class="dep-tag dep-none">MAT-4</span>
+            </p>
+
+            <h3>Parent</h3>
+            <p><span class="dep-tag dep-none">Release 1.34</span></p>
+        </div>
+    </div>
+
+    <div class="uis-footer">
+        MAT-3 &middot; Price Book Import &middot; Release 1.34
+    </div>
+</div>
+
+<script>
+function toggleSection(el) {
+    el.classList.toggle("open");
+    const body = el.nextElementSibling;
+    if (body) body.classList.toggle("open");
+}
+</script>
+</body>
+</html>

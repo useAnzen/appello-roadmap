@@ -1,0 +1,832 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MAT-0: Three-Level Supply Chain Model</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Inter', -apple-system, sans-serif; background: #f1f5f9; color: #0f172a; }
+.uis-wrap { max-width: 960px; margin: 0 auto; padding: 40px 24px 80px; }
+.uis-hero { margin-bottom: 32px; }
+.uis-badges { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+.uis-badge { font-size: 11px; font-weight: 700; padding: 4px 12px; border-radius: 6px; display: inline-flex; align-items: center; gap: 5px; }
+.badge-q { background: #0f172a; color: #fff; }
+.badge-lane { background: #10b981; color: #fff; }
+.badge-status { background: #fef3c7; color: #92400e; }
+.badge-priority { background: #fee2e2; color: #dc2626; }
+.badge-child { background: #7c3aed; color: #fff; }
+.uis-h1 { font-size: 30px; font-weight: 800; color: #0f172a; margin: 0 0 8px; letter-spacing: -0.01em; }
+.uis-sub { font-size: 15px; color: #64748b; line-height: 1.5; margin: 0; }
+.uis-meta { display: flex; gap: 24px; flex-wrap: wrap; margin-top: 14px; font-size: 13px; color: #64748b; }
+.uis-meta strong { color: #0f172a; }
+.uis-toc { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px 28px; margin-bottom: 16px; }
+.uis-toc h3 { font-size: 13px; font-weight: 700; color: #0f172a; margin: 0 0 10px; text-transform: uppercase; letter-spacing: 0.5px; }
+.uis-toc ol { margin: 0; padding-left: 20px; }
+.uis-toc li { font-size: 14px; color: #3b82f6; margin-bottom: 4px; }
+.uis-toc a { color: #3b82f6; text-decoration: none; }
+.uis-section { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px 28px; margin-bottom: 16px; }
+.uis-section h2 { font-size: 17px; font-weight: 700; color: #0f172a; margin: 0 0 14px; padding-bottom: 10px; border-bottom: 2px solid #e2e8f0; }
+.uis-section h3 { font-size: 15px; font-weight: 700; color: #0f172a; margin: 16px 0 8px; }
+.uis-section p, .uis-section li { font-size: 14px; color: #334155; line-height: 1.65; }
+.uis-section ul, .uis-section ol { padding-left: 20px; margin: 8px 0; }
+.customer-quote { background: #fef3c7; border-left: 3px solid #f59e0b; padding: 12px 16px; border-radius: 0 8px 8px 0; margin: 14px 0; font-style: italic; font-size: 14px; color: #92400e; }
+.customer-quote .attribution { font-style: normal; font-weight: 600; display: block; margin-top: 6px; }
+.competitor-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin: 12px 0; }
+.competitor-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px; }
+.competitor-card strong { font-size: 14px; color: #0f172a; display: block; margin-bottom: 4px; }
+.competitor-card span { font-size: 12px; color: #64748b; }
+.comp-status { font-size: 10px; font-weight: 700; text-transform: uppercase; padding: 2px 8px; border-radius: 4px; display: inline-block; margin-bottom: 6px; }
+.comp-has { background: #dcfce7; color: #166534; }
+.comp-partial { background: #fef3c7; color: #92400e; }
+.comp-none { background: #fee2e2; color: #dc2626; }
+.value-cards { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin: 12px 0; }
+.value-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px; }
+.value-card .v-icon { font-size: 20px; margin-bottom: 6px; }
+.value-card .v-title { font-size: 13px; font-weight: 700; color: #0f172a; margin-bottom: 4px; }
+.value-card .v-detail { font-size: 12px; color: #64748b; line-height: 1.5; }
+.jira-chip { display: inline-flex; align-items: center; padding: 4px 12px; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 6px; font-family: monospace; font-size: 11px; font-weight: 600; color: #3b82f6; margin-right: 6px; margin-bottom: 6px; }
+.scope-tag { display: inline-block; font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 5px; margin-right: 6px; }
+.scope-in { background: #dcfce7; color: #166534; }
+.scope-out { background: #fee2e2; color: #dc2626; }
+.mockup-container { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; margin: 14px 0; }
+.mockup-bar { background: #f1f5f9; padding: 8px 14px; font-size: 12px; font-weight: 600; color: #64748b; border-bottom: 1px solid #e2e8f0; display: flex; align-items: center; gap: 8px; }
+.mockup-dots { display: flex; gap: 5px; }
+.mockup-dot { width: 8px; height: 8px; border-radius: 50%; }
+.mockup-dot-r { background: #f87171; }
+.mockup-dot-y { background: #fbbf24; }
+.mockup-dot-g { background: #34d399; }
+.mockup-body { padding: 24px; min-height: 200px; font-size: 13px; color: #334155; line-height: 1.6; }
+.collapsible-toggle { display: flex; align-items: center; justify-content: space-between; cursor: pointer; user-select: none; }
+.collapsible-toggle .toggle-icon { font-size: 14px; color: #94a3b8; transition: transform 0.2s; }
+.collapsible-toggle.open .toggle-icon { transform: rotate(180deg); }
+.collapsible-body { display: none; margin-top: 14px; }
+.collapsible-body.open { display: block; }
+pre { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; overflow-x: auto; font-size: 13px; line-height: 1.5; font-family: monospace; color: #334155; }
+table.schema-table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 12px 0; }
+table.schema-table th { text-align: left; padding: 8px 12px; background: #f8fafc; border-bottom: 2px solid #e2e8f0; font-weight: 600; }
+table.schema-table td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; }
+table.schema-table code { font-family: monospace; background: #f1f5f9; padding: 1px 5px; border-radius: 3px; font-size: 12px; color: #7c3aed; }
+.blast-summary { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 16px 20px; margin-bottom: 16px; }
+.blast-row { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; }
+.blast-row:not(:last-child) { border-bottom: 1px solid #f1f5f9; }
+.blast-label { font-size: 13px; color: #64748b; }
+.blast-value { font-size: 13px; font-weight: 700; color: #0f172a; }
+.action-new { background: #dcfce7; color: #166534; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 4px; }
+.action-mod { background: #fef3c7; color: #92400e; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 4px; }
+.criteria-list { list-style: none; padding: 0; }
+.criteria-list li { padding: 8px 0; border-bottom: 1px solid #f1f5f9; display: flex; gap: 10px; align-items: flex-start; font-size: 14px; color: #334155; }
+.criteria-list li:last-child { border-bottom: none; }
+.criteria-check { width: 18px; height: 18px; border: 2px solid #cbd5e1; border-radius: 4px; flex-shrink: 0; margin-top: 1px; }
+.dep-tag { display: inline-block; font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 5px; margin-right: 6px; margin-bottom: 6px; text-decoration: none; }
+.dep-none { background: #dcfce7; color: #166534; }
+.dep-requires { background: #fef3c7; color: #92400e; }
+.dep-enables { background: #eff6ff; color: #1d4ed8; }
+.uis-footer { text-align: center; padding: 24px; font-size: 12px; color: #94a3b8; }
+.uis-footer a { color: #3b82f6; text-decoration: none; }
+.mockup-row { display: flex; gap: 8px; padding: 6px 0; border-bottom: 1px solid #f1f5f9; align-items: center; }
+.mockup-cell { flex: 1; }
+.mockup-header { font-weight: 700; background: #f1f5f9; padding: 8px; border-radius: 4px; margin-bottom: 4px; }
+.mockup-input { background: #fff; border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px 12px; color: #94a3b8; font-size: 12px; }
+.mockup-btn { display: inline-block; padding: 6px 14px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; border: none; }
+.mockup-btn-primary { background: #3b82f6; color: #fff; }
+.mockup-btn-success { background: #10b981; color: #fff; }
+.mockup-btn-outline { background: #fff; color: #3b82f6; border: 1px solid #3b82f6; }
+.mockup-badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 700; }
+    </style>
+</head>
+<body>
+<div class="uis-wrap">
+
+    <!-- ═══ HERO ═══ -->
+    <div class="uis-hero">
+        <div class="uis-badges">
+            <span class="uis-badge badge-q">MAT-0</span>
+            <span class="uis-badge badge-lane">Supply Chain</span>
+            <span class="uis-badge badge-status">Draft</span>
+            <span class="uis-badge badge-priority">P0</span>
+            <span class="uis-badge badge-child">Child of Release 1.34</span>
+        </div>
+        <h1 class="uis-h1">Three-Level Supply Chain Model</h1>
+        <p class="uis-sub">Normalized Material &rarr; ManufacturerProduct &rarr; DistributorPrice data model connecting the material catalog to real-world companies. The foundation every downstream procurement feature depends on.</p>
+        <div class="uis-meta">
+            <span><strong>Parent:</strong> Release 1.34</span>
+            <span><strong>Slice:</strong> MAT-0</span>
+            <span><strong>Est:</strong> 5 &ndash; 7 days</span>
+        </div>
+    </div>
+
+    <!-- ═══ TABLE OF CONTENTS ═══ -->
+    <div class="uis-toc">
+        <h3>Contents</h3>
+        <ol>
+            <li><a href="#s1">Business Case &amp; Customer Evidence</a></li>
+            <li><a href="#s2">Scope</a></li>
+            <li><a href="#s3">UI Concepts</a></li>
+            <li><a href="#s4">Data Model</a></li>
+            <li><a href="#s5">API Surface</a></li>
+            <li><a href="#s6">Change Surface</a></li>
+            <li><a href="#s7">Acceptance Criteria</a></li>
+            <li><a href="#s8">Dependencies</a></li>
+        </ol>
+    </div>
+
+    <!-- ═══ SECTION 1 — Business Case & Customer Evidence ═══ -->
+    <div class="uis-section" id="s1">
+        <div class="collapsible-toggle open" onclick="toggleSection(this)">
+            <h2>1 &middot; Business Case &amp; Customer Evidence</h2>
+            <span class="toggle-icon">&#9660;</span>
+        </div>
+        <div class="collapsible-body open">
+
+            <div class="customer-quote">
+                "Four years ago, my friend Matt Vanos said, I have a material management problem. Come solve it."
+                <span class="attribution">&mdash; Corey Shelson, on the Vanos Insulation partnership</span>
+            </div>
+            <div class="customer-quote">
+                "One product from many suppliers with different pricing &mdash; we need to see who has the best price before we order."
+                <span class="attribution">&mdash; Vanos Insulation, Product Discovery (Nov 2025)</span>
+            </div>
+            <div class="customer-quote">
+                "Ingesting all of the Crossroads price books with all the discounts &mdash; that&rsquo;s going to be huge for us."
+                <span class="attribution">&mdash; M-X Insulation, Demo (Jan 2026)</span>
+            </div>
+
+            <h3>Value Proposition</h3>
+            <div class="value-cards">
+                <div class="value-card">
+                    <div class="v-icon">&#128176;</div>
+                    <div class="v-title">Multi-Supplier Pricing</div>
+                    <div class="v-detail">Same product, different prices from different distributors. Best-price visibility at the point of ordering.</div>
+                </div>
+                <div class="value-card">
+                    <div class="v-icon">&#127981;</div>
+                    <div class="v-title">Manufacturer Normalization</div>
+                    <div class="v-detail">Track manufacturer SKUs, UPCs, and MSRPs independent of distributor pricing for a single source of truth.</div>
+                </div>
+                <div class="value-card">
+                    <div class="v-icon">&#128101;</div>
+                    <div class="v-title">Company Integration</div>
+                    <div class="v-detail">Manufacturer and Supplier are Company types &mdash; reuse existing Company CRUD, contacts, notes, and files.</div>
+                </div>
+                <div class="value-card">
+                    <div class="v-icon">&#128737;</div>
+                    <div class="v-title">Foundation for Procurement</div>
+                    <div class="v-detail">Every downstream feature (Price Book Import, Supplier POs, Discounts, Receiving) depends on this data model.</div>
+                </div>
+            </div>
+
+            <h3>Competitive Landscape</h3>
+            <div class="competitor-grid">
+                <div class="competitor-card">
+                    <span class="comp-status comp-has">HAS</span>
+                    <strong>Procore</strong>
+                    <span>Supplier management + PO creation with multi-vendor pricing</span>
+                </div>
+                <div class="competitor-card">
+                    <span class="comp-status comp-has">HAS</span>
+                    <strong>ServiceTitan</strong>
+                    <span>Product catalog with integrated supplier pricing and purchase workflow</span>
+                </div>
+                <div class="competitor-card">
+                    <span class="comp-status comp-has">HAS</span>
+                    <strong>BuildOps</strong>
+                    <span>Material management with supplier relationships and pricing</span>
+                </div>
+                <div class="competitor-card">
+                    <span class="comp-status comp-partial">PARTIAL</span>
+                    <strong>Appello (today)</strong>
+                    <span>Material catalog exists but no product-supplier pricing relationship</span>
+                </div>
+            </div>
+
+            <h3>Related Jira Tickets</h3>
+            <div>
+                <span class="jira-chip">Q21030-7334</span> PO Management
+                <span class="jira-chip">Q21030-5927</span> Mobile Material
+            </div>
+
+        </div>
+    </div>
+
+    <!-- ═══ SECTION 2 — Scope ═══ -->
+    <div class="uis-section" id="s2">
+        <div class="collapsible-toggle open" onclick="toggleSection(this)">
+            <h2>2 &middot; Scope</h2>
+            <span class="toggle-icon">&#9660;</span>
+        </div>
+        <div class="collapsible-body open">
+
+            <h3><span class="scope-tag scope-in">IN SCOPE</span></h3>
+            <ul>
+                <li>2 new Prisma models: <code>ManufacturerProduct</code>, <code>DistributorPrice</code></li>
+                <li>&ldquo;Manufacturer&rdquo; company type seeded via <code>PropertyValue</code> + <code>CompanyPayableType</code></li>
+                <li>Relations on <code>Company</code> (<code>ManufacturerProducts</code>, <code>DistributorPrices</code>), <code>Material</code> (<code>ManufacturerProducts</code>)</li>
+                <li>Optional <code>distributorId</code> FK on <code>MaterialOrder</code></li>
+                <li>Products tab on Manufacturer company detail page</li>
+                <li>Products &amp; Pricing tab on Supplier company detail page</li>
+                <li>Supply Chain section on Material detail page (Manufacturers + Distributor Pricing sub-tables)</li>
+                <li>&ldquo;Best price&rdquo; indicator across distributors for same manufacturer product</li>
+                <li>GraphQL CRUD for <code>ManufacturerProduct</code> and <code>DistributorPrice</code></li>
+            </ul>
+
+            <h3><span class="scope-tag scope-out">OUT OF SCOPE</span></h3>
+            <ul>
+                <li>Bulk price book import &mdash; deferred to <strong>MAT-3</strong></li>
+                <li>Discount management &mdash; deferred to <strong>MAT-9</strong></li>
+                <li>Supplier PO creation from pricing data &mdash; deferred to <strong>MAT-5</strong></li>
+                <li>Mobile material browsing by supplier</li>
+                <li>Inventory integration</li>
+            </ul>
+
+        </div>
+    </div>
+
+    <!-- ═══ SECTION 3 — UI Concepts ═══ -->
+    <div class="uis-section" id="s3">
+        <div class="collapsible-toggle open" onclick="toggleSection(this)">
+            <h2>3 &middot; UI Concepts</h2>
+            <span class="toggle-icon">&#9660;</span>
+        </div>
+        <div class="collapsible-body open">
+
+            <!-- Mockup 1: Manufacturer Company Detail — Products Tab -->
+            <div class="mockup-container">
+                <div class="mockup-bar">
+                    <div class="mockup-dots"><div class="mockup-dot mockup-dot-r"></div><div class="mockup-dot mockup-dot-y"></div><div class="mockup-dot mockup-dot-g"></div></div>
+                    Manufacturer Company Detail &mdash; Products Tab
+                </div>
+                <div class="mockup-body">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+                        <div style="font-size:15px;font-weight:700;">Products</div>
+                        <span class="mockup-btn mockup-btn-primary">+ Link Product</span>
+                    </div>
+                    <div class="mockup-row" style="border-bottom:2px solid #e2e8f0;">
+                        <div class="mockup-cell mockup-header">Material</div>
+                        <div class="mockup-cell mockup-header">Mfg SKU</div>
+                        <div class="mockup-cell mockup-header">MSRP</div>
+                        <div class="mockup-cell mockup-header">Package Qty</div>
+                        <div class="mockup-cell mockup-header">UPC</div>
+                        <div class="mockup-cell mockup-header">Active</div>
+                    </div>
+                    <div class="mockup-row">
+                        <div class="mockup-cell" style="color:#3b82f6;font-weight:600;">R-30 Fiberglass Batts</div>
+                        <div class="mockup-cell"><code>MFG-R30-24</code></div>
+                        <div class="mockup-cell">$42.50</div>
+                        <div class="mockup-cell">126 ft/box</div>
+                        <div class="mockup-cell" style="font-family:monospace;font-size:11px;">012345678901</div>
+                        <div class="mockup-cell"><span class="mockup-badge" style="background:#dcfce7;color:#166534;">Active</span></div>
+                    </div>
+                    <div class="mockup-row">
+                        <div class="mockup-cell" style="color:#3b82f6;font-weight:600;">R-22 Mineral Wool</div>
+                        <div class="mockup-cell"><code>MFG-MW22-16</code></div>
+                        <div class="mockup-cell">$38.75</div>
+                        <div class="mockup-cell">96 ft/box</div>
+                        <div class="mockup-cell" style="font-family:monospace;font-size:11px;">012345678902</div>
+                        <div class="mockup-cell"><span class="mockup-badge" style="background:#dcfce7;color:#166534;">Active</span></div>
+                    </div>
+                    <div class="mockup-row" style="border-bottom:none;">
+                        <div class="mockup-cell" style="color:#3b82f6;font-weight:600;">2&Prime; XPS Rigid Board</div>
+                        <div class="mockup-cell"><code>MFG-XPS2-48</code></div>
+                        <div class="mockup-cell">$56.00</div>
+                        <div class="mockup-cell">4&prime; &times; 8&prime; sheet</div>
+                        <div class="mockup-cell" style="font-family:monospace;font-size:11px;">012345678903</div>
+                        <div class="mockup-cell"><span class="mockup-badge" style="background:#fef3c7;color:#92400e;">Inactive</span></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Mockup 2: Supplier Company Detail — Products & Pricing Tab -->
+            <div class="mockup-container">
+                <div class="mockup-bar">
+                    <div class="mockup-dots"><div class="mockup-dot mockup-dot-r"></div><div class="mockup-dot mockup-dot-y"></div><div class="mockup-dot mockup-dot-g"></div></div>
+                    Supplier Company Detail &mdash; Products &amp; Pricing Tab
+                </div>
+                <div class="mockup-body">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+                        <div style="font-size:15px;font-weight:700;">Products &amp; Pricing</div>
+                        <div style="display:flex;gap:8px;">
+                            <span class="mockup-btn mockup-btn-outline">Import Price Book</span>
+                            <span class="mockup-btn mockup-btn-primary">+ Add Pricing</span>
+                        </div>
+                    </div>
+                    <div class="mockup-row" style="border-bottom:2px solid #e2e8f0;">
+                        <div class="mockup-cell mockup-header">Material</div>
+                        <div class="mockup-cell mockup-header">Manufacturer</div>
+                        <div class="mockup-cell mockup-header">Mfg SKU</div>
+                        <div class="mockup-cell mockup-header">Dist SKU</div>
+                        <div class="mockup-cell mockup-header">Unit Price</div>
+                        <div class="mockup-cell mockup-header">List Price</div>
+                        <div class="mockup-cell mockup-header">Discount %</div>
+                        <div class="mockup-cell mockup-header">Lead Time</div>
+                        <div class="mockup-cell mockup-header">Preferred</div>
+                    </div>
+                    <div class="mockup-row">
+                        <div class="mockup-cell" style="color:#3b82f6;font-weight:600;">R-30 Fiberglass Batts</div>
+                        <div class="mockup-cell">Owens Corning</div>
+                        <div class="mockup-cell"><code>MFG-R30-24</code></div>
+                        <div class="mockup-cell"><code>CRD-30FB-126</code></div>
+                        <div class="mockup-cell" style="font-weight:700;">$36.50</div>
+                        <div class="mockup-cell">$42.50</div>
+                        <div class="mockup-cell">14.1%</div>
+                        <div class="mockup-cell">3 days</div>
+                        <div class="mockup-cell"><span class="mockup-badge" style="background:#dcfce7;color:#166534;">&#9733; Preferred</span></div>
+                    </div>
+                    <div class="mockup-row" style="border-bottom:none;">
+                        <div class="mockup-cell" style="color:#3b82f6;font-weight:600;">R-22 Mineral Wool</div>
+                        <div class="mockup-cell">Rockwool</div>
+                        <div class="mockup-cell"><code>MFG-MW22-16</code></div>
+                        <div class="mockup-cell"><code>CRD-MW22-96</code></div>
+                        <div class="mockup-cell" style="font-weight:700;">$34.00</div>
+                        <div class="mockup-cell">$38.75</div>
+                        <div class="mockup-cell">12.3%</div>
+                        <div class="mockup-cell">5 days</div>
+                        <div class="mockup-cell"><span class="mockup-badge" style="background:#f1f5f9;color:#64748b;">&mdash;</span></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Mockup 3: Material Detail — Supply Chain Section -->
+            <div class="mockup-container">
+                <div class="mockup-bar">
+                    <div class="mockup-dots"><div class="mockup-dot mockup-dot-r"></div><div class="mockup-dot mockup-dot-y"></div><div class="mockup-dot mockup-dot-g"></div></div>
+                    Material Detail &mdash; Supply Chain Section
+                </div>
+                <div class="mockup-body">
+                    <div style="font-size:15px;font-weight:700;margin-bottom:16px;">Supply Chain</div>
+
+                    <div style="font-size:13px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Manufacturers</div>
+                    <div class="mockup-row" style="border-bottom:2px solid #e2e8f0;">
+                        <div class="mockup-cell mockup-header">Company</div>
+                        <div class="mockup-cell mockup-header">SKU</div>
+                        <div class="mockup-cell mockup-header">MSRP</div>
+                        <div class="mockup-cell mockup-header">Package</div>
+                    </div>
+                    <div class="mockup-row">
+                        <div class="mockup-cell" style="color:#3b82f6;font-weight:600;">Owens Corning</div>
+                        <div class="mockup-cell"><code>MFG-R30-24</code></div>
+                        <div class="mockup-cell">$42.50</div>
+                        <div class="mockup-cell">126 ft/box</div>
+                    </div>
+                    <div class="mockup-row" style="border-bottom:none;">
+                        <div class="mockup-cell" style="color:#3b82f6;font-weight:600;">Johns Manville</div>
+                        <div class="mockup-cell"><code>JM-R30-24C</code></div>
+                        <div class="mockup-cell">$41.00</div>
+                        <div class="mockup-cell">120 ft/box</div>
+                    </div>
+
+                    <div style="font-size:13px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;margin:20px 0 8px;">Distributor Pricing</div>
+                    <div class="mockup-row" style="border-bottom:2px solid #e2e8f0;">
+                        <div class="mockup-cell mockup-header">Distributor</div>
+                        <div class="mockup-cell mockup-header">Dist SKU</div>
+                        <div class="mockup-cell mockup-header">Unit Price</div>
+                        <div class="mockup-cell mockup-header">List Price</div>
+                        <div class="mockup-cell mockup-header">Discount %</div>
+                        <div class="mockup-cell mockup-header">&nbsp;</div>
+                    </div>
+                    <div class="mockup-row" style="background:#f0fdf4;">
+                        <div class="mockup-cell" style="color:#3b82f6;font-weight:600;">Crossroads Insulation Supply</div>
+                        <div class="mockup-cell"><code>CRD-30FB-126</code></div>
+                        <div class="mockup-cell" style="font-weight:700;">$34.25</div>
+                        <div class="mockup-cell">$42.50</div>
+                        <div class="mockup-cell">19.4%</div>
+                        <div class="mockup-cell"><span class="mockup-badge" style="background:#dcfce7;color:#166534;">&#9733; Best Price</span></div>
+                    </div>
+                    <div class="mockup-row">
+                        <div class="mockup-cell" style="color:#3b82f6;font-weight:600;">Winroc Distribution</div>
+                        <div class="mockup-cell"><code>WIN-OC-R30</code></div>
+                        <div class="mockup-cell" style="font-weight:700;">$36.50</div>
+                        <div class="mockup-cell">$42.50</div>
+                        <div class="mockup-cell">14.1%</div>
+                        <div class="mockup-cell">&nbsp;</div>
+                    </div>
+                    <div class="mockup-row" style="border-bottom:none;">
+                        <div class="mockup-cell" style="color:#3b82f6;font-weight:600;">IDI Distributors</div>
+                        <div class="mockup-cell"><code>IDI-R30FB-24</code></div>
+                        <div class="mockup-cell" style="font-weight:700;">$37.80</div>
+                        <div class="mockup-cell">$42.50</div>
+                        <div class="mockup-cell">11.1%</div>
+                        <div class="mockup-cell">&nbsp;</div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- ═══ SECTION 4 — Data Model ═══ -->
+    <div class="uis-section" id="s4">
+        <div class="collapsible-toggle open" onclick="toggleSection(this)">
+            <h2>4 &middot; Data Model</h2>
+            <span class="toggle-icon">&#9660;</span>
+        </div>
+        <div class="collapsible-body open">
+
+            <h3>ManufacturerProduct</h3>
+<pre>model ManufacturerProduct {
+    id                String   @id @default(cuid()) @db.VarChar(21)
+    materialId        String   @db.VarChar(21)
+    Material          Material @relation(fields: [materialId], references: [id])
+    manufacturerId    String   @db.VarChar(21)
+    Manufacturer      Company  @relation("ManufacturerProducts", fields: [manufacturerId], references: [id])
+    manufacturerSku   String   @db.VarChar(100)
+    msrp              Decimal? @db.Decimal(10, 2)
+    upc               String?  @db.VarChar(50)
+    description       String?  @db.Text
+    packageQty        Decimal? @db.Decimal(10, 2)
+    packageUnit       String?  @db.VarChar(50)
+    isActive          Boolean  @default(true)
+    isDeleted         Boolean  @default(false)
+    createdAt         DateTime @default(now())
+    updatedAt         DateTime @updatedAt
+
+    DistributorPrices DistributorPrice[]
+
+    @@unique([materialId, manufacturerId, manufacturerSku])
+    @@index([materialId])
+    @@index([manufacturerId])
+    @@map("ManufacturerProduct")
+}</pre>
+
+            <table class="schema-table">
+                <thead>
+                    <tr><th>Field</th><th>Type</th><th>Purpose</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td><code>materialId</code></td><td>FK &rarr; Material</td><td>Links to the generic material in the catalog</td></tr>
+                    <tr><td><code>manufacturerId</code></td><td>FK &rarr; Company</td><td>The manufacturer company (type = &ldquo;Manufacturer&rdquo;)</td></tr>
+                    <tr><td><code>manufacturerSku</code></td><td>VarChar(100)</td><td>Manufacturer&rsquo;s own part number / SKU</td></tr>
+                    <tr><td><code>msrp</code></td><td>Decimal(10,2)</td><td>Manufacturer&rsquo;s suggested retail price</td></tr>
+                    <tr><td><code>upc</code></td><td>VarChar(50)</td><td>Universal product code / barcode</td></tr>
+                    <tr><td><code>packageQty</code></td><td>Decimal(10,2)</td><td>Quantity per package (e.g. 126 ft)</td></tr>
+                    <tr><td><code>packageUnit</code></td><td>VarChar(50)</td><td>Unit of measure for packaging (e.g. ft/box)</td></tr>
+                    <tr><td><code>isActive</code></td><td>Boolean</td><td>Soft active flag for product lifecycle</td></tr>
+                </tbody>
+            </table>
+
+            <h3>DistributorPrice</h3>
+<pre>model DistributorPrice {
+    id                      String              @id @default(cuid()) @db.VarChar(21)
+    manufacturerProductId   String              @db.VarChar(21)
+    ManufacturerProduct     ManufacturerProduct @relation(fields: [manufacturerProductId], references: [id])
+    distributorId           String              @db.VarChar(21)
+    Distributor             Company             @relation("DistributorPrices", fields: [distributorId], references: [id])
+    distributorSku          String              @db.VarChar(100)
+    unitPrice               Decimal             @db.Decimal(10, 2)
+    listPrice               Decimal?            @db.Decimal(10, 2)
+    discountPercent         Decimal?            @db.Decimal(5, 2)
+    effectiveFrom           DateTime?
+    effectiveTo             DateTime?
+    minQty                  Int?
+    leadTimeDays            Int?
+    isPreferred             Boolean             @default(false)
+    isInStock               Boolean?
+    notes                   String?             @db.Text
+    isDeleted               Boolean             @default(false)
+    createdAt               DateTime            @default(now())
+    updatedAt               DateTime            @updatedAt
+
+    @@unique([manufacturerProductId, distributorId, distributorSku])
+    @@index([manufacturerProductId])
+    @@index([distributorId])
+    @@map("DistributorPrice")
+}</pre>
+
+            <table class="schema-table">
+                <thead>
+                    <tr><th>Field</th><th>Type</th><th>Purpose</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td><code>manufacturerProductId</code></td><td>FK &rarr; ManufacturerProduct</td><td>The specific manufacturer product being priced</td></tr>
+                    <tr><td><code>distributorId</code></td><td>FK &rarr; Company</td><td>The distributor / supplier company</td></tr>
+                    <tr><td><code>distributorSku</code></td><td>VarChar(100)</td><td>Distributor&rsquo;s own SKU for this product</td></tr>
+                    <tr><td><code>unitPrice</code></td><td>Decimal(10,2)</td><td>Actual price charged by distributor</td></tr>
+                    <tr><td><code>listPrice</code></td><td>Decimal(10,2)</td><td>Published list price before discounts</td></tr>
+                    <tr><td><code>discountPercent</code></td><td>Decimal(5,2)</td><td>Discount off list price (computed or negotiated)</td></tr>
+                    <tr><td><code>effectiveFrom / To</code></td><td>DateTime</td><td>Date range for price validity</td></tr>
+                    <tr><td><code>minQty</code></td><td>Int</td><td>Minimum order quantity for this price</td></tr>
+                    <tr><td><code>leadTimeDays</code></td><td>Int</td><td>Expected delivery lead time in days</td></tr>
+                    <tr><td><code>isPreferred</code></td><td>Boolean</td><td>Marks this as the preferred distributor for this product</td></tr>
+                    <tr><td><code>isInStock</code></td><td>Boolean</td><td>Current stock availability (optional)</td></tr>
+                </tbody>
+            </table>
+
+            <h3>Relation Additions on Existing Models</h3>
+<pre>// On Company model:
+ManufacturerProducts   ManufacturerProduct[] @relation("ManufacturerProducts")
+DistributorPrices      DistributorPrice[]    @relation("DistributorPrices")
+
+// On Material model:
+ManufacturerProducts   ManufacturerProduct[]
+
+// On MaterialOrder model (optional FK):
+distributorId          String?               @db.VarChar(21)
+Distributor            Company?              @relation("MaterialOrderDistributor", fields: [distributorId], references: [id])</pre>
+
+            <h3>Seed SQL &mdash; Manufacturer Company Type</h3>
+<pre>-- Add "Manufacturer" to PropertyValue for companyType
+INSERT INTO PropertyValue (id, instanceId, propertyId, value, sortOrder, isArchived, isDeleted, createdAt, updatedAt)
+SELECT
+    'mfr_type_seed_001',
+    pv.instanceId,
+    pv.propertyId,
+    'Manufacturer',
+    (SELECT COALESCE(MAX(sortOrder), 0) + 1 FROM PropertyValue WHERE propertyId = pv.propertyId AND instanceId = pv.instanceId),
+    false,
+    false,
+    NOW(),
+    NOW()
+FROM PropertyValue pv
+WHERE pv.value = 'Supplier'
+  AND pv.propertyId IN (SELECT id FROM Property WHERE name = 'companyType')
+  AND NOT EXISTS (
+    SELECT 1 FROM PropertyValue pv2
+    WHERE pv2.propertyId = pv.propertyId
+      AND pv2.instanceId = pv.instanceId
+      AND pv2.value = 'Manufacturer'
+  )
+GROUP BY pv.instanceId, pv.propertyId;
+
+-- Add CompanyPayableType for Manufacturer (AP=false, AR=false)
+INSERT INTO CompanyPayableType (id, companyType, isAccountsPayable, isAccountsReceivable, createdAt, updatedAt)
+SELECT
+    'mfr_payable_seed',
+    'Manufacturer',
+    false,
+    false,
+    NOW(),
+    NOW()
+FROM DUAL
+WHERE NOT EXISTS (
+    SELECT 1 FROM CompanyPayableType WHERE companyType = 'Manufacturer'
+);</pre>
+
+        </div>
+    </div>
+
+    <!-- ═══ SECTION 5 — API Surface ═══ -->
+    <div class="uis-section" id="s5">
+        <div class="collapsible-toggle open" onclick="toggleSection(this)">
+            <h2>5 &middot; API Surface</h2>
+            <span class="toggle-icon">&#9660;</span>
+        </div>
+        <div class="collapsible-body open">
+
+            <h3>New GraphQL Types &amp; Operations</h3>
+<pre>type ManufacturerProduct {
+    id: ID!
+    materialId: String!
+    Material: Material
+    manufacturerId: String!
+    Manufacturer: Company
+    manufacturerSku: String!
+    msrp: Float
+    upc: String
+    description: String
+    packageQty: Float
+    packageUnit: String
+    isActive: Boolean!
+    DistributorPrices: [DistributorPrice!]
+}
+
+input CreateManufacturerProductInput {
+    materialId: String!
+    manufacturerId: String!
+    manufacturerSku: String!
+    msrp: Float
+    upc: String
+    description: String
+    packageQty: Float
+    packageUnit: String
+}
+
+type DistributorPrice {
+    id: ID!
+    manufacturerProductId: String!
+    ManufacturerProduct: ManufacturerProduct
+    distributorId: String!
+    Distributor: Company
+    distributorSku: String!
+    unitPrice: Float!
+    listPrice: Float
+    discountPercent: Float
+    effectiveFrom: DateTime
+    effectiveTo: DateTime
+    minQty: Int
+    leadTimeDays: Int
+    isPreferred: Boolean!
+    isInStock: Boolean
+    notes: String
+    effectivePrice: Float
+}
+
+input CreateDistributorPriceInput {
+    manufacturerProductId: String!
+    distributorId: String!
+    distributorSku: String!
+    unitPrice: Float!
+    listPrice: Float
+    discountPercent: Float
+    effectiveFrom: DateTime
+    effectiveTo: DateTime
+    minQty: Int
+    leadTimeDays: Int
+    isPreferred: Boolean
+    isInStock: Boolean
+    notes: String
+}
+
+extend type Query {
+    manufacturerProducts(materialId: String, manufacturerId: String): [ManufacturerProduct!]!
+    manufacturerProduct(id: ID!): ManufacturerProduct
+    distributorPrices(manufacturerProductId: String, distributorId: String): [DistributorPrice!]!
+    distributorPrice(id: ID!): DistributorPrice
+}
+
+extend type Mutation {
+    createManufacturerProduct(input: CreateManufacturerProductInput!): ManufacturerProduct!
+    editManufacturerProduct(id: ID!, input: CreateManufacturerProductInput!): ManufacturerProduct!
+    deleteManufacturerProduct(id: ID!): Boolean!
+    createDistributorPrice(input: CreateDistributorPriceInput!): DistributorPrice!
+    editDistributorPrice(id: ID!, input: CreateDistributorPriceInput!): DistributorPrice!
+    deleteDistributorPrice(id: ID!): Boolean!
+}</pre>
+
+            <h3>Consumed Queries (Existing)</h3>
+            <ul>
+                <li><code>companyDetail</code> &mdash; Used for Manufacturer/Supplier type check and header rendering</li>
+                <li><code>materials</code> / <code>materialDetail</code> &mdash; Used for linking products to materials and rendering material context</li>
+            </ul>
+
+            <h3>Computed Field: <code>effectivePrice</code></h3>
+            <p>The <code>effectivePrice</code> field on <code>DistributorPrice</code> is a GraphQL resolver-computed value. If <code>discountPercent</code> is set, it returns <code>listPrice &times; (1 &minus; discountPercent / 100)</code>; otherwise it returns <code>unitPrice</code>. This enables consistent &ldquo;best price&rdquo; comparison across distributors.</p>
+
+        </div>
+    </div>
+
+    <!-- ═══ SECTION 6 — Change Surface ═══ -->
+    <div class="uis-section" id="s6">
+        <div class="collapsible-toggle open" onclick="toggleSection(this)">
+            <h2>6 &middot; Change Surface</h2>
+            <span class="toggle-icon">&#9660;</span>
+        </div>
+        <div class="collapsible-body open">
+
+            <div class="blast-summary">
+                <div class="blast-row">
+                    <span class="blast-label">New files</span>
+                    <span class="blast-value">7</span>
+                </div>
+                <div class="blast-row">
+                    <span class="blast-label">Modified files</span>
+                    <span class="blast-value">4</span>
+                </div>
+                <div class="blast-row">
+                    <span class="blast-label">Total blast radius</span>
+                    <span class="blast-value">11 files</span>
+                </div>
+            </div>
+
+            <table class="schema-table">
+                <thead>
+                    <tr><th>Action</th><th>File</th><th>Purpose</th></tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><span class="action-new">NEW</span></td>
+                        <td><code>apps/api/prisma/migrations/…/migration.sql</code></td>
+                        <td>Create ManufacturerProduct, DistributorPrice tables; seed Manufacturer type</td>
+                    </tr>
+                    <tr>
+                        <td><span class="action-new">NEW</span></td>
+                        <td><code>apps/api/src/models/ManufacturerProduct.ts</code></td>
+                        <td>Model class with modelFields for ManufacturerProduct</td>
+                    </tr>
+                    <tr>
+                        <td><span class="action-new">NEW</span></td>
+                        <td><code>apps/api/src/models/DistributorPrice.ts</code></td>
+                        <td>Model class with modelFields for DistributorPrice</td>
+                    </tr>
+                    <tr>
+                        <td><span class="action-new">NEW</span></td>
+                        <td><code>apps/api/src/graphql/models/ManufacturerProduct.ts</code></td>
+                        <td>GraphQL resolver + type definition + CRUD mutations</td>
+                    </tr>
+                    <tr>
+                        <td><span class="action-new">NEW</span></td>
+                        <td><code>apps/api/src/graphql/models/DistributorPrice.ts</code></td>
+                        <td>GraphQL resolver + type definition + CRUD mutations</td>
+                    </tr>
+                    <tr>
+                        <td><span class="action-new">NEW</span></td>
+                        <td><code>apps/frontend/…/CompanyDetailsPage/Tabs/ManufacturerProducts.tsx</code></td>
+                        <td>Products tab for Manufacturer company detail pages</td>
+                    </tr>
+                    <tr>
+                        <td><span class="action-new">NEW</span></td>
+                        <td><code>apps/frontend/…/CompanyDetailsPage/Tabs/DistributorPricing.tsx</code></td>
+                        <td>Products &amp; Pricing tab for Supplier company detail pages</td>
+                    </tr>
+                    <tr>
+                        <td><span class="action-mod">MOD</span></td>
+                        <td><code>apps/api/prisma/schema.prisma</code></td>
+                        <td>Add 2 new models + relations on Company, Material, MaterialOrder</td>
+                    </tr>
+                    <tr>
+                        <td><span class="action-mod">MOD</span></td>
+                        <td><code>apps/api/src/graphql/schema.ts</code></td>
+                        <td>Register ManufacturerProduct + DistributorPrice resolvers</td>
+                    </tr>
+                    <tr>
+                        <td><span class="action-mod">MOD</span></td>
+                        <td><code>apps/frontend/…/CompanyDetailsPage/index.tsx</code></td>
+                        <td>Conditional tab registration by company type (Manufacturer / Supplier)</td>
+                    </tr>
+                    <tr>
+                        <td><span class="action-mod">MOD</span></td>
+                        <td><code>apps/frontend/src/pages/materials/[id]/index.tsx</code></td>
+                        <td>Add Supply Chain section with Manufacturers + Distributor Pricing sub-tables</td>
+                    </tr>
+                </tbody>
+            </table>
+
+        </div>
+    </div>
+
+    <!-- ═══ SECTION 7 — Acceptance Criteria ═══ -->
+    <div class="uis-section" id="s7">
+        <div class="collapsible-toggle open" onclick="toggleSection(this)">
+            <h2>7 &middot; Acceptance Criteria</h2>
+            <span class="toggle-icon">&#9660;</span>
+        </div>
+        <div class="collapsible-body open">
+
+            <ul class="criteria-list">
+                <li><div class="criteria-check"></div><span><code>ManufacturerProduct</code> and <code>DistributorPrice</code> tables created with unique constraints and indexes</span></li>
+                <li><div class="criteria-check"></div><span>&ldquo;Manufacturer&rdquo; company type seeded in <code>PropertyValue</code> with <code>CompanyPayableType</code> record (AP=false, AR=false)</span></li>
+                <li><div class="criteria-check"></div><span>Company creation form shows &ldquo;Manufacturer&rdquo; as a type option</span></li>
+                <li><div class="criteria-check"></div><span>Manufacturer company detail shows &ldquo;Products&rdquo; tab with ManufacturerProduct table</span></li>
+                <li><div class="criteria-check"></div><span>Supplier company detail shows &ldquo;Products &amp; Pricing&rdquo; tab with DistributorPrice table</span></li>
+                <li><div class="criteria-check"></div><span>Material detail page shows &ldquo;Supply Chain&rdquo; section with Manufacturers + Distributor Pricing sub-tables</span></li>
+                <li><div class="criteria-check"></div><span>Quick-add: link manufacturer product to material, link distributor pricing to manufacturer product</span></li>
+                <li><div class="criteria-check"></div><span>&ldquo;Best price&rdquo; indicator highlights lowest <code>unitPrice</code> across distributors for same manufacturer product</span></li>
+                <li><div class="criteria-check"></div><span><code>MaterialOrder</code> can optionally reference a distributor <code>Company</code></span></li>
+                <li><div class="criteria-check"></div><span>GraphQL queries: <code>manufacturerProducts(materialId)</code>, <code>distributorPrices(distributorId)</code> return correct data</span></li>
+                <li><div class="criteria-check"></div><span>Relations resolve correctly: Material &harr; ManufacturerProduct &harr; DistributorPrice, Company as Manufacturer/Distributor</span></li>
+                <li><div class="criteria-check"></div><span>No regression on existing Material catalog, Company pages, or MaterialOrder functionality</span></li>
+                <li><div class="criteria-check"></div><span>Permission: users need <code>material.view</code> to see Supply Chain section, <code>material.edit</code> to link products</span></li>
+                <li><div class="criteria-check"></div><span>Validation: <code>manufacturerSku</code> required; <code>materialId</code> + <code>manufacturerId</code> + <code>manufacturerSku</code> unique constraint enforced with user-friendly error</span></li>
+            </ul>
+
+        </div>
+    </div>
+
+    <!-- ═══ SECTION 8 — Dependencies ═══ -->
+    <div class="uis-section" id="s8">
+        <div class="collapsible-toggle open" onclick="toggleSection(this)">
+            <h2>8 &middot; Dependencies</h2>
+            <span class="toggle-icon">&#9660;</span>
+        </div>
+        <div class="collapsible-body open">
+
+            <h3>Requires</h3>
+            <p><span class="dep-tag dep-none">NONE &mdash; ROOT</span> No blocking dependencies. This is the foundational slice.</p>
+
+            <h3>Enables</h3>
+            <div>
+                <a class="dep-tag dep-enables" href="#">MAT-3 &mdash; Price Book Import</a>
+                <a class="dep-tag dep-enables" href="#">MAT-9 &mdash; Discount Management</a>
+                <a class="dep-tag dep-enables" href="#">MAT-5 &mdash; Supplier PO</a>
+            </div>
+
+            <h3>Siblings (parallel, no dependency)</h3>
+            <div>
+                <span class="dep-tag dep-none">MAT-1</span>
+                <span class="dep-tag dep-none">MAT-2a</span>
+                <span class="dep-tag dep-none">MAT-4</span>
+            </div>
+
+            <h3>Parent</h3>
+            <p><a href="release-1.34-timeline.html" style="color:#3b82f6;font-weight:600;">Release 1.34 &mdash; Material Management &amp; Supply Chain</a></p>
+
+        </div>
+    </div>
+
+    <!-- ═══ FOOTER ═══ -->
+    <div class="uis-footer">
+        MAT-0 &middot; Three-Level Supply Chain Model &middot; <a href="release-1.34-timeline.html">Release 1.34 &mdash; Material Management &amp; Supply Chain</a><br>
+        <a href="plans/MAT-0-supply-chain-model.html">View plan &rarr;</a>
+    </div>
+
+</div>
+
+<script>
+function toggleSection(el) {
+    el.classList.toggle("open");
+    const body = el.nextElementSibling;
+    if (body) body.classList.toggle("open");
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UIS-MAT-5: Supplier Purchase Orders</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Inter', -apple-system, sans-serif; background: #f1f5f9; color: #0f172a; }
+.uis-wrap { max-width: 960px; margin: 0 auto; padding: 40px 24px 80px; }
+.uis-hero { margin-bottom: 32px; }
+.uis-badges { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+.uis-badge { font-size: 11px; font-weight: 700; padding: 4px 12px; border-radius: 6px; display: inline-flex; align-items: center; gap: 5px; }
+.badge-q { background: #0f172a; color: #fff; }
+.badge-lane { background: #10b981; color: #fff; }
+.badge-status { background: #fef3c7; color: #92400e; }
+.badge-priority { background: #fee2e2; color: #dc2626; }
+.badge-child { background: #7c3aed; color: #fff; }
+.uis-h1 { font-size: 30px; font-weight: 800; color: #0f172a; margin: 0 0 8px; letter-spacing: -0.01em; }
+.uis-sub { font-size: 15px; color: #64748b; line-height: 1.5; margin: 0; }
+.uis-meta { display: flex; gap: 24px; flex-wrap: wrap; margin-top: 14px; font-size: 13px; color: #64748b; }
+.uis-meta strong { color: #0f172a; }
+.uis-toc { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px 28px; margin-bottom: 16px; }
+.uis-toc h3 { font-size: 13px; font-weight: 700; color: #0f172a; margin: 0 0 10px; text-transform: uppercase; letter-spacing: 0.5px; }
+.uis-toc ol { margin: 0; padding-left: 20px; }
+.uis-toc li { font-size: 14px; color: #3b82f6; margin-bottom: 4px; }
+.uis-toc a { color: #3b82f6; text-decoration: none; }
+.uis-section { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px 28px; margin-bottom: 16px; }
+.uis-section h2 { font-size: 17px; font-weight: 700; color: #0f172a; margin: 0 0 14px; padding-bottom: 10px; border-bottom: 2px solid #e2e8f0; }
+.uis-section h3 { font-size: 15px; font-weight: 700; color: #0f172a; margin: 16px 0 8px; }
+.uis-section p, .uis-section li { font-size: 14px; color: #334155; line-height: 1.65; }
+.uis-section ul, .uis-section ol { padding-left: 20px; margin: 8px 0; }
+.customer-quote { background: #fef3c7; border-left: 3px solid #f59e0b; padding: 12px 16px; border-radius: 0 8px 8px 0; margin: 14px 0; font-style: italic; font-size: 14px; color: #92400e; }
+.customer-quote .attribution { font-style: normal; font-weight: 600; display: block; margin-top: 6px; }
+.competitor-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin: 12px 0; }
+.competitor-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px; }
+.competitor-card strong { font-size: 14px; color: #0f172a; display: block; margin-bottom: 4px; }
+.competitor-card span { font-size: 12px; color: #64748b; }
+.comp-status { font-size: 10px; font-weight: 700; text-transform: uppercase; padding: 2px 8px; border-radius: 4px; display: inline-block; margin-bottom: 6px; }
+.comp-has { background: #dcfce7; color: #166534; }
+.comp-none { background: #fee2e2; color: #dc2626; }
+.value-cards { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin: 12px 0; }
+.value-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px; }
+.value-card .v-icon { font-size: 20px; margin-bottom: 6px; }
+.value-card .v-title { font-size: 13px; font-weight: 700; color: #0f172a; margin-bottom: 4px; }
+.value-card .v-detail { font-size: 12px; color: #64748b; line-height: 1.5; }
+.jira-chip { display: inline-flex; align-items: center; padding: 4px 12px; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 6px; font-family: monospace; font-size: 11px; font-weight: 600; color: #3b82f6; margin-right: 6px; margin-bottom: 6px; }
+.scope-tag { display: inline-block; font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 5px; margin-right: 6px; }
+.scope-in { background: #dcfce7; color: #166534; }
+.scope-out { background: #fee2e2; color: #dc2626; }
+.mockup-container { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; margin: 14px 0; }
+.mockup-bar { background: #f1f5f9; padding: 8px 14px; font-size: 12px; font-weight: 600; color: #64748b; border-bottom: 1px solid #e2e8f0; display: flex; align-items: center; gap: 8px; }
+.mockup-dots { display: flex; gap: 5px; }
+.mockup-dot { width: 8px; height: 8px; border-radius: 50%; }
+.mockup-dot-r { background: #f87171; }
+.mockup-dot-y { background: #fbbf24; }
+.mockup-dot-g { background: #34d399; }
+.mockup-body { padding: 24px; min-height: 200px; font-size: 13px; color: #334155; line-height: 1.6; }
+.collapsible-toggle { display: flex; align-items: center; justify-content: space-between; cursor: pointer; user-select: none; }
+.collapsible-toggle .toggle-icon { font-size: 14px; color: #94a3b8; transition: transform 0.2s; }
+.collapsible-toggle.open .toggle-icon { transform: rotate(180deg); }
+.collapsible-body { display: none; margin-top: 14px; }
+.collapsible-body.open { display: block; }
+pre { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; overflow-x: auto; font-size: 13px; line-height: 1.5; font-family: monospace; color: #334155; }
+table.schema-table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 12px 0; }
+table.schema-table th { text-align: left; padding: 8px 12px; background: #f8fafc; border-bottom: 2px solid #e2e8f0; font-weight: 600; }
+table.schema-table td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; }
+table.schema-table code { font-family: monospace; background: #f1f5f9; padding: 1px 5px; border-radius: 3px; font-size: 12px; color: #7c3aed; }
+.blast-summary { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 16px 20px; margin-bottom: 16px; }
+.blast-row { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; }
+.blast-row:not(:last-child) { border-bottom: 1px solid #f1f5f9; }
+.blast-label { font-size: 13px; color: #64748b; }
+.blast-value { font-size: 13px; font-weight: 700; color: #0f172a; }
+.action-new { background: #dcfce7; color: #166534; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 4px; }
+.action-mod { background: #fef3c7; color: #92400e; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 4px; }
+.criteria-list { list-style: none; padding: 0; }
+.criteria-list li { padding: 8px 0; border-bottom: 1px solid #f1f5f9; display: flex; gap: 10px; align-items: flex-start; font-size: 14px; color: #334155; }
+.criteria-list li:last-child { border-bottom: none; }
+.criteria-check { width: 18px; height: 18px; border: 2px solid #cbd5e1; border-radius: 4px; flex-shrink: 0; margin-top: 1px; }
+.dep-tag { display: inline-block; font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 5px; margin-right: 6px; margin-bottom: 6px; text-decoration: none; }
+.dep-none { background: #dcfce7; color: #166534; }
+.dep-requires { background: #fef3c7; color: #92400e; }
+.dep-enables { background: #eff6ff; color: #1d4ed8; }
+.uis-footer { text-align: center; padding: 24px; font-size: 12px; color: #94a3b8; }
+.uis-footer a { color: #3b82f6; text-decoration: none; }
+.mockup-row { display: flex; gap: 8px; padding: 6px 0; border-bottom: 1px solid #f1f5f9; align-items: center; }
+.mockup-cell { flex: 1; }
+.mockup-header { font-weight: 700; background: #f1f5f9; padding: 8px; border-radius: 4px; margin-bottom: 4px; }
+.mockup-input { background: #fff; border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px 12px; color: #94a3b8; font-size: 12px; }
+.mockup-btn { display: inline-block; padding: 6px 14px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; border: none; }
+.mockup-btn-primary { background: #3b82f6; color: #fff; }
+.mockup-btn-success { background: #10b981; color: #fff; }
+.mockup-btn-outline { background: #fff; color: #3b82f6; border: 1px solid #3b82f6; }
+.mockup-badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 700; }
+    </style>
+</head>
+<body>
+<div class="uis-wrap">
+
+    <div class="uis-hero">
+        <div class="uis-badges">
+            <span class="uis-badge badge-q">MAT-5</span>
+            <span class="uis-badge badge-lane">Procurement</span>
+            <span class="uis-badge badge-status">Draft</span>
+            <span class="uis-badge badge-priority">P0</span>
+            <span class="uis-badge badge-child">Child of Release 1.34</span>
+        </div>
+        <h1 class="uis-h1">Supplier Purchase Orders</h1>
+        <p class="uis-sub">Outbound POs to suppliers with auto-pricing from the supply chain model, PDF generation, and email transmission. Uses the shared PurchaseOrder model with <code>type=SupplierPO</code>.</p>
+        <div class="uis-meta">
+            <span><strong>Parent:</strong> Release 1.34</span>
+            <span><strong>Slice:</strong> MAT-5</span>
+            <span><strong>Est:</strong> 5&ndash;7 days</span>
+        </div>
+    </div>
+
+    <div class="uis-toc">
+        <h3>Contents</h3>
+        <ol>
+            <li><a href="#s1">Business Case &amp; Customer Evidence</a></li>
+            <li><a href="#s2">Scope</a></li>
+            <li><a href="#s3">UI Concepts</a></li>
+            <li><a href="#s4">Data Model</a></li>
+            <li><a href="#s5">API Surface</a></li>
+            <li><a href="#s6">Change Surface</a></li>
+            <li><a href="#s7">Acceptance Criteria</a></li>
+            <li><a href="#s8">Dependencies</a></li>
+        </ol>
+    </div>
+
+    <!-- Section 1 -->
+    <div class="uis-section" id="s1">
+        <h2 class="collapsible-toggle open" onclick="toggleSection(this)">
+            1 &middot; Business Case &amp; Customer Evidence
+            <span class="toggle-icon">&#9660;</span>
+        </h2>
+        <div class="collapsible-body open">
+            <p>The most critical procurement gap. Today &ldquo;Purchase Order&rdquo; in Appello means the customer&rsquo;s PO number &mdash; an inbound reference. Contractors need <strong>outbound POs to suppliers</strong> &mdash; formal documents listing materials, quantities, agreed prices, and delivery terms. The November 2025 prototype demonstrated PO creation with an e-commerce metaphor: browse a supplier catalog, add items to a cart, and generate a formal PO document.</p>
+
+            <h3>Customer Evidence</h3>
+            <div class="customer-quote">
+                "Select supplier, browse products with filters, add items to cart, generate PO."
+                <span class="attribution">&mdash; Corey Shelson (Nov 2025 prototype)</span>
+            </div>
+            <div class="customer-quote">
+                "Take 6 material requests, generate 8 POs grouped by supplier."
+                <span class="attribution">&mdash; Corey Shelson (auto-PO vision)</span>
+            </div>
+            <div class="customer-quote">
+                "You'll be able to cut purchase orders, receive shipments..."
+                <span class="attribution">&mdash; DM Industries pricing call</span>
+            </div>
+
+            <h3>Value Delivered</h3>
+            <div class="value-cards">
+                <div class="value-card">
+                    <div class="v-icon">📄</div>
+                    <div class="v-title">Supplier-Facing Documents</div>
+                    <div class="v-detail">Formal PO documents with company branding, line items, and terms &mdash; sent directly to supplier contacts.</div>
+                </div>
+                <div class="value-card">
+                    <div class="v-icon">⚡</div>
+                    <div class="v-title">Auto-Pricing</div>
+                    <div class="v-detail">Line item prices pulled from DistributorPrice + discount schedules (MAT-9) &mdash; no manual price lookups.</div>
+                </div>
+                <div class="value-card">
+                    <div class="v-icon">🖨️</div>
+                    <div class="v-title">PDF Generation</div>
+                    <div class="v-detail">Professional PDF output with company logo, supplier address block, itemized table, and signature line.</div>
+                </div>
+                <div class="value-card">
+                    <div class="v-icon">💰</div>
+                    <div class="v-title">Committed Cost Visibility</div>
+                    <div class="v-detail">Issued POs create committed costs visible in the Job Financial Summary before materials arrive.</div>
+                </div>
+            </div>
+
+            <h3>Competitive Landscape</h3>
+            <div class="competitor-grid">
+                <div class="competitor-card">
+                    <span class="comp-status comp-has">HAS</span>
+                    <strong>Procore</strong>
+                    <span>Full PO lifecycle &mdash; create, approve, issue, receive, close</span>
+                </div>
+                <div class="competitor-card">
+                    <span class="comp-status comp-has">HAS</span>
+                    <strong>Sage 300</strong>
+                    <span>PO with AP integration and three-way match</span>
+                </div>
+                <div class="competitor-card">
+                    <span class="comp-status comp-none">NONE</span>
+                    <strong>Clearstory</strong>
+                    <span>No supplier PO capability</span>
+                </div>
+                <div class="competitor-card">
+                    <span class="comp-status comp-none">NONE</span>
+                    <strong>Appello</strong>
+                    <span>MaterialOrder internal only &mdash; no outbound supplier PO</span>
+                </div>
+            </div>
+
+            <h3>Jira</h3>
+            <p><span class="jira-chip">Q21030-7334</span></p>
+        </div>
+    </div>
+
+    <!-- Section 2 -->
+    <div class="uis-section" id="s2">
+        <h2 class="collapsible-toggle open" onclick="toggleSection(this)">
+            2 &middot; Scope
+            <span class="toggle-icon">&#9660;</span>
+        </h2>
+        <div class="collapsible-body open">
+            <h3>In Scope</h3>
+            <ul>
+                <li><span class="scope-tag scope-in">IN</span> Extend <code>PurchaseOrder</code> model for supplier-specific fields (<code>deliveryAddress</code>, <code>shippingMethod</code>, <code>expectedDeliveryDate</code>)</li>
+                <li><span class="scope-tag scope-in">IN</span> <code>SPO-####</code> auto-numbering sequence for Supplier POs</li>
+                <li><span class="scope-tag scope-in">IN</span> Supplier PO form with distributor picker + product browser</li>
+                <li><span class="scope-tag scope-in">IN</span> PO list page with filters (type, status, supplier)</li>
+                <li><span class="scope-tag scope-in">IN</span> PDF template with company branding, line items, totals, terms, and signature line</li>
+                <li><span class="scope-tag scope-in">IN</span> Email PO to supplier contact</li>
+                <li><span class="scope-tag scope-in">IN</span> Supplier PO tab on Company detail page</li>
+            </ul>
+
+            <h3>Out of Scope</h3>
+            <ul>
+                <li><span class="scope-tag scope-out">OUT</span> Auto-PO generation from material requests</li>
+                <li><span class="scope-tag scope-out">OUT</span> EDI/API transmission to suppliers</li>
+                <li><span class="scope-tag scope-out">OUT</span> PO approval workflow</li>
+                <li><span class="scope-tag scope-out">OUT</span> Mobile PO creation</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Section 3 -->
+    <div class="uis-section" id="s3">
+        <h2 class="collapsible-toggle open" onclick="toggleSection(this)">
+            3 &middot; UI Concepts
+            <span class="toggle-icon">&#9660;</span>
+        </h2>
+        <div class="collapsible-body open">
+
+            <h3>3.1 &mdash; Create Supplier PO Form</h3>
+            <div class="mockup-container">
+                <div class="mockup-bar">
+                    <div class="mockup-dots"><div class="mockup-dot mockup-dot-r"></div><div class="mockup-dot mockup-dot-y"></div><div class="mockup-dot mockup-dot-g"></div></div>
+                    Create Supplier PO
+                </div>
+                <div class="mockup-body">
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:16px;">
+                        <div><div style="font-size:11px; font-weight:600; color:#64748b; margin-bottom:4px;">Supplier</div><div class="mockup-input" style="width:100%;">Select supplier&hellip;</div></div>
+                        <div><div style="font-size:11px; font-weight:600; color:#64748b; margin-bottom:4px;">Job</div><div class="mockup-input" style="width:100%;">Select job&hellip;</div></div>
+                    </div>
+                    <div style="font-weight:700; margin-bottom:8px;">Line Items</div>
+                    <div class="mockup-row mockup-header">
+                        <div class="mockup-cell">Material</div>
+                        <div class="mockup-cell" style="flex:0.5;">Qty</div>
+                        <div class="mockup-cell" style="flex:0.5;">Unit Price</div>
+                        <div class="mockup-cell" style="flex:0.5;">Total</div>
+                        <div style="width:30px;"></div>
+                    </div>
+                    <div class="mockup-row">
+                        <div class="mockup-cell" style="color:#0f172a;">3/4" Copper Pipe (10ft)</div>
+                        <div class="mockup-cell" style="flex:0.5;">50</div>
+                        <div class="mockup-cell" style="flex:0.5;">$12.40</div>
+                        <div class="mockup-cell" style="flex:0.5; font-weight:600;">$620.00</div>
+                        <div style="width:30px; color:#ef4444; cursor:pointer;">&#x2715;</div>
+                    </div>
+                    <div class="mockup-row">
+                        <div class="mockup-cell" style="color:#0f172a;">1" Ball Valve</div>
+                        <div class="mockup-cell" style="flex:0.5;">24</div>
+                        <div class="mockup-cell" style="flex:0.5;">$8.75</div>
+                        <div class="mockup-cell" style="flex:0.5; font-weight:600;">$210.00</div>
+                        <div style="width:30px; color:#ef4444; cursor:pointer;">&#x2715;</div>
+                    </div>
+                    <div style="margin:12px 0;"><span class="mockup-btn mockup-btn-outline">+ Add Item from Catalog</span></div>
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:16px;">
+                        <div><div style="font-size:11px; font-weight:600; color:#64748b; margin-bottom:4px;">Delivery Address</div><div class="mockup-input" style="width:100%;">123 Job Site Rd&hellip;</div></div>
+                        <div><div style="font-size:11px; font-weight:600; color:#64748b; margin-bottom:4px;">Expected Delivery</div><div class="mockup-input" style="width:100%;">2026-05-15</div></div>
+                    </div>
+                    <div style="margin-top:12px;"><div style="font-size:11px; font-weight:600; color:#64748b; margin-bottom:4px;">Notes / Terms</div><div class="mockup-input" style="width:100%; min-height:40px;">Net 30. Deliver to loading dock.</div></div>
+                    <div style="margin-top:16px; display:flex; gap:8px; justify-content:flex-end;">
+                        <span class="mockup-btn mockup-btn-outline">Save Draft</span>
+                        <span class="mockup-btn mockup-btn-primary">Issue PO</span>
+                    </div>
+                </div>
+            </div>
+
+            <h3>3.2 &mdash; PO List Page</h3>
+            <div class="mockup-container">
+                <div class="mockup-bar">
+                    <div class="mockup-dots"><div class="mockup-dot mockup-dot-r"></div><div class="mockup-dot mockup-dot-y"></div><div class="mockup-dot mockup-dot-g"></div></div>
+                    Supplier Purchase Orders
+                </div>
+                <div class="mockup-body">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+                        <div style="display:flex; gap:8px;">
+                            <div class="mockup-input">Type: Supplier PO</div>
+                            <div class="mockup-input">Status: All</div>
+                            <div class="mockup-input">Supplier: All</div>
+                        </div>
+                        <span class="mockup-btn mockup-btn-primary">+ Create PO</span>
+                    </div>
+                    <div class="mockup-row mockup-header">
+                        <div class="mockup-cell">PO #</div>
+                        <div class="mockup-cell">Supplier</div>
+                        <div class="mockup-cell">Job</div>
+                        <div class="mockup-cell" style="flex:0.6;">Status</div>
+                        <div class="mockup-cell" style="flex:0.5;">Amount</div>
+                        <div class="mockup-cell" style="flex:0.6;">Issued Date</div>
+                    </div>
+                    <div class="mockup-row">
+                        <div class="mockup-cell" style="font-weight:600; color:#3b82f6;">SPO-0001</div>
+                        <div class="mockup-cell">Wolseley Canada</div>
+                        <div class="mockup-cell">DM-2026-041</div>
+                        <div class="mockup-cell" style="flex:0.6;"><span class="mockup-badge" style="background:#dcfce7; color:#166534;">Issued</span></div>
+                        <div class="mockup-cell" style="flex:0.5; font-weight:600;">$4,280.00</div>
+                        <div class="mockup-cell" style="flex:0.6;">Apr 3, 2026</div>
+                    </div>
+                    <div class="mockup-row">
+                        <div class="mockup-cell" style="font-weight:600; color:#3b82f6;">SPO-0002</div>
+                        <div class="mockup-cell">FergusonDERA</div>
+                        <div class="mockup-cell">TK-2026-015</div>
+                        <div class="mockup-cell" style="flex:0.6;"><span class="mockup-badge" style="background:#fef3c7; color:#92400e;">Draft</span></div>
+                        <div class="mockup-cell" style="flex:0.5; font-weight:600;">$1,950.00</div>
+                        <div class="mockup-cell" style="flex:0.6;">&mdash;</div>
+                    </div>
+                    <div class="mockup-row">
+                        <div class="mockup-cell" style="font-weight:600; color:#3b82f6;">SPO-0003</div>
+                        <div class="mockup-cell">Noble Trade</div>
+                        <div class="mockup-cell">DM-2026-041</div>
+                        <div class="mockup-cell" style="flex:0.6;"><span class="mockup-badge" style="background:#eff6ff; color:#1d4ed8;">Partially Received</span></div>
+                        <div class="mockup-cell" style="flex:0.5; font-weight:600;">$7,120.00</div>
+                        <div class="mockup-cell" style="flex:0.6;">Mar 28, 2026</div>
+                    </div>
+                </div>
+            </div>
+
+            <h3>3.3 &mdash; PO PDF Preview</h3>
+            <div class="mockup-container">
+                <div class="mockup-bar">
+                    <div class="mockup-dots"><div class="mockup-dot mockup-dot-r"></div><div class="mockup-dot mockup-dot-y"></div><div class="mockup-dot mockup-dot-g"></div></div>
+                    PDF Preview &mdash; SPO-0001
+                </div>
+                <div class="mockup-body" style="background:#fff; border:2px solid #e2e8f0; border-radius:8px; padding:24px;">
+                    <div style="display:flex; justify-content:space-between; margin-bottom:20px;">
+                        <div>
+                            <div style="font-size:18px; font-weight:800; color:#0f172a;">PURCHASE ORDER</div>
+                            <div style="font-size:13px; color:#64748b; margin-top:4px;">SPO-0001</div>
+                            <div style="font-size:12px; color:#64748b;">Date: April 3, 2026</div>
+                        </div>
+                        <div style="text-align:right;">
+                            <div style="width:60px; height:24px; background:#e2e8f0; border-radius:4px; display:inline-block; margin-bottom:4px;"></div>
+                            <div style="font-size:12px; color:#64748b;">Appello Mechanical Inc.</div>
+                            <div style="font-size:11px; color:#94a3b8;">123 Industrial Pkwy, Toronto</div>
+                        </div>
+                    </div>
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px;">
+                        <div style="background:#f8fafc; border-radius:6px; padding:12px;">
+                            <div style="font-size:10px; font-weight:700; color:#64748b; text-transform:uppercase; margin-bottom:4px;">Supplier</div>
+                            <div style="font-size:13px; font-weight:600;">Wolseley Canada</div>
+                            <div style="font-size:11px; color:#64748b;">456 Distribution Ave, Mississauga</div>
+                        </div>
+                        <div style="background:#f8fafc; border-radius:6px; padding:12px;">
+                            <div style="font-size:10px; font-weight:700; color:#64748b; text-transform:uppercase; margin-bottom:4px;">Ship To</div>
+                            <div style="font-size:13px; font-weight:600;">DM-2026-041 Job Site</div>
+                            <div style="font-size:11px; color:#64748b;">789 Construction Blvd, Ottawa</div>
+                        </div>
+                    </div>
+                    <div class="mockup-row mockup-header" style="font-size:11px;">
+                        <div class="mockup-cell">Item</div>
+                        <div class="mockup-cell" style="flex:0.4;">Qty</div>
+                        <div class="mockup-cell" style="flex:0.5;">Unit Price</div>
+                        <div class="mockup-cell" style="flex:0.5;">Total</div>
+                    </div>
+                    <div class="mockup-row" style="font-size:12px;">
+                        <div class="mockup-cell">3/4" Copper Pipe (10ft)</div>
+                        <div class="mockup-cell" style="flex:0.4;">50</div>
+                        <div class="mockup-cell" style="flex:0.5;">$12.40</div>
+                        <div class="mockup-cell" style="flex:0.5;">$620.00</div>
+                    </div>
+                    <div class="mockup-row" style="font-size:12px;">
+                        <div class="mockup-cell">1" Ball Valve</div>
+                        <div class="mockup-cell" style="flex:0.4;">24</div>
+                        <div class="mockup-cell" style="flex:0.5;">$8.75</div>
+                        <div class="mockup-cell" style="flex:0.5;">$210.00</div>
+                    </div>
+                    <div style="text-align:right; margin-top:12px; font-size:12px;">
+                        <div style="color:#64748b;">Subtotal: <strong style="color:#0f172a;">$830.00</strong></div>
+                        <div style="color:#64748b;">HST (13%): <strong style="color:#0f172a;">$107.90</strong></div>
+                        <div style="font-size:14px; font-weight:800; color:#0f172a; margin-top:4px;">Total: $937.90</div>
+                    </div>
+                    <div style="margin-top:16px; padding-top:12px; border-top:1px solid #e2e8f0; font-size:11px; color:#64748b;">
+                        <strong>Terms:</strong> Net 30. Deliver to loading dock. Contact site super on arrival.
+                    </div>
+                    <div style="margin-top:20px; display:flex; justify-content:space-between; font-size:11px; color:#64748b;">
+                        <div>Authorized Signature: ________________________</div>
+                        <div>Date: ____________</div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Section 4 -->
+    <div class="uis-section" id="s4">
+        <h2 class="collapsible-toggle open" onclick="toggleSection(this)">
+            4 &middot; Data Model
+            <span class="toggle-icon">&#9660;</span>
+        </h2>
+        <div class="collapsible-body open">
+            <h3>PurchaseOrder Extensions (type = SupplierPO)</h3>
+            <p>The existing <code>PurchaseOrder</code> model (MAT-1) is extended with supplier-specific fields. The <code>type</code> discriminator distinguishes <code>CustomerPO</code> from <code>SupplierPO</code>.</p>
+            <table class="schema-table">
+                <thead><tr><th>Field</th><th>Type</th><th>Notes</th></tr></thead>
+                <tbody>
+                    <tr><td><code>deliveryAddress</code></td><td><code>String? @db.Text</code></td><td>Job site or warehouse address for delivery</td></tr>
+                    <tr><td><code>shippingMethod</code></td><td><code>String? @db.VarChar(100)</code></td><td>e.g. &ldquo;Will Call&rdquo;, &ldquo;Freight&rdquo;, &ldquo;Courier&rdquo;</td></tr>
+                    <tr><td><code>expectedDeliveryDate</code></td><td><code>DateTime?</code></td><td>Requested or promised delivery date</td></tr>
+                </tbody>
+            </table>
+
+            <h3>PurchaseOrderLineItem Extensions</h3>
+            <table class="schema-table">
+                <thead><tr><th>Field</th><th>Type</th><th>Notes</th></tr></thead>
+                <tbody>
+                    <tr><td><code>materialId</code></td><td><code>String? @db.VarChar(21)</code></td><td>FK &rarr; Material (from supply chain catalog)</td></tr>
+                    <tr><td><code>manufacturerProductId</code></td><td><code>String? @db.VarChar(21)</code></td><td>FK &rarr; ManufacturerProduct (specific product variant)</td></tr>
+                    <tr><td><code>distributorPriceId</code></td><td><code>String? @db.VarChar(21)</code></td><td>FK &rarr; DistributorPrice (locks in price at PO creation)</td></tr>
+                </tbody>
+            </table>
+            <p style="font-size:12px; color:#64748b; margin-top:4px;">Line item <code>total</code> is computed: <code>quantity &times; unitPrice</code>. Pricing auto-populates from <code>DistributorPrice.price</code> minus any applicable discount (MAT-9).</p>
+
+            <h3>Numbering</h3>
+            <p><code>SPO-####</code> &mdash; auto-sequenced per instance. Follows the same counter pattern as existing entity numbering (Job, Invoice, etc.).</p>
+        </div>
+    </div>
+
+    <!-- Section 5 -->
+    <div class="uis-section" id="s5">
+        <h2 class="collapsible-toggle open" onclick="toggleSection(this)">
+            5 &middot; API Surface
+            <span class="toggle-icon">&#9660;</span>
+        </h2>
+        <div class="collapsible-body open">
+            <h3>Extended PurchaseOrder Type</h3>
+            <pre>extend type PurchaseOrder {
+  deliveryAddress: String
+  shippingMethod: String
+  expectedDeliveryDate: DateTime
+}
+
+extend type PurchaseOrderLineItem {
+  materialId: String
+  Material: Material
+  manufacturerProductId: String
+  ManufacturerProduct: ManufacturerProduct
+  distributorPriceId: String
+  DistributorPrice: DistributorPrice
+}</pre>
+
+            <h3>Input Types</h3>
+            <pre>input CreateSupplierPOInput {
+  supplierId: String!
+  jobId: String!
+  deliveryAddress: String
+  shippingMethod: String
+  expectedDeliveryDate: DateTime
+  notes: String
+  lineItems: [SupplierPOLineItemInput!]!
+}
+
+input SupplierPOLineItemInput {
+  materialId: String
+  manufacturerProductId: String
+  distributorPriceId: String
+  description: String
+  quantity: Float!
+  unitPrice: Float
+}
+
+input UpdateSupplierPOInput {
+  id: ID!
+  deliveryAddress: String
+  shippingMethod: String
+  expectedDeliveryDate: DateTime
+  notes: String
+  lineItems: [SupplierPOLineItemInput!]
+}</pre>
+
+            <h3>Queries &amp; Mutations</h3>
+            <pre>type Query {
+  supplierPurchaseOrders(options: GetListOptions): GetListResult!
+  supplierPurchaseOrder(id: ID!): PurchaseOrder!
+}
+
+type Mutation {
+  createSupplierPO(input: CreateSupplierPOInput!): PurchaseOrder!
+  updateSupplierPO(input: UpdateSupplierPOInput!): PurchaseOrder!
+  issueSupplierPO(id: ID!): PurchaseOrder!
+  generatePurchaseOrderPdf(id: ID!): String!
+  sendPurchaseOrderEmail(id: ID!, recipientEmail: String!): Boolean!
+}</pre>
+        </div>
+    </div>
+
+    <!-- Section 6 -->
+    <div class="uis-section" id="s6">
+        <h2 class="collapsible-toggle open" onclick="toggleSection(this)">
+            6 &middot; Change Surface
+            <span class="toggle-icon">&#9660;</span>
+        </h2>
+        <div class="collapsible-body open">
+            <div class="blast-summary">
+                <div class="blast-row">
+                    <span class="blast-label">New Files</span>
+                    <span class="blast-value">3</span>
+                </div>
+                <div class="blast-row">
+                    <span class="blast-label">Modified Files</span>
+                    <span class="blast-value">4</span>
+                </div>
+                <div class="blast-row">
+                    <span class="blast-label">Total Touched</span>
+                    <span class="blast-value">7</span>
+                </div>
+            </div>
+
+            <table class="schema-table">
+                <thead>
+                    <tr><th>Action</th><th>File</th><th>Change</th></tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><span class="action-new">NEW</span></td>
+                        <td><code>apps/frontend/src/pages/purchase-orders/index.tsx</code></td>
+                        <td>PO list page with type/status/supplier filters and Create PO button</td>
+                    </tr>
+                    <tr>
+                        <td><span class="action-new">NEW</span></td>
+                        <td><code>apps/frontend/src/components/PurchaseOrder/SupplierPOForm.tsx</code></td>
+                        <td>Create/edit form with distributor picker, product browser, line item table</td>
+                    </tr>
+                    <tr>
+                        <td><span class="action-new">NEW</span></td>
+                        <td><code>apps/api/src/templates/SupplierPO.pdf.ts</code></td>
+                        <td>PDF template with company branding, supplier address, line items, totals, signature line</td>
+                    </tr>
+                    <tr>
+                        <td><span class="action-mod">MOD</span></td>
+                        <td><code>apps/api/prisma/schema.prisma</code></td>
+                        <td>Add supplier-specific fields to PurchaseOrder + FK fields to PurchaseOrderLineItem</td>
+                    </tr>
+                    <tr>
+                        <td><span class="action-mod">MOD</span></td>
+                        <td><code>apps/api/src/models/PurchaseOrder.ts</code></td>
+                        <td>Add supplier PO creation, issuance, and auto-pricing logic</td>
+                    </tr>
+                    <tr>
+                        <td><span class="action-mod">MOD</span></td>
+                        <td><code>apps/api/src/graphql/models/PurchaseOrder.ts</code></td>
+                        <td>Add supplier PO queries, mutations, PDF generation, email sending</td>
+                    </tr>
+                    <tr>
+                        <td><span class="action-mod">MOD</span></td>
+                        <td><code>apps/api/src/graphql/schema.ts</code></td>
+                        <td>Register extended PO types, queries, and mutations</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Section 7 -->
+    <div class="uis-section" id="s7">
+        <h2 class="collapsible-toggle open" onclick="toggleSection(this)">
+            7 &middot; Acceptance Criteria
+            <span class="toggle-icon">&#9660;</span>
+        </h2>
+        <div class="collapsible-body open">
+            <ul class="criteria-list">
+                <li><div class="criteria-check"></div>A Supplier PO can be created by selecting a distributor and a job</li>
+                <li><div class="criteria-check"></div>Line items auto-price from <code>DistributorPrice</code> when a product is selected from the catalog</li>
+                <li><div class="criteria-check"></div>Discounts from MAT-9 discount schedules are applied to line item pricing</li>
+                <li><div class="criteria-check"></div>PDF generates with company logo, PO number, supplier address, line items, subtotal/tax/total, terms, and signature line</li>
+                <li><div class="criteria-check"></div>Email sends the generated PDF to the supplier contact&rsquo;s email address</li>
+                <li><div class="criteria-check"></div>PO status lifecycle: Draft &rarr; Issued &rarr; Partially Received &rarr; Fully Received &rarr; Closed</li>
+                <li><div class="criteria-check"></div>SPO numbering auto-sequences (<code>SPO-0001</code>, <code>SPO-0002</code>, &hellip;) per instance</li>
+                <li><div class="criteria-check"></div>Supplier PO tab appears on Company detail page showing all POs for that supplier</li>
+                <li><div class="criteria-check"></div>Permission checks enforce <code>materialorder.create</code> for PO creation and <code>materialorder.edit</code> for issuance</li>
+                <li><div class="criteria-check"></div>Validation: supplier is required, at least 1 line item required, quantity must be &gt; 0</li>
+                <li><div class="criteria-check"></div>Committed costs from issued POs appear in the Job Financial Summary</li>
+                <li><div class="criteria-check"></div>PO list page supports filtering by type (Supplier PO), status, and supplier</li>
+                <li><div class="criteria-check"></div>Line item total computes correctly as <code>quantity &times; unitPrice</code></li>
+                <li><div class="criteria-check"></div>PO detail page shows all line items with subtotals and grand total</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Section 8 -->
+    <div class="uis-section" id="s8">
+        <h2 class="collapsible-toggle open" onclick="toggleSection(this)">
+            8 &middot; Dependencies
+            <span class="toggle-icon">&#9660;</span>
+        </h2>
+        <div class="collapsible-body open">
+            <h3>Requires</h3>
+            <p>
+                <a class="dep-tag dep-requires" href="uis-MAT-0-supply-chain-model.html">MAT-0: Supply Chain Model</a>
+                <a class="dep-tag dep-requires" href="uis-MAT-1-customer-po-entity.html">MAT-1: PurchaseOrder Model</a>
+                <span class="dep-tag dep-requires">MAT-9: Discount Schedules</span>
+            </p>
+
+            <h3>Enables</h3>
+            <p>
+                <a class="dep-tag dep-enables" href="uis-MAT-6-receiving-workflow.html">MAT-6: Receiving + Three-Way Match</a>
+            </p>
+
+            <h3>Siblings</h3>
+            <p><em>None</em></p>
+
+            <h3>Parent</h3>
+            <p><span class="dep-tag dep-none">Release 1.34</span></p>
+        </div>
+    </div>
+
+    <div class="uis-footer">
+        MAT-5 &middot; Supplier Purchase Orders &middot; Generated for <span>Release 1.34</span>
+    </div>
+</div>
+
+<script>
+function toggleSection(el) {
+    el.classList.toggle("open");
+    const body = el.nextElementSibling;
+    if (body) body.classList.toggle("open");
+}
+</script>
+</body>
+</html>

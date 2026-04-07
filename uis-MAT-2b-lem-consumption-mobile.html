@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MAT-2b: LEM Material Consumption — Mobile</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Inter', -apple-system, sans-serif; background: #f1f5f9; color: #0f172a; }
+.uis-wrap { max-width: 960px; margin: 0 auto; padding: 40px 24px 80px; }
+.uis-hero { margin-bottom: 32px; }
+.uis-badges { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+.uis-badge { font-size: 11px; font-weight: 700; padding: 4px 12px; border-radius: 6px; display: inline-flex; align-items: center; gap: 5px; }
+.badge-q { background: #0f172a; color: #fff; }
+.badge-lane { background: #10b981; color: #fff; }
+.badge-status { background: #fef3c7; color: #92400e; }
+.badge-priority { background: #fee2e2; color: #dc2626; }
+.badge-child { background: #7c3aed; color: #fff; }
+.uis-h1 { font-size: 30px; font-weight: 800; color: #0f172a; margin: 0 0 8px; letter-spacing: -0.01em; }
+.uis-sub { font-size: 15px; color: #64748b; line-height: 1.5; margin: 0; }
+.uis-meta { display: flex; gap: 24px; flex-wrap: wrap; margin-top: 14px; font-size: 13px; color: #64748b; }
+.uis-meta strong { color: #0f172a; }
+.uis-toc { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px 28px; margin-bottom: 16px; }
+.uis-toc h3 { font-size: 13px; font-weight: 700; color: #0f172a; margin: 0 0 10px; text-transform: uppercase; letter-spacing: 0.5px; }
+.uis-toc ol { margin: 0; padding-left: 20px; }
+.uis-toc li { font-size: 14px; color: #3b82f6; margin-bottom: 4px; }
+.uis-toc a { color: #3b82f6; text-decoration: none; }
+.uis-section { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px 28px; margin-bottom: 16px; }
+.uis-section h2 { font-size: 17px; font-weight: 700; color: #0f172a; margin: 0 0 14px; padding-bottom: 10px; border-bottom: 2px solid #e2e8f0; }
+.uis-section h3 { font-size: 15px; font-weight: 700; color: #0f172a; margin: 16px 0 8px; }
+.uis-section p, .uis-section li { font-size: 14px; color: #334155; line-height: 1.65; }
+.uis-section ul, .uis-section ol { padding-left: 20px; margin: 8px 0; }
+.customer-quote { background: #fef3c7; border-left: 3px solid #f59e0b; padding: 12px 16px; border-radius: 0 8px 8px 0; margin: 14px 0; font-style: italic; font-size: 14px; color: #92400e; }
+.customer-quote .attribution { font-style: normal; font-weight: 600; display: block; margin-top: 6px; }
+.competitor-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin: 12px 0; }
+.competitor-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px; }
+.competitor-card strong { font-size: 14px; color: #0f172a; display: block; margin-bottom: 4px; }
+.competitor-card span { font-size: 12px; color: #64748b; }
+.comp-status { font-size: 10px; font-weight: 700; text-transform: uppercase; padding: 2px 8px; border-radius: 4px; display: inline-block; margin-bottom: 6px; }
+.comp-has { background: #dcfce7; color: #166534; }
+.comp-none { background: #fee2e2; color: #dc2626; }
+.value-cards { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin: 12px 0; }
+.value-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px; }
+.value-card .v-icon { font-size: 20px; margin-bottom: 6px; }
+.value-card .v-title { font-size: 13px; font-weight: 700; color: #0f172a; margin-bottom: 4px; }
+.value-card .v-detail { font-size: 12px; color: #64748b; line-height: 1.5; }
+.jira-chip { display: inline-flex; align-items: center; padding: 4px 12px; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 6px; font-family: monospace; font-size: 11px; font-weight: 600; color: #3b82f6; margin-right: 6px; margin-bottom: 6px; }
+.scope-tag { display: inline-block; font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 5px; margin-right: 6px; }
+.scope-in { background: #dcfce7; color: #166534; }
+.scope-out { background: #fee2e2; color: #dc2626; }
+.mockup-container { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; margin: 14px 0; }
+.mockup-bar { background: #f1f5f9; padding: 8px 14px; font-size: 12px; font-weight: 600; color: #64748b; border-bottom: 1px solid #e2e8f0; display: flex; align-items: center; gap: 8px; }
+.mockup-dots { display: flex; gap: 5px; }
+.mockup-dot { width: 8px; height: 8px; border-radius: 50%; }
+.mockup-dot-r { background: #f87171; }
+.mockup-dot-y { background: #fbbf24; }
+.mockup-dot-g { background: #34d399; }
+.mockup-body { padding: 24px; min-height: 200px; font-size: 13px; color: #334155; line-height: 1.6; }
+.collapsible-toggle { display: flex; align-items: center; justify-content: space-between; cursor: pointer; user-select: none; }
+.collapsible-toggle .toggle-icon { font-size: 14px; color: #94a3b8; transition: transform 0.2s; }
+.collapsible-toggle.open .toggle-icon { transform: rotate(180deg); }
+.collapsible-body { display: none; margin-top: 14px; }
+.collapsible-body.open { display: block; }
+pre { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; overflow-x: auto; font-size: 13px; line-height: 1.5; font-family: monospace; color: #334155; }
+table.schema-table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 12px 0; }
+table.schema-table th { text-align: left; padding: 8px 12px; background: #f8fafc; border-bottom: 2px solid #e2e8f0; font-weight: 600; }
+table.schema-table td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; }
+table.schema-table code { font-family: monospace; background: #f1f5f9; padding: 1px 5px; border-radius: 3px; font-size: 12px; color: #7c3aed; }
+.blast-summary { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 16px 20px; margin-bottom: 16px; }
+.blast-row { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; }
+.blast-row:not(:last-child) { border-bottom: 1px solid #f1f5f9; }
+.blast-label { font-size: 13px; color: #64748b; }
+.blast-value { font-size: 13px; font-weight: 700; color: #0f172a; }
+.action-new { background: #dcfce7; color: #166534; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 4px; }
+.action-mod { background: #fef3c7; color: #92400e; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 4px; }
+.criteria-list { list-style: none; padding: 0; }
+.criteria-list li { padding: 8px 0; border-bottom: 1px solid #f1f5f9; display: flex; gap: 10px; align-items: flex-start; font-size: 14px; color: #334155; }
+.criteria-list li:last-child { border-bottom: none; }
+.criteria-check { width: 18px; height: 18px; border: 2px solid #cbd5e1; border-radius: 4px; flex-shrink: 0; margin-top: 1px; }
+.dep-tag { display: inline-block; font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 5px; margin-right: 6px; margin-bottom: 6px; text-decoration: none; }
+.dep-none { background: #dcfce7; color: #166534; }
+.dep-requires { background: #fef3c7; color: #92400e; }
+.dep-enables { background: #eff6ff; color: #1d4ed8; }
+.uis-footer { text-align: center; padding: 24px; font-size: 12px; color: #94a3b8; }
+.uis-footer a { color: #3b82f6; text-decoration: none; }
+.mockup-row { display: flex; gap: 8px; padding: 6px 0; border-bottom: 1px solid #f1f5f9; align-items: center; }
+.mockup-cell { flex: 1; }
+.mockup-header { font-weight: 700; background: #f1f5f9; padding: 8px; border-radius: 4px; margin-bottom: 4px; }
+.mockup-input { background: #fff; border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px 12px; color: #94a3b8; font-size: 12px; }
+.mockup-btn { display: inline-block; padding: 6px 14px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; border: none; }
+.mockup-btn-primary { background: #3b82f6; color: #fff; }
+.mockup-btn-success { background: #10b981; color: #fff; }
+.mockup-btn-outline { background: #fff; color: #3b82f6; border: 1px solid #3b82f6; }
+.mockup-badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 700; }
+    </style>
+</head>
+<body>
+<div class="uis-wrap">
+
+    <div class="uis-hero">
+        <div class="uis-badges">
+            <span class="uis-badge badge-q">MAT-2b</span>
+            <span class="uis-badge badge-lane">Mobile</span>
+            <span class="uis-badge badge-status">Draft</span>
+            <span class="uis-badge badge-priority">P1</span>
+            <span class="uis-badge badge-child">Child of Release 1.34</span>
+        </div>
+        <h1 class="uis-h1">LEM Material Consumption &mdash; Mobile</h1>
+        <p class="uis-sub">Stepped mobile form for field workers to log daily material consumption per job, completing the field-to-office consumption reporting loop.</p>
+        <div class="uis-meta">
+            <span><strong>Parent:</strong> Release 1.34</span>
+            <span><strong>Slice:</strong> MAT-2b</span>
+            <span><strong>Est:</strong> 3&ndash;4 days</span>
+        </div>
+    </div>
+
+    <div class="uis-toc">
+        <h3>Contents</h3>
+        <ol>
+            <li><a href="#s1">Business Case &amp; Customer Evidence</a></li>
+            <li><a href="#s2">Scope</a></li>
+            <li><a href="#s3">UI Concepts</a></li>
+            <li><a href="#s4">Data Model</a></li>
+            <li><a href="#s5">API Surface</a></li>
+            <li><a href="#s6">Change Surface</a></li>
+            <li><a href="#s7">Acceptance Criteria</a></li>
+            <li><a href="#s8">Dependencies</a></li>
+        </ol>
+    </div>
+
+    <!-- Section 1 -->
+    <div class="uis-section" id="s1">
+        <h2 class="collapsible-toggle open" onclick="toggleSection(this)">
+            1 &middot; Business Case &amp; Customer Evidence
+            <span class="toggle-icon">&#9660;</span>
+        </h2>
+        <div class="collapsible-body open">
+            <p>Field workers consume materials daily but have no native way to log it from their phones. The current workaround is text messages, phone calls, or custom forms &mdash; none of which are linked to the material catalog or cost codes. This gap means consumption data arrives late, incomplete, and disconnected from the financial reporting chain. A mobile-first entry form closes the field-to-office loop, giving project managers real-time visibility into material burn and eliminating manual data re-entry.</p>
+
+            <h3>Customer Evidence</h3>
+            <div class="customer-quote">
+                "Our field guys shouldn't have to look up rates &mdash; they just pick what they used and enter quantity."
+                <span class="attribution">&mdash; Tear Systems (Product Discovery)</span>
+            </div>
+            <div class="customer-quote">
+                "Allow Materials to be ordered from Mobile App &mdash; order form within OSA, purely for ordering stuff to the job."
+                <span class="attribution">&mdash; Jira Q21030-5927</span>
+            </div>
+
+            <div class="value-cards">
+                <div class="value-card">
+                    <div class="v-icon">📱</div>
+                    <div class="v-title">Field-First Entry</div>
+                    <div class="v-detail">Workers log consumption on-site the moment materials are used &mdash; no office delay.</div>
+                </div>
+                <div class="value-card">
+                    <div class="v-icon">🔍</div>
+                    <div class="v-title">Catalog Picker</div>
+                    <div class="v-detail">Search materials by name from the company catalog &mdash; no manual text entry of material descriptions.</div>
+                </div>
+                <div class="value-card">
+                    <div class="v-icon">📡</div>
+                    <div class="v-title">Offline-Ready</div>
+                    <div class="v-detail">Entries are queued locally and synced when connectivity returns &mdash; job sites often lack reliable signal.</div>
+                </div>
+                <div class="value-card">
+                    <div class="v-icon">🏷️</div>
+                    <div class="v-title">Cost Code Assignment</div>
+                    <div class="v-detail">Each entry is tagged to a cost code so consumption flows directly into financial reports.</div>
+                </div>
+            </div>
+
+            <h3>Competitive Landscape</h3>
+            <div class="competitor-grid">
+                <div class="competitor-card">
+                    <span class="comp-status comp-has">HAS</span>
+                    <strong>Clearstory Mobile</strong>
+                    <span>Material entry on T&amp;M tags</span>
+                </div>
+                <div class="competitor-card">
+                    <span class="comp-status comp-has">HAS</span>
+                    <strong>Procore Mobile</strong>
+                    <span>Daily log materials</span>
+                </div>
+                <div class="competitor-card">
+                    <span class="comp-status comp-has">HAS</span>
+                    <strong>BuildOps Mobile</strong>
+                    <span>Material usage logging</span>
+                </div>
+                <div class="competitor-card">
+                    <span class="comp-status comp-none">NONE</span>
+                    <strong>Appello Mobile</strong>
+                    <span>No material pages</span>
+                </div>
+            </div>
+
+            <h3>Jira</h3>
+            <p><span class="jira-chip">Q21030-5927</span></p>
+        </div>
+    </div>
+
+    <!-- Section 2 -->
+    <div class="uis-section" id="s2">
+        <h2 class="collapsible-toggle open" onclick="toggleSection(this)">
+            2 &middot; Scope
+            <span class="toggle-icon">&#9660;</span>
+        </h2>
+        <div class="collapsible-body open">
+            <h3>In Scope</h3>
+            <ul>
+                <li><span class="scope-tag scope-in">IN</span> Mobile stepped form: select material, enter quantity, assign cost code, submit</li>
+                <li><span class="scope-tag scope-in">IN</span> Mobile entry list page per job (consumption history)</li>
+                <li><span class="scope-tag scope-in">IN</span> Integration into <code>SimplifiedJobTasks</code> (job site view) as a new task link</li>
+                <li><span class="scope-tag scope-in">IN</span> Uses existing <code>MaterialConsumptionEntry</code> model from MAT-2a</li>
+                <li><span class="scope-tag scope-in">IN</span> Uses <code>ProgressionBar</code> and <code>SelectionSlideup</code> patterns from existing mobile app</li>
+            </ul>
+
+            <h3>Out of Scope</h3>
+            <ul>
+                <li><span class="scope-tag scope-out">OUT</span> New Prisma models (uses MAT-2a models exclusively)</li>
+                <li><span class="scope-tag scope-out">OUT</span> Offline sync implementation (checklist item only &mdash; future phase)</li>
+                <li><span class="scope-tag scope-out">OUT</span> Desktop entry UI (covered by MAT-2a)</li>
+                <li><span class="scope-tag scope-out">OUT</span> Inventory deduction / stock level updates</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Section 3 -->
+    <div class="uis-section" id="s3">
+        <h2 class="collapsible-toggle open" onclick="toggleSection(this)">
+            3 &middot; UI Concepts
+            <span class="toggle-icon">&#9660;</span>
+        </h2>
+        <div class="collapsible-body open">
+
+            <h3>Mobile &mdash; Material Consumption Form (Step 1)</h3>
+            <div class="mockup-container">
+                <div class="mockup-bar">
+                    <div class="mockup-dots">
+                        <div class="mockup-dot mockup-dot-r"></div>
+                        <div class="mockup-dot mockup-dot-y"></div>
+                        <div class="mockup-dot mockup-dot-g"></div>
+                    </div>
+                    Step 1 of 2 &mdash; Select Material
+                </div>
+                <div class="mockup-body" style="max-width: 375px; margin: 0 auto;">
+                    <div style="background: #eff6ff; border-radius: 8px; padding: 8px 12px; margin-bottom: 16px;">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                            <div style="height: 4px; flex: 1; background: #3b82f6; border-radius: 4px; margin-right: 4px;"></div>
+                            <div style="height: 4px; flex: 1; background: #e2e8f0; border-radius: 4px;"></div>
+                        </div>
+                        <div style="font-size: 11px; color: #3b82f6; font-weight: 600;">Step 1 of 2</div>
+                    </div>
+
+                    <div style="margin-bottom: 16px;">
+                        <div class="mockup-input" style="display: flex; align-items: center; gap: 8px; padding: 10px 14px; color: #94a3b8;">
+                            <span style="font-size: 16px;">🔍</span> Search materials...
+                        </div>
+                    </div>
+
+                    <div style="font-size: 12px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">Categories</div>
+                    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 20px;">
+                        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 8px; text-align: center; font-size: 11px; font-weight: 600; color: #334155;">🔧 Pipe &amp; Fittings</div>
+                        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 8px; text-align: center; font-size: 11px; font-weight: 600; color: #334155;">⚡ Electrical</div>
+                        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 8px; text-align: center; font-size: 11px; font-weight: 600; color: #334155;">🧱 Insulation</div>
+                    </div>
+
+                    <div style="font-size: 12px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">Recent Materials</div>
+                    <div style="border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 14px; border-bottom: 1px solid #f1f5f9;">
+                            <div>
+                                <div style="font-size: 13px; font-weight: 600; color: #0f172a;">3/4" Copper Pipe</div>
+                                <div style="font-size: 11px; color: #64748b;">Pipe &amp; Fittings &middot; $12.50/ft</div>
+                            </div>
+                            <div style="color: #3b82f6; font-size: 18px;">›</div>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 14px; border-bottom: 1px solid #f1f5f9;">
+                            <div>
+                                <div style="font-size: 13px; font-weight: 600; color: #0f172a;">R-20 Batt Insulation</div>
+                                <div style="font-size: 11px; color: #64748b;">Insulation &middot; $1.85/sqft</div>
+                            </div>
+                            <div style="color: #3b82f6; font-size: 18px;">›</div>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 14px;">
+                            <div>
+                                <div style="font-size: 13px; font-weight: 600; color: #0f172a;">1/2" PEX Tubing</div>
+                                <div style="font-size: 11px; color: #64748b;">Pipe &amp; Fittings &middot; $0.75/ft</div>
+                            </div>
+                            <div style="color: #3b82f6; font-size: 18px;">›</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <p style="margin-top: 8px; font-size: 13px; color: #64748b;">Material picker uses <code>SelectionSlideup</code> pattern. Search queries the company material catalog. Category tiles provide quick filtering. Recent materials are sorted by the user's last-used entries on this job.</p>
+
+            <h3>Mobile &mdash; Material Consumption Form (Step 2)</h3>
+            <div class="mockup-container">
+                <div class="mockup-bar">
+                    <div class="mockup-dots">
+                        <div class="mockup-dot mockup-dot-r"></div>
+                        <div class="mockup-dot mockup-dot-y"></div>
+                        <div class="mockup-dot mockup-dot-g"></div>
+                    </div>
+                    Step 2 of 2 &mdash; Enter Details
+                </div>
+                <div class="mockup-body" style="max-width: 375px; margin: 0 auto;">
+                    <div style="background: #eff6ff; border-radius: 8px; padding: 8px 12px; margin-bottom: 16px;">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                            <div style="height: 4px; flex: 1; background: #3b82f6; border-radius: 4px; margin-right: 4px;"></div>
+                            <div style="height: 4px; flex: 1; background: #3b82f6; border-radius: 4px;"></div>
+                        </div>
+                        <div style="font-size: 11px; color: #3b82f6; font-weight: 600;">Step 2 of 2</div>
+                    </div>
+
+                    <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px; margin-bottom: 20px;">
+                        <div style="font-size: 11px; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px;">Selected Material</div>
+                        <div style="font-size: 15px; font-weight: 700; color: #0f172a;">3/4" Copper Pipe</div>
+                        <div style="font-size: 12px; color: #64748b;">$12.50 / ft</div>
+                    </div>
+
+                    <div style="margin-bottom: 16px;">
+                        <div style="font-size: 12px; font-weight: 600; color: #334155; margin-bottom: 6px;">Quantity</div>
+                        <div style="display: flex; align-items: center; gap: 12px;">
+                            <div style="background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 8px; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: 700; color: #64748b; cursor: pointer;">&minus;</div>
+                            <div style="flex: 1; text-align: center; font-size: 32px; font-weight: 800; color: #0f172a;">24</div>
+                            <div style="background: #3b82f6; border-radius: 8px; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: 700; color: #fff; cursor: pointer;">+</div>
+                        </div>
+                        <div style="text-align: center; font-size: 12px; color: #64748b; margin-top: 4px;">ft</div>
+                    </div>
+
+                    <div style="margin-bottom: 16px;">
+                        <div style="font-size: 12px; font-weight: 600; color: #334155; margin-bottom: 6px;">Cost Code</div>
+                        <div class="mockup-input" style="display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; color: #334155;">
+                            <span>03-200 &middot; Plumbing Rough-In</span>
+                            <span style="color: #94a3b8;">▾</span>
+                        </div>
+                    </div>
+
+                    <div style="margin-bottom: 20px;">
+                        <div style="font-size: 12px; font-weight: 600; color: #334155; margin-bottom: 6px;">Notes <span style="font-weight: 400; color: #94a3b8;">(optional)</span></div>
+                        <div class="mockup-input" style="min-height: 60px; padding: 10px 14px; color: #94a3b8;">Add notes...</div>
+                    </div>
+
+                    <div style="background: #f8fafc; border-radius: 8px; padding: 12px 14px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center;">
+                        <span style="font-size: 13px; color: #64748b;">Estimated Cost</span>
+                        <span style="font-size: 16px; font-weight: 800; color: #0f172a;">$300.00</span>
+                    </div>
+
+                    <div class="mockup-btn mockup-btn-success" style="display: block; text-align: center; padding: 14px; font-size: 14px; border-radius: 10px;">Submit Entry</div>
+                </div>
+            </div>
+            <p style="margin-top: 8px; font-size: 13px; color: #64748b;">Quantity input uses a large tap-friendly stepper. Cost code dropdown uses the job's assigned cost codes. Estimated cost is qty &times; unit cost (read-only). Submit calls <code>createMaterialConsumptionEntry</code>.</p>
+
+            <h3>Mobile &mdash; Consumption History</h3>
+            <div class="mockup-container">
+                <div class="mockup-bar">
+                    <div class="mockup-dots">
+                        <div class="mockup-dot mockup-dot-r"></div>
+                        <div class="mockup-dot mockup-dot-y"></div>
+                        <div class="mockup-dot mockup-dot-g"></div>
+                    </div>
+                    Material Consumption &mdash; Job #4210
+                </div>
+                <div class="mockup-body" style="max-width: 375px; margin: 0 auto;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                        <div style="font-size: 15px; font-weight: 700; color: #0f172a;">Consumption Log</div>
+                        <div class="mockup-btn mockup-btn-primary" style="font-size: 11px; padding: 6px 12px;">+ Add Entry</div>
+                    </div>
+
+                    <div style="margin-bottom: 12px;">
+                        <div class="mockup-input" style="display: flex; align-items: center; gap: 8px; padding: 8px 12px; font-size: 11px; color: #64748b;">
+                            📅 Filter by date &middot; All
+                        </div>
+                    </div>
+
+                    <div style="border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden;">
+                        <div style="padding: 12px 14px; border-bottom: 1px solid #f1f5f9;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                                <div style="font-size: 13px; font-weight: 600; color: #0f172a;">3/4" Copper Pipe</div>
+                                <span class="mockup-badge" style="background: #dcfce7; color: #166534;">Synced</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; font-size: 11px; color: #64748b;">
+                                <span>Apr 7, 2026 &middot; 24 ft</span>
+                                <span>$300.00</span>
+                            </div>
+                        </div>
+                        <div style="padding: 12px 14px; border-bottom: 1px solid #f1f5f9;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                                <div style="font-size: 13px; font-weight: 600; color: #0f172a;">R-20 Batt Insulation</div>
+                                <span class="mockup-badge" style="background: #dcfce7; color: #166534;">Synced</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; font-size: 11px; color: #64748b;">
+                                <span>Apr 7, 2026 &middot; 150 sqft</span>
+                                <span>$277.50</span>
+                            </div>
+                        </div>
+                        <div style="padding: 12px 14px; border-bottom: 1px solid #f1f5f9;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                                <div style="font-size: 13px; font-weight: 600; color: #0f172a;">1/2" PEX Tubing</div>
+                                <span class="mockup-badge" style="background: #fef3c7; color: #92400e;">Pending</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; font-size: 11px; color: #64748b;">
+                                <span>Apr 6, 2026 &middot; 80 ft</span>
+                                <span>$60.00</span>
+                            </div>
+                        </div>
+                        <div style="padding: 12px 14px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                                <div style="font-size: 13px; font-weight: 600; color: #0f172a;">3" ABS Pipe</div>
+                                <span class="mockup-badge" style="background: #dcfce7; color: #166534;">Synced</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; font-size: 11px; color: #64748b;">
+                                <span>Apr 5, 2026 &middot; 40 ft</span>
+                                <span>$180.00</span>
+                            </div>
+                        </div>
+                    </div>
+                    <p style="font-size: 11px; color: #94a3b8; text-align: center; margin-top: 12px;">Swipe left on any entry to edit</p>
+                </div>
+            </div>
+            <p style="margin-top: 8px; font-size: 13px; color: #64748b;">List displays all consumption entries for the current job. Each row shows date, material name, quantity, and sync status. Date filter narrows the view. Swipe-to-edit opens the stepped form pre-populated with the entry's data.</p>
+        </div>
+    </div>
+
+    <!-- Section 4 -->
+    <div class="uis-section" id="s4">
+        <h2 class="collapsible-toggle open" onclick="toggleSection(this)">
+            4 &middot; Data Model
+            <span class="toggle-icon">&#9660;</span>
+        </h2>
+        <div class="collapsible-body open">
+            <p>No new Prisma models are introduced. This slice consumes the <code>MaterialConsumptionEntry</code> model defined in MAT-2a. The mobile form maps to the create mutation fields as follows:</p>
+
+            <h3>Mobile Form &rarr; MaterialConsumptionEntry Field Mapping</h3>
+            <table class="schema-table">
+                <thead>
+                    <tr><th>Mobile Form Field</th><th>Model Field</th><th>Source</th></tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Material Picker selection</td>
+                        <td><code>materialId</code></td>
+                        <td>SelectionSlideup &rarr; Material.id</td>
+                    </tr>
+                    <tr>
+                        <td>Quantity stepper</td>
+                        <td><code>quantity</code></td>
+                        <td>User input (Decimal, must be &gt; 0)</td>
+                    </tr>
+                    <tr>
+                        <td>Unit (display only)</td>
+                        <td><code>unit</code></td>
+                        <td>Auto-populated from Material.unit</td>
+                    </tr>
+                    <tr>
+                        <td>Cost Code dropdown</td>
+                        <td><code>costCodeId</code></td>
+                        <td>Job's assigned cost codes</td>
+                    </tr>
+                    <tr>
+                        <td>Notes textarea</td>
+                        <td><code>notes</code></td>
+                        <td>User input (optional, VARCHAR 500)</td>
+                    </tr>
+                    <tr>
+                        <td>(auto)</td>
+                        <td><code>jobId</code></td>
+                        <td>Current job context from route params</td>
+                    </tr>
+                    <tr>
+                        <td>(auto)</td>
+                        <td><code>date</code></td>
+                        <td>Defaults to today, user can override</td>
+                    </tr>
+                    <tr>
+                        <td>(auto)</td>
+                        <td><code>createdById</code></td>
+                        <td>Authenticated user.id</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Section 5 -->
+    <div class="uis-section" id="s5">
+        <h2 class="collapsible-toggle open" onclick="toggleSection(this)">
+            5 &middot; API Surface
+            <span class="toggle-icon">&#9660;</span>
+        </h2>
+        <div class="collapsible-body open">
+            <p>No new API additions. The mobile app consumes the queries and mutations defined in MAT-2a.</p>
+
+            <h3>Consumed Mutations</h3>
+            <pre>mutation CreateMaterialConsumptionEntry(
+  $input: CreateMaterialConsumptionEntryInput!
+) {
+  createMaterialConsumptionEntry(input: $input) {
+    id
+    materialId
+    quantity
+    unit
+    costCodeId
+    notes
+    date
+    createdAt
+  }
+}</pre>
+
+            <h3>Consumed Queries</h3>
+            <pre>query MaterialConsumptionEntries($jobId: String!) {
+  materialConsumptionEntries(jobId: $jobId) {
+    id
+    materialId
+    quantity
+    unit
+    costCodeId
+    notes
+    date
+    createdAt
+    Material {
+      id
+      name
+      unitCost
+      unit
+    }
+    CostCode {
+      id
+      code
+      name
+    }
+  }
+}
+
+query Materials($options: GetListOptions) {
+  materials(options: $options) {
+    data {
+      ... on Material {
+        id
+        name
+        unitCost
+        unit
+        category
+      }
+    }
+  }
+}</pre>
+            <p style="margin-top: 12px; font-size: 13px; color: #64748b;">The <code>materials</code> query powers the material picker (Step 1). The <code>materialConsumptionEntries</code> query powers the history list page. The <code>createMaterialConsumptionEntry</code> mutation is called on form submit.</p>
+        </div>
+    </div>
+
+    <!-- Section 6 -->
+    <div class="uis-section" id="s6">
+        <h2 class="collapsible-toggle open" onclick="toggleSection(this)">
+            6 &middot; Change Surface
+            <span class="toggle-icon">&#9660;</span>
+        </h2>
+        <div class="collapsible-body open">
+            <div class="blast-summary">
+                <div class="blast-row">
+                    <span class="blast-label">New Files</span>
+                    <span class="blast-value">3</span>
+                </div>
+                <div class="blast-row">
+                    <span class="blast-label">Modified Files</span>
+                    <span class="blast-value">1</span>
+                </div>
+                <div class="blast-row">
+                    <span class="blast-label">Total Touched</span>
+                    <span class="blast-value">4</span>
+                </div>
+            </div>
+
+            <table class="schema-table">
+                <thead>
+                    <tr><th>Action</th><th>File</th><th>Change</th></tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><span class="action-new">NEW</span></td>
+                        <td><code>apps/mobile/src/components/MaterialConsumption/MobileMaterialConsumptionForm.tsx</code></td>
+                        <td>Stepped form component: Step 1 (material picker with search + categories) and Step 2 (quantity, cost code, notes, submit). Uses ProgressionBar and SelectionSlideup patterns.</td>
+                    </tr>
+                    <tr>
+                        <td><span class="action-new">NEW</span></td>
+                        <td><code>apps/mobile/src/pages/jobs/[jobId]/material-consumption/new.tsx</code></td>
+                        <td>Page wrapper for the stepped creation form. Extracts jobId from route params, passes to form component.</td>
+                    </tr>
+                    <tr>
+                        <td><span class="action-new">NEW</span></td>
+                        <td><code>apps/mobile/src/pages/jobs/[jobId]/material-consumption/index.tsx</code></td>
+                        <td>List page showing all consumption entries for the job. Date filter, entry cards with swipe-to-edit, sync status badges.</td>
+                    </tr>
+                    <tr>
+                        <td><span class="action-mod">MOD</span></td>
+                        <td><code>apps/mobile/src/components/SimplifiedJobTasks/SimplifiedJobTasks.tsx</code></td>
+                        <td>Add "Material Consumption" task link that navigates to the consumption list page for the current job.</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Section 7 -->
+    <div class="uis-section" id="s7">
+        <h2 class="collapsible-toggle open" onclick="toggleSection(this)">
+            7 &middot; Acceptance Criteria
+            <span class="toggle-icon">&#9660;</span>
+        </h2>
+        <div class="collapsible-body open">
+            <ul class="criteria-list">
+                <li><div class="criteria-check"></div>Stepped form completes: Step 1 (select material) &rarr; Step 2 (enter qty, cost code, notes) &rarr; Submit &rarr; confirmation</li>
+                <li><div class="criteria-check"></div>Material picker searches the company material catalog by name with results updating as the user types</li>
+                <li><div class="criteria-check"></div>Category tiles in the picker filter materials by their category field</li>
+                <li><div class="criteria-check"></div>Quantity input validates &gt; 0; form cannot be submitted with zero or negative quantity</li>
+                <li><div class="criteria-check"></div>Cost code dropdown is optional and shows only cost codes assigned to the current job</li>
+                <li><div class="criteria-check"></div>Unit display (ft, sqft, each, etc.) is auto-populated from the selected material and is read-only</li>
+                <li><div class="criteria-check"></div>Estimated cost (qty &times; unit cost) updates in real time as quantity changes</li>
+                <li><div class="criteria-check"></div>Submitted entries appear in the consumption history list page for the job</li>
+                <li><div class="criteria-check"></div>Entries created on mobile sync to the desktop LEM report (visible in MAT-2a consumption table)</li>
+                <li><div class="criteria-check"></div>Permission gate: only users with <code>materialorder.create</code> permission can access the form</li>
+                <li><div class="criteria-check"></div>Offline behavior: entry is queued locally when no network connection, with a "Pending" badge shown in the list</li>
+                <li><div class="criteria-check"></div>Swipe-to-edit on the history list opens the form pre-populated with that entry's data</li>
+                <li><div class="criteria-check"></div>"Material Consumption" link appears in SimplifiedJobTasks and navigates to the list page</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Section 8 -->
+    <div class="uis-section" id="s8">
+        <h2 class="collapsible-toggle open" onclick="toggleSection(this)">
+            8 &middot; Dependencies
+            <span class="toggle-icon">&#9660;</span>
+        </h2>
+        <div class="collapsible-body open">
+            <h3>Requires</h3>
+            <p><span class="dep-tag dep-requires">MAT-2a: LEM Material Consumption &mdash; Desktop (model + API)</span></p>
+
+            <h3>Enables</h3>
+            <p><span style="font-size: 13px; color: #64748b;">Nothing directly &mdash; this is a mobile consumption front-end for an existing API.</span></p>
+
+            <h3>Siblings</h3>
+            <p><span style="font-size: 13px; color: #64748b;">None</span></p>
+
+            <h3>Parent</h3>
+            <p><span class="dep-tag dep-none">Release 1.34</span></p>
+        </div>
+    </div>
+
+    <div class="uis-footer">
+        MAT-2b &middot; LEM Material Consumption &mdash; Mobile &middot; Release 1.34
+    </div>
+</div>
+
+<script>
+function toggleSection(el) {
+    el.classList.toggle("open");
+    const body = el.nextElementSibling;
+    if (body) body.classList.toggle("open");
+}
+</script>
+</body>
+</html>

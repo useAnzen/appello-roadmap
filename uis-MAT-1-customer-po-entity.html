@@ -1,0 +1,778 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MAT-1: Customer PO Entity</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Inter', -apple-system, sans-serif; background: #f1f5f9; color: #0f172a; }
+.uis-wrap { max-width: 960px; margin: 0 auto; padding: 40px 24px 80px; }
+.uis-hero { margin-bottom: 32px; }
+.uis-badges { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+.uis-badge { font-size: 11px; font-weight: 700; padding: 4px 12px; border-radius: 6px; display: inline-flex; align-items: center; gap: 5px; }
+.badge-q { background: #0f172a; color: #fff; }
+.badge-lane { background: #10b981; color: #fff; }
+.badge-status { background: #fef3c7; color: #92400e; }
+.badge-priority { background: #fee2e2; color: #dc2626; }
+.badge-child { background: #7c3aed; color: #fff; }
+.uis-h1 { font-size: 30px; font-weight: 800; color: #0f172a; margin: 0 0 8px; letter-spacing: -0.01em; }
+.uis-sub { font-size: 15px; color: #64748b; line-height: 1.5; margin: 0; }
+.uis-meta { display: flex; gap: 24px; flex-wrap: wrap; margin-top: 14px; font-size: 13px; color: #64748b; }
+.uis-meta strong { color: #0f172a; }
+.uis-toc { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px 28px; margin-bottom: 16px; }
+.uis-toc h3 { font-size: 13px; font-weight: 700; color: #0f172a; margin: 0 0 10px; text-transform: uppercase; letter-spacing: 0.5px; }
+.uis-toc ol { margin: 0; padding-left: 20px; }
+.uis-toc li { font-size: 14px; color: #3b82f6; margin-bottom: 4px; }
+.uis-toc a { color: #3b82f6; text-decoration: none; }
+.uis-section { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px 28px; margin-bottom: 16px; }
+.uis-section h2 { font-size: 17px; font-weight: 700; color: #0f172a; margin: 0 0 14px; padding-bottom: 10px; border-bottom: 2px solid #e2e8f0; }
+.uis-section h3 { font-size: 15px; font-weight: 700; color: #0f172a; margin: 16px 0 8px; }
+.uis-section p, .uis-section li { font-size: 14px; color: #334155; line-height: 1.65; }
+.uis-section ul, .uis-section ol { padding-left: 20px; margin: 8px 0; }
+.customer-quote { background: #fef3c7; border-left: 3px solid #f59e0b; padding: 12px 16px; border-radius: 0 8px 8px 0; margin: 14px 0; font-style: italic; font-size: 14px; color: #92400e; }
+.customer-quote .attribution { font-style: normal; font-weight: 600; display: block; margin-top: 6px; }
+.competitor-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin: 12px 0; }
+.competitor-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px; }
+.competitor-card strong { font-size: 14px; color: #0f172a; display: block; margin-bottom: 4px; }
+.competitor-card span { font-size: 12px; color: #64748b; }
+.comp-status { font-size: 10px; font-weight: 700; text-transform: uppercase; padding: 2px 8px; border-radius: 4px; display: inline-block; margin-bottom: 6px; }
+.comp-has { background: #dcfce7; color: #166534; }
+.comp-partial { background: #fef3c7; color: #92400e; }
+.comp-none { background: #fee2e2; color: #dc2626; }
+.value-cards { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin: 12px 0; }
+.value-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px; }
+.value-card .v-icon { font-size: 20px; margin-bottom: 6px; }
+.value-card .v-title { font-size: 13px; font-weight: 700; color: #0f172a; margin-bottom: 4px; }
+.value-card .v-detail { font-size: 12px; color: #64748b; line-height: 1.5; }
+.jira-chip { display: inline-flex; align-items: center; padding: 4px 12px; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 6px; font-family: monospace; font-size: 11px; font-weight: 600; color: #3b82f6; margin-right: 6px; margin-bottom: 6px; }
+.scope-tag { display: inline-block; font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 5px; margin-right: 6px; }
+.scope-in { background: #dcfce7; color: #166534; }
+.scope-out { background: #fee2e2; color: #dc2626; }
+.mockup-container { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; margin: 14px 0; }
+.mockup-bar { background: #f1f5f9; padding: 8px 14px; font-size: 12px; font-weight: 600; color: #64748b; border-bottom: 1px solid #e2e8f0; display: flex; align-items: center; gap: 8px; }
+.mockup-dots { display: flex; gap: 5px; }
+.mockup-dot { width: 8px; height: 8px; border-radius: 50%; }
+.mockup-dot-r { background: #f87171; }
+.mockup-dot-y { background: #fbbf24; }
+.mockup-dot-g { background: #34d399; }
+.mockup-body { padding: 24px; min-height: 200px; font-size: 13px; color: #334155; line-height: 1.6; }
+.collapsible-toggle { display: flex; align-items: center; justify-content: space-between; cursor: pointer; user-select: none; }
+.collapsible-toggle .toggle-icon { font-size: 14px; color: #94a3b8; transition: transform 0.2s; }
+.collapsible-toggle.open .toggle-icon { transform: rotate(180deg); }
+.collapsible-body { display: none; margin-top: 14px; }
+.collapsible-body.open { display: block; }
+pre { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; overflow-x: auto; font-size: 13px; line-height: 1.5; font-family: monospace; color: #334155; }
+table.schema-table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 12px 0; }
+table.schema-table th { text-align: left; padding: 8px 12px; background: #f8fafc; border-bottom: 2px solid #e2e8f0; font-weight: 600; }
+table.schema-table td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; }
+table.schema-table code { font-family: monospace; background: #f1f5f9; padding: 1px 5px; border-radius: 3px; font-size: 12px; color: #7c3aed; }
+.blast-summary { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 16px 20px; margin-bottom: 16px; }
+.blast-row { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; }
+.blast-row:not(:last-child) { border-bottom: 1px solid #f1f5f9; }
+.blast-label { font-size: 13px; color: #64748b; }
+.blast-value { font-size: 13px; font-weight: 700; color: #0f172a; }
+.action-new { background: #dcfce7; color: #166534; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 4px; }
+.action-mod { background: #fef3c7; color: #92400e; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 4px; }
+.criteria-list { list-style: none; padding: 0; }
+.criteria-list li { padding: 8px 0; border-bottom: 1px solid #f1f5f9; display: flex; gap: 10px; align-items: flex-start; font-size: 14px; color: #334155; }
+.criteria-list li:last-child { border-bottom: none; }
+.criteria-check { width: 18px; height: 18px; border: 2px solid #cbd5e1; border-radius: 4px; flex-shrink: 0; margin-top: 1px; }
+.dep-tag { display: inline-block; font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 5px; margin-right: 6px; margin-bottom: 6px; text-decoration: none; }
+.dep-none { background: #dcfce7; color: #166534; }
+.dep-requires { background: #fef3c7; color: #92400e; }
+.dep-enables { background: #eff6ff; color: #1d4ed8; }
+.uis-footer { text-align: center; padding: 24px; font-size: 12px; color: #94a3b8; }
+.uis-footer a { color: #3b82f6; text-decoration: none; }
+.mockup-row { display: flex; gap: 8px; padding: 6px 0; border-bottom: 1px solid #f1f5f9; align-items: center; }
+.mockup-cell { flex: 1; }
+.mockup-header { font-weight: 700; background: #f1f5f9; padding: 8px; border-radius: 4px; margin-bottom: 4px; }
+.mockup-input { background: #fff; border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px 12px; color: #94a3b8; font-size: 12px; }
+.mockup-btn { display: inline-block; padding: 6px 14px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; border: none; }
+.mockup-btn-primary { background: #3b82f6; color: #fff; }
+.mockup-btn-success { background: #10b981; color: #fff; }
+.mockup-btn-outline { background: #fff; color: #3b82f6; border: 1px solid #3b82f6; }
+.mockup-badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 700; }
+    </style>
+</head>
+<body>
+<div class="uis-wrap">
+
+    <!-- Hero -->
+    <div class="uis-hero">
+        <div class="uis-badges">
+            <span class="uis-badge badge-q">MAT-1</span>
+            <span class="uis-badge badge-lane">Financial</span>
+            <span class="uis-badge badge-status">Draft</span>
+            <span class="uis-badge badge-priority">P0</span>
+            <span class="uis-badge badge-child">Child of Release 1.34</span>
+        </div>
+        <h1 class="uis-h1">Customer PO Entity</h1>
+        <p class="uis-sub">Replace the legacy Job.purchaseOrder string with a first-class PurchaseOrder model supporting multiple POs per job, a PO detail page, and PO-aware invoicing across estimates, change orders, and invoices.</p>
+        <div class="uis-meta">
+            <span><strong>Parent:</strong> Release 1.34</span>
+            <span><strong>Slice:</strong> MAT-1</span>
+            <span><strong>Est:</strong> 5&ndash;7 days</span>
+        </div>
+    </div>
+
+    <!-- TOC -->
+    <div class="uis-toc">
+        <h3>Contents</h3>
+        <ol>
+            <li><a href="#s1">Business Case &amp; Customer Evidence</a></li>
+            <li><a href="#s2">Scope</a></li>
+            <li><a href="#s3">UI Concepts</a></li>
+            <li><a href="#s4">Data Model</a></li>
+            <li><a href="#s5">API Surface</a></li>
+            <li><a href="#s6">Change Surface</a></li>
+            <li><a href="#s7">Acceptance Criteria</a></li>
+            <li><a href="#s8">Dependencies</a></li>
+        </ol>
+    </div>
+
+    <!-- Section 1 -->
+    <div class="uis-section" id="s1">
+        <h2 class="collapsible-toggle open" onclick="toggleSection(this)">
+            1 &middot; Business Case &amp; Customer Evidence
+            <span class="toggle-icon">&#9660;</span>
+        </h2>
+        <div class="collapsible-body open">
+            <p>Purchase orders are the contractual backbone connecting estimates to invoicing. Today, the customer PO is a free-text string on the Job &mdash; no uniqueness, no multi-PO support, no detail page. When a job has multiple POs (one per change order), the system can&rsquo;t track which PO applies to which invoice. This creates manual reconciliation work for every PM.</p>
+
+            <div class="customer-quote">
+                &ldquo;We need to figure out what we&rsquo;re doing with the job model refactor, because right now, purchase order is a piece of data in a table attached to the estimate.&rdquo;
+                <span class="attribution">&mdash; Internal Architecture Discussion (March 2026)</span>
+            </div>
+
+            <div class="customer-quote">
+                &ldquo;If only one PO on a job, auto-populate in invoices; if multiple, prompt user to select.&rdquo;
+                <span class="attribution">&mdash; Corey Shelson (Feb 2025 design session)</span>
+            </div>
+
+            <div class="customer-quote">
+                &ldquo;PO Number Management &mdash; dedicated Job Purchase Order entity, PO dropdown in invoices, migration to backfill existing PO strings.&rdquo;
+                <span class="attribution">&mdash; Jira Q21030-9356</span>
+            </div>
+
+            <h3>Value Proposition</h3>
+            <div class="value-cards">
+                <div class="value-card">
+                    <div class="v-icon">&#128279;</div>
+                    <div class="v-title">Multi-PO Support</div>
+                    <div class="v-detail">Jobs with change orders often accumulate multiple POs from the same customer. Each needs independent tracking.</div>
+                </div>
+                <div class="value-card">
+                    <div class="v-icon">&#128203;</div>
+                    <div class="v-title">PO-Aware Invoicing</div>
+                    <div class="v-detail">Auto-populate PO in invoices when single PO; prompt selection when multiple.</div>
+                </div>
+                <div class="value-card">
+                    <div class="v-icon">&#128269;</div>
+                    <div class="v-title">Audit Trail</div>
+                    <div class="v-detail">PO history, files, and notes on a dedicated detail page with tabs.</div>
+                </div>
+                <div class="value-card">
+                    <div class="v-icon">&#128260;</div>
+                    <div class="v-title">Data Migration</div>
+                    <div class="v-detail">Existing purchaseOrder strings migrated to PurchaseOrder records &mdash; zero data loss.</div>
+                </div>
+            </div>
+
+            <h3>Competitive Landscape</h3>
+            <div class="competitor-grid">
+                <div class="competitor-card">
+                    <span class="comp-status comp-has">HAS</span>
+                    <strong>Procore</strong>
+                    <span>PO entity with line items, approval workflow</span>
+                </div>
+                <div class="competitor-card">
+                    <span class="comp-status comp-has">HAS</span>
+                    <strong>Sage 300</strong>
+                    <span>Full PO lifecycle with AP integration</span>
+                </div>
+                <div class="competitor-card">
+                    <span class="comp-status comp-has">HAS</span>
+                    <strong>Buildertrend</strong>
+                    <span>PO management with change order tracking</span>
+                </div>
+                <div class="competitor-card">
+                    <span class="comp-status comp-partial">PARTIAL</span>
+                    <strong>Appello</strong>
+                    <span>String field on Job &mdash; no entity, no multi-PO, no detail page</span>
+                </div>
+            </div>
+
+            <h3>Jira References</h3>
+            <p>
+                <span class="jira-chip">Q21030-9356</span>
+                <span class="jira-chip">Q21030-7334</span>
+                <span class="jira-chip">Q21030-6953</span>
+            </p>
+        </div>
+    </div>
+
+    <!-- Section 2 -->
+    <div class="uis-section" id="s2">
+        <h2 class="collapsible-toggle open" onclick="toggleSection(this)">
+            2 &middot; Scope
+            <span class="toggle-icon">&#9660;</span>
+        </h2>
+        <div class="collapsible-body open">
+            <h3><span class="scope-tag scope-in">IN SCOPE</span></h3>
+            <ul>
+                <li><code>PurchaseOrder</code> and <code>PurchaseOrderLineItem</code> Prisma models</li>
+                <li>Const-based types: <code>CustomerPO</code> / <code>SupplierPO</code>; statuses: <code>Draft</code> / <code>Issued</code> / <code>Sent</code> / <code>PartiallyReceived</code> / <code>FullyReceived</code> / <code>Closed</code></li>
+                <li>Data migration of existing <code>Job.purchaseOrder</code> strings to PurchaseOrder records</li>
+                <li>Auto-sequenced PO numbering: <code>CPO-####</code> for customer, <code>SPO-####</code> for supplier</li>
+                <li>PO detail page with tabs: Overview, Line Items, Invoices, Estimates, Files</li>
+                <li>PO tab on Company detail page</li>
+                <li>PO section on Job detail page</li>
+                <li>PO dropdown selector on Estimate and Invoice forms (replacing free-text input)</li>
+                <li><code>PurchaseOrderLineItem.total</code> computed at query time (<code>quantity &times; unitPrice</code>)</li>
+                <li>Search Core indexing for PO lookup</li>
+                <li>Route configuration for <code>/purchase-orders</code> and <code>/purchase-orders/[id]</code></li>
+            </ul>
+
+            <h3><span class="scope-tag scope-out">OUT OF SCOPE</span></h3>
+            <ul>
+                <li>Supplier PO CRUD and PDF generation (deferred to MAT-5)</li>
+                <li>Receiving against PO (deferred to MAT-6)</li>
+                <li>PO approval workflow</li>
+                <li>PO-to-PO linking (e.g., amendment tracking)</li>
+                <li>Mobile PO management</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Section 3 -->
+    <div class="uis-section" id="s3">
+        <h2 class="collapsible-toggle open" onclick="toggleSection(this)">
+            3 &middot; UI Concepts
+            <span class="toggle-icon">&#9660;</span>
+        </h2>
+        <div class="collapsible-body open">
+
+            <!-- Mockup 1: PO Detail Page -->
+            <div class="mockup-container">
+                <div class="mockup-bar">
+                    <div class="mockup-dots">
+                        <div class="mockup-dot mockup-dot-r"></div>
+                        <div class="mockup-dot mockup-dot-y"></div>
+                        <div class="mockup-dot mockup-dot-g"></div>
+                    </div>
+                    PO Detail Page &mdash; Overview Tab
+                </div>
+                <div class="mockup-body">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+                        <div>
+                            <div style="font-size:18px; font-weight:700; color:#0f172a;">CPO-0001</div>
+                            <div style="font-size:12px; color:#64748b; margin-top:2px;">ACME Construction &middot; Riverside Tower</div>
+                        </div>
+                        <div style="display:flex; gap:8px; align-items:center;">
+                            <span class="mockup-badge" style="background:#dcfce7; color:#166534;">Issued</span>
+                            <span class="mockup-btn mockup-btn-outline">Edit</span>
+                            <span class="mockup-btn" style="background:#fee2e2; color:#dc2626; border:1px solid #fca5a5;">Archive</span>
+                        </div>
+                    </div>
+                    <div style="display:flex; gap:4px; margin-bottom:16px; border-bottom:2px solid #e2e8f0; padding-bottom:8px;">
+                        <span style="padding:6px 14px; font-size:12px; font-weight:600; color:#3b82f6; border-bottom:2px solid #3b82f6; margin-bottom:-10px;">Overview</span>
+                        <span style="padding:6px 14px; font-size:12px; color:#64748b;">Line Items</span>
+                        <span style="padding:6px 14px; font-size:12px; color:#64748b;">Invoices</span>
+                        <span style="padding:6px 14px; font-size:12px; color:#64748b;">Estimates</span>
+                        <span style="padding:6px 14px; font-size:12px; color:#64748b;">Files</span>
+                    </div>
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                        <div style="padding:10px; background:#f8fafc; border-radius:6px; border:1px solid #e2e8f0;">
+                            <div style="font-size:11px; color:#64748b; margin-bottom:2px;">PO Number</div>
+                            <div style="font-size:13px; font-weight:600; color:#0f172a;">CPO-0001</div>
+                        </div>
+                        <div style="padding:10px; background:#f8fafc; border-radius:6px; border:1px solid #e2e8f0;">
+                            <div style="font-size:11px; color:#64748b; margin-bottom:2px;">Company</div>
+                            <div style="font-size:13px; font-weight:600; color:#0f172a;">ACME Construction</div>
+                        </div>
+                        <div style="padding:10px; background:#f8fafc; border-radius:6px; border:1px solid #e2e8f0;">
+                            <div style="font-size:11px; color:#64748b; margin-bottom:2px;">Job</div>
+                            <div style="font-size:13px; font-weight:600; color:#0f172a;">Riverside Tower</div>
+                        </div>
+                        <div style="padding:10px; background:#f8fafc; border-radius:6px; border:1px solid #e2e8f0;">
+                            <div style="font-size:11px; color:#64748b; margin-bottom:2px;">Issued Date</div>
+                            <div style="font-size:13px; font-weight:600; color:#0f172a;">2026-03-15</div>
+                        </div>
+                        <div style="padding:10px; background:#f8fafc; border-radius:6px; border:1px solid #e2e8f0;">
+                            <div style="font-size:11px; color:#64748b; margin-bottom:2px;">Amount</div>
+                            <div style="font-size:13px; font-weight:600; color:#0f172a;">$185,000.00</div>
+                        </div>
+                        <div style="padding:10px; background:#f8fafc; border-radius:6px; border:1px solid #e2e8f0;">
+                            <div style="font-size:11px; color:#64748b; margin-bottom:2px;">Terms</div>
+                            <div style="font-size:13px; font-weight:600; color:#0f172a;">Net 30</div>
+                        </div>
+                    </div>
+                    <div style="padding:10px; background:#f8fafc; border-radius:6px; border:1px solid #e2e8f0; margin-top:12px;">
+                        <div style="font-size:11px; color:#64748b; margin-bottom:2px;">Description</div>
+                        <div style="font-size:13px; color:#334155;">Mechanical HVAC installation &mdash; floors 1-12, includes all ductwork, piping, and equipment.</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Mockup 2: Job Detail — PO Section -->
+            <div class="mockup-container">
+                <div class="mockup-bar">
+                    <div class="mockup-dots">
+                        <div class="mockup-dot mockup-dot-r"></div>
+                        <div class="mockup-dot mockup-dot-y"></div>
+                        <div class="mockup-dot mockup-dot-g"></div>
+                    </div>
+                    Job Detail &mdash; Purchase Orders Section
+                </div>
+                <div class="mockup-body">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                        <div style="font-size:14px; font-weight:700; color:#0f172a;">Purchase Orders</div>
+                        <span class="mockup-btn mockup-btn-primary">+ Add PO</span>
+                    </div>
+                    <div class="mockup-row" style="font-weight:700; background:#f1f5f9; padding:8px; border-radius:4px;">
+                        <div class="mockup-cell">PO Number</div>
+                        <div class="mockup-cell">Company</div>
+                        <div class="mockup-cell">Status</div>
+                        <div class="mockup-cell">Issued Date</div>
+                        <div class="mockup-cell" style="text-align:right;">Amount</div>
+                    </div>
+                    <div class="mockup-row">
+                        <div class="mockup-cell" style="color:#3b82f6; font-weight:600;">CPO-0001</div>
+                        <div class="mockup-cell">ACME Construction</div>
+                        <div class="mockup-cell"><span class="mockup-badge" style="background:#dcfce7; color:#166534;">Issued</span></div>
+                        <div class="mockup-cell">2026-03-15</div>
+                        <div class="mockup-cell" style="text-align:right; font-weight:600;">$185,000.00</div>
+                    </div>
+                    <div class="mockup-row">
+                        <div class="mockup-cell" style="color:#3b82f6; font-weight:600;">CPO-0002</div>
+                        <div class="mockup-cell">ACME Construction</div>
+                        <div class="mockup-cell"><span class="mockup-badge" style="background:#fef3c7; color:#92400e;">Draft</span></div>
+                        <div class="mockup-cell">2026-04-01</div>
+                        <div class="mockup-cell" style="text-align:right; font-weight:600;">$25,000.00</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Mockup 3: Invoice Form — PO Dropdown -->
+            <div class="mockup-container">
+                <div class="mockup-bar">
+                    <div class="mockup-dots">
+                        <div class="mockup-dot mockup-dot-r"></div>
+                        <div class="mockup-dot mockup-dot-y"></div>
+                        <div class="mockup-dot mockup-dot-g"></div>
+                    </div>
+                    Invoice Form &mdash; PO Dropdown
+                </div>
+                <div class="mockup-body">
+                    <div style="max-width:400px;">
+                        <div style="font-size:12px; font-weight:600; color:#334155; margin-bottom:6px;">Purchase Order</div>
+                        <div style="border:1px solid #3b82f6; border-radius:6px; overflow:hidden; box-shadow:0 4px 12px rgba(59,130,246,0.15);">
+                            <div style="padding:8px 12px; background:#fff; display:flex; justify-content:space-between; align-items:center;">
+                                <span style="font-size:13px; color:#0f172a;">Select Purchase Order&hellip;</span>
+                                <span style="font-size:10px; color:#94a3b8;">&#9660;</span>
+                            </div>
+                            <div style="border-top:1px solid #e2e8f0;">
+                                <div style="padding:8px 12px; background:#eff6ff; font-size:13px; color:#1d4ed8; font-weight:600; cursor:pointer;">CPO-0001 &mdash; $185,000.00</div>
+                                <div style="padding:8px 12px; background:#fff; font-size:13px; color:#334155; cursor:pointer; border-top:1px solid #f1f5f9;">CPO-0002 &mdash; $25,000.00</div>
+                            </div>
+                        </div>
+                        <div style="font-size:11px; color:#64748b; margin-top:6px; font-style:italic;">Auto-selected when job has single PO</div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Section 4 -->
+    <div class="uis-section" id="s4">
+        <h2 class="collapsible-toggle open" onclick="toggleSection(this)">
+            4 &middot; Data Model
+            <span class="toggle-icon">&#9660;</span>
+        </h2>
+        <div class="collapsible-body open">
+
+            <h3>Const-Based Type &amp; Status Definitions</h3>
+<pre>// PurchaseOrder types (const-based, not enum)
+export const PurchaseOrderType = {
+    CustomerPO: "CustomerPO",
+    SupplierPO: "SupplierPO"
+} as const;
+
+// PurchaseOrder statuses
+export const PurchaseOrderStatus = {
+    Draft: "Draft",
+    Issued: "Issued",
+    Sent: "Sent",
+    PartiallyReceived: "PartiallyReceived",
+    FullyReceived: "FullyReceived",
+    Closed: "Closed"
+} as const;</pre>
+
+            <h3>Prisma Schema &mdash; PurchaseOrder</h3>
+<pre>model PurchaseOrder {
+    id              String    @id @default(cuid()) @db.VarChar(21)
+    instanceId      String    @db.VarChar(21)
+    type            String    @db.VarChar(30)   // CustomerPO | SupplierPO
+    poNumber        String    @db.VarChar(50)
+    companyId       String?   @db.VarChar(21)
+    jobId           String?   @db.VarChar(21)
+    contactId       String?   @db.VarChar(21)
+    status          String    @default("Draft") @db.VarChar(30)
+    issuedDate      DateTime?
+    amount          Decimal?  @db.Decimal(10, 2)
+    description     String?   @db.Text
+    terms           String?   @db.VarChar(191)
+    isArchived      Boolean   @default(false)
+    isDeleted       Boolean   @default(false)
+    createdAt       DateTime  @default(now())
+    updatedAt       DateTime  @updatedAt
+    createdById     String?   @db.VarChar(21)
+    updatedById     String?   @db.VarChar(21)
+
+    Instance        Instance  @relation(fields: [instanceId], references: [id])
+    Company         Company?  @relation(fields: [companyId], references: [id])
+    Job             Job?      @relation(fields: [jobId], references: [id])
+    Contact         Contact?  @relation(fields: [contactId], references: [id])
+    CreatedBy       User?     @relation("PurchaseOrderCreatedBy", fields: [createdById], references: [id])
+    UpdatedBy       User?     @relation("PurchaseOrderUpdatedBy", fields: [updatedById], references: [id])
+    LineItems       PurchaseOrderLineItem[]
+
+    @@unique([instanceId, poNumber])
+    @@index([instanceId])
+    @@index([jobId])
+    @@index([companyId])
+    @@index([type])
+    @@index([status])
+}</pre>
+
+            <h3>Prisma Schema &mdash; PurchaseOrderLineItem</h3>
+<pre>model PurchaseOrderLineItem {
+    id                String         @id @default(cuid()) @db.VarChar(21)
+    purchaseOrderId   String         @db.VarChar(21)
+    description       String?        @db.Text
+    quantity          Decimal?       @db.Decimal(10, 4)
+    unitPrice         Decimal?       @db.Decimal(10, 2)
+    accountItemId     String?        @db.VarChar(21)
+    costCodeId        String?        @db.VarChar(21)
+    sortOrder         Int            @default(0)
+    isDeleted         Boolean        @default(false)
+    createdAt         DateTime       @default(now())
+    updatedAt         DateTime       @updatedAt
+
+    PurchaseOrder     PurchaseOrder  @relation(fields: [purchaseOrderId], references: [id])
+    AccountItem       AccountItem?   @relation(fields: [accountItemId], references: [id])
+    CostCode          CostCode?      @relation(fields: [costCodeId], references: [id])
+
+    @@index([purchaseOrderId])
+}</pre>
+
+            <h3>Data Migration SQL</h3>
+<pre>-- Migrate existing Job.purchaseOrder strings to PurchaseOrder records
+INSERT INTO PurchaseOrder (
+    id, instanceId, type, poNumber, jobId, status,
+    issuedDate, createdAt, updatedAt
+)
+SELECT
+    SUBSTRING(MD5(CONCAT(j.id, '-po')), 1, 21),
+    j.instanceId,
+    'CustomerPO',
+    j.purchaseOrder,
+    j.id,
+    'Issued',
+    j.createdAt,
+    NOW(),
+    NOW()
+FROM Job j
+WHERE j.purchaseOrder IS NOT NULL
+  AND j.purchaseOrder != ''
+  AND j.isDeleted = 0;</pre>
+
+        </div>
+    </div>
+
+    <!-- Section 5 -->
+    <div class="uis-section" id="s5">
+        <h2 class="collapsible-toggle open" onclick="toggleSection(this)">
+            5 &middot; API Surface
+            <span class="toggle-icon">&#9660;</span>
+        </h2>
+        <div class="collapsible-body open">
+
+            <h3>GraphQL SDL</h3>
+<pre>type PurchaseOrder {
+    id: ID!
+    type: String!
+    poNumber: String!
+    companyId: String
+    Company: Company
+    jobId: String
+    Job: Job
+    contactId: String
+    status: String!
+    issuedDate: DateTime
+    amount: Float
+    description: String
+    terms: String
+    LineItems: [PurchaseOrderLineItem!]
+}
+
+type PurchaseOrderLineItem {
+    id: ID!
+    purchaseOrderId: String!
+    PurchaseOrder: PurchaseOrder
+    description: String
+    quantity: Float
+    unitPrice: Float
+    total: Float
+    accountItemId: String
+    costCodeId: String
+}
+
+input CreatePurchaseOrderInput {
+    type: String!
+    poNumber: String
+    companyId: String
+    jobId: String
+    contactId: String
+    status: String
+    issuedDate: DateTime
+    amount: Float
+    description: String
+    terms: String
+}
+
+input UpsertPurchaseOrderLineItemInput {
+    id: ID
+    description: String
+    quantity: Float
+    unitPrice: Float
+    accountItemId: String
+    costCodeId: String
+}
+
+extend type Query {
+    purchaseOrders(jobId: String, companyId: String, type: String): [PurchaseOrder!]!
+    purchaseOrder(id: ID!): PurchaseOrder
+}
+
+extend type Mutation {
+    createPurchaseOrder(input: CreatePurchaseOrderInput!): PurchaseOrder!
+    editPurchaseOrder(id: ID!, input: CreatePurchaseOrderInput!): PurchaseOrder!
+    deletePurchaseOrder(id: ID!): Boolean!
+    upsertPurchaseOrderLineItems(
+        purchaseOrderId: String!,
+        items: [UpsertPurchaseOrderLineItemInput!]!
+    ): [PurchaseOrderLineItem!]!
+}</pre>
+
+            <h3>Consumed Queries</h3>
+            <table class="schema-table">
+                <thead>
+                    <tr>
+                        <th>Query</th>
+                        <th>Consumer</th>
+                        <th>Purpose</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><code>companyDetail</code></td>
+                        <td>Company PO tab</td>
+                        <td>List all POs for a company</td>
+                    </tr>
+                    <tr>
+                        <td><code>jobDetail</code></td>
+                        <td>Job PO section</td>
+                        <td>List all POs linked to job</td>
+                    </tr>
+                    <tr>
+                        <td><code>estimateChangeOrders</code></td>
+                        <td>Estimate / Invoice forms</td>
+                        <td>PO dropdown selector</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3>Computed Fields</h3>
+            <p><code>PurchaseOrderLineItem.total</code> is resolved at query time as <code>quantity &times; unitPrice</code> &mdash; not persisted in the database. The GraphQL resolver computes it inline.</p>
+
+        </div>
+    </div>
+
+    <!-- Section 6 -->
+    <div class="uis-section" id="s6">
+        <h2 class="collapsible-toggle open" onclick="toggleSection(this)">
+            6 &middot; Change Surface
+            <span class="toggle-icon">&#9660;</span>
+        </h2>
+        <div class="collapsible-body open">
+
+            <div class="blast-summary">
+                <div class="blast-row">
+                    <span class="blast-label">New files</span>
+                    <span class="blast-value">4</span>
+                </div>
+                <div class="blast-row">
+                    <span class="blast-label">Modified files</span>
+                    <span class="blast-value">5+</span>
+                </div>
+                <div class="blast-row">
+                    <span class="blast-label">Total blast radius</span>
+                    <span class="blast-value">9+</span>
+                </div>
+            </div>
+
+            <h3>New Files</h3>
+            <table class="schema-table">
+                <thead>
+                    <tr>
+                        <th>File</th>
+                        <th>Action</th>
+                        <th>Description</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><code>apps/api/prisma/migrations/&hellip;/migration.sql</code></td>
+                        <td><span class="action-new">NEW</span></td>
+                        <td>CreateTable + data migration for PurchaseOrder &amp; PurchaseOrderLineItem</td>
+                    </tr>
+                    <tr>
+                        <td><code>apps/api/src/models/PurchaseOrder.ts</code></td>
+                        <td><span class="action-new">NEW</span></td>
+                        <td>Model layer: CRUD, auto-numbering, permission checks</td>
+                    </tr>
+                    <tr>
+                        <td><code>apps/api/src/graphql/models/PurchaseOrder.ts</code></td>
+                        <td><span class="action-new">NEW</span></td>
+                        <td>GraphQL resolvers: queries, mutations, computed fields</td>
+                    </tr>
+                    <tr>
+                        <td><code>apps/frontend/src/pages/purchase-orders/[id]/index.tsx</code></td>
+                        <td><span class="action-new">NEW</span></td>
+                        <td>PO detail page with tabbed layout</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3>Modified Files</h3>
+            <table class="schema-table">
+                <thead>
+                    <tr>
+                        <th>File</th>
+                        <th>Action</th>
+                        <th>Change</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><code>apps/api/prisma/schema.prisma</code></td>
+                        <td><span class="action-mod">MOD</span></td>
+                        <td>Add PurchaseOrder &amp; PurchaseOrderLineItem models; add relation on Job, Company, Contact</td>
+                    </tr>
+                    <tr>
+                        <td><code>apps/api/src/graphql/schema.ts</code></td>
+                        <td><span class="action-mod">MOD</span></td>
+                        <td>Register PurchaseOrder resolvers (typeDef, Query, Mutation, Resolvers)</td>
+                    </tr>
+                    <tr>
+                        <td><code>apps/frontend/src/pages/companies/[id]/index.tsx</code></td>
+                        <td><span class="action-mod">MOD</span></td>
+                        <td>Add PO tab to Company detail page</td>
+                    </tr>
+                    <tr>
+                        <td><code>apps/frontend/src/pages/jobs/[id]/index.tsx</code></td>
+                        <td><span class="action-mod">MOD</span></td>
+                        <td>Add Purchase Orders section to Job detail page</td>
+                    </tr>
+                    <tr>
+                        <td><code>apps/frontend/src/lib/routes.ts</code></td>
+                        <td><span class="action-mod">MOD</span></td>
+                        <td>Add <code>/purchase-orders</code> and <code>/purchase-orders/[id]</code> routes</td>
+                    </tr>
+                    <tr>
+                        <td><code>Estimate form component(s)</code></td>
+                        <td><span class="action-mod">MOD</span></td>
+                        <td>Replace PO free-text input with PO dropdown selector</td>
+                    </tr>
+                    <tr>
+                        <td><code>Invoice form component(s)</code></td>
+                        <td><span class="action-mod">MOD</span></td>
+                        <td>Replace PO free-text input with PO dropdown; auto-select when single PO</td>
+                    </tr>
+                </tbody>
+            </table>
+
+        </div>
+    </div>
+
+    <!-- Section 7 -->
+    <div class="uis-section" id="s7">
+        <h2 class="collapsible-toggle open" onclick="toggleSection(this)">
+            7 &middot; Acceptance Criteria
+            <span class="toggle-icon">&#9660;</span>
+        </h2>
+        <div class="collapsible-body open">
+            <ul class="criteria-list">
+                <li><div class="criteria-check"></div><span><code>PurchaseOrder</code> and <code>PurchaseOrderLineItem</code> tables created with indexes</span></li>
+                <li><div class="criteria-check"></div><span>Existing <code>Job.purchaseOrder</code> strings migrated to PurchaseOrder records with <code>type=CustomerPO</code>, <code>status=Issued</code></span></li>
+                <li><div class="criteria-check"></div><span>Multiple POs per job supported &mdash; Job detail shows all linked POs</span></li>
+                <li><div class="criteria-check"></div><span>PO detail page accessible at <code>/purchase-orders/[id]</code> with Overview, Line Items, Invoices, Estimates, Files tabs</span></li>
+                <li><div class="criteria-check"></div><span>PO tab on Company detail page shows all POs for that company</span></li>
+                <li><div class="criteria-check"></div><span><code>CPO-####</code> auto-sequenced numbering per instance</span></li>
+                <li><div class="criteria-check"></div><span>Estimates and Invoices have PO dropdown selector replacing free-text input</span></li>
+                <li><div class="criteria-check"></div><span>When job has single PO, auto-selected in invoice form</span></li>
+                <li><div class="criteria-check"></div><span>When job has multiple POs, user prompted to select</span></li>
+                <li><div class="criteria-check"></div><span><code>PurchaseOrderLineItem.total</code> computed as <code>quantity &times; unitPrice</code> (not stored)</span></li>
+                <li><div class="criteria-check"></div><span>Search Core indexes POs for global search</span></li>
+                <li><div class="criteria-check"></div><span>No regression on existing estimate/invoice PO references after migration</span></li>
+                <li><div class="criteria-check"></div><span>Permission: users need appropriate permission to view/create/edit POs</span></li>
+                <li><div class="criteria-check"></div><span>Validation: <code>poNumber</code> required, <code>type</code> must be valid const value</span></li>
+                <li><div class="criteria-check"></div><span>Notification: none (POs are internal documents at this stage)</span></li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Section 8 -->
+    <div class="uis-section" id="s8">
+        <h2 class="collapsible-toggle open" onclick="toggleSection(this)">
+            8 &middot; Dependencies
+            <span class="toggle-icon">&#9660;</span>
+        </h2>
+        <div class="collapsible-body open">
+
+            <h3>Requires</h3>
+            <p><span class="dep-tag dep-none">None &mdash; ROOT</span> Parallel with MAT-0</p>
+
+            <h3>Enables</h3>
+            <p><a class="dep-tag dep-enables" href="#">MAT-5</a> Supplier PO &mdash; shares PurchaseOrder model</p>
+
+            <h3>Siblings (Parallel)</h3>
+            <p>
+                <span class="dep-tag dep-none">MAT-0</span>
+                <span class="dep-tag dep-none">MAT-2a</span>
+            </p>
+
+            <h3>Parent</h3>
+            <p><a class="dep-tag dep-none" href="release-1.34-timeline.html">Release 1.34 &mdash; Material Management &amp; Supply Chain</a></p>
+
+        </div>
+    </div>
+
+    <div class="uis-footer">
+        MAT-1 &middot; Customer PO Entity &middot; Release 1.34 &mdash; Material Management &amp; Supply Chain
+    </div>
+</div>
+
+<script>
+function toggleSection(el) {
+    el.classList.toggle("open");
+    const body = el.nextElementSibling;
+    if (body) body.classList.toggle("open");
+}
+</script>
+</body>
+</html>

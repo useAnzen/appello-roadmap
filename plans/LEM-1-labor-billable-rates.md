@@ -157,7 +157,7 @@ This component is a **simplified version of `WageRates.tsx`**. Key differences:
 ```
 BillableRates.tsx
 ├── Header: WageRegion selector + Search + Edit button
-├── TabGroup (one tab per rateType where isLineItem=false)
+├── TabGroup (one tab per wage rate multiplier — EmployeeAgreementRateLabel where isLineItem=false, e.g. "1x", "1.5x", "2x")
 │   └── Table per tab
 │       ├── Header row: trade level names as columns
 │       ├── "Cost Rate" row: TradeLevelRate.baseValue (read-only, gray)
@@ -330,7 +330,7 @@ After implementation, verify:
 - [ ] GraphQL playground: `tradeLevelRate(id: "...")` returns `billableValue`
 - [ ] GraphQL playground: `editManyTradeLevelRates` accepts `billableValue` in payload
 - [ ] Billable Rates tab appears after Wage Rates tab on an Employee Agreement Contract
-- [ ] Rate types (Wages, Benefits, etc.) appear as sub-tabs
+- [ ] Rate types (1x, 1.5x, 2x — from EmployeeAgreementRateLabel where isLineItem=false) appear as sub-tabs
 - [ ] Cost Rate row shows read-only values matching Wage Rates tab totals
 - [ ] Billable Rate row is empty (null) for unconfigured rates
 - [ ] Edit mode enables CurrencyInput fields on Billable Rate row

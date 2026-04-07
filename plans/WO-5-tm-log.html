@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WO-5: T&M Work Order Log — Implementation Plan</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Inter', -apple-system, sans-serif; background: #f8fafc; color: #0f172a; }
+.plan-wrap { max-width: 880px; margin: 0 auto; padding: 40px 24px 80px; }
+h1 { font-size: 24px; font-weight: 800; margin: 0 0 16px; }
+h2 { font-size: 18px; font-weight: 700; margin: 28px 0 12px; padding-bottom: 8px; border-bottom: 2px solid #e2e8f0; }
+h3 { font-size: 15px; font-weight: 700; margin: 20px 0 8px; padding-top: 10px; border-top: 1px solid #f1f5f9; }
+p { font-size: 14px; color: #334155; line-height: 1.7; margin: 6px 0; }
+ul, ol { padding-left: 20px; margin: 8px 0; }
+li { font-size: 14px; color: #334155; line-height: 1.7; margin: 3px 0; }
+strong { color: #0f172a; }
+code { font-family: 'SF Mono', monospace; background: #f1f5f9; padding: 1px 6px; border-radius: 4px; font-size: 12px; color: #7c3aed; }
+pre { background: #1e293b; color: #e2e8f0; border-radius: 8px; padding: 16px; overflow-x: auto; font-size: 13px; line-height: 1.6; margin: 12px 0; font-family: 'SF Mono', monospace; }
+pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
+hr { border: none; border-top: 1px solid #e2e8f0; margin: 24px 0; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 12px 0; }
+th { text-align: left; padding: 8px 12px; background: #f1f5f9; border-bottom: 2px solid #e2e8f0; font-weight: 600; }
+td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
+.check-item { display: flex; gap: 8px; align-items: flex-start; padding: 5px 0; }
+.check-box { width: 16px; height: 16px; border: 2px solid #cbd5e1; border-radius: 3px; flex-shrink: 0; margin-top: 2px; }
+.callout { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 14px 18px; margin: 14px 0; font-size: 13px; color: #1e40af; }
+.callout strong { color: #1e3a8a; }
+    </style>
+</head>
+<body>
+<div class="plan-wrap" id="rendered"></div>
+
+<script type="text/plain" id="plan-md">
+# WO-5: T&M Work Order Log — Implementation Plan
+
+## Overview
+
+Extract the existing Jobs list page into a shared component, then reuse it for the Work Orders list with different subModel and status configuration. Pure frontend refactor — no backend changes.
+
+**Estimated effort:** 2-3 days
+**Risk:** Low — refactoring existing working code into a shared component
+**Spec:** `tm-work-orders-uis/uis-20e-tm-log.html`
+**Requires:** WO-1 (JobClassification + sidebar), WO-3d (TableFeed configureColumns for WorkOrder)
+
+---
+
+## Step 1: Extract SharedJobListView
+
+**Create file:** `apps/frontend/src/components/SharedListViews/SharedJobListView.tsx`
+
+Extract the entire `JobListTable` component body from `pages/jobs/index.tsx` into this shared component. Replace all hardcoded values with props.
+
+### What moves out of `pages/jobs/index.tsx`:
+
+- All `useState` hooks (kanbanColumns)
+- `useGetJobLazyQuery` for edit handler
+- Status query (`GetJobStatus` / `GetStatusProperty`) — parameterize `propertyName`
+- `updateJobStatus` mutation
+- `updateCardOrder` mutation
+- `archiveJobs` / `deleteJobs` / `restoreJobs` mutations
+- `relatedDeleteCount` query
+- `updateStatus` handler
+- `handleEdit` handler
+- The `ListTableViews` component with all its props
+
+### Props interface
+
+```typescript
+interface ISharedJobListViewProps {
+    className?: string;
+    subModel: string;
+    statusPropertyName: string;
+    tableName: string;
+    label: string;
+    createButtonText: string;
+    searchPlaceholder: string;
+    detailsRoute: string;
+    breadcrumbs: Array<{ name: string; onClick: () => void }>;
+    sessionFilterName: string;
+}
+```
+
+### Key parameterizations in the extracted component
+
+```typescript
+// ListTableViews props that change:
+<ListTableViews<GqlJob>
+    referenceModel="Job"
+    subModel={subModel}                    // was hardcoded "Job"
+    tableName={tableName}                  // was "Jobs"
+    label={label}                          // was "Jobs"
+    searchPlaceholder={searchPlaceholder}  // was job-focused text
+    createButtonText={createButtonText}    // was "Create Job"
+    sessionFilterName={sessionFilterName}  // was "jobs"
+    // ... rest unchanged
+/>
+
+// Status query — parameterize propertyName:
+useQuery(GET_STATUS_PROPERTY, {
+    variables: { propertyName: statusPropertyName }  // was "job status"
+});
+
+// Kanban card detailsLink:
+cardContentLayout={(item) => ({
+    title: `${item.fullJobNumber} - ${item.name}`,
+    content: (...),
+    detailsLink: `${detailsRoute}/${item.id}?tab=overview`  // was `/jobs/${item.id}`
+})}
+
+// Create button — open DataModelForm with correct subModel:
+createButtonClick={(callback) =>
+    openFlyout(
+        <JobAddEditForm
+            formType={"CREATE" as GqlDataModelFormType}
+            subModel={subModel}        // NEW — determines which DAAs load
+            onCanceled={closeFlyout}
+            onSaved={() => {
+                closeFlyout();
+                callback();
+            }}
+        />
+    )
+}
+```
+
+### JobNowClosedModal consideration
+
+The existing Jobs page uses `JobNowClosedModal` for archive confirmation and status-change-to-done handling. This should still work for Work Orders since it operates on the Job model. However, if the modal text is job-specific ("Job is now complete"), it may need parameterization. Evaluate during implementation — for v1 the same text is fine.
+
+---
+
+## Step 2: Refactor Jobs Page to Use SharedJobListView
+
+**File:** `apps/frontend/src/pages/jobs/index.tsx`
+
+Replace the entire `JobListTable` component body with:
+
+```typescript
+import { SharedJobListView } from "~root/components/SharedListViews/SharedJobListView";
+
+const JobListTable: FC<JobListProps> = ({ className = "" }) => {
+    const router = useRouter();
+
+    return (
+        <SharedJobListView
+            className={className}
+            subModel="PROJECT_JOB"
+            statusPropertyName="job status"
+            tableName="Jobs"
+            label="Jobs"
+            createButtonText="Create Job"
+            searchPlaceholder="Search Name, Job #, Project Name, Status, Job Type"
+            detailsRoute="/jobs"
+            breadcrumbs={[
+                { name: "Home", onClick: () => router.push("/") },
+                { name: "Jobs", onClick: () => router.push("/jobs") }
+            ]}
+            sessionFilterName="jobs"
+        />
+    );
+};
+```
+
+**Verify:** The refactored Jobs page should be functionally identical to the current page. Test table view, kanban view, search, filters, create, edit, archive, delete, restore, CSV export, inline status update, and kanban drag.
+
+---
+
+## Step 3: Create Work Orders List Page
+
+**Create file:** `apps/frontend/src/pages/work-orders/index.tsx`
+
+```typescript
+import { FC } from "react";
+import { useRouter } from "next/router";
+import { SharedJobListView } from "~root/components/SharedListViews/SharedJobListView";
+import { PageTitle } from "~root/components";
+
+const WorkOrderListPage: FC = () => {
+    const router = useRouter();
+
+    return (
+        <>
+            <PageTitle title="Work Orders" />
+            <SharedJobListView
+                subModel="WORK_ORDER"
+                statusPropertyName="workOrderStatus"
+                tableName="Work Orders"
+                label="Work Orders"
+                createButtonText="Create Work Order"
+                searchPlaceholder="Search WO #, Description, Company, Status, Type"
+                detailsRoute="/work-orders"
+                breadcrumbs={[
+                    { name: "Home", onClick: () => router.push("/") },
+                    { name: "Work Orders", onClick: () => router.push("/work-orders") }
+                ]}
+                sessionFilterName="workOrders"
+            />
+        </>
+    );
+};
+
+export default WorkOrderListPage;
+```
+
+That's it. The `SharedJobListView` handles everything — table, kanban, CRUD, search, filters, CSV, status updates — all scoped to WORK_ORDER via the subModel prop.
+
+---
+
+## Step 4: JobAddEditForm subModel Prop
+
+The create button in `SharedJobListView` opens `JobAddEditForm`. This form needs to know the subModel so it loads the correct DAAs (WORK_ORDER vs PROJECT_JOB).
+
+**Check:** If `JobAddEditForm` (from PR #6831) already accepts a `subModel` prop and passes it to the DataModelForm, no change needed. If not, add it:
+
+```typescript
+// In JobAddEditForm:
+interface IJobAddEditFormProps {
+    // ... existing props
+    subModel?: string;  // passed through to DataModelForm
+}
+```
+
+For the Work Orders create flow, the form should also:
+- Pre-select a WORK_ORDER-classified jobType if only one exists
+- Load WORK_ORDER DAAs (dateOfWork, labor items, etc.)
+
+---
+
+## Verification Checklist
+
+- [ ] `SharedJobListView` component extracted with all list functionality
+- [ ] Jobs page refactored to use `SharedJobListView` with `subModel="PROJECT_JOB"`
+- [ ] Jobs page: table view works identically to before
+- [ ] Jobs page: kanban view works with existing job statuses
+- [ ] Jobs page: search, filters, archive, delete, restore all work
+- [ ] Jobs page: create opens DataModelForm for PROJECT_JOB
+- [ ] Jobs page: CSV export works
+- [ ] Jobs page: inline status update works
+- [ ] Jobs page: kanban drag reorder works
+- [ ] Work Orders page at `/work-orders` renders with `subModel="WORK_ORDER"`
+- [ ] WO list shows only WORK_ORDER-classified jobs
+- [ ] WO Kanban columns from `workOrderStatus` PropertyValues (Draft, Submitted, etc.)
+- [ ] WO create button opens DataModelForm with WORK_ORDER subModel
+- [ ] WO detail links navigate to `/work-orders/[id]`
+- [ ] WO search, filters, archive, delete, restore all work
+- [ ] WO CSV export works
+- [ ] WO inline status update uses WO statuses
+- [ ] No regression on Jobs list functionality
+
+---
+
+## Files Summary
+
+| Action | File | What to do |
+|--------|------|------------|
+| CREATE | `apps/frontend/src/components/SharedListViews/SharedJobListView.tsx` | Extracted from `pages/jobs/index.tsx`. All ListTableViews config, mutations, handlers parameterized by props. |
+| CREATE | `apps/frontend/src/pages/work-orders/index.tsx` | Renders `SharedJobListView` with WORK_ORDER params. |
+| MODIFY | `apps/frontend/src/pages/jobs/index.tsx` | Refactored to use `SharedJobListView` with PROJECT_JOB params. |
+| MODIFY (if needed) | `JobAddEditForm` | Add optional `subModel` prop if not already present from PR #6831 |
+</script>
+
+<script>
+(function() {
+    var md = document.getElementById('plan-md').textContent;
+    var target = document.getElementById('rendered');
+    var html = md
+        .replace(/```(\w*)\n([\s\S]*?)```/g, function(_, lang, code) {
+            return '<pre><code>' + code.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</code></pre>';
+        })
+        .replace(/`([^`\n]+)`/g, '<code>$1</code>')
+        .replace(/^#### (.+)$/gm, '<h4>$1</h4>')
+        .replace(/^### (.+)$/gm, '<h3>$1</h3>')
+        .replace(/^## (.+)$/gm, '<h2>$1</h2>')
+        .replace(/^# (.+)$/gm, '<h1>$1</h1>')
+        .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\*(.+?)\*/g, '<em>$1</em>')
+        .replace(/^---$/gm, '<hr>');
+    html = html.replace(/^- \[ \] (.+)$/gm, '<div class="check-item"><div class="check-box"></div><span>$1</span></div>');
+    html = html.replace(/(\|.+\|\n)+/g, function(table) {
+        var rows = table.trim().split('\n');
+        if (rows.length < 2) return table;
+        var headers = rows[0].split('|').filter(function(c) { return c.trim(); });
+        var isSep = /^[\s|:\-]+$/.test(rows[1]);
+        var start = isSep ? 2 : 1;
+        var out = '<table><thead><tr>';
+        headers.forEach(function(h) { out += '<th>' + h.trim() + '</th>'; });
+        out += '</tr></thead><tbody>';
+        for (var i = start; i < rows.length; i++) {
+            var cells = rows[i].split('|').filter(function(c) { return c.trim(); });
+            out += '<tr>'; cells.forEach(function(c) { out += '<td>' + c.trim() + '</td>'; }); out += '</tr>';
+        }
+        out += '</tbody></table>';
+        return out;
+    });
+    html = html.replace(/^- (.+)$/gm, '<li>$1</li>');
+    html = html.replace(/(<li>[\s\S]*?<\/li>\n?)+/g, function(m) { return '<ul>' + m + '</ul>'; });
+    html = html.replace(/^(?!<[hultdps\/<]|<\/|<code|<pre|<hr|<div|<strong|<em)(.+)$/gm, '<p>$1</p>');
+    target.innerHTML = html;
+})();
+</script>
+</body>
+</html>

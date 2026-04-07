@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UIS-LEM-1: Labor Billable Rates</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Inter', -apple-system, sans-serif; background: #f1f5f9; color: #0f172a; }
+.uis-wrap { max-width: 960px; margin: 0 auto; padding: 40px 24px 80px; }
+.uis-hero { margin-bottom: 32px; }
+.uis-badges { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+.uis-badge { font-size: 11px; font-weight: 700; padding: 4px 12px; border-radius: 6px; display: inline-flex; align-items: center; gap: 5px; }
+.badge-q { background: #0f172a; color: #fff; }
+.badge-lane { background: #10b981; color: #fff; }
+.badge-status { background: #fef3c7; color: #92400e; }
+.badge-priority { background: #fee2e2; color: #dc2626; }
+.badge-child { background: #7c3aed; color: #fff; }
+.badge-prereq { background: #3b82f6; color: #fff; }
+.uis-h1 { font-size: 30px; font-weight: 800; color: #0f172a; margin: 0 0 8px; letter-spacing: -0.01em; }
+.uis-sub { font-size: 15px; color: #64748b; line-height: 1.5; margin: 0; }
+.uis-meta { display: flex; gap: 24px; flex-wrap: wrap; margin-top: 14px; font-size: 13px; color: #64748b; }
+.uis-meta strong { color: #0f172a; }
+.uis-toc { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px 28px; margin-bottom: 16px; }
+.uis-toc h3 { font-size: 13px; font-weight: 700; color: #0f172a; margin: 0 0 10px; text-transform: uppercase; letter-spacing: 0.5px; }
+.uis-toc ol { margin: 0; padding-left: 20px; }
+.uis-toc li { font-size: 14px; color: #3b82f6; margin-bottom: 4px; }
+.uis-toc a { color: #3b82f6; text-decoration: none; }
+.uis-section { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px 28px; margin-bottom: 16px; }
+.uis-section h2 { font-size: 17px; font-weight: 700; color: #0f172a; margin: 0 0 14px; padding-bottom: 10px; border-bottom: 2px solid #e2e8f0; }
+.uis-section h3 { font-size: 15px; font-weight: 700; color: #0f172a; margin: 16px 0 8px; }
+.uis-section p, .uis-section li { font-size: 14px; color: #334155; line-height: 1.65; }
+.uis-section ul, .uis-section ol { padding-left: 20px; margin: 8px 0; }
+.customer-quote { background: #fef3c7; border-left: 3px solid #f59e0b; padding: 12px 16px; border-radius: 0 8px 8px 0; margin: 14px 0; font-style: italic; font-size: 14px; color: #92400e; }
+.customer-quote .attribution { font-style: normal; font-weight: 600; display: block; margin-top: 6px; }
+pre { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; overflow-x: auto; font-size: 13px; line-height: 1.5; font-family: monospace; color: #334155; }
+table.schema-table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 12px 0; }
+table.schema-table th { text-align: left; padding: 8px 12px; background: #f8fafc; border-bottom: 2px solid #e2e8f0; font-weight: 600; }
+table.schema-table td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; }
+table.schema-table code { font-family: monospace; background: #f1f5f9; padding: 1px 5px; border-radius: 3px; font-size: 12px; color: #7c3aed; }
+.blast-summary { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 16px 20px; margin-bottom: 16px; }
+.blast-row { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; }
+.blast-row:not(:last-child) { border-bottom: 1px solid #f1f5f9; }
+.blast-label { font-size: 13px; color: #64748b; }
+.blast-value { font-size: 13px; font-weight: 700; color: #0f172a; }
+.action-new { background: #dcfce7; color: #166534; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 4px; }
+.action-mod { background: #fef3c7; color: #92400e; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 4px; }
+.criteria-list { list-style: none; padding: 0; }
+.criteria-list li { padding: 8px 0; border-bottom: 1px solid #f1f5f9; display: flex; gap: 10px; align-items: flex-start; font-size: 14px; color: #334155; }
+.criteria-list li:last-child { border-bottom: none; }
+.criteria-check { width: 18px; height: 18px; border: 2px solid #cbd5e1; border-radius: 4px; flex-shrink: 0; margin-top: 1px; }
+.dep-tag { display: inline-block; font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 5px; margin-right: 6px; margin-bottom: 6px; text-decoration: none; }
+.dep-requires { background: #fee2e2; color: #dc2626; }
+.dep-enables { background: #dcfce7; color: #166534; }
+.mockup-container { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; margin: 14px 0; }
+.mockup-bar { background: #f1f5f9; padding: 8px 14px; font-size: 12px; font-weight: 600; color: #64748b; border-bottom: 1px solid #e2e8f0; display: flex; align-items: center; gap: 8px; }
+.mockup-dots { display: flex; gap: 5px; }
+.mockup-dot { width: 8px; height: 8px; border-radius: 50%; }
+.mockup-dot-r { background: #f87171; }
+.mockup-dot-y { background: #fbbf24; }
+.mockup-dot-g { background: #34d399; }
+.mockup-body { padding: 24px; min-height: 200px; font-size: 13px; color: #334155; line-height: 1.6; }
+.scope-tag { display: inline-block; font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 5px; margin-right: 6px; }
+.scope-in { background: #dcfce7; color: #166534; }
+.scope-out { background: #fee2e2; color: #dc2626; }
+.mockup-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.mockup-table th { background: #e2e8f0; padding: 8px; text-align: left; font-weight: 600; border: 1px solid #cbd5e1; }
+.mockup-table td { padding: 8px; border: 1px solid #e2e8f0; }
+.mockup-table .sticky-col { background: #f8fafc; font-weight: 600; position: sticky; left: 0; }
+.mockup-table .readonly { background: #f1f5f9; color: #64748b; }
+.mockup-table .editable { background: #fff; }
+.mockup-input { border: 1px solid #cbd5e1; border-radius: 4px; padding: 4px 8px; width: 80px; font-size: 12px; text-align: right; }
+.rate-compare { display: flex; gap: 4px; align-items: center; font-size: 11px; }
+.rate-compare .cost { color: #64748b; }
+.rate-compare .bill { color: #0f172a; font-weight: 600; }
+.rate-compare .margin { font-size: 10px; padding: 1px 6px; border-radius: 3px; }
+.margin-pos { background: #dcfce7; color: #166534; }
+.margin-neg { background: #fee2e2; color: #dc2626; }
+</style>
+</head>
+<body>
+<div class="uis-wrap">
+
+    <!-- Hero -->
+    <div class="uis-hero">
+        <div class="uis-badges">
+            <span class="uis-badge badge-q">LEM-1</span>
+            <span class="uis-badge badge-prereq">Prerequisite</span>
+            <span class="uis-badge badge-priority">P0 - Foundation</span>
+            <span class="uis-badge badge-status">Draft</span>
+        </div>
+        <h1 class="uis-h1">Labor Billable Rates</h1>
+        <p class="uis-sub">Add per-trade-level billable rates to Employment Agreements, enabling automated pricing on Work Order labor line items, T&amp;M invoicing, and LEM sheet generation.</p>
+        <div class="uis-meta">
+            <span><strong>Estimate:</strong> 2-3 days</span>
+            <span><strong>Sequence:</strong> 1 of 3 (LEM Foundation)</span>
+            <span><strong>Enables:</strong> UIS-20b Line Items, UIS-15B Equipment Invoicing</span>
+            <span><strong>New files:</strong> ~4</span>
+            <span><strong>Modified files:</strong> ~6</span>
+        </div>
+    </div>
+
+    <!-- TOC -->
+    <div class="uis-toc">
+        <h3>Contents</h3>
+        <ol>
+            <li><a href="#business-case">Business Case</a></li>
+            <li><a href="#current-state">Current State Analysis</a></li>
+            <li><a href="#data-model">Data Model Changes</a></li>
+            <li><a href="#api-surface">API Surface</a></li>
+            <li><a href="#ui-spec">UI Specification</a></li>
+            <li><a href="#ui-mockup">UI Mockup</a></li>
+            <li><a href="#change-surface">Change Surface</a></li>
+            <li><a href="#acceptance-criteria">Acceptance Criteria</a></li>
+            <li><a href="#dependencies">Dependencies</a></li>
+        </ol>
+    </div>
+
+    <!-- 1. Business Case -->
+    <div class="uis-section" id="business-case">
+        <h2>1. Business Case</h2>
+        <p>Work Orders, T&amp;M invoicing, and LEM sheet generation all require knowing what to <strong>bill the client</strong> for each trade classification at single time, time-and-a-half, and double time. Today, Employment Agreements only store <em>cost rates</em> (what the worker gets paid). Without structured billable rate data, Work Order line items would require manual fill-in-the-blank pricing &mdash; defeating the purpose of automation.</p>
+
+        <div class="customer-quote">
+            "We have their costs at single time, time and half, double time. But what do we bill them out at? So that way, if a work order is Corey Shelson and today I'm working as a journeyman, then it's going to pull my billable rate automatically."
+            <span class="attribution">&mdash; Corey Shelson, March 30, 2026</span>
+        </div>
+
+        <h3>Why This Must Come First</h3>
+        <ul>
+            <li><strong>Work Order Line Items (UIS-20b)</strong> need to auto-populate billable rates when a trade level is selected</li>
+            <li><strong>Equipment Invoicing (UIS-15B)</strong> establishes the cost-plus billing pattern that labor will follow</li>
+            <li><strong>LEM Sheets</strong> require labor billing rates alongside equipment and material rates to generate complete reports</li>
+            <li>Without structured labor rates, "how do you build a work order if all your fields are just fill-in-the-blank fields with text?"</li>
+        </ul>
+    </div>
+
+    <!-- 2. Current State Analysis -->
+    <div class="uis-section" id="current-state">
+        <h2>2. Current State Analysis</h2>
+
+        <h3>Existing Wage Rate Architecture</h3>
+        <p>The Employment Agreement system already has a sophisticated rate management structure:</p>
+
+        <table class="schema-table">
+            <thead>
+                <tr>
+                    <th>Model</th>
+                    <th>Role</th>
+                    <th>Key Fields</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><code>EmployeeAgreement</code></td>
+                    <td>Parent agreement (e.g., "UA Local 488")</td>
+                    <td>id, name</td>
+                </tr>
+                <tr>
+                    <td><code>EmployeeAgreementContract</code></td>
+                    <td>Versioned contract with effective date</td>
+                    <td>id, effectiveDate, employeeAgreementId</td>
+                </tr>
+                <tr>
+                    <td><code>EmployeeAgreementRateLabel</code></td>
+                    <td>Rate categories: <em>Rate Types</em> (isLineItem=false, e.g., "Wages", "Benefits") and <em>Line Items</em> (isLineItem=true, e.g., "Base Wage", "Vacation Pay")</td>
+                    <td>id, name, isLineItem, isEmployerExpense, wageRegionId</td>
+                </tr>
+                <tr>
+                    <td><code>TradeLevel</code></td>
+                    <td>Trade classifications (e.g., "Journeyman", "1st Year Apprentice")</td>
+                    <td>id, name, orderNo, hourlyWage</td>
+                </tr>
+                <tr>
+                    <td><code>TradeLevelRate</code></td>
+                    <td>Junction: one per (Contract + TradeLevel + RateLabel) combination. Stores <code>baseValue</code> = total of all employer-expense line items.</td>
+                    <td>id, <strong>baseValue</strong>, tradeLevelId, employeeAgreementContractId, employeeAgreementRateLabelId</td>
+                </tr>
+                <tr>
+                    <td><code>EmployeeAgreementRateLineItem</code></td>
+                    <td>Individual rate breakdown items per wage region</td>
+                    <td>id, baseValue, tradeLevelRateId, wageRegionId, employeeAgreementRateLabelId</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h3>What's Missing</h3>
+        <p>The <code>TradeLevelRate</code> model has <code>baseValue</code> (the cost rate) but <strong>no field for what the client gets billed</strong>. This is the gap we're filling.</p>
+
+        <h3>Current Tab Structure (Employee Agreement Contract Detail Page)</h3>
+        <ol>
+            <li>Wage Rates &mdash; <code>WageRates.tsx</code></li>
+            <li>Travel &amp; Board Rates &mdash; <code>RateCards.tsx</code></li>
+            <li>Overtime Rules &mdash; <code>OvertimeRuleSets.tsx</code></li>
+            <li>Holiday Rates &mdash; <code>EmployeeAgreementHolidayRates.tsx</code></li>
+            <li>Break Time Allowances &mdash; <code>BreakTimeAllowances.tsx</code> (feature-flagged)</li>
+        </ol>
+        <p>The new <strong>Billable Rates</strong> tab will be inserted as tab 2, directly after Wage Rates.</p>
+    </div>
+
+    <!-- 3. Data Model Changes -->
+    <div class="uis-section" id="data-model">
+        <h2>3. Data Model Changes</h2>
+
+        <h3>Schema Change: TradeLevelRate</h3>
+        <p>Add a single field to the existing model:</p>
+
+<pre>
+// apps/api/prisma/schema.prisma
+model TradeLevelRate {
+    // ... existing fields ...
+    baseValue                    Decimal        @db.Decimal(10, 2)
++   billableValue                Decimal?       @db.Decimal(10, 2)
+    // ... existing relations ...
+}
+</pre>
+
+        <table class="schema-table">
+            <thead>
+                <tr>
+                    <th>Field</th>
+                    <th>Type</th>
+                    <th>Nullable</th>
+                    <th>Default</th>
+                    <th>Notes</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><code>billableValue</code></td>
+                    <td>Decimal(10, 2)</td>
+                    <td>Yes</td>
+                    <td>null</td>
+                    <td>The per-hour billable rate for this trade level at this rate type (ST/OT/DT). Null means "not configured" &mdash; UI shows empty cell rather than $0.</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h3>Migration SQL</h3>
+<pre>
+-- Add billable rate column to TradeLevelRate
+ALTER TABLE `TradeLevelRate` ADD COLUMN `billableValue` DECIMAL(10, 2) NULL;
+</pre>
+
+        <h3>Why on TradeLevelRate (not a new table)?</h3>
+        <ul>
+            <li>There is a 1:1 relationship between a cost rate and its billable rate for a given (Contract + TradeLevel + RateType) combination</li>
+            <li>The existing <code>initializeTradeLevelRates</code> mutation already creates all the TradeLevelRate rows &mdash; the billableValue field is simply null until configured</li>
+            <li>The <code>duplicateManyItemsForNewContract</code> model method will automatically carry billableValue to new contracts with zero extra work</li>
+            <li>The <code>editManyTradeLevelRates</code> mutation already handles batch updates &mdash; we extend it to accept billableValue</li>
+            <li>Simpler query path for Work Order line items: one join to TradeLevelRate gets both cost and billable rate</li>
+        </ul>
+    </div>
+
+    <!-- 4. API Surface -->
+    <div class="uis-section" id="api-surface">
+        <h2>4. API Surface</h2>
+
+        <h3>GraphQL Type Extension</h3>
+<pre>
+# Extend existing TradeLevelRate type
+type TradeLevelRate {
+    # ... existing fields ...
+    billableValue: Float    # New
+}
+</pre>
+
+        <h3>Input Type Extension</h3>
+<pre>
+# Extend existing EditTradeLevelRate input
+input EditTradeLevelRate {
+    id: ID!
+    baseValue: Float        # Existing
+    billableValue: Float    # New
+}
+</pre>
+
+        <h3>Existing Mutations (Modified)</h3>
+        <table class="schema-table">
+            <thead>
+                <tr>
+                    <th>Mutation</th>
+                    <th>Change</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><code>editTradeLevelRate(data: EditTradeLevelRate!)</code></td>
+                    <td>Accept optional <code>billableValue</code> in input</td>
+                </tr>
+                <tr>
+                    <td><code>editManyTradeLevelRates(data: [EditTradeLevelRate!]!)</code></td>
+                    <td>Accept optional <code>billableValue</code> per item in batch</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h3>Existing Queries (Modified)</h3>
+        <table class="schema-table">
+            <thead>
+                <tr>
+                    <th>Query</th>
+                    <th>Change</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><code>employeeAgreementContract(id: ID!)</code></td>
+                    <td>TradeLevelRates already returned; <code>billableValue</code> automatically available via type extension</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h3>No New Endpoints Needed</h3>
+        <p>The Billable Rates tab reuses the exact same query and mutation pattern as the Wage Rates tab. The only backend change is adding the field to the schema, type, and model.</p>
+    </div>
+
+    <!-- 5. UI Specification -->
+    <div class="uis-section" id="ui-spec">
+        <h2>5. UI Specification</h2>
+
+        <h3>New Component: <code>BillableRates.tsx</code></h3>
+        <p>Location: <code>apps/frontend/src/components/DetailsPage/EmployeeContract/Tabs/BillableRates.tsx</code></p>
+
+        <h3>Layout</h3>
+        <p>Mirrors the Wage Rates tab structure but is <strong>simpler</strong> &mdash; no line item breakdown, just the summary rate per trade level alongside the editable billable rate.</p>
+
+        <h3>Header Row</h3>
+        <ul>
+            <li><strong>Wage Region selector</strong> &mdash; same <code>CustomCombobox</code> as Wage Rates tab</li>
+            <li><strong>Search field</strong> &mdash; filter trade classifications by name</li>
+            <li><strong>Edit button</strong> &mdash; toggles edit mode (only on active/future contracts)</li>
+        </ul>
+
+        <h3>Tab Group</h3>
+        <p>Uses existing <code>TabGroup</code> component. One sub-tab per Rate Type (EmployeeAgreementRateLabel where <code>isLineItem = false</code>). Typical tabs: <strong>Wages</strong>, <strong>Benefits</strong>, etc.</p>
+
+        <h3>Rate Table (per sub-tab)</h3>
+        <table class="schema-table">
+            <thead>
+                <tr>
+                    <th>Column</th>
+                    <th>Source</th>
+                    <th>Editable</th>
+                    <th>Notes</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Row header (sticky left)</td>
+                    <td>&mdash;</td>
+                    <td>No</td>
+                    <td>Two rows: "Cost Rate" (read-only) and "Billable Rate" (editable)</td>
+                </tr>
+                <tr>
+                    <td>Trade Level columns</td>
+                    <td><code>TradeLevel.name</code></td>
+                    <td>No</td>
+                    <td>Column headers, sorted by orderNo then name</td>
+                </tr>
+                <tr>
+                    <td>Cost Rate cell</td>
+                    <td><code>TradeLevelRate.baseValue</code></td>
+                    <td>No</td>
+                    <td>Read-only, styled as muted/gray. Shows total employer cost per hour.</td>
+                </tr>
+                <tr>
+                    <td>Billable Rate cell</td>
+                    <td><code>TradeLevelRate.billableValue</code></td>
+                    <td>Yes (in edit mode)</td>
+                    <td><code>CurrencyInput</code> with 2 decimal places. Empty when null.</td>
+                </tr>
+                <tr>
+                    <td>Margin indicator</td>
+                    <td>Computed: <code>(billableValue - baseValue) / baseValue * 100</code></td>
+                    <td>No</td>
+                    <td>Small badge showing markup %. Green when positive, red when negative. Only shown when both values exist.</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h3>Edit Mode Behavior</h3>
+        <ul>
+            <li>Click edit icon &rarr; all Billable Rate cells become editable <code>CurrencyInput</code> fields</li>
+            <li><code>ExitPageWarning</code> footer bar appears (same pattern as Wage Rates)</li>
+            <li>Cancel &rarr; reverts all changes</li>
+            <li>Save &rarr; calls <code>editManyTradeLevelRates</code> with changed billableValue entries</li>
+            <li>No timesheet change impact dialog needed (billable rates don't retroactively affect timesheets &mdash; they're forward-looking for new Work Orders)</li>
+        </ul>
+
+        <h3>Copy From Default Behavior</h3>
+        <ul>
+            <li>When on a non-default wage region, "Update From Default" copies <strong>both</strong> baseValue and billableValue from the default region's TradeLevelRates</li>
+            <li>This requires updating the existing <code>copyDefaultWageTable</code> mutation to also copy billableValue</li>
+        </ul>
+
+        <h3>Permissions</h3>
+        <ul>
+            <li>Tab visibility: <code>hasPermissions({ EmployeeAgreementContract: { view: true } }, permissions)</code></li>
+            <li>Edit access: only on active or future-dated contracts (same gate as Wage Rates edit button)</li>
+        </ul>
+    </div>
+
+    <!-- 6. UI Mockup -->
+    <div class="uis-section" id="ui-mockup">
+        <h2>6. UI Mockup</h2>
+
+        <div class="mockup-container">
+            <div class="mockup-bar">
+                <div class="mockup-dots">
+                    <div class="mockup-dot mockup-dot-r"></div>
+                    <div class="mockup-dot mockup-dot-y"></div>
+                    <div class="mockup-dot mockup-dot-g"></div>
+                </div>
+                Employee Agreement &rsaquo; Contract &rsaquo; <strong>Billable Rates</strong> tab
+            </div>
+            <div class="mockup-body">
+                <div style="display:flex; gap:12px; align-items:center; margin-bottom:16px;">
+                    <div style="background:#e2e8f0; border-radius:6px; padding:8px 16px; width:280px; font-size:12px; color:#64748b;">Select Wage Region &nbsp; &#9662;</div>
+                    <div style="background:#e2e8f0; border-radius:6px; padding:8px 16px; width:240px; font-size:12px; color:#64748b;">&#128269; Search Trade Classifications</div>
+                    <div style="flex:1;"></div>
+                    <div style="background:#3b82f6; color:#fff; border-radius:6px; padding:6px 12px; font-size:12px; font-weight:600; cursor:pointer;">&#9998;</div>
+                </div>
+
+                <div style="display:flex; gap:0; margin-bottom:16px; border-bottom:2px solid #e2e8f0;">
+                    <div style="padding:8px 16px; font-size:13px; font-weight:600; border-bottom:2px solid #3b82f6; color:#3b82f6; margin-bottom:-2px;">Wages</div>
+                    <div style="padding:8px 16px; font-size:13px; color:#64748b;">Benefits</div>
+                </div>
+
+                <div style="overflow-x:auto;">
+                    <table class="mockup-table">
+                        <thead>
+                            <tr>
+                                <th class="sticky-col" style="min-width:140px;">Wages Rate Table</th>
+                                <th style="min-width:120px;">Journeyman</th>
+                                <th style="min-width:120px;">Foreman</th>
+                                <th style="min-width:120px;">3rd Yr Apprentice</th>
+                                <th style="min-width:120px;">2nd Yr Apprentice</th>
+                                <th style="min-width:120px;">1st Yr Apprentice</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td class="sticky-col">Cost Rate</td>
+                                <td class="readonly">$78.23</td>
+                                <td class="readonly">$85.50</td>
+                                <td class="readonly">$62.18</td>
+                                <td class="readonly">$52.45</td>
+                                <td class="readonly">$42.10</td>
+                            </tr>
+                            <tr>
+                                <td class="sticky-col">Billable Rate</td>
+                                <td class="editable"><input class="mockup-input" value="$95.00" /></td>
+                                <td class="editable"><input class="mockup-input" value="$105.00" /></td>
+                                <td class="editable"><input class="mockup-input" value="$80.00" /></td>
+                                <td class="editable"><input class="mockup-input" value="$68.00" /></td>
+                                <td class="editable"><input class="mockup-input" value="" placeholder="&mdash;" /></td>
+                            </tr>
+                            <tr>
+                                <td class="sticky-col" style="font-size:11px; color:#64748b;">Margin</td>
+                                <td style="font-size:11px;"><span class="margin-pos" style="padding:1px 6px; border-radius:3px; font-weight:600;">+21.4%</span></td>
+                                <td style="font-size:11px;"><span class="margin-pos" style="padding:1px 6px; border-radius:3px; font-weight:600;">+22.8%</span></td>
+                                <td style="font-size:11px;"><span class="margin-pos" style="padding:1px 6px; border-radius:3px; font-weight:600;">+28.7%</span></td>
+                                <td style="font-size:11px;"><span class="margin-pos" style="padding:1px 6px; border-radius:3px; font-weight:600;">+29.6%</span></td>
+                                <td style="font-size:11px; color:#94a3b8;">&mdash;</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div style="margin-top: 12px; font-size: 11px; color: #94a3b8;">
+                    Cost Rate is read-only (managed in Wage Rates tab). Billable Rate is what the client will be charged on Work Orders and T&amp;M invoices.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 7. Change Surface -->
+    <div class="uis-section" id="change-surface">
+        <h2>7. Change Surface</h2>
+
+        <div class="blast-summary">
+            <div class="blast-row"><span class="blast-label">Total new files</span><span class="blast-value">~4</span></div>
+            <div class="blast-row"><span class="blast-label">Total modified files</span><span class="blast-value">~6</span></div>
+            <div class="blast-row"><span class="blast-label">Risk level</span><span class="blast-value">Low &mdash; additive column, no existing behavior changes</span></div>
+        </div>
+
+        <h3>New Files</h3>
+        <table class="schema-table">
+            <thead>
+                <tr><th>File</th><th>Type</th><th>Purpose</th></tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><code>apps/api/prisma/migrations/[timestamp]_add_billable_value_to_trade_level_rate/migration.sql</code></td>
+                    <td><span class="action-new">NEW</span> Migration</td>
+                    <td>Add <code>billableValue</code> column to TradeLevelRate table</td>
+                </tr>
+                <tr>
+                    <td><code>apps/frontend/src/components/DetailsPage/EmployeeContract/Tabs/BillableRates.tsx</code></td>
+                    <td><span class="action-new">NEW</span> Component</td>
+                    <td>Billable Rates tab component</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h3>Modified Files</h3>
+        <table class="schema-table">
+            <thead>
+                <tr><th>File</th><th>Change</th></tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><code>apps/api/prisma/schema.prisma</code></td>
+                    <td>Add <code>billableValue Decimal? @db.Decimal(10, 2)</code> to TradeLevelRate model</td>
+                </tr>
+                <tr>
+                    <td><code>apps/api/src/graphql/models/TradeLevelRate.ts</code></td>
+                    <td>Add <code>billableValue: Float</code> to type definition and <code>EditTradeLevelRate</code> input</td>
+                </tr>
+                <tr>
+                    <td><code>apps/api/src/models/TradeLevelRate.ts</code></td>
+                    <td>Add <code>billableValue</code> to <code>modelFields</code>. Update <code>duplicateManyItemsForNewContract</code> to include billableValue when copying rates.</td>
+                </tr>
+                <tr>
+                    <td><code>apps/api/src/types/TradeLevel.types.ts</code></td>
+                    <td>Add <code>billableValue?: number</code> to <code>ITradeLevelRate</code> interface</td>
+                </tr>
+                <tr>
+                    <td><code>apps/frontend/src/components/DetailsPage/EmployeeContract/index.tsx</code></td>
+                    <td>Import <code>BillableRates</code> and add to tabs array after Wage Rates</td>
+                </tr>
+                <tr>
+                    <td><code>apps/api/src/models/TradeLevelRate.ts</code> (copyDefaultWageTable model method, if it exists there or in a related file)</td>
+                    <td>Ensure <code>copyDefaultWageTable</code> mutation copies billableValue alongside baseValue</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- 8. Acceptance Criteria -->
+    <div class="uis-section" id="acceptance-criteria">
+        <h2>8. Acceptance Criteria</h2>
+        <ul class="criteria-list">
+            <li><div class="criteria-check"></div><strong>Billable Rates tab visible</strong> on Employee Agreement Contract detail page, positioned after Wage Rates tab</li>
+            <li><div class="criteria-check"></div><strong>Sub-tabs match rate types</strong> &mdash; one tab per EmployeeAgreementRateLabel where isLineItem = false (e.g., Wages, Benefits)</li>
+            <li><div class="criteria-check"></div><strong>Cost Rate row displays read-only</strong> baseValue from TradeLevelRate (same value shown as total in Wage Rates tab)</li>
+            <li><div class="criteria-check"></div><strong>Billable Rate row is editable</strong> in edit mode using CurrencyInput with 2 decimal places</li>
+            <li><div class="criteria-check"></div><strong>Margin row auto-calculates</strong> markup percentage when both cost and billable values exist. Shows green for positive margin, red for negative.</li>
+            <li><div class="criteria-check"></div><strong>Wage Region selector</strong> filters rates by region (same behavior as Wage Rates tab)</li>
+            <li><div class="criteria-check"></div><strong>Trade Classification search</strong> filters columns by name</li>
+            <li><div class="criteria-check"></div><strong>Save persists via editManyTradeLevelRates</strong> mutation &mdash; only changed billableValue entries are submitted</li>
+            <li><div class="criteria-check"></div><strong>Null billableValue renders as empty cell</strong>, not $0.00 &mdash; distinguishing "not configured" from "free"</li>
+            <li><div class="criteria-check"></div><strong>Copy From Default</strong> copies billableValue alongside baseValue when updating a non-default wage region</li>
+            <li><div class="criteria-check"></div><strong>Contract duplication</strong> carries billableValue to new contracts (existing duplicateManyItemsForNewContract method)</li>
+            <li><div class="criteria-check"></div><strong>Edit button only visible</strong> on active or future-dated contracts</li>
+            <li><div class="criteria-check"></div><strong>ExitPageWarning</strong> appears when unsaved changes exist, with correct change count</li>
+            <li><div class="criteria-check"></div><strong>Existing Wage Rates tab unaffected</strong> &mdash; no regression in cost rate management</li>
+            <li><div class="criteria-check"></div><strong>Permission gated</strong> by EmployeeAgreementContract view permission</li>
+        </ul>
+    </div>
+
+    <!-- 9. Dependencies -->
+    <div class="uis-section" id="dependencies">
+        <h2>9. Dependencies</h2>
+
+        <h3>Requires</h3>
+        <p><span class="dep-tag dep-requires">None</span> &mdash; This is a foundational feature with no blocking dependencies. Can begin immediately.</p>
+
+        <h3>Enables</h3>
+        <p>
+            <span class="dep-tag dep-enables">UIS-20b</span> Work Order Line Item Tables &mdash; labor line items will auto-populate billable rate from TradeLevelRate.billableValue when a trade level is selected<br>
+            <span class="dep-tag dep-enables">UIS-15C</span> Equipment Variable Rates &mdash; establishes the "cost vs. billable" pattern that equipment rates will follow<br>
+            <span class="dep-tag dep-enables">UIS-15B</span> Equipment Invoicing &mdash; LEM sheets require labor billable rates alongside equipment and material rates<br>
+            <span class="dep-tag dep-enables">UIS-20g</span> WO &rarr; CO/Invoice Conversion &mdash; conversion uses billable rates to calculate line item amounts
+        </p>
+
+        <h3>Related (No Hard Dependency)</h3>
+        <p>
+            <span class="dep-tag" style="background:#eff6ff; color:#3b82f6;">LEM-2</span> Equipment Billable Rates &mdash; parallel work, same pattern applied to equipment<br>
+            <span class="dep-tag" style="background:#eff6ff; color:#3b82f6;">LEM-3</span> Material Rate Management &mdash; parallel work, material pricing UI
+        </p>
+    </div>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WO-8a: Stepped Form Wizard — Implementation Plan</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Inter', -apple-system, sans-serif; background: #f8fafc; color: #0f172a; }
+.plan-wrap { max-width: 880px; margin: 0 auto; padding: 40px 24px 80px; }
+h1 { font-size: 24px; font-weight: 800; margin: 0 0 16px; }
+h2 { font-size: 18px; font-weight: 700; margin: 28px 0 12px; padding-bottom: 8px; border-bottom: 2px solid #e2e8f0; }
+h3 { font-size: 15px; font-weight: 700; margin: 20px 0 8px; padding-top: 10px; border-top: 1px solid #f1f5f9; }
+h4 { font-size: 14px; font-weight: 700; margin: 14px 0 6px; }
+p { font-size: 14px; color: #334155; line-height: 1.7; margin: 6px 0; }
+ul, ol { padding-left: 20px; margin: 8px 0; }
+li { font-size: 14px; color: #334155; line-height: 1.7; margin: 3px 0; }
+strong { color: #0f172a; }
+code { font-family: 'SF Mono', monospace; background: #f1f5f9; padding: 1px 6px; border-radius: 4px; font-size: 12px; color: #7c3aed; }
+pre { background: #1e293b; color: #e2e8f0; border-radius: 8px; padding: 16px; overflow-x: auto; font-size: 13px; line-height: 1.6; margin: 12px 0; font-family: 'SF Mono', monospace; }
+pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
+hr { border: none; border-top: 1px solid #e2e8f0; margin: 24px 0; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 12px 0; }
+th { text-align: left; padding: 8px 12px; background: #f1f5f9; border-bottom: 2px solid #e2e8f0; font-weight: 600; }
+td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
+.check-item { display: flex; gap: 8px; align-items: flex-start; padding: 5px 0; }
+.check-box { width: 16px; height: 16px; border: 2px solid #cbd5e1; border-radius: 3px; flex-shrink: 0; margin-top: 2px; }
+.callout { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 14px 18px; margin: 14px 0; font-size: 13px; color: #1e40af; }
+.callout strong { color: #1e3a8a; }
+    </style>
+</head>
+<body>
+<div class="plan-wrap" id="rendered"></div>
+
+<script type="text/plain" id="plan-md">
+# WO-8a: Stepped Form Wizard — Implementation Plan
+
+## Overview
+
+Add a `steppedForm` mode to `DataModelForm` that renders each `DocumentSection` as a wizard step with Previous/Next navigation, a step indicator, and an auto-generated Summary step. This is a generic enhancement to DataModelForm — Work Orders are the first consumer. No backend changes.
+
+**Estimated effort:** 3-4 days
+**Risk:** Low-Medium — modifying DataModelForm rendering, but gated behind a new prop with no impact when false
+**Spec:** `tm-work-orders-uis/uis-20h-1-stepped-form-wizard.html`
+**Requires:** WO-3a (DocumentSections for WORK_ORDER), WO-3b (line item editors), WO-3c (signature section)
+
+---
+
+## Step 1: Add `steppedForm` Prop to DataModelForm
+
+**File:** `apps/frontend/src/components/Forms/DataModelForm/DataModelForm.tsx`
+
+### New prop
+
+Add to the existing props interface:
+
+```typescript
+interface IDataModelFormProps {
+    // ... existing props from PR #6831
+    steppedForm?: boolean;   // default false
+}
+```
+
+Single new prop — `steppedForm`. When true, enables wizard mode. When false/undefined, form renders identically to current behavior.
+
+### State additions
+
+When `steppedForm` is true, add:
+
+```typescript
+const [activeStep, setActiveStep] = useState(0);
+const [returnToSummary, setReturnToSummary] = useState(false);
+```
+
+The sections array comes from the existing `data.dataModel.form.sections`. The total step count is `sections.length + 1` (extra for Summary).
+
+### Rendering branch
+
+At the top of the render logic, branch on `steppedForm`:
+
+```typescript
+// Existing section rendering loop (around line 643-741):
+if (steppedForm) {
+    const isSummary = activeStep === sections.length;
+
+    return (
+        <>
+            <StepIndicator
+                totalSteps={sections.length + 1}
+                activeStep={activeStep}
+                onStepTap={(step) => {
+                    if (step < activeStep) setActiveStep(step);
+                }}
+            />
+
+            {/* All sections always mounted, hidden via CSS */}
+            {sections.map((section, index) => (
+                <div
+                    key={section.id}
+                    style={{ display: !isSummary && index === activeStep ? undefined : "none" }}
+                >
+                    {renderSection(section)}
+                </div>
+            ))}
+
+            {/* Summary: re-render the form in disabled non-stepped mode */}
+            {isSummary && (
+                <SteppedFormSummary
+                    sections={sections}
+                    formData={formData}
+                    customFormControl={customFormControl}
+                    renderSection={renderSection}
+                    onEdit={(stepIndex) => {
+                        setReturnToSummary(true);
+                        setActiveStep(stepIndex);
+                    }}
+                    onSubmit={handleSubmit}
+                    disabled
+                />
+            )}
+
+            {!isSummary && (
+                <StepNavigation
+                    activeStep={activeStep}
+                    totalSteps={sections.length + 1}
+                    onPrevious={() => setActiveStep(activeStep - 1)}
+                    onNext={() => validateAndAdvance(sections[activeStep])}
+                    returnToSummary={returnToSummary}
+                />
+            )}
+        </>
+    );
+}
+
+// else: existing rendering unchanged
+```
+
+The `renderSection` function already exists in DataModelForm — it's the body of the current `.map()` over sections. Extract it as a named function so both the standard loop and the stepped mode can call it.
+
+---
+
+## Step 2: StepIndicator Component
+
+**Create file:** `apps/frontend/src/components/Forms/DataModelForm/StepIndicator.tsx`
+
+```typescript
+interface IStepIndicatorProps {
+    className?: string;
+    totalSteps: number;
+    activeStep: number;
+    onStepTap: (step: number) => void;
+}
+
+const StepIndicator: FC<IStepIndicatorProps> = ({
+    className = "",
+    totalSteps,
+    activeStep,
+    onStepTap,
+}) => {
+    // Render numbered dots connected by lines
+    // States: completed (< activeStep), active (=== activeStep), pending (> activeStep)
+    // Last dot shows star icon (Summary step)
+    // Tapping completed dots calls onStepTap
+    // Tapping pending/active dots does nothing
+};
+```
+
+### Visual states
+
+| State | Dot style | Line before it |
+|-------|-----------|----------------|
+| Completed | Green bg, white checkmark | Green line |
+| Active | Blue bg, white step number | Gray line |
+| Pending | Gray bg, gray step number | Gray line |
+| Summary (last) | Star icon instead of number | Same rules as above |
+
+---
+
+## Step 3: StepNavigation Component
+
+**Create file:** `apps/frontend/src/components/Forms/DataModelForm/StepNavigation.tsx`
+
+```typescript
+interface IStepNavigationProps {
+    className?: string;
+    activeStep: number;
+    totalSteps: number;
+    onPrevious: () => void;
+    onNext: () => void;
+}
+
+const StepNavigation: FC<IStepNavigationProps> = ({
+    className = "",
+    activeStep,
+    totalSteps,
+    onPrevious,
+    onNext,
+}) => {
+    const isFirst = activeStep === 0;
+    const isSummary = activeStep === totalSteps - 1;
+
+    return (
+        <div>
+            {!isFirst && (
+                <button onClick={onPrevious}>← Previous Step</button>
+            )}
+            {!isSummary && (
+                <button onClick={onNext}>Next Step →</button>
+            )}
+        </div>
+    );
+};
+```
+
+Full-width buttons on mobile. "Previous" hidden on first step. "Next" hidden on Summary step (Summary has its own Submit button).
+
+---
+
+## Step 4: Section-Level Validation
+
+**File:** `apps/frontend/src/components/Forms/DataModelForm/DataModelForm.tsx`
+
+The "Next Step" button needs to validate only the current section's required fields before advancing.
+
+### Approach
+
+DataModelForm already has validation logic for the full form (used on save/submit). Extract a `validateSection` function:
+
+```typescript
+const validateSection = (section: FormSection): boolean => {
+    const sectionErrors: Record<string, string> = {};
+
+    for (const element of section.elements) {
+        if (element.isRequired && !formData[element.columnName]) {
+            sectionErrors[element.columnName] = `${element.label} is required`;
+        }
+    }
+
+    if (Object.keys(sectionErrors).length > 0) {
+        setErrors((prev) => ({ ...prev, ...sectionErrors }));
+        return false;
+    }
+    return true;
+};
+
+const validateAndAdvance = (section: FormSection) => {
+    if (validateSection(section)) {
+        setActiveStep((prev) => prev + 1);
+        // Scroll to top of form container
+        formContainerRef.current?.scrollTo({ top: 0, behavior: "smooth" });
+    }
+};
+```
+
+Custom form controls that need validation (e.g., line item editors) should expose validation through the existing error mechanism — the stepped form doesn't need a separate validation interface.
+
+---
+
+## Step 5: SteppedFormSummary Component
+
+**Create file:** `apps/frontend/src/components/Forms/DataModelForm/SteppedFormSummary.tsx`
+
+The Summary step renders the **same DataModelForm in non-stepped, disabled mode** — all sections visible, all fields read-only. This reuses the existing form rendering without building custom summary renderers.
+
+```typescript
+interface ISteppedFormSummaryProps {
+    className?: string;
+    sections: FormSection[];
+    formData: FormData;
+    customFormControl?: Record<string, (...args) => React.ReactNode>;
+    renderSection: (section: FormSection) => React.ReactNode;
+    onEdit: (stepIndex: number) => void;
+    onSubmit: () => void;
+    disabled: boolean;
+}
+```
+
+### Rendering approach
+
+```typescript
+const SteppedFormSummary: FC<ISteppedFormSummaryProps> = ({
+    sections,
+    formData,
+    renderSection,
+    onEdit,
+    onSubmit,
+}) => {
+    return (
+        <>
+            <h2>Summary</h2>
+            <p>Review your work order before submitting</p>
+
+            {sections.map((section, index) => (
+                <div key={section.id} className="summary-section">
+                    <div className="summary-section-header">
+                        <span>{section.label}</span>
+                        <button onClick={() => onEdit(index)}>edit pencil</button>
+                    </div>
+                    {/* Render the section using the same renderSection function,
+                        but with all inputs in disabled/read-only state */}
+                    {renderSection(section, { disabled: true })}
+                </div>
+            ))}
+
+            <button onClick={onSubmit}>Submit Work Order</button>
+            <button onClick={() => onEdit(sections.length - 1)}>Previous Step</button>
+        </>
+    );
+};
+```
+
+### How disabled mode works
+
+The `renderSection` function is extended with an optional `options` parameter:
+
+```typescript
+const renderSection = (section: FormSection, options?: { disabled?: boolean }) => {
+    // Renders DataModelFormElement components with disabled={options?.disabled}
+    // customFormControl functions receive formData but setFormData is a no-op when disabled
+    // This means custom controls render their current state but can't be edited
+};
+```
+
+This means custom form controls (labor items, material items, etc.) render their populated state in a non-interactive way. The `customFormControl` function still fires, but with a no-op `setFormData` so the UI stays read-only. If a custom control needs visual differentiation in disabled mode (e.g., hiding "Add" buttons), it can check the form's disabled state.
+
+### Edit-from-Summary navigation
+
+When the user taps an edit pencil, the `returnToSummary` flag is set (already in DataModelForm state from Step 1). After the user edits and taps "Next Step", the `validateAndAdvance` function checks `returnToSummary`:
+
+```typescript
+const validateAndAdvance = (section: FormSection) => {
+    if (validateSection(section)) {
+        if (returnToSummary) {
+            setActiveStep(sections.length); // jump back to Summary
+            setReturnToSummary(false);
+        } else {
+            setActiveStep((prev) => prev + 1);
+        }
+        formContainerRef.current?.scrollTo({ top: 0, behavior: "smooth" });
+    }
+};
+```
+
+When `returnToSummary` is true, the "Next Step" button label changes to "Back to Summary" to signal the user will skip ahead.
+
+---
+
+## Step 6: Work Order Consumer Integration
+
+**Modify file:** The WO create flow (where DataModelForm is opened for Work Orders)
+
+On mobile, pass `steppedForm`:
+
+```typescript
+<DataModelForm
+    formType="CREATE"
+    referenceModel="Job"
+    subModel="WORK_ORDER"
+    steppedForm={isMobile}
+    customFormControl={{
+        "wo-labor-items": (formData, setFormData, element, error) => (
+            <LaborItemEditor formData={formData} setFormData={setFormData} element={element} error={error} />
+        ),
+        "wo-material-items": (formData, setFormData, element, error) => (
+            <MaterialItemEditor ... />
+        ),
+        "wo-equipment-items": (formData, setFormData, element, error) => (
+            <EquipmentItemEditor ... />
+        ),
+        "wo-signatures": (formData, setFormData, element, error) => (
+            <WOSignatureSection ... />
+        ),
+    }}
+    onSaved={(id) => router.push(`/work-orders/${id}`)}
+/>
+```
+
+No `readOnlySummaryControl` needed — the Summary step renders the same form sections in disabled mode. Custom form controls receive a no-op `setFormData` and render their current state as read-only.
+
+On desktop, `steppedForm` is false — standard all-sections flyout form.
+
+### `isMobile` detection
+
+Use the existing `useIsMobile()` hook (or viewport-based check already in the codebase) to determine whether to enable stepped mode.
+
+---
+
+## Step 7: Submit Behavior
+
+The "Submit Work Order" button on the Summary step calls the same save/submit logic that exists in DataModelForm.
+
+### Flow
+
+1. Summary "Submit" button triggers `validateAndSubmit()`
+2. Full-form validation runs (all sections, same as standard form save)
+3. On validation pass: calls the existing `createItem` / `editItem` mutation
+4. Sets WO status to "Submitted" (same as WO-3c submit logic — status is set via the form data before mutation)
+5. `onSaved` callback fires, navigating to the WO detail page
+
+No new mutation or API work needed — the stepped form submits through the same DataModelForm save infrastructure.
+
+---
+
+## Step 8: Section State Preservation
+
+When navigating between steps, section content must not be destroyed.
+
+### Approach
+
+DataModelForm already holds all field values in a single `formData` state object. Navigation only changes `activeStep` — the form data persists. For standard DAA fields this works automatically.
+
+For `customFormControl` components that have local UI state (e.g., the labor item editor's "add row" draft), two options:
+
+1. **Preferred:** Hide inactive sections with CSS (`display: none`) rather than conditional rendering. All components stay mounted.
+2. **Alternative:** If CSS hiding causes layout issues, render all sections but wrap inactive ones in a hidden container. The key is avoiding unmount/remount cycles.
+
+This is already handled in the Step 1 rendering branch — all sections render in the DOM with `display: none` on inactive ones. The step indicator and navigation render outside the section loop. The Summary step renders its own disabled copy of all sections via `SteppedFormSummary`.
+
+---
+
+## Verification Checklist
+
+### SteppedForm mode
+- [ ] `steppedForm` prop accepted by DataModelForm, defaults to false
+- [ ] When false, form renders identically to before (no regression)
+- [ ] When true, only active section is visible (others hidden via CSS)
+- [ ] Step indicator shows correct states (completed, active, pending, summary star)
+- [ ] Tapping completed dot navigates back to that step
+- [ ] "Next Step" validates current section before advancing
+- [ ] "Previous Step" navigates back without validation
+- [ ] Form data preserved across all step navigation
+
+### Summary step
+- [ ] Auto-generated as final step after all DocumentSections
+- [ ] Renders all sections using the same DataModelForm rendering in disabled mode
+- [ ] Custom form controls render in read-only state (no-op setFormData)
+- [ ] Edit pencils per section navigate to the corresponding step
+- [ ] After editing, "Next Step" returns to Summary (not next sequential step)
+- [ ] "Next Step" label changes to "Back to Summary" when `returnToSummary` is true
+- [ ] "Submit" on Summary runs full-form validation and saves
+
+### Work Order integration
+- [ ] Mobile WO create opens with `steppedForm={true}`
+- [ ] Desktop WO create opens with `steppedForm={false}` (standard form)
+- [ ] All 5 WO sections render correctly as steps (Info, Labor, Materials, Equipment, Signatures)
+- [ ] Summary shows all sections disabled with current form data
+- [ ] Submit creates the Job record with status = Submitted
+- [ ] `onSaved` navigates to `/work-orders/[id]`
+
+---
+
+## Files Summary
+
+| Action | File | What to do |
+|--------|------|------------|
+| MODIFY | `apps/frontend/src/components/Forms/DataModelForm/DataModelForm.tsx` | Add `steppedForm` prop. Branch rendering on `steppedForm`. Extract `renderSection` as named function with optional `disabled` param. Add `activeStep` + `returnToSummary` state. Section-level validation. CSS-hidden inactive sections. |
+| CREATE | `apps/frontend/src/components/Forms/DataModelForm/StepIndicator.tsx` | Horizontal dots + lines progress indicator. |
+| CREATE | `apps/frontend/src/components/Forms/DataModelForm/StepNavigation.tsx` | Previous / Next full-width buttons. "Back to Summary" label variant. |
+| CREATE | `apps/frontend/src/components/Forms/DataModelForm/SteppedFormSummary.tsx` | Renders all sections via `renderSection(section, { disabled: true })` with edit pencils per section and Submit button. |
+| MODIFY | WO create flow (mobile entry point) | Pass `steppedForm={isMobile}` to DataModelForm. |
+</script>
+
+<script>
+(function() {
+    var md = document.getElementById('plan-md').textContent;
+    var target = document.getElementById('rendered');
+    var html = md
+        .replace(/```(\w*)\n([\s\S]*?)```/g, function(_, lang, code) {
+            return '<pre><code>' + code.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</code></pre>';
+        })
+        .replace(/`([^`\n]+)`/g, '<code>$1</code>')
+        .replace(/^#### (.+)$/gm, '<h4>$1</h4>')
+        .replace(/^### (.+)$/gm, '<h3>$1</h3>')
+        .replace(/^## (.+)$/gm, '<h2>$1</h2>')
+        .replace(/^# (.+)$/gm, '<h1>$1</h1>')
+        .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\*(.+?)\*/g, '<em>$1</em>')
+        .replace(/^---$/gm, '<hr>');
+    html = html.replace(/^- \[ \] (.+)$/gm, '<div class="check-item"><div class="check-box"></div><span>$1</span></div>');
+    html = html.replace(/(\|.+\|\n)+/g, function(table) {
+        var rows = table.trim().split('\n');
+        if (rows.length < 2) return table;
+        var headers = rows[0].split('|').filter(function(c) { return c.trim(); });
+        var isSep = /^[\s|:\-]+$/.test(rows[1]);
+        var start = isSep ? 2 : 1;
+        var out = '<table><thead><tr>';
+        headers.forEach(function(h) { out += '<th>' + h.trim() + '</th>'; });
+        out += '</tr></thead><tbody>';
+        for (var i = start; i < rows.length; i++) {
+            var cells = rows[i].split('|').filter(function(c) { return c.trim(); });
+            out += '<tr>'; cells.forEach(function(c) { out += '<td>' + c.trim() + '</td>'; }); out += '</tr>';
+        }
+        out += '</tbody></table>';
+        return out;
+    });
+    html = html.replace(/^- (.+)$/gm, '<li>$1</li>');
+    html = html.replace(/(<li>[\s\S]*?<\/li>\n?)+/g, function(m) { return '<ul>' + m + '</ul>'; });
+    html = html.replace(/^(?!<[hultdps\/<]|<\/|<code|<pre|<hr|<div|<strong|<em)(.+)$/gm, '<p>$1</p>');
+    target.innerHTML = html;
+})();
+</script>
+</body>
+</html>

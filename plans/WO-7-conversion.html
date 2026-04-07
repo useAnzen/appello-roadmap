@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WO-7: WO → Invoice / CO Conversion — Implementation Plan</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Inter', -apple-system, sans-serif; background: #f8fafc; color: #0f172a; }
+.plan-wrap { max-width: 880px; margin: 0 auto; padding: 40px 24px 80px; }
+h1 { font-size: 24px; font-weight: 800; margin: 0 0 16px; }
+h2 { font-size: 18px; font-weight: 700; margin: 28px 0 12px; padding-bottom: 8px; border-bottom: 2px solid #e2e8f0; }
+h3 { font-size: 15px; font-weight: 700; margin: 20px 0 8px; padding-top: 10px; border-top: 1px solid #f1f5f9; }
+p { font-size: 14px; color: #334155; line-height: 1.7; margin: 6px 0; }
+ul, ol { padding-left: 20px; margin: 8px 0; }
+li { font-size: 14px; color: #334155; line-height: 1.7; margin: 3px 0; }
+strong { color: #0f172a; }
+code { font-family: 'SF Mono', monospace; background: #f1f5f9; padding: 1px 6px; border-radius: 4px; font-size: 12px; color: #7c3aed; }
+pre { background: #1e293b; color: #e2e8f0; border-radius: 8px; padding: 16px; overflow-x: auto; font-size: 13px; line-height: 1.6; margin: 12px 0; font-family: 'SF Mono', monospace; }
+pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
+hr { border: none; border-top: 1px solid #e2e8f0; margin: 24px 0; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 12px 0; }
+th { text-align: left; padding: 8px 12px; background: #f1f5f9; border-bottom: 2px solid #e2e8f0; font-weight: 600; }
+td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
+.check-item { display: flex; gap: 8px; align-items: flex-start; padding: 5px 0; }
+.check-box { width: 16px; height: 16px; border: 2px solid #cbd5e1; border-radius: 3px; flex-shrink: 0; margin-top: 2px; }
+.callout { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 14px 18px; margin: 14px 0; font-size: 13px; color: #1e40af; }
+.callout strong { color: #1e3a8a; }
+    </style>
+</head>
+<body>
+<div class="plan-wrap" id="rendered"></div>
+
+<script type="text/plain" id="plan-md">
+# WO-7: WO → Invoice / CO Conversion — Implementation Plan
+
+## Overview
+
+Two mutations that convert an Approved Work Order's line items into either a Simple Invoice (JobBill) or a Change Order (EstimateChangeOrderRecord). Reuses existing rate resolution from LEM-1/2 and a shared `calculateQuantity` utility for equipment billing. One schema change: make accountItemId nullable on EstimateChangeOrderRecordValue.
+
+**Estimated effort:** 3-4 days
+**Risk:** Medium — modifies EstimateChangeOrderRecordValue schema, extends EstimateChangeOrderDetails UI
+**Spec:** `tm-work-orders-uis/uis-20g-conversion.html`
+**Requires:** WO-4 (Detail Page), WO-2 (Line Items), LEM-1/2
+
+---
+
+## Step 1: Schema — Make accountItemId Nullable
+
+**File:** `apps/api/prisma/schema.prisma`
+
+```prisma
+// EstimateChangeOrderRecordValue — change:
+accountItemId    String?     @db.VarChar(21)    // was: String (required)
+AccountItem      AccountItem? @relation(...)     // was: AccountItem (required)
+```
+
+**Migration:**
+
+```sql
+ALTER TABLE `EstimateChangeOrderRecordValue`
+    MODIFY COLUMN `accountItemId` VARCHAR(21) NULL;
+```
+
+This is backward compatible — existing records all have accountItemId set. Only WO-generated CO line items will have null.
+
+---
+
+## Step 2: Shared Line Item Resolution Helper
+
+Both conversion paths need to resolve WO line items into description + rate + quantity. Create a shared helper on the Job model or as a utility.
+
+**File:** `apps/api/src/models/WorkOrderConversion.ts` (new) or add to `Job.ts`
+
+```typescript
+interface IResolvedWOLineItem {
+    description: string;
+    rate: number;
+    quantity: number;
+    value: number;         // rate * quantity
+    numericHours: number;  // hours for CO numeric field (0 for materials)
+    sourceType: "labor" | "material" | "equipment";
+}
+
+async function resolveWorkOrderLineItems(
+    jobId: string
+): Promise<IResolvedWOLineItem[]> {
+    const items: IResolvedWOLineItem[] = [];
+    const job = await prisma.job.findUnique({ where: { id: jobId } });
+    const dailyHours = job?.dailyHours ?? 8;
+
+    // --- Labor ---
+    const laborItems = await prisma.workOrderLaborItem.findMany({
+        where: { jobId, isDeleted: false },
+        include: {
+            TradeLevelRate: {
+                include: {
+                    TradeLevel: true,
+                    EmployeeAgreementRateLabel: true
+                }
+            }
+        }
+    });
+
+    for (const item of laborItems) {
+        const hours = item.submittedDuration / 3600;
+        const totalHours = hours * item.qtyOfWorkers;
+
+        if (item.tradeLevelRateId && item.TradeLevelRate) {
+            // Structured: rate from TradeLevelRate.billableValue (LEM-1)
+            const rate = item.TradeLevelRate.billableValue?.toNumber() ?? 0;
+            items.push({
+                description: `${item.TradeLevelRate.TradeLevel.name} — ${item.TradeLevelRate.EmployeeAgreementRateLabel.name}`,
+                rate,
+                quantity: totalHours,
+                value: Number((rate * totalHours).toFixed(2)),
+                numericHours: totalHours,
+                sourceType: "labor"
+            });
+        } else {
+            // Blank: rate from line item
+            const rate = item.rate?.toNumber() ?? 0;
+            items.push({
+                description: item.description ?? "Labor",
+                rate,
+                quantity: totalHours,
+                value: Number((rate * totalHours).toFixed(2)),
+                numericHours: totalHours,
+                sourceType: "labor"
+            });
+        }
+    }
+
+    // --- Materials ---
+    const materialItems = await prisma.workOrderMaterialItem.findMany({
+        where: { jobId, isDeleted: false },
+        include: { Material: true }
+    });
+
+    for (const item of materialItems) {
+        items.push({
+            description: item.materialId
+                ? item.Material?.name ?? item.description ?? "Material"
+                : item.description ?? "Material",
+            rate: item.unitCost?.toNumber() ?? 0,
+            quantity: item.quantity?.toNumber() ?? 0,
+            value: item.total?.toNumber() ?? 0,
+            numericHours: 0,  // no hour relationship
+            sourceType: "material"
+        });
+    }
+
+    // --- Equipment ---
+    const equipmentItems = await prisma.workOrderEquipmentItem.findMany({
+        where: { jobId, isDeleted: false },
+        include: {
+            Equipment: true,
+            EquipmentRateLabel: true
+        }
+    });
+
+    const rateValueModel = new EquipmentRateValueModel();
+
+    for (const item of equipmentItems) {
+        if (item.equipmentId && item.Equipment) {
+            // Structured: rate from LEM-2
+            const resolved = await rateValueModel.resolveEquipmentRate(
+                item.equipmentId,
+                item.equipmentRateLabelId,
+                item.per ?? "HOUR",
+                jobId,
+                item.operatorIncluded,
+                job?.dateOfWork
+            );
+            const rate = resolved?.amount ?? 0;
+            const quantity = calculateQuantity(item, dailyHours);
+            // Hours: only for HOUR per-unit
+            const numericHours = item.per === "HOUR"
+                ? item.submittedDuration / 3600
+                : 0;
+
+            items.push({
+                description: `${item.Equipment.name} — ${item.EquipmentRateLabel?.name ?? "Standard"}`,
+                rate,
+                quantity,
+                value: Number((rate * quantity).toFixed(2)),
+                numericHours,
+                sourceType: "equipment"
+            });
+        } else {
+            // Blank: manual rate
+            const rate = item.unitRate?.toNumber() ?? 0;
+            const qty = item.quantity?.toNumber() ?? 0;
+            items.push({
+                description: item.description ?? "Equipment",
+                rate,
+                quantity: qty,
+                value: Number((rate * qty).toFixed(2)),
+                numericHours: 0,
+                sourceType: "equipment"
+            });
+        }
+    }
+
+    return items;
+}
+```
+
+`calculateQuantity` is a shared utility function — implement it in `apps/api/src/lib/equipment/calculateQuantity.ts`. Handles full-day vs prorated based on `isFullDayBilling` and `dailyHours`. If UIS-15B is built later, it imports from the same location.
+
+---
+
+## Step 3: generateInvoiceFromWorkOrder Mutation
+
+**File:** `apps/api/src/models/JobBill.ts`
+
+```typescript
+public async generateInvoiceFromWorkOrder(
+    jobId: string,
+    currentUserId: string
+): Promise<FullModel<IJobBill>> {
+    // Validate WO is Approved
+    const job = await prisma.job.findUnique({ where: { id: jobId } });
+    // ... validate status is Approved
+
+    // Resolve all line items
+    const resolvedItems = await resolveWorkOrderLineItems(jobId);
+
+    // Create Simple JobBill
+    const bill = await this.customCreateItem(
+        {
+            jobId,
+            template: "Simple",
+            invoiceDate: new Date(),
+            submittedByUserId: currentUserId
+        },
+        currentUserId
+    );
+
+    // Create JobBillLineItems
+    const lineItemModel = new JobBillLineItemModel();
+    for (const item of resolvedItems) {
+        await lineItemModel.createItem(
+            {
+                jobBillId: bill.id,
+                description: item.description,
+                quantity: item.quantity,
+                rate: item.rate,
+                value: item.value
+            },
+            currentUserId
+        );
+    }
+
+    // Update WO status to "Invoiced"
+    const invoicedStatus = await prisma.propertyValue.findFirst({
+        where: { propertyName: "workOrderStatus", slug: "invoiced" }
+    });
+    if (invoicedStatus) {
+        await prisma.job.update({
+            where: { id: jobId },
+            data: { jobStatusId: invoicedStatus.id }
+        });
+    }
+
+    return bill;
+}
+```
+
+### GraphQL
+
+**File:** `apps/api/src/graphql/models/JobBill.ts`
+
+```graphql
+extend type Mutation {
+    generateInvoiceFromWorkOrder(jobId: ID!): JobBill
+}
+```
+
+Resolver delegates to model method.
+
+---
+
+## Step 4: convertWorkOrderToChangeOrder Mutation
+
+**File:** `apps/api/src/models/EstimateChangeOrderRecord.ts`
+
+```typescript
+public async convertWorkOrderToChangeOrder(
+    jobId: string,
+    currentUserId: string
+): Promise<FullModel<IEstimateChangeOrderRecord>> {
+    const job = await prisma.job.findUnique({ where: { id: jobId } });
+    // ... validate status is Approved
+
+    // Resolve all line items
+    const resolvedItems = await resolveWorkOrderLineItems(jobId);
+
+    // Calculate total bid
+    const totalBid = resolvedItems.reduce((sum, item) => sum + item.value, 0);
+
+    // Generate CO number
+    const estimateNumber = await this.generateEstimateNumber(jobId, "ChangeOrder");
+
+    // Get default "won" status for the CO
+    const wonStatus = await prisma.propertyValue.findFirst({
+        where: { propertyName: "estimateChangeOrderRecordStatus", slug: "won" }
+    });
+
+    // Create EstimateChangeOrderRecord
+    const co = await this.createItem(
+        {
+            type: "ChangeOrder",
+            title: `Work Order ${job.fullJobNumber}`,
+            description: `Generated from Work Order ${job.fullJobNumber}`,
+            estimateNumber,
+            fullEstimateNumber: estimateNumber,
+            jobId,
+            statusId: wonStatus?.id,
+            bid: totalBid,
+            lineItemsTurnedOn: true,
+            creationType: "Full"
+        },
+        currentUserId
+    );
+
+    // Create EstimateChangeOrderRecordValues
+    for (const item of resolvedItems) {
+        await prisma.estimateChangeOrderRecordValue.create({
+            data: {
+                id: nanoid(),
+                estimateChangeOrderRecordId: co.id,
+                description: item.description,
+                estimate: item.value,
+                numeric: item.numericHours,
+                accountItemId: null  // no account hierarchy for WO-generated COs
+            }
+        });
+    }
+
+    return co;
+}
+```
+
+### GraphQL
+
+**File:** `apps/api/src/graphql/models/EstimateChangeOrderRecord.ts`
+
+```graphql
+extend type Mutation {
+    convertWorkOrderToChangeOrder(jobId: ID!): EstimateChangeOrderRecord
+}
+```
+
+---
+
+## Step 5: Update EstimateChangeOrderDetails for Null accountItemId
+
+**File:** `apps/frontend/src/components/DetailsPage/EstimateChangeOrderDetails/` (or wherever the CO detail renders line items)
+
+The CO detail page currently groups line items by AccountItem in a hierarchy. When `accountItemId` is null (WO-generated COs), it needs a fallback rendering.
+
+### Approach
+
+Check if ANY line item on the CO has `accountItemId = null`. If so, render all line items as a flat table instead of the account hierarchy:
+
+```typescript
+const hasAccountlessItems = lineItems.some(item => !item.accountItemId);
+
+if (hasAccountlessItems) {
+    // Flat table: Description | Estimate ($) | Hours
+    return <FlatLineItemTable lineItems={lineItems} />;
+} else {
+    // Existing account hierarchy rendering
+    return <AccountHierarchyView lineItems={lineItems} />;
+}
+```
+
+The flat table shows:
+- Description column (from `description`)
+- Estimate column (from `estimate` — dollar value)
+- Hours column (from `numeric` — only shown if > 0, blank for materials)
+
+This is a minimal change — the existing hierarchy view continues to work for all traditional COs. Only WO-generated COs (where all items have null accountItemId) get the flat view.
+
+---
+
+## Step 6: Frontend — WO Detail Header Buttons
+
+**File:** `apps/frontend/src/components/DetailsPage/WorkOrderDetailPage/index.tsx`
+
+Add the two conversion buttons to the header, visible when status = Approved.
+
+```typescript
+// Determine current status
+const isApproved = job?.jobStatus?.slug === "approved";
+const isInvoiced = job?.jobStatus?.slug === "invoiced";
+// Check if already converted to CO (query for ECO with jobId + sourceWorkOrder pattern)
+
+{isApproved && !isInvoiced && (
+    <Button onClick={() => openModal(
+        <WOConversionConfirmModal
+            type="invoice"
+            jobId={jobId}
+            onConfirm={handleGenerateInvoice}
+        />
+    )}>
+        Generate Invoice
+    </Button>
+)}
+
+{isApproved && (
+    <Button
+        color="white"
+        onClick={() => openModal(
+            <WOConversionConfirmModal
+                type="changeOrder"
+                jobId={jobId}
+                onConfirm={handleConvertToCO}
+            />
+        )}
+        disabled={hasExistingCO}
+    >
+        Convert to CO
+    </Button>
+)}
+```
+
+---
+
+## Step 7: Confirmation Modal
+
+**Create file:** `apps/frontend/src/components/WorkOrder/WOConversionConfirmModal.tsx`
+
+```typescript
+interface IWOConversionConfirmModalProps {
+    type: "invoice" | "changeOrder";
+    jobId: string;
+    onConfirm: () => void;
+}
+```
+
+The modal:
+1. Queries WO line items to show a summary (count by type + total value)
+2. Shows: "This will create a [Simple Invoice / Change Order] with X line items totaling $Y,YYY.YY"
+3. "Confirm" / "Cancel" buttons
+4. On confirm: calls the mutation, closes modal, parent navigates to the created record
+
+---
+
+## Verification Checklist
+
+- [ ] `accountItemId` nullable on EstimateChangeOrderRecordValue (migration applied, no existing data affected)
+- [ ] `resolveWorkOrderLineItems` correctly processes all 6 line item types (structured/blank × labor/material/equipment)
+- [ ] Structured labor: rate from TradeLevelRate.billableValue, qty = hours × workers
+- [ ] Structured equipment: rate from resolveEquipmentRate (LEM-2), qty via calculateQuantity (handles full-day/prorated)
+- [ ] Blank lines + materials: rate/unitCost from line item directly
+- [ ] Material items: numericHours = 0 (no hour relationship)
+- [ ] Equipment items: numericHours = actual hours for HOUR per-unit, 0 for non-hourly
+- [ ] `generateInvoiceFromWorkOrder` creates Simple JobBill with correct line items
+- [ ] After invoice generation: WO status → "Invoiced"
+- [ ] `convertWorkOrderToChangeOrder` creates ChangeOrder with correct line items
+- [ ] CO line items: accountItemId = null, description + estimate + numeric set
+- [ ] CO bid = sum of all line item estimate values
+- [ ] EstimateChangeOrderDetails renders flat table when accountItemId is null
+- [ ] Flat table shows Description, Estimate ($), and Hours (blank for materials)
+- [ ] "Generate Invoice" button visible on WO detail when status = Approved
+- [ ] "Convert to CO" button visible on WO detail when status = Approved
+- [ ] Confirmation modal shows line item count + total value before conversion
+- [ ] After invoice: button disabled, status badge updates
+- [ ] After CO: "Converted to CO" badge appears, Convert to CO button disabled
+- [ ] Both conversions can be done independently on the same WO
+- [ ] Existing EstimateChangeOrderRecords with accountItemId set render unchanged (no regression)
+
+---
+
+## Files Summary
+
+| Action | File | What to do |
+|--------|------|------------|
+| MODIFY | `apps/api/prisma/schema.prisma` | Make `accountItemId` nullable on EstimateChangeOrderRecordValue |
+| CREATE | `apps/api/prisma/migrations/.../migration.sql` | ALTER TABLE to allow NULL |
+| CREATE | `apps/api/src/models/WorkOrderConversion.ts` (or add to Job.ts) | `resolveWorkOrderLineItems` shared helper |
+| MODIFY | `apps/api/src/models/JobBill.ts` | Add `generateInvoiceFromWorkOrder` method |
+| MODIFY | `apps/api/src/models/EstimateChangeOrderRecord.ts` | Add `convertWorkOrderToChangeOrder` method |
+| MODIFY | `apps/api/src/graphql/models/JobBill.ts` | Add `generateInvoiceFromWorkOrder` mutation |
+| MODIFY | `apps/api/src/graphql/models/EstimateChangeOrderRecord.ts` | Add `convertWorkOrderToChangeOrder` mutation |
+| MODIFY | `WorkOrderDetailPage/index.tsx` | Add Generate Invoice + Convert to CO header buttons (visible when Approved) |
+| CREATE | `WorkOrder/WOConversionConfirmModal.tsx` | Confirmation modal with line item summary |
+| MODIFY | `EstimateChangeOrderDetails` component | Handle null accountItemId — flat line item table fallback |
+</script>
+
+<script>
+(function() {
+    var md = document.getElementById('plan-md').textContent;
+    var target = document.getElementById('rendered');
+    var html = md
+        .replace(/```(\w*)\n([\s\S]*?)```/g, function(_, lang, code) {
+            return '<pre><code>' + code.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</code></pre>';
+        })
+        .replace(/`([^`\n]+)`/g, '<code>$1</code>')
+        .replace(/^#### (.+)$/gm, '<h4>$1</h4>')
+        .replace(/^### (.+)$/gm, '<h3>$1</h3>')
+        .replace(/^## (.+)$/gm, '<h2>$1</h2>')
+        .replace(/^# (.+)$/gm, '<h1>$1</h1>')
+        .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\*(.+?)\*/g, '<em>$1</em>')
+        .replace(/^---$/gm, '<hr>');
+    html = html.replace(/^- \[ \] (.+)$/gm, '<div class="check-item"><div class="check-box"></div><span>$1</span></div>');
+    html = html.replace(/(\|.+\|\n)+/g, function(table) {
+        var rows = table.trim().split('\n');
+        if (rows.length < 2) return table;
+        var headers = rows[0].split('|').filter(function(c) { return c.trim(); });
+        var isSep = /^[\s|:\-]+$/.test(rows[1]);
+        var start = isSep ? 2 : 1;
+        var out = '<table><thead><tr>';
+        headers.forEach(function(h) { out += '<th>' + h.trim() + '</th>'; });
+        out += '</tr></thead><tbody>';
+        for (var i = start; i < rows.length; i++) {
+            var cells = rows[i].split('|').filter(function(c) { return c.trim(); });
+            out += '<tr>'; cells.forEach(function(c) { out += '<td>' + c.trim() + '</td>'; }); out += '</tr>';
+        }
+        out += '</tbody></table>';
+        return out;
+    });
+    html = html.replace(/^- (.+)$/gm, '<li>$1</li>');
+    html = html.replace(/(<li>[\s\S]*?<\/li>\n?)+/g, function(m) { return '<ul>' + m + '</ul>'; });
+    html = html.replace(/^(?!<[hultdps\/<]|<\/|<code|<pre|<hr|<div|<strong|<em)(.+)$/gm, '<p>$1</p>');
+    target.innerHTML = html;
+})();
+</script>
+</body>
+</html>

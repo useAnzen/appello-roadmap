@@ -1,0 +1,977 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LEM-2: Equipment Billable Rates — Implementation Plan</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Inter', -apple-system, sans-serif; background: #f8fafc; color: #0f172a; }
+.plan-wrap { max-width: 880px; margin: 0 auto; padding: 40px 24px 80px; }
+h1 { font-size: 24px; font-weight: 800; color: #0f172a; margin: 0 0 16px; letter-spacing: -0.01em; }
+h2 { font-size: 18px; font-weight: 700; color: #0f172a; margin: 28px 0 12px; padding-bottom: 8px; border-bottom: 2px solid #e2e8f0; }
+h3 { font-size: 15px; font-weight: 700; color: #0f172a; margin: 20px 0 8px; padding-top: 10px; border-top: 1px solid #f1f5f9; }
+h4 { font-size: 14px; font-weight: 700; color: #0f172a; margin: 14px 0 6px; }
+p { font-size: 14px; color: #334155; line-height: 1.7; margin: 6px 0; }
+ul, ol { padding-left: 20px; margin: 8px 0; }
+li { font-size: 14px; color: #334155; line-height: 1.7; margin: 3px 0; }
+strong { color: #0f172a; }
+code { font-family: 'SF Mono', 'Fira Code', monospace; background: #f1f5f9; padding: 1px 6px; border-radius: 4px; font-size: 12px; color: #7c3aed; }
+pre { background: #1e293b; color: #e2e8f0; border-radius: 8px; padding: 16px; overflow-x: auto; font-size: 13px; line-height: 1.6; margin: 12px 0; font-family: 'SF Mono', 'Fira Code', monospace; }
+pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
+hr { border: none; border-top: 1px solid #e2e8f0; margin: 24px 0; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 12px 0; }
+th { text-align: left; padding: 8px 12px; background: #f1f5f9; border-bottom: 2px solid #e2e8f0; font-weight: 600; }
+td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
+.check-item { display: flex; gap: 8px; align-items: flex-start; padding: 5px 0; }
+.check-box { width: 16px; height: 16px; border: 2px solid #cbd5e1; border-radius: 3px; flex-shrink: 0; margin-top: 2px; }
+.callout { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 14px 18px; margin: 14px 0; font-size: 13px; color: #1e40af; }
+.callout strong { color: #1e3a8a; }
+.warning { background: #fef3c7; border: 1px solid #fde68a; border-radius: 8px; padding: 14px 18px; margin: 14px 0; font-size: 13px; color: #92400e; }
+.warning strong { color: #78350f; }
+    </style>
+</head>
+<body>
+<div class="plan-wrap" id="rendered"></div>
+
+<script type="text/plain" id="plan-md">
+# LEM-2: Equipment Billable Rates — Implementation Plan
+
+## Overview
+
+Create an equipment rate configuration system with editable rate types per EquipmentCategory, a polymorphic `EquipmentRateValue` table using `referenceModel` + `referenceId`, and a shared `EquipmentRateTable` frontend component with two-level tabs (Operator/Bare x Per-unit).
+
+**Estimated effort:** 4-6 days
+**Risk:** Medium — new models, no existing behavior changes
+**Spec:** `tm-work-orders-uis/uis-LEM-2-equipment-billable-rates.html`
+
+---
+
+## Step 1: Prisma Schema — Enum + 2 New Models
+
+**File:** `apps/api/prisma/schema.prisma`
+
+### 1a. Add the EquipmentRatePer enum
+
+```prisma
+enum EquipmentRatePer {
+  HOUR
+  DAY
+  WEEK
+  MONTH
+  YEAR
+}
+```
+
+### 1b. Add EquipmentRateLabel model
+
+Add after the EquipmentCategory model (around line ~1927):
+
+```prisma
+model EquipmentRateLabel {
+  id                    String              @id @db.VarChar(21)
+  isDeleted             Boolean             @default(false)
+  isArchived            Boolean             @default(false)
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @default(now()) @updatedAt
+  name                  String
+  description           String              @db.Text @default("")
+  orderNo               Int                 @default(0)
+
+  equipmentCategoryId   String              @db.VarChar(21)
+  EquipmentCategory     EquipmentCategory   @relation(fields: [equipmentCategoryId], references: [id])
+  EquipmentRateValues   EquipmentRateValue[]
+
+  @@unique([name, equipmentCategoryId])
+  @@index([equipmentCategoryId, isArchived, isDeleted])
+}
+```
+
+### 1c. Add EquipmentRateSchedule model
+
+```prisma
+model EquipmentRateSchedule {
+  id                    String              @id @db.VarChar(21)
+  isDeleted             Boolean             @default(false)
+  isArchived            Boolean             @default(false)
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @default(now()) @updatedAt
+  name                  String
+  effectiveDate         DateTime            @db.Date
+  description           String?             @db.Text
+
+  equipmentCategoryId   String              @db.VarChar(21)
+  EquipmentCategory     EquipmentCategory   @relation(fields: [equipmentCategoryId], references: [id])
+
+  EquipmentRateValues   EquipmentRateValue[]
+
+  @@index([equipmentCategoryId, effectiveDate, isArchived, isDeleted])
+}
+```
+
+### 1d. Add EquipmentRateValue model (polymorphic)
+
+```prisma
+model EquipmentRateValue {
+  id                      String                  @id @db.VarChar(21)
+  isDeleted               Boolean                 @default(false)
+  isArchived              Boolean                 @default(false)
+  createdAt               DateTime                @default(now())
+  updatedAt               DateTime                @default(now()) @updatedAt
+
+  referenceModel          String
+  referenceId             String                  @db.VarChar(21)
+
+  equipmentRateScheduleId String?                 @db.VarChar(21)
+  EquipmentRateSchedule   EquipmentRateSchedule?  @relation(fields: [equipmentRateScheduleId], references: [id])
+
+  equipmentRateLabelId    String                  @db.VarChar(21)
+  EquipmentRateLabel      EquipmentRateLabel      @relation(fields: [equipmentRateLabelId], references: [id])
+  amount                  Decimal                 @db.Decimal(12, 2)
+  per                     EquipmentRatePer        @default(HOUR)
+  operatorIncluded        Boolean                 @default(true)
+
+  @@unique([equipmentRateLabelId, referenceModel, referenceId, per, operatorIncluded, equipmentRateScheduleId])
+  @@index([referenceModel, referenceId, isArchived, isDeleted])
+  @@index([equipmentRateLabelId, referenceModel])
+  @@index([equipmentRateScheduleId])
+}
+```
+
+### 1e. Add relations on EquipmentCategory (line ~1927)
+
+Add to the existing EquipmentCategory model:
+
+```prisma
+  EquipmentRateLabels    EquipmentRateLabel[]
+  EquipmentRateSchedules EquipmentRateSchedule[]
+```
+
+**Note:** EquipmentRateValue does NOT get `@relation` fields to Equipment, Job, or EquipmentCategory — it's polymorphic. Only EquipmentRateSchedule and EquipmentRateLabel have proper Prisma relations.
+
+### 1f. Create migration
+
+Run `pnpm --filter api prisma:migrate` and name it `add_equipment_rate_system`.
+
+---
+
+## Step 2: TypeScript Types
+
+**File:** `apps/api/src/types/Equipment.types.ts`
+
+Add after the existing interfaces:
+
+```typescript
+export interface IEquipmentRateLabelModel {
+    name: string;
+    description: string;
+    orderNo: number;
+    equipmentCategoryId: string;
+}
+
+export interface IEquipmentRateScheduleModel {
+    name: string;
+    effectiveDate: Date;
+    description?: string;
+    equipmentCategoryId: string;
+}
+
+export interface IEquipmentRateValueModel {
+    referenceModel: string;
+    referenceId: string;
+    equipmentRateScheduleId?: string;
+    equipmentRateLabelId: string;
+    amount: number;
+    per: string;
+    operatorIncluded: boolean;
+}
+```
+
+---
+
+## Step 3: Model Classes
+
+### 3a. EquipmentRateLabel Model
+
+**Create file:** `apps/api/src/models/EquipmentRateLabel.ts`
+
+Follow the pattern from `EmployeeAgreementRateLabel.ts` (at `apps/api/src/models/EmployeeAgreementRateLabel.ts`). Key differences from the labor pattern:
+
+- No `isLineItem`, `isEmployerExpense`, `wageRegionId`, `rateTypeId`, `overrideName`, `isDefaultRate`, `excludeFromOvertime` fields
+- Simpler model — just name, description, orderNo, equipmentCategoryId
+
+```typescript
+// modelFields:
+protected modelFields: IField<IEquipmentRateLabelModel>[] = [
+    {
+        name: "name",
+        type: "string",
+        options: {
+            isRequiredOnCreate: true,
+            isSortable: true,
+            isFilterable: true
+        }
+    },
+    {
+        name: "description",
+        type: "string",
+        options: {
+            defaultValue: "",
+            maxLength: 800
+        }
+    },
+    {
+        name: "equipmentCategoryId",
+        type: "string",
+        options: {
+            isRequiredOnCreate: true,
+            isFilterable: true
+        }
+    },
+    {
+        name: "orderNo",
+        type: "int",
+        options: {
+            isSortable: true,
+            unsigned: true,
+            defaultValue: 0
+        }
+    }
+];
+```
+
+**Key method — `initializeEquipmentRateLabels`:**
+
+```typescript
+public async initializeEquipmentRateLabels(
+    equipmentCategoryId: string,
+    currentUserId: string
+): Promise<boolean> {
+    const existing = await this.prisma.findMany({
+        where: { equipmentCategoryId, isDeleted: false, isArchived: false }
+    });
+    if (existing.length > 0) return true; // already initialized
+
+    const defaults = [
+        { name: "Standard", description: "Equipment actively working", orderNo: 0 },
+        { name: "Standby", description: "On-site but not operating", orderNo: 1 },
+        { name: "Overtime", description: "Hours beyond standard shift", orderNo: 2 },
+        { name: "Weekend", description: "Saturday/Sunday premium", orderNo: 3 },
+        { name: "Holiday", description: "Recognized holiday premium", orderNo: 4 }
+    ];
+
+    for (const label of defaults) {
+        await this.createItem(
+            { ...label, equipmentCategoryId },
+            currentUserId
+        );
+    }
+    return true;
+}
+```
+
+Include `archiveChildren` and `deleteChildren` methods that cascade to `EquipmentRateValue` records referencing this label.
+
+### 3b. EquipmentRateSchedule Model
+
+**Create file:** `apps/api/src/models/EquipmentRateSchedule.ts`
+
+Standard BaseModel with modelFields for: name, effectiveDate, description, equipmentCategoryId. Basic CRUD — the `duplicateRateValuesForNewSchedule` method is added in UIS-15C.
+
+```typescript
+protected modelFields: IField<IEquipmentRateScheduleModel>[] = [
+    {
+        name: "name",
+        type: "string",
+        options: { isRequiredOnCreate: true }
+    },
+    {
+        name: "effectiveDate",
+        type: "date",
+        options: { isRequiredOnCreate: true }
+    },
+    {
+        name: "description",
+        type: "string",
+        options: { maxLength: 800 }
+    },
+    {
+        name: "equipmentCategoryId",
+        type: "string",
+        options: { isRequiredOnCreate: true, isFilterable: true, canEdit: false }
+    }
+];
+```
+
+### 3c. EquipmentRateValue Model
+
+**Create file:** `apps/api/src/models/EquipmentRateValue.ts`
+
+```typescript
+// modelFields:
+protected modelFields: IField<IEquipmentRateValueModel>[] = [
+    {
+        name: "referenceModel",
+        type: "string",
+        options: {
+            isRequiredOnCreate: true,
+            isFilterable: true,
+            canEdit: false
+        }
+    },
+    {
+        name: "referenceId",
+        type: "string",
+        options: {
+            isRequiredOnCreate: true,
+            isFilterable: true,
+            canEdit: false
+        }
+    },
+    {
+        name: "equipmentRateScheduleId",
+        type: "string",
+        options: {
+            isFilterable: true
+        }
+    },
+    {
+        name: "equipmentRateLabelId",
+        type: "string",
+        options: {
+            isRequiredOnCreate: true,
+            isFilterable: true,
+            canEdit: false
+        }
+    },
+    {
+        name: "amount",
+        type: "float",
+        options: {
+            isRequiredOnCreate: true
+        }
+    },
+    {
+        name: "per",
+        type: "enum",
+        options: {
+            enums: ["HOUR", "DAY", "WEEK", "MONTH", "YEAR"],
+            defaultValue: "HOUR"
+        }
+    },
+    {
+        name: "operatorIncluded",
+        type: "boolean",
+        options: {
+            defaultValue: true
+        }
+    }
+];
+```
+
+**Key method — `resolveEquipmentRate`:**
+
+```typescript
+// Resolution priority: highest index wins
+private static PRIORITY: Record<string, number> = {
+    "EquipmentCategory": 0,
+    "Equipment": 1,
+    "Job": 2
+    // Future: "Company": 3
+};
+
+public async resolveEquipmentRate(
+    equipmentId: string,
+    rateLabelId: string,
+    per: string,
+    jobId?: string,
+    operatorIncluded: boolean = true,
+    date?: Date  // optional — determines which schedule is active
+): Promise<{ amount: number; per: string; operatorIncluded: boolean; provenance: string; rateLabelName: string; equipmentRateScheduleId: string | null } | null> {
+    // Get equipment to find its category
+    const equipment = await prisma.equipment.findUnique({
+        where: { id: equipmentId },
+        include: { EquipmentCategory: true }
+    });
+    if (!equipment) return null;
+
+    const rateLabel = await prisma.equipmentRateLabel.findUnique({
+        where: { id: rateLabelId }
+    });
+    if (!rateLabel) return null;
+
+    // Determine active schedule for this category
+    let scheduleId: string | null = null;
+    if (date) {
+        const activeSchedule = await prisma.equipmentRateSchedule.findFirst({
+            where: {
+                equipmentCategoryId: equipment.equipmentCategoryId,
+                effectiveDate: { lte: date },
+                isDeleted: false,
+                isArchived: false
+            },
+            orderBy: { effectiveDate: "desc" }
+        });
+        scheduleId = activeSchedule?.id ?? null;
+    }
+
+    // Build OR conditions for all applicable scope levels
+    const orConditions: any[] = [
+        { referenceModel: "EquipmentCategory", referenceId: equipment.equipmentCategoryId },
+        { referenceModel: "Equipment", referenceId: equipmentId }
+    ];
+    if (jobId) {
+        orConditions.push({ referenceModel: "Job", referenceId: jobId });
+    }
+
+    const candidates = await this.prisma.findMany({
+        where: {
+            equipmentRateLabelId: rateLabelId,
+            per: per,
+            operatorIncluded: operatorIncluded,
+            equipmentRateScheduleId: scheduleId, // null = default (unscheduled) rates
+            isDeleted: false,
+            isArchived: false,
+            OR: orConditions
+        }
+    });
+
+    if (candidates.length === 0) return null;
+
+    // Pick highest priority
+    const sorted = candidates.sort(
+        (a, b) => (EquipmentRateValueModel.PRIORITY[b.referenceModel] ?? -1)
+                 - (EquipmentRateValueModel.PRIORITY[a.referenceModel] ?? -1)
+    );
+
+    const winner = sorted[0];
+    return {
+        amount: winner.amount.toNumber(),
+        per: winner.per,
+        operatorIncluded: winner.operatorIncluded,
+        provenance: winner.referenceModel,
+        rateLabelName: rateLabel.name,
+        equipmentRateScheduleId: scheduleId
+    };
+}
+```
+
+**Key method — `upsertManyEquipmentRateValues`:**
+
+```typescript
+public async upsertManyEquipmentRateValues(
+    data: Array<{
+        equipmentRateLabelId: string;
+        referenceModel: string;
+        referenceId: string;
+        per: string;
+        operatorIncluded: boolean;
+        amount: number;
+    }>,
+    currentUserId: string
+): Promise<boolean> {
+    for (const item of data) {
+        const existing = await this.prisma.findFirst({
+            where: {
+                equipmentRateLabelId: item.equipmentRateLabelId,
+                referenceModel: item.referenceModel,
+                referenceId: item.referenceId,
+                per: item.per,
+                operatorIncluded: item.operatorIncluded,
+                isDeleted: false,
+                isArchived: false
+            }
+        });
+
+        if (existing) {
+            await this.editItem(existing.id, { amount: item.amount }, currentUserId);
+        } else {
+            await this.createItem(item, currentUserId);
+        }
+    }
+    return true;
+}
+```
+
+---
+
+## Step 4: GraphQL Resolvers
+
+### 4a. EquipmentRateLabel Resolver
+
+**Create file:** `apps/api/src/graphql/models/EquipmentRateLabel.ts`
+
+Follow the pattern from the existing `EmployeeAgreementRateLabel.ts` resolver. The typeDef:
+
+```graphql
+type EquipmentRateLabel {
+    id: ID!
+    isArchived: Boolean
+    name: String!
+    description: String
+    orderNo: Int
+    equipmentCategoryId: String!
+    EquipmentCategory: EquipmentCategory
+}
+
+input CreateEquipmentRateLabel {
+    name: String!
+    description: String
+    orderNo: Int
+    equipmentCategoryId: String!
+}
+
+input EditEquipmentRateLabel {
+    id: ID!
+    name: String
+    description: String
+    orderNo: Int
+}
+
+extend type Query {
+    equipmentRateLabel(id: ID!): EquipmentRateLabel
+    equipmentRateLabels(equipmentCategoryId: ID!): [EquipmentRateLabel]
+}
+
+extend type Mutation {
+    createEquipmentRateLabel(data: CreateEquipmentRateLabel!): EquipmentRateLabel
+    editEquipmentRateLabel(data: EditEquipmentRateLabel!): EquipmentRateLabel
+    deleteEquipmentRateLabel(id: ID!): Boolean
+    initializeEquipmentRateLabels(equipmentCategoryId: ID!): Boolean
+}
+```
+
+### 4b. EquipmentRateValue Resolver
+
+**Create file:** `apps/api/src/graphql/models/EquipmentRateValue.ts`
+
+```graphql
+type EquipmentRateValue {
+    id: ID!
+    referenceModel: String!
+    referenceId: String!
+    equipmentRateLabelId: String!
+    EquipmentRateLabel: EquipmentRateLabel
+    amount: Float!
+    per: EquipmentRatePer!
+    operatorIncluded: Boolean!
+}
+
+type ResolvedEquipmentRate {
+    amount: Float
+    per: EquipmentRatePer
+    operatorIncluded: Boolean
+    provenance: String!
+    rateLabelName: String!
+}
+
+enum EquipmentRatePer { HOUR, DAY, WEEK, MONTH, YEAR }
+
+input UpsertEquipmentRateValue {
+    equipmentRateLabelId: String!
+    referenceModel: String!
+    referenceId: String!
+    per: EquipmentRatePer!
+    operatorIncluded: Boolean!
+    amount: Float!
+}
+
+extend type Query {
+    equipmentRateValues(referenceModel: String!, referenceId: ID!): [EquipmentRateValue]
+    equipmentRatesForEquipment(equipmentId: ID!): [EquipmentRateValue]
+    equipmentJobRateOverrides(jobId: ID!): [EquipmentRateValue]
+    resolveEquipmentRate(
+        equipmentId: ID!
+        rateLabelId: ID!
+        per: EquipmentRatePer!
+        jobId: ID
+        operatorIncluded: Boolean
+    ): ResolvedEquipmentRate
+}
+
+extend type Mutation {
+    upsertEquipmentRateValue(data: UpsertEquipmentRateValue!): EquipmentRateValue
+    upsertManyEquipmentRateValues(data: [UpsertEquipmentRateValue!]!): Boolean
+    deleteEquipmentRateValue(id: ID!): Boolean
+}
+```
+
+**Query implementations:**
+
+- `equipmentRateValues`: Simple filter by `referenceModel` + `referenceId`
+- `equipmentRatesForEquipment`: Returns values where `(referenceModel = "Equipment" AND referenceId = equipmentId)` — the equipment-level overrides only. The frontend merges these with category defaults client-side.
+- `equipmentJobRateOverrides`: Returns values where `referenceModel = "Job" AND referenceId = jobId` — for the Job detail page
+- `resolveEquipmentRate`: Delegates to model's `resolveEquipmentRate` method
+
+---
+
+## Step 5: Register Resolvers in Schema
+
+**File:** `apps/api/src/graphql/schema.ts`
+
+Follow the exact pattern used for EmployeeAgreementRateLabel. 5 places to update:
+
+1. **Import** (top of file):
+```typescript
+import { EquipmentRateLabelResolvers } from "./models/EquipmentRateLabel";
+import { EquipmentRateValueResolvers } from "./models/EquipmentRateValue";
+```
+
+2. **Type resolvers** (in the `resolvers` object):
+```typescript
+EquipmentRateLabel: { ...EquipmentRateLabelResolvers.Resolvers },
+EquipmentRateValue: { ...EquipmentRateValueResolvers.Resolvers },
+```
+
+3. **Query resolvers**:
+```typescript
+...EquipmentRateLabelResolvers.Query,
+...EquipmentRateValueResolvers.Query,
+```
+
+4. **Mutation resolvers**:
+```typescript
+...EquipmentRateLabelResolvers.Mutation,
+...EquipmentRateValueResolvers.Mutation,
+```
+
+5. **TypeDefs** (in the `typeDefs` array):
+```typescript
+EquipmentRateLabelResolvers.typeDef ?? gql``,
+EquipmentRateValueResolvers.typeDef ?? gql``,
+```
+
+Also export from `apps/api/src/graphql/models/index.ts`.
+
+---
+
+## Step 6: Shared Frontend Component — EquipmentRateTable
+
+**Create file:** `apps/frontend/src/components/EquipmentRateTable/EquipmentRateTable.tsx`
+
+This is the core shared component used on all three pages.
+
+### Props Interface
+
+```typescript
+interface IEquipmentRateTableProps {
+    className?: string | ClassNames;
+    referenceModel: "EquipmentCategory" | "Equipment" | "Job";
+    referenceId: string;
+    equipmentCategoryId: string;
+    parentRates?: GqlEquipmentRateValue[];  // inherited values for read-only display
+    onSave?: () => void;  // callback after save for parent to refetch
+}
+```
+
+### Component Structure
+
+```
+EquipmentRateTable
+├── Level 1 TabGroup: "Operator Included" | "Equipment Only"
+│   └── Level 2 TabGroup: "Hourly" | "Daily" | "Weekly" | "Monthly" | "Yearly"
+│       └── Rate table
+│           ├── Header: Rate Type | [Amount] or [Default | Override]
+│           ├── Rows: One per EquipmentRateLabel (sorted by orderNo)
+│           └── Each cell: CurrencyInput (editable) or Inherited badge
+├── Edit button (top-right)
+└── ExitPageWarning footer (when editing)
+```
+
+### Data Loading
+
+Query `equipmentRateLabels(equipmentCategoryId)` for the row definitions.
+Query `equipmentRateValues(referenceModel, referenceId)` for the current values at this scope level.
+
+### Key Patterns to Follow
+
+- **TabGroup:** Use existing `TabGroup` from `@useanzen/ui` — same component used in WageRates
+- **CurrencyInput:** From `@useanzen/ui` with `decimalPlaces={2}`
+- **ExitPageWarning:** Same pattern as `WageRates.tsx` (lines 648-668)
+- **Edit mode toggle:** Same pattern as `WageRates.tsx` (lines 385-403) — button toggles `isEdit` state
+- **useForm hook:** Track `formValues` and `dirtyFormValues` for change detection
+- **FC arrow function pattern**, `ClassNames`, no trailing commas per CLAUDE.md
+
+### Save Logic
+
+```typescript
+const onSubmit = () => {
+    const changes = Object.entries(dirtyFormValues).map(([key, value]) => {
+        // key format: "rateLabelId~per~operatorIncluded"
+        const [equipmentRateLabelId, per, opIncl] = key.split("~");
+        return {
+            equipmentRateLabelId,
+            referenceModel,
+            referenceId,
+            per,
+            operatorIncluded: opIncl === "true",
+            amount: Number(value.replace(/[,]/g, ""))
+        };
+    });
+
+    upsertManyEquipmentRateValues({
+        variables: { data: changes }
+    }).then(/* notify success, exit edit mode */);
+};
+```
+
+### Rendering Columns
+
+Based on `referenceModel`:
+- **"EquipmentCategory"**: Single "Amount" column — this IS the base level
+- **"Equipment"**: "Category Default" (read-only gray from `parentRates`) + "This Equipment" (editable or Inherited badge) + "Reset" action
+- **"Job"**: "Effective Rate" (resolved, read-only with provenance badge) + "Job Override" (editable or "Using default") + "Clear" action
+
+---
+
+## Step 7: Equipment Detail Page — Add Rates Tab
+
+**File:** `apps/frontend/src/components/DetailsPage/EquipmentDetailPage/index.tsx`
+
+### 7a. Import
+
+```typescript
+import EquipmentRates from "./Tabs/EquipmentRates";
+```
+
+### 7b. Add tab to the tabs array (after "Location" tab, line ~46)
+
+```typescript
+{
+    label: "Rates",
+    component: <EquipmentRates />,
+    param: "rates",
+    permission: hasPermissions({ equipment: { view: true } }, permissions)
+}
+```
+
+### 7c. Create wrapper component
+
+**Create file:** `apps/frontend/src/components/DetailsPage/EquipmentDetailPage/Tabs/EquipmentRates.tsx`
+
+This wrapper loads the equipment's category ID and passes it to the shared `EquipmentRateTable`, along with parentRates from the category level. It also includes a "Job Rate Overrides" section below.
+
+```typescript
+const EquipmentRates: FC = () => {
+    const router = useRouter();
+    const equipmentId = router.query.id as string;
+
+    // Load equipment to get equipmentCategoryId
+    // Load category-level rates as parentRates
+    // Load equipment-level rates
+
+    return (
+        <div className="space-y-6">
+            <EquipmentRateTable
+                referenceModel="Equipment"
+                referenceId={equipmentId}
+                equipmentCategoryId={equipmentCategoryId}
+                parentRates={categoryRates}
+            />
+            {/* Job Rate Overrides section */}
+            <div className="border-t-2 border-gray-200 pt-4">
+                <h3>Job-Specific Rate Overrides</h3>
+                <CustomCombobox ... /> {/* Job selector */}
+                {selectedJobId && (
+                    <EquipmentRateTable
+                        referenceModel="Job"
+                        referenceId={selectedJobId}
+                        equipmentCategoryId={equipmentCategoryId}
+                        parentRates={resolvedEquipmentRates}
+                    />
+                )}
+            </div>
+        </div>
+    );
+};
+```
+
+---
+
+## Step 8: EquipmentCategory Rates UI
+
+**Important discovery:** EquipmentCategory does NOT have a detail page with tabs. It's managed in Settings at:
+`apps/frontend/src/components/Settings/Equipment/EquipmentCategory.tsx`
+
+### Options (choose one with the team):
+
+**Option A: Add a "Configure Rates" action to the category list row** that opens a flyout containing the `EquipmentRateTable` component. This is the simplest approach and matches how other settings-level configuration works.
+
+**Option B: Create a new EquipmentCategory detail page** at `apps/frontend/src/components/DetailsPage/EquipmentCategoryDetailPage/index.tsx` with tabs (Overview, Rates, Attributes, etc.). This is more work but provides a proper home for rate configuration.
+
+**Option C: Add a sub-panel or expandable section** within the existing EquipmentCategory settings view.
+
+**Recommendation:** Option A (flyout) for v1. The `EquipmentRateTable` component is self-contained, so it slots into a flyout easily. A full detail page can come later if needed.
+
+Regardless of option, the component usage is the same:
+
+```typescript
+<EquipmentRateTable
+    referenceModel="EquipmentCategory"
+    referenceId={categoryId}
+    equipmentCategoryId={categoryId}
+/>
+```
+
+No `parentRates` prop — this IS the base level.
+
+Above the rate table, include the **Rate Labels management section** with add/edit/delete for rate type definitions, using `initializeEquipmentRateLabels` to seed defaults on first open.
+
+---
+
+## Step 9: Job Detail Page — Equipment Rate Overrides Tab
+
+**File:** `apps/frontend/src/components/DetailsPage/JobDetailsPage/index.tsx`
+
+The Job detail page uses hierarchical tabs with `childTabs`. Add Equipment Rate Overrides as a child tab under Financials, or as a standalone tab.
+
+### 9a. Create wrapper component
+
+**Create file:** `apps/frontend/src/components/DetailsPage/JobDetailsPage/Tabs/JobEquipmentRates.tsx`
+
+```typescript
+const JobEquipmentRates: FC = () => {
+    const router = useRouter();
+    const jobId = router.query.id as string;
+    const [selectedEquipmentId, setSelectedEquipmentId] = useState<string>("");
+    const [equipmentCategoryId, setEquipmentCategoryId] = useState<string>("");
+
+    // When equipment is selected, load its categoryId
+    // Load resolved rates (equipment + category cascade) as parentRates
+
+    return (
+        <div className="space-y-4">
+            <h2 className="text-xl font-semibold">Equipment Rate Overrides for This Job</h2>
+            <p className="text-sm text-gray-500">
+                Set job-specific equipment rates. These auto-populate on Work Orders for this job.
+            </p>
+            <CustomCombobox
+                useSearchCore
+                name="equipmentId"
+                fieldNames={["name"]}
+                queryResultLabel="Equipment"
+                placeholder="Select Equipment"
+                onOptionSelect={(option) => {
+                    setSelectedEquipmentId(option.id);
+                    setEquipmentCategoryId(option.record?.equipmentCategoryId);
+                }}
+            />
+            {selectedEquipmentId && equipmentCategoryId && (
+                <EquipmentRateTable
+                    referenceModel="Job"
+                    referenceId={jobId}
+                    equipmentCategoryId={equipmentCategoryId}
+                    parentRates={resolvedRatesForEquipment}
+                />
+            )}
+        </div>
+    );
+};
+```
+
+### 9b. Register as tab
+
+In the Job detail page tab array, add:
+
+```typescript
+{
+    label: "Equipment Rate Overrides",
+    component: <JobEquipmentRates />,
+    param: "equipment-rate-overrides",
+    permission: hasPermissions({ equipment: { view: true } }, permissions)
+}
+```
+
+---
+
+## Verification Checklist
+
+After implementation, verify:
+
+- [ ] EquipmentRateLabel CRUD works — create, edit, reorder, delete rate types per category
+- [ ] Default labels seeded on first visit — Standard, Standby, Overtime, Weekend, Holiday
+- [ ] Category rates tab shows two-level tabs: Operator/Bare x Hourly/Daily/Weekly/Monthly/Yearly
+- [ ] Filling in amounts and saving creates EquipmentRateValue records with correct referenceModel/referenceId/per/operatorIncluded
+- [ ] Different amounts per per-type (hourly != daily / 8) — verified with different values on Hourly vs Daily tabs
+- [ ] Equipment detail Rates tab shows inherited category values with "Inherited" badge
+- [ ] Editing an equipment rate creates EquipmentRateValue with referenceModel="Equipment"
+- [ ] "Reset" on equipment rate deletes the override, reverts to "Inherited"
+- [ ] Job rate overrides work from Equipment detail page (Job selector + rate table)
+- [ ] Job rate overrides work from Job detail page (Equipment selector + rate table)
+- [ ] Same EquipmentRateValue records visible from both entry points
+- [ ] resolveEquipmentRate returns correct cascade: Job > Equipment > EquipmentCategory with provenance
+- [ ] Provenance badges show correct source (Category green, Equipment amber, Job blue)
+- [ ] Unique constraint prevents duplicate (rateLabelId + referenceModel + referenceId + per + operatorIncluded)
+- [ ] Empty cells in a per-tab render as blank, not $0.00
+- [ ] GraphQL playground: all queries and mutations work
+- [ ] No regression on existing Equipment CRUD, assignments, or other tabs
+- [ ] Resolvers registered in schema.ts (typeDefs, Query, Mutation, Resolvers — all 5 places)
+
+---
+
+## Files Summary
+
+| Action | File | What to do |
+|--------|------|------------|
+| MODIFY | `apps/api/prisma/schema.prisma` | Add 1 enum, 3 models (EquipmentRateLabel, EquipmentRateSchedule, EquipmentRateValue), relations on EquipmentCategory |
+| CREATE | `apps/api/prisma/migrations/.../migration.sql` | Create EquipmentRateLabel + EquipmentRateValue tables + enum |
+| CREATE | `apps/api/src/types/Equipment.types.ts` | Add IEquipmentRateLabelModel + IEquipmentRateValueModel interfaces |
+| CREATE | `apps/api/src/models/EquipmentRateLabel.ts` | Model class with initializeLabels, archiveChildren |
+| CREATE | `apps/api/src/models/EquipmentRateSchedule.ts` | Model class — CRUD for rate schedules |
+| CREATE | `apps/api/src/models/EquipmentRateValue.ts` | Model class with schedule-aware resolveEquipmentRate, upsertMany |
+| CREATE | `apps/api/src/graphql/models/EquipmentRateLabel.ts` | GraphQL resolver for rate labels |
+| CREATE | `apps/api/src/graphql/models/EquipmentRateValue.ts` | GraphQL resolver for rate values + resolution |
+| MODIFY | `apps/api/src/graphql/schema.ts` | Register both new resolvers (5 places each) |
+| MODIFY | `apps/api/src/graphql/models/index.ts` | Export new resolvers |
+| CREATE | `apps/frontend/src/components/EquipmentRateTable/EquipmentRateTable.tsx` | Shared component: two-level tabs + rate table |
+| CREATE | `apps/frontend/.../EquipmentDetailPage/Tabs/EquipmentRates.tsx` | Equipment rates tab wrapper |
+| CREATE | `apps/frontend/.../JobDetailsPage/Tabs/JobEquipmentRates.tsx` | Job equipment rate overrides wrapper |
+| MODIFY | `apps/frontend/.../EquipmentDetailPage/index.tsx` | Add Rates tab |
+| MODIFY | `apps/frontend/.../JobDetailsPage/index.tsx` | Add Equipment Rate Overrides tab |
+| MODIFY | `apps/frontend/.../Settings/Equipment/EquipmentCategory.tsx` | Add "Configure Rates" action (flyout approach) |
+</script>
+
+<script>
+(function() {
+    var md = document.getElementById('plan-md').textContent;
+    var target = document.getElementById('rendered');
+    var html = md
+        .replace(/```(\w*)\n([\s\S]*?)```/g, function(_, lang, code) {
+            return '<pre><code>' + code.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</code></pre>';
+        })
+        .replace(/`([^`\n]+)`/g, '<code>$1</code>')
+        .replace(/^#### (.+)$/gm, '<h4>$1</h4>')
+        .replace(/^### (.+)$/gm, '<h3>$1</h3>')
+        .replace(/^## (.+)$/gm, '<h2>$1</h2>')
+        .replace(/^# (.+)$/gm, '<h1>$1</h1>')
+        .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\*(.+?)\*/g, '<em>$1</em>')
+        .replace(/^---$/gm, '<hr>');
+    html = html.replace(/^- \[ \] (.+)$/gm, '<div class="check-item"><div class="check-box"></div><span>$1</span></div>');
+    html = html.replace(/(\|.+\|\n)+/g, function(table) {
+        var rows = table.trim().split('\n');
+        if (rows.length < 2) return table;
+        var headers = rows[0].split('|').filter(function(c) { return c.trim(); });
+        var isSep = /^[\s|:\-]+$/.test(rows[1]);
+        var start = isSep ? 2 : 1;
+        var out = '<table><thead><tr>';
+        headers.forEach(function(h) { out += '<th>' + h.trim() + '</th>'; });
+        out += '</tr></thead><tbody>';
+        for (var i = start; i < rows.length; i++) {
+            var cells = rows[i].split('|').filter(function(c) { return c.trim(); });
+            out += '<tr>';
+            cells.forEach(function(c) { out += '<td>' + c.trim() + '</td>'; });
+            out += '</tr>';
+        }
+        out += '</tbody></table>';
+        return out;
+    });
+    html = html.replace(/^- (.+)$/gm, '<li>$1</li>');
+    html = html.replace(/(<li>[\s\S]*?<\/li>\n?)+/g, function(m) { return '<ul>' + m + '</ul>'; });
+    html = html.replace(/^(?!<[hultdps\/<]|<\/|<code|<pre|<hr|<div|<strong|<em)(.+)$/gm, '<p>$1</p>');
+    target.innerHTML = html;
+})();
+</script>
+</body>
+</html>

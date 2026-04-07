@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WO-6: Mobile WO List & Detail</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Inter', -apple-system, sans-serif; background: #f1f5f9; color: #0f172a; }
+.uis-wrap { max-width: 960px; margin: 0 auto; padding: 40px 24px 80px; }
+.uis-hero { margin-bottom: 32px; }
+.uis-badges { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+.uis-badge { font-size: 11px; font-weight: 700; padding: 4px 12px; border-radius: 6px; display: inline-flex; align-items: center; gap: 5px; }
+.badge-q { background: #0f172a; color: #fff; }
+.badge-wo { background: #ec4899; color: #fff; }
+.badge-status { background: #fef3c7; color: #92400e; }
+.uis-h1 { font-size: 30px; font-weight: 800; color: #0f172a; margin: 0 0 8px; letter-spacing: -0.01em; }
+.uis-sub { font-size: 15px; color: #64748b; line-height: 1.5; margin: 0; }
+.uis-meta { display: flex; gap: 24px; flex-wrap: wrap; margin-top: 14px; font-size: 13px; color: #64748b; }
+.uis-meta strong { color: #0f172a; }
+.uis-section { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px 28px; margin-bottom: 16px; }
+.uis-section h2 { font-size: 17px; font-weight: 700; margin: 0 0 14px; padding-bottom: 10px; border-bottom: 2px solid #e2e8f0; }
+.uis-section h3 { font-size: 15px; font-weight: 700; margin: 16px 0 8px; }
+.uis-section p, .uis-section li { font-size: 14px; color: #334155; line-height: 1.65; }
+.uis-section ul, .uis-section ol { padding-left: 20px; margin: 8px 0; }
+pre { background: #1e293b; color: #e2e8f0; border-radius: 8px; padding: 16px; overflow-x: auto; font-size: 13px; line-height: 1.5; font-family: 'SF Mono', monospace; margin: 12px 0; }
+table.schema-table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 12px 0; }
+table.schema-table th { text-align: left; padding: 8px 12px; background: #f8fafc; border-bottom: 2px solid #e2e8f0; font-weight: 600; }
+table.schema-table td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
+table.schema-table code { font-family: monospace; background: #f1f5f9; padding: 1px 5px; border-radius: 3px; font-size: 12px; color: #7c3aed; }
+.callout { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 14px 18px; margin: 14px 0; font-size: 13px; color: #1e40af; }
+.callout strong { color: #1e3a8a; }
+.blast-summary { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 16px 20px; margin-bottom: 16px; }
+.blast-row { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; }
+.blast-row:not(:last-child) { border-bottom: 1px solid #f1f5f9; }
+.blast-label { font-size: 13px; color: #64748b; }
+.blast-value { font-size: 13px; font-weight: 700; color: #0f172a; }
+.action-new { background: #dcfce7; color: #166534; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 4px; }
+.action-mod { background: #fef3c7; color: #92400e; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 4px; }
+.ac-list { margin: 0; padding-left: 0; list-style: none; }
+.ac-list li { display: flex; gap: 10px; margin-bottom: 10px; font-size: 14px; color: #334155; line-height: 1.55; }
+.ac-list li::before { content: ''; flex-shrink: 0; width: 18px; height: 18px; border: 2px solid #e2e8f0; border-radius: 4px; margin-top: 2px; background: #fff; }
+.dep-tag { display: inline-block; font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 5px; margin-right: 6px; margin-bottom: 6px; }
+.dep-requires { background: #fee2e2; color: #dc2626; }
+.dep-enables { background: #dcfce7; color: #166534; }
+.mobile-frame { max-width: 375px; margin: 0 auto; border: 2px solid #e2e8f0; border-radius: 24px; overflow: hidden; }
+.mobile-header { background: #0f172a; color: #fff; padding: 12px 16px; font-size: 14px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+.mobile-body { padding: 16px; background: #fff; min-height: 400px; }
+.mobile-input { width: 100%; height: 44px; border: 1px solid #e2e8f0; border-radius: 10px; padding: 0 14px; font-size: 14px; margin-bottom: 12px; display: flex; align-items: center; color: #94a3b8; }
+.mobile-btn { width: 100%; padding: 14px; border-radius: 10px; font-size: 16px; font-weight: 600; text-align: center; border: none; }
+.mobile-btn-primary { background: #3b82f6; color: #fff; }
+.wo-card { border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px; margin-bottom: 8px; }
+.wo-card-title { font-size: 14px; font-weight: 600; color: #0f172a; margin-bottom: 4px; }
+.wo-card-meta { font-size: 12px; color: #64748b; }
+.wo-card-status { display: inline-block; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 4px; }
+.status-draft { background: #f1f5f9; color: #64748b; }
+.status-submitted { background: #dbeafe; color: #1d4ed8; }
+.status-signed { background: #dcfce7; color: #166534; }
+.tab-bar { display: flex; border-bottom: 2px solid #e2e8f0; margin-bottom: 16px; }
+.tab-item { flex: 1; padding: 10px; text-align: center; font-size: 13px; font-weight: 600; color: #94a3b8; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -2px; }
+.tab-item-active { color: #3b82f6; border-bottom-color: #3b82f6; }
+.detail-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #f1f5f9; font-size: 13px; }
+.detail-label { color: #64748b; }
+.detail-value { color: #0f172a; font-weight: 600; }
+    </style>
+</head>
+<body>
+<div class="uis-wrap">
+
+    <div class="uis-hero">
+        <div class="uis-badges">
+            <span class="uis-badge badge-q">WO-6</span>
+            <span class="uis-badge badge-wo">Work Orders</span>
+            <span class="uis-badge badge-status">Draft</span>
+        </div>
+        <h1 class="uis-h1">Mobile WO List &amp; Detail</h1>
+        <p class="uis-sub">Work Order list and detail pages on mobile using existing <code>TableDataList</code> and <code>DetailOverview</code> + <code>TabGroup</code> components. Mirrors the RFI list pattern and the Job detail tab pattern. Provides the entry point for creating and viewing work orders on mobile.</p>
+        <div class="uis-meta">
+            <span><strong>Estimate:</strong> 1-2 days</span>
+            <span><strong>Requires:</strong> WO-1 (JobClassification + sidebar), WO-3d (TableFeed configureColumns)</span>
+        </div>
+    </div>
+
+    <!-- 1. Approach -->
+    <div class="uis-section">
+        <h2>1. Approach</h2>
+
+        <p>The mobile app already has well-established patterns for list and detail pages. This feature drops Work Orders into those patterns with minimal custom code:</p>
+
+        <ul>
+            <li><strong>List page:</strong> <code>TableDataList</code> with <code>modelName="Job"</code> and <code>defaultWhere</code> filtering to WORK_ORDER classification. Same pattern as the RFI list page.</li>
+            <li><strong>Detail page:</strong> <code>TabGroup</code> with Overview (<code>DetailOverview</code>), Notes, and Files tabs. Same pattern as the Job detail page but scoped to WO-relevant tabs.</li>
+        </ul>
+
+        <div class="callout">
+            <strong>No new components needed.</strong> <code>TableDataList</code>, <code>DetailOverview</code>, <code>TabGroup</code>, <code>JobNotes</code>, and <code>JobFiles</code> are all existing components. This is purely wiring them up for the WORK_ORDER subModel with appropriate columns and configuration.
+        </div>
+    </div>
+
+    <!-- 2. WO List Page -->
+    <div class="uis-section">
+        <h2>2. Work Order List Page</h2>
+
+        <h3>Route</h3>
+        <p><code>apps/mobile/src/pages/admin/work-orders/index.tsx</code></p>
+
+        <h3>Configuration</h3>
+<pre>
+&lt;TableDataList&lt;IWOTableData&gt;
+    modelName="Job"
+    columns={["fullJobNumber", "name", "jobStatusId", "dateOfWork", "projectId"]}
+    orderBy={{ column: "createdAt", direction: "DESC" }}
+    defaultWhere={{ jobClassification: "WORK_ORDER" }}
+    filterableColumns={["jobStatusId", "projectId"]}
+    displayCard={(record) =&gt; &lt;WOListCard record={record} /&gt;}
+    onCreateClick={() =&gt; openFlyout(&lt;DataModelForm subModel="WORK_ORDER" steppedForm ... /&gt;)}
+    createLabel="Create Work Order"
+/&gt;
+</pre>
+
+        <h3>WOListCard</h3>
+        <p>A simple card component showing WO number, name, status badge, date of work, and project name. Tapping navigates to the detail page.</p>
+
+        <h3>Mockup: WO List</h3>
+        <div class="mobile-frame">
+            <div class="mobile-header">
+                <span style="font-size:18px;">&larr;</span>
+                <span style="flex:1; text-align:center;">Work Orders</span>
+                <span style="font-size:18px;">+</span>
+            </div>
+            <div class="mobile-body" style="min-height:500px; padding:12px;">
+                <!-- Search -->
+                <div class="mobile-input" style="height:40px; margin-bottom:12px;">
+                    <span style="margin-right:8px;">&#128269;</span>
+                    <span style="color:#94a3b8; font-size:13px;">Search work orders...</span>
+                </div>
+
+                <!-- WO Cards -->
+                <div class="wo-card">
+                    <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:4px;">
+                        <div class="wo-card-title">WO-0042</div>
+                        <span class="wo-card-status status-submitted">SUBMITTED</span>
+                    </div>
+                    <div style="font-size:13px; color:#334155; margin-bottom:4px;">Extra insulation &mdash; 3rd floor east wing</div>
+                    <div class="wo-card-meta">Riverdale Phase 2 &bull; Mar 30, 2026</div>
+                </div>
+
+                <div class="wo-card">
+                    <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:4px;">
+                        <div class="wo-card-title">WO-0041</div>
+                        <span class="wo-card-status status-signed">SIGNED</span>
+                    </div>
+                    <div style="font-size:13px; color:#334155; margin-bottom:4px;">HVAC duct reroute &mdash; Building B</div>
+                    <div class="wo-card-meta">Oakwood Mall Renovation &bull; Mar 28, 2026</div>
+                </div>
+
+                <div class="wo-card">
+                    <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:4px;">
+                        <div class="wo-card-title">WO-0040</div>
+                        <span class="wo-card-status status-draft">DRAFT</span>
+                    </div>
+                    <div style="font-size:13px; color:#334155; margin-bottom:4px;">Concrete patching &mdash; loading dock</div>
+                    <div class="wo-card-meta">Highland Tower &bull; Mar 27, 2026</div>
+                </div>
+
+                <div class="wo-card">
+                    <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:4px;">
+                        <div class="wo-card-title">WO-0039</div>
+                        <span class="wo-card-status status-signed">SIGNED</span>
+                    </div>
+                    <div style="font-size:13px; color:#334155; margin-bottom:4px;">Electrical panel relocation</div>
+                    <div class="wo-card-meta">Riverdale Phase 2 &bull; Mar 25, 2026</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3. WO Detail Page -->
+    <div class="uis-section">
+        <h2>3. Work Order Detail Page</h2>
+
+        <h3>Route</h3>
+        <p><code>apps/mobile/src/pages/admin/work-orders/[id]/index.tsx</code></p>
+
+        <h3>Tab structure</h3>
+        <table class="schema-table">
+            <thead><tr><th>Tab</th><th>Component</th><th>Notes</th></tr></thead>
+            <tbody>
+                <tr>
+                    <td><strong>Overview</strong></td>
+                    <td><code>DetailOverview</code></td>
+                    <td><code>modelName="Job"</code>, <code>viewSectionType="Details"</code>. Shows all WO DAA fields in sectioned read-only view. <code>customColumnRender</code> for line item display (labor, materials, equipment) and signatures.</td>
+                </tr>
+                <tr>
+                    <td><strong>Notes</strong></td>
+                    <td><code>JobNotes</code></td>
+                    <td>Reuses the existing Job notes component. Notes are polymorphic on Job already. Shows note count badge.</td>
+                </tr>
+                <tr>
+                    <td><strong>Files</strong></td>
+                    <td><code>JobFiles</code> in <code>FilesProvider</code></td>
+                    <td>Reuses the existing Job files component. Assets are polymorphic on Job. Shows file count badge.</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h3>Header</h3>
+        <p>Shows WO number + name, status badge, and an edit button that opens the DataModelForm flyout (non-stepped on detail, since editing is section-at-a-time).</p>
+
+        <h3>Mockup: WO Detail &mdash; Overview Tab</h3>
+        <div class="mobile-frame">
+            <div class="mobile-header">
+                <span style="font-size:18px;">&larr;</span>
+                <span style="flex:1; text-align:center;">WO-0042</span>
+                <span style="font-size:13px;">Edit</span>
+            </div>
+            <div class="mobile-body" style="min-height:550px; padding:0;">
+                <!-- Status bar -->
+                <div style="background:#eff6ff; padding:10px 16px; display:flex; justify-content:space-between; align-items:center;">
+                    <span style="font-size:13px; color:#1d4ed8; font-weight:600;">Submitted</span>
+                    <span style="font-size:12px; color:#64748b;">Mar 30, 2026</span>
+                </div>
+
+                <!-- Tabs -->
+                <div class="tab-bar" style="padding:0 16px;">
+                    <div class="tab-item tab-item-active">Overview</div>
+                    <div class="tab-item">Notes <span style="background:#e2e8f0; border-radius:10px; padding:1px 6px; font-size:10px; margin-left:4px;">2</span></div>
+                    <div class="tab-item">Files <span style="background:#e2e8f0; border-radius:10px; padding:1px 6px; font-size:10px; margin-left:4px;">3</span></div>
+                </div>
+
+                <!-- DetailOverview content -->
+                <div style="padding:16px;">
+                    <!-- Work Order Info section -->
+                    <div style="font-size:11px; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:8px;">Work Order Info</div>
+                    <div class="detail-row">
+                        <span class="detail-label">WO Number</span>
+                        <span class="detail-value">WO-0042</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Job Type</span>
+                        <span class="detail-value">T&amp;M Work Order</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Project</span>
+                        <span class="detail-value">Riverdale Phase 2</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Date of Work</span>
+                        <span class="detail-value">Mar 30, 2026</span>
+                    </div>
+                    <div class="detail-row" style="border-bottom:none;">
+                        <span class="detail-label">Description</span>
+                        <span class="detail-value" style="max-width:180px; text-align:right;">Extra insulation &mdash; 3rd floor</span>
+                    </div>
+
+                    <!-- Labor section -->
+                    <div style="font-size:11px; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.5px; margin:16px 0 8px; padding-top:12px; border-top:2px solid #e2e8f0;">Labor</div>
+                    <div style="border:1px solid #e2e8f0; border-radius:8px; padding:10px; margin-bottom:6px;">
+                        <div style="font-size:13px; font-weight:600; color:#0f172a;">Journeyman Insulator</div>
+                        <div style="font-size:12px; color:#64748b;">3 workers &bull; 8.0 hrs</div>
+                    </div>
+                    <div style="border:1px solid #e2e8f0; border-radius:8px; padding:10px;">
+                        <div style="font-size:13px; font-weight:600; color:#0f172a;">Apprentice Insulator</div>
+                        <div style="font-size:12px; color:#64748b;">1 worker &bull; 6.0 hrs</div>
+                    </div>
+
+                    <!-- Signatures section -->
+                    <div style="font-size:11px; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.5px; margin:16px 0 8px; padding-top:12px; border-top:2px solid #e2e8f0;">Signatures</div>
+                    <div style="display:flex; gap:10px; align-items:center; padding:8px 0;">
+                        <div style="width:60px; height:24px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:4px; display:flex; align-items:center; justify-content:center;">
+                            <span style="font-family:cursive; font-size:10px; color:#3b82f6;">M Johnson</span>
+                        </div>
+                        <div>
+                            <div style="font-size:12px; font-weight:600; color:#0f172a;">Mike Johnson</div>
+                            <div style="font-size:10px; color:#64748b;">Mar 30, 2026 at 4:32 PM</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 4. Sidebar / Navigation -->
+    <div class="uis-section">
+        <h2>4. Mobile Navigation</h2>
+
+        <p>Work Orders needs an entry point in the mobile app navigation. This depends on how WO-1 configured the sidebar &mdash; the mobile app should mirror the desktop sidebar entry.</p>
+
+        <ul>
+            <li>Add "Work Orders" item to the mobile navigation menu (same position as desktop sidebar)</li>
+            <li>Links to <code>/admin/work-orders</code></li>
+            <li>Uses the same permission check as the desktop sidebar entry</li>
+        </ul>
+    </div>
+
+    <!-- 5. Change Surface -->
+    <div class="uis-section">
+        <h2>5. Change Surface</h2>
+        <div class="blast-summary">
+            <div class="blast-row"><span class="blast-label">New mobile pages</span><span class="blast-value">2 (list + detail)</span></div>
+            <div class="blast-row"><span class="blast-label">New mobile components</span><span class="blast-value">6 (WOListCard, WODetail, LaborItemsDisplay, MaterialItemsDisplay, EquipmentItemsDisplay, SignaturesDisplay)</span></div>
+            <div class="blast-row"><span class="blast-label">Modified mobile files</span><span class="blast-value">1 (navigation menu)</span></div>
+            <div class="blast-row"><span class="blast-label">Backend changes</span><span class="blast-value">None</span></div>
+        </div>
+        <table class="schema-table">
+            <thead><tr><th>Action</th><th>File</th><th>Notes</th></tr></thead>
+            <tbody>
+                <tr>
+                    <td><span class="action-new">NEW</span></td>
+                    <td><code>apps/mobile/src/pages/admin/work-orders/index.tsx</code></td>
+                    <td>WO list page using <code>TableDataList</code> with WORK_ORDER filter</td>
+                </tr>
+                <tr>
+                    <td><span class="action-new">NEW</span></td>
+                    <td><code>apps/mobile/src/pages/admin/work-orders/[id]/index.tsx</code></td>
+                    <td>WO detail page routing to <code>WODetail</code> component</td>
+                </tr>
+                <tr>
+                    <td><span class="action-new">NEW</span></td>
+                    <td><code>apps/mobile/src/components/WorkOrders/WOListCard.tsx</code></td>
+                    <td>Card component for list: WO number, name, status badge, date, project</td>
+                </tr>
+                <tr>
+                    <td><span class="action-new">NEW</span></td>
+                    <td><code>apps/mobile/src/components/WorkOrders/WODetail.tsx</code></td>
+                    <td><code>TabGroup</code> with Overview (<code>DetailOverview</code> + <code>customColumnRender</code>), Notes (<code>JobNotes</code>), Files (<code>JobFiles</code>)</td>
+                </tr>
+                <tr>
+                    <td><span class="action-new">NEW</span></td>
+                    <td><code>apps/mobile/src/components/WorkOrders/LaborItemsDisplay.tsx</code></td>
+                    <td>Read-only labor items. Structured + blank rows. Rate columns gated by <code>viewWageDetails</code> permission.</td>
+                </tr>
+                <tr>
+                    <td><span class="action-new">NEW</span></td>
+                    <td><code>apps/mobile/src/components/WorkOrders/MaterialItemsDisplay.tsx</code></td>
+                    <td>Read-only material items. Structured + blank rows with qty and unit cost.</td>
+                </tr>
+                <tr>
+                    <td><span class="action-new">NEW</span></td>
+                    <td><code>apps/mobile/src/components/WorkOrders/EquipmentItemsDisplay.tsx</code></td>
+                    <td>Read-only equipment items. Rate/cost gated by <code>viewWageDetails</code> permission.</td>
+                </tr>
+                <tr>
+                    <td><span class="action-new">NEW</span></td>
+                    <td><code>apps/mobile/src/components/WorkOrders/SignaturesDisplay.tsx</code></td>
+                    <td>Signature image grid with signer name/company, timestamp, GPS coordinates.</td>
+                </tr>
+                <tr>
+                    <td><span class="action-mod">MOD</span></td>
+                    <td>Mobile navigation menu</td>
+                    <td>Add "Work Orders" entry linking to <code>/admin/work-orders</code></td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- 6. Acceptance Criteria -->
+    <div class="uis-section">
+        <h2>6. Acceptance Criteria</h2>
+        <ol class="ac-list">
+            <li><span>"Work Orders" item in mobile navigation menu</span></li>
+            <li><span>WO list page shows only WORK_ORDER-classified jobs</span></li>
+            <li><span>List cards show WO number, name, status badge, date of work, project name</span></li>
+            <li><span>Search filters work orders by name and WO number</span></li>
+            <li><span>Status and project facet filters work</span></li>
+            <li><span>"+" button opens the DataModelForm for WORK_ORDER creation</span></li>
+            <li><span>Tapping a card navigates to WO detail page</span></li>
+            <li><span>Detail page shows Overview, Notes, and Files tabs</span></li>
+            <li><span>Overview tab renders <code>DetailOverview</code> with WO DAA fields in sectioned layout</span></li>
+            <li><span>Line items (labor, materials, equipment) display via <code>customColumnRender</code></span></li>
+            <li><span>Signatures display in the Overview tab</span></li>
+            <li><span>Notes tab reuses <code>JobNotes</code> with note count badge</span></li>
+            <li><span>Files tab reuses <code>JobFiles</code> with file count badge</span></li>
+            <li><span>Edit button opens DataModelForm for the existing WO record</span></li>
+        </ol>
+    </div>
+
+    <!-- 7. Dependencies -->
+    <div class="uis-section">
+        <h2>7. Dependencies</h2>
+        <h3>Requires</h3>
+        <p>
+            <span class="dep-tag dep-requires">WO-1</span> JobClassification + sidebar entry<br>
+            <span class="dep-tag dep-requires">WO-3d</span> TableFeed configureColumns for WORK_ORDER subModel
+        </p>
+        <h3>Enables</h3>
+        <p>
+            <span class="dep-tag dep-enables">WO-8a</span> Stepped form wizard (create WO from mobile list page)<br>
+            <span class="dep-tag dep-enables">WO-8b</span> Collect Signatures (accessed from mobile detail page)
+        </p>
+    </div>
+
+</div>
+</body>
+</html>

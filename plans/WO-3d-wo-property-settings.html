@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WO-3d: Work Order Property Settings — Implementation Plan</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Inter', -apple-system, sans-serif; background: #f8fafc; color: #0f172a; }
+.plan-wrap { max-width: 880px; margin: 0 auto; padding: 40px 24px 80px; }
+h1 { font-size: 24px; font-weight: 800; margin: 0 0 16px; }
+h2 { font-size: 18px; font-weight: 700; margin: 28px 0 12px; padding-bottom: 8px; border-bottom: 2px solid #e2e8f0; }
+h3 { font-size: 15px; font-weight: 700; margin: 20px 0 8px; padding-top: 10px; border-top: 1px solid #f1f5f9; }
+p { font-size: 14px; color: #334155; line-height: 1.7; margin: 6px 0; }
+ul, ol { padding-left: 20px; margin: 8px 0; }
+li { font-size: 14px; color: #334155; line-height: 1.7; margin: 3px 0; }
+strong { color: #0f172a; }
+code { font-family: 'SF Mono', monospace; background: #f1f5f9; padding: 1px 6px; border-radius: 4px; font-size: 12px; color: #7c3aed; }
+pre { background: #1e293b; color: #e2e8f0; border-radius: 8px; padding: 16px; overflow-x: auto; font-size: 13px; line-height: 1.6; margin: 12px 0; font-family: 'SF Mono', monospace; }
+pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
+hr { border: none; border-top: 1px solid #e2e8f0; margin: 24px 0; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 12px 0; }
+th { text-align: left; padding: 8px 12px; background: #f1f5f9; border-bottom: 2px solid #e2e8f0; font-weight: 600; }
+td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
+.check-item { display: flex; gap: 8px; align-items: flex-start; padding: 5px 0; }
+.check-box { width: 16px; height: 16px; border: 2px solid #cbd5e1; border-radius: 3px; flex-shrink: 0; margin-top: 2px; }
+.callout { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 14px 18px; margin: 14px 0; font-size: 13px; color: #1e40af; }
+.callout strong { color: #1e3a8a; }
+    </style>
+</head>
+<body>
+<div class="plan-wrap" id="rendered"></div>
+
+<script type="text/plain" id="plan-md">
+# WO-3d: Work Order Property Settings — Implementation Plan
+
+## Overview
+
+Add a "Work Orders" tab to Property Settings using existing DataModel settings components (`DocumentSectionLayoutBuilder`, `DataModelFormBuilderWrapper`, `PropertyValues`, `DefaultDocumentAttributesTable`). Handle dual-status PropertyValues for `jobStatusId` and scope all layout builders by `subModel`. Mostly assembly — all components exist.
+
+**Estimated effort:** 2-3 days
+**Risk:** Low — assembling existing components with subModel prop additions
+**Spec:** `tm-work-orders-uis/uis-20c-4-wo-property-settings.html`
+**Requires:** WO-1 (JobClassification + workOrderStatus PropertyValues), WO-3a (DAAs with WORK_ORDER subModel)
+
+---
+
+## Step 1: Extend DataModelSettingsTabs to accept subModel and propertyNameFilter
+
+**File:** `apps/frontend/src/components/Settings/PropertySettingTabs/DataModelSettingsTabs.tsx`
+
+The `DataModelSettingsTabs` component already renders all the sub-tabs (Detail View Layout, Settings View Layout, Manage Forms, Custom Properties, Default Properties). It just needs to accept `subModel` and `propertyNameFilter` and propagate them to its children. No new component needed.
+
+### 1a. Add props
+
+```typescript
+interface IUserSettingsTabsProps {
+    className?: string | ClassNames;
+    allowEdit?: boolean;
+    referenceModel: GqlTableDataName;
+    supportedTypes?: GqlDataModelFormType[];
+    subModel?: string;                    // <-- ADD
+    propertyNameFilter?: Array<string>;   // <-- ADD
+}
+```
+
+### 1b. Propagate subModel to layout builders
+
+```typescript
+// Detail View Layout (~line 47):
+<DocumentSectionLayoutBuilder
+    initialReferenceModel={referenceModel}
+    subModel={subModel}                    // <-- ADD
+    viewSectionType={"DETAILS" as GqlViewSectionType}
+/>
+
+// Settings View Layout (~line 58):
+<DocumentSectionLayoutBuilder
+    initialReferenceModel={referenceModel}
+    subModel={subModel}                    // <-- ADD
+    viewSectionType={"SETTINGS" as GqlViewSectionType}
+/>
+
+// Manage Forms (~line 69):
+<DataModelFormBuilderWrapper
+    modelName={referenceModel}
+    subModel={subModel}                    // <-- ADD
+    supportedTypes={supportedTypes}
+/>
+```
+
+### 1c. Propagate propertyNameFilter to PropertyValues and subModel to DefaultDocumentAttributesTable
+
+```typescript
+// Default Properties tab (~line 87-95):
+<>
+    {MODELS_WITH_PROPERTY_VALUES.includes(referenceModel) && (
+        <PropertyValues
+            allowEdit={allowEdit}
+            referencedOn={[referenceModel]}
+            propertyNameFilter={propertyNameFilter}    // <-- ADD
+        />
+    )}
+    <DefaultDocumentAttributesTable
+        referenceModel={referenceModel}
+        subModel={subModel}                             // <-- ADD
+    />
+</>
+```
+
+**Note:** When `subModel` and `propertyNameFilter` are not provided (existing usages for Company, Contact, Department, User, RFI), the component behaves identically — no regression.
+
+---
+
+## Step 2: Register Work Orders tab in PropertySettings
+
+**File:** `apps/frontend/src/components/Settings/PropertySettings.tsx`
+
+Add tab option after "Jobs" (~line 44). Uses `DataModelSettingsTabs` directly with `subModel` and `propertyNameFilter` — no custom component needed.
+
+```typescript
+{
+    id: "workOrders",
+    label: "Work Orders",
+    content: (
+        <DataModelSettingsTabs
+            allowEdit={allowEdit}
+            referenceModel={"Job" as GqlTableDataName}
+            subModel="WORK_ORDER"
+            propertyNameFilter={["workOrderStatus"]}
+        />
+    ),
+    permission: hasPermissions({ PropertyValue: { view: true } }, permissions),
+    headerClassName: (selected) => (selected ? "border-b-gray-100" : "")
+},
+```
+
+Also need to add `"Job"` to `MODELS_WITH_PROPERTY_VALUES` (line 19) if not already there, since PropertyValues need to show for the WO settings tab.
+
+---
+
+## Step 3: Update Jobs settings tab with PROJECT_JOB subModel
+
+**File:** `apps/frontend/src/components/Settings/PropertySettings.tsx`
+
+The Jobs settings tab has been updated in a prior PR to use `DataModelSettingsTabs` (same as Company, Contact, etc.). Add `subModel="PROJECT_JOB"` and `propertyNameFilter={["jobStatus"]}` to scope it to project job DAAs and statuses only.
+
+```typescript
+// Existing Jobs tab (~line 39-44) — update:
+{
+    id: "jobs",
+    label: "Jobs",
+    content: (
+        <DataModelSettingsTabs
+            allowEdit={allowEdit}
+            referenceModel={"Job" as GqlTableDataName}
+            subModel="PROJECT_JOB"                      // <-- ADD
+            propertyNameFilter={["jobStatus"]}           // <-- ADD
+        />
+    ),
+    permission: hasPermissions({ PropertyValue: { view: true } }, permissions),
+    headerClassName: (selected) => (selected ? "border-b-gray-100" : "")
+},
+```
+
+This ensures the Jobs settings tab only shows PROJECT_JOB sections/DAAs and `jobStatus` PropertyValues — WO sections and statuses won't bleed in after the WO-3a backfill.
+
+---
+
+## Step 4: Add propertyNameFilter to PropertyValues
+
+**File:** `apps/frontend/src/components/Settings/PropertyValues.tsx`
+
+The `PropertyValues` component currently accepts `referencedOn` to filter by model. We need an additional optional prop to filter by `propertyName` so the Jobs tab shows only `jobStatus` and the WO tab shows only `workOrderStatus`.
+
+### 4a. Add prop
+
+```typescript
+export const PropertyValues: FC<{
+    allowEdit?: boolean;
+    referencedOn?: Array<string>;
+    disableLabel?: boolean;
+    propertyNameFilter?: Array<string>;  // <-- ADD
+}> = ({ allowEdit = false, disableLabel = false, referencedOn, propertyNameFilter }) => {
+```
+
+### 4b. Pass to query
+
+In the `getPropertyValues` query variables, add the filter when provided:
+
+```typescript
+// When building the query where clause, include:
+if (propertyNameFilter && propertyNameFilter.length > 0) {
+    // Add filter: propertyName IN propertyNameFilter
+    // The exact implementation depends on how the PropertyValueFeed query
+    // accepts filters — likely as part of the `where` variable
+}
+```
+
+The exact integration depends on how `PropertyValueFeed` handles its `where` clause. If it supports a `propertyName` filter field, pass it directly. If not, the filtering can be done client-side on the query results.
+
+**Note:** If `propertyNameFilter` is not provided (null/undefined), the component behaves exactly as before — no regression.
+
+---
+
+## Step 5: Add subModel prop to DocumentSectionLayoutBuilder
+
+**File:** `apps/frontend/src/components/Forms/DocumentSectionForm/DocumentSectionLayoutBuilder.tsx` (or wherever this component is defined)
+
+### 5a. Add optional prop
+
+```typescript
+interface IDocumentSectionLayoutBuilderProps {
+    initialReferenceModel: string;
+    subModel?: string;           // <-- ADD
+    viewSectionType?: GqlViewSectionType;
+    // ... existing props
+}
+```
+
+### 5b. Pass to section query
+
+When querying DocumentSections, include the `subModel` filter if provided:
+
+```typescript
+// In the query that fetches sections for the layout builder:
+variables: {
+    referenceModel: initialReferenceModel,
+    subModel: subModel,  // <-- ADD (null/undefined = no filter, backward compat)
+    // ... existing variables
+}
+```
+
+This ensures the layout builder only shows sections matching the subModel — WORK_ORDER sections in the WO settings, PROJECT_JOB sections in the Jobs settings.
+
+---
+
+## Step 6: Add subModel prop to DataModelFormBuilderWrapper
+
+**File:** `apps/frontend/src/components/Forms/DataModelForm/DataModelFormBuilderWrapper.tsx`
+
+Same pattern as DocumentSectionLayoutBuilder — accept optional `subModel` prop and pass through to the underlying queries.
+
+```typescript
+interface IDataModelFormBuilderWrapperProps {
+    modelName: GqlTableDataName;
+    subModel?: string;          // <-- ADD
+    supportedTypes?: GqlDataModelFormType[];
+}
+```
+
+---
+
+## Step 7: Add subModel prop to DefaultDocumentAttributesTable
+
+**File:** `apps/frontend/src/components/Settings/DefaultDocumentAttributesTable.tsx`
+
+Accept optional `subModel` and pass to the query that fetches DAAs:
+
+```typescript
+interface IDefaultDocumentAttributesTableProps {
+    referenceModel: string;
+    subModel?: string;  // <-- ADD
+}
+```
+
+When querying DAAs, include the subModel filter so only the correct set shows.
+
+---
+
+## Step 8: Classification-aware status input on Job form
+
+**File:** Job DataModelForm page (from PR #6831)
+
+The `job-status` DAA exists in both PROJECT_JOB and WORK_ORDER sets (duplicated in WO-3a). The form needs to query the correct PropertyValue set for the status dropdown based on the job's classification.
+
+Add to `customFormControl` (or handle in the DataModelForm's field rendering logic):
+
+```typescript
+"job-status": (formData, setFormData) => {
+    const classification = getJobClassification(formData.jobTypeId);
+    const statusPropertyName = classification === "WORK_ORDER"
+        ? "workOrderStatus"
+        : "jobStatus";
+
+    return (
+        <PropertyValueSelector
+            propertyName={statusPropertyName}
+            value={formData.jobStatusId}
+            onChange={(id) => setFormData({ ...formData, jobStatusId: id })}
+        />
+    );
+}
+```
+
+**Note:** The exact component name (`PropertyValueSelector`) depends on how the existing job form renders the status field. It may be a `CustomCombobox` with `queryResultLabel` filtering by `propertyName`. The key change is making the `propertyName` filter dynamic based on classification.
+
+---
+
+## Verification Checklist
+
+- [ ] `DataModelSettingsTabs` accepts optional `subModel` and `propertyNameFilter` props
+- [ ] "Work Orders" tab visible in Property Settings dropdown after "Jobs"
+- [ ] Work Orders settings tab renders all 5 sub-tabs via `DataModelSettingsTabs` with `subModel="WORK_ORDER"`
+- [ ] WO Detail View Layout shows only WORK_ORDER sections and DAAs
+- [ ] WO Settings View Layout shows only WORK_ORDER sections and DAAs
+- [ ] WO Manage Forms shows only WORK_ORDER form configuration
+- [ ] WO Default Properties shows `workOrderStatus` PropertyValues only (not `jobStatus`)
+- [ ] Jobs Detail View Layout continues to show only PROJECT_JOB sections and DAAs (no WO sections bleeding in)
+- [ ] Jobs Default Properties continues to show `jobStatus` PropertyValues only (not `workOrderStatus`)
+- [ ] Admins can add/edit/reorder WO statuses independently from job statuses
+- [ ] WO form status dropdown shows WO statuses when jobType classification = WORK_ORDER
+- [ ] Job form status dropdown shows job statuses when jobType classification = PROJECT_JOB
+- [ ] Both status types write to the same `jobStatusId` field
+- [ ] Status badge on list/detail pages resolves correctly regardless of which PropertyValue set it comes from
+- [ ] `propertyNameFilter` prop on PropertyValues is optional — no regression when not provided
+- [ ] `subModel` prop on DocumentSectionLayoutBuilder is optional — no regression when not provided
+- [ ] `subModel` prop on DataModelFormBuilderWrapper is optional — no regression when not provided
+- [ ] `subModel` prop on DefaultDocumentAttributesTable is optional — no regression when not provided
+
+---
+
+## Files Summary
+
+| Action | File | What to do |
+|--------|------|------------|
+| MODIFY | `apps/frontend/.../PropertySettingTabs/DataModelSettingsTabs.tsx` | Add `subModel` + `propertyNameFilter` props, propagate to all child components |
+| MODIFY | `apps/frontend/.../Settings/PropertySettings.tsx` | Add "Work Orders" tab with `subModel="WORK_ORDER"` + `propertyNameFilter={["workOrderStatus"]}`; update Jobs tab with `subModel="PROJECT_JOB"` + `propertyNameFilter={["jobStatus"]}` |
+| MODIFY | `apps/frontend/.../Settings/PropertyValues.tsx` | Accept optional `propertyNameFilter` prop, pass to query |
+| MODIFY | `apps/frontend/.../DocumentSectionForm/DocumentSectionLayoutBuilder` | Accept optional `subModel` prop, pass to section query |
+| MODIFY | `apps/frontend/.../DataModelForm/DataModelFormBuilderWrapper.tsx` | Accept optional `subModel` prop, pass through |
+| MODIFY | `apps/frontend/.../Settings/DefaultDocumentAttributesTable.tsx` | Accept optional `subModel` prop, pass to DAA query |
+| MODIFY | Job DataModelForm page (from PR #6831) | Classification-aware status input — branch `propertyName` by `jobClassification` |
+</script>
+
+<script>
+(function() {
+    var md = document.getElementById('plan-md').textContent;
+    var target = document.getElementById('rendered');
+    var html = md
+        .replace(/```(\w*)\n([\s\S]*?)```/g, function(_, lang, code) {
+            return '<pre><code>' + code.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</code></pre>';
+        })
+        .replace(/`([^`\n]+)`/g, '<code>$1</code>')
+        .replace(/^#### (.+)$/gm, '<h4>$1</h4>')
+        .replace(/^### (.+)$/gm, '<h3>$1</h3>')
+        .replace(/^## (.+)$/gm, '<h2>$1</h2>')
+        .replace(/^# (.+)$/gm, '<h1>$1</h1>')
+        .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\*(.+?)\*/g, '<em>$1</em>')
+        .replace(/^---$/gm, '<hr>');
+    html = html.replace(/^- \[ \] (.+)$/gm, '<div class="check-item"><div class="check-box"></div><span>$1</span></div>');
+    html = html.replace(/(\|.+\|\n)+/g, function(table) {
+        var rows = table.trim().split('\n');
+        if (rows.length < 2) return table;
+        var headers = rows[0].split('|').filter(function(c) { return c.trim(); });
+        var isSep = /^[\s|:\-]+$/.test(rows[1]);
+        var start = isSep ? 2 : 1;
+        var out = '<table><thead><tr>';
+        headers.forEach(function(h) { out += '<th>' + h.trim() + '</th>'; });
+        out += '</tr></thead><tbody>';
+        for (var i = start; i < rows.length; i++) {
+            var cells = rows[i].split('|').filter(function(c) { return c.trim(); });
+            out += '<tr>'; cells.forEach(function(c) { out += '<td>' + c.trim() + '</td>'; }); out += '</tr>';
+        }
+        out += '</tbody></table>';
+        return out;
+    });
+    html = html.replace(/^- (.+)$/gm, '<li>$1</li>');
+    html = html.replace(/(<li>[\s\S]*?<\/li>\n?)+/g, function(m) { return '<ul>' + m + '</ul>'; });
+    html = html.replace(/^(?!<[hultdps\/<]|<\/|<code|<pre|<hr|<div|<strong|<em)(.+)$/gm, '<p>$1</p>');
+    target.innerHTML = html;
+})();
+</script>
+</body>
+</html>

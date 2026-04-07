@@ -1,0 +1,725 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Release 1.32 - Development Timeline</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Inter', -apple-system, sans-serif; background: #f1f5f9; color: #0f172a; }
+.wrap { max-width: 1080px; margin: 0 auto; padding: 40px 24px 80px; }
+h1 { font-size: 30px; font-weight: 800; color: #0f172a; margin: 0 0 8px; letter-spacing: -0.01em; }
+.subtitle { font-size: 15px; color: #64748b; line-height: 1.5; margin: 0 0 32px; }
+
+/* Phase containers */
+.phase { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px 28px; margin-bottom: 16px; position: relative; }
+.phase::before { content: ''; position: absolute; left: 28px; top: 100%; width: 2px; height: 16px; background: #cbd5e1; }
+.phase:last-of-type::before { display: none; }
+.phase h2 { font-size: 17px; font-weight: 700; color: #0f172a; margin: 0 0 4px; display: flex; align-items: center; gap: 10px; }
+.phase-desc { font-size: 14px; color: #64748b; margin: 0 0 16px; }
+.phase-badge { font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 5px; display: inline-flex; align-items: center; }
+.badge-foundation { background: #dbeafe; color: #1d4ed8; }
+.badge-equipment { background: #d1fae5; color: #065f46; }
+.badge-workorder { background: #fce7f3; color: #be185d; }
+.badge-parallel { background: #fef3c7; color: #92400e; }
+.badge-customer { background: #f3e8ff; color: #7c3aed; }
+
+/* Item rows */
+.items { display: grid; grid-template-columns: 1fr; gap: 4px; }
+.item-row { border-radius: 8px; overflow: hidden; }
+.item-header { display: grid; grid-template-columns: 36px 90px 1fr 90px 90px 90px; align-items: center; padding: 10px 14px; font-size: 13px; cursor: pointer; user-select: none; transition: background 0.15s; }
+.item-header:hover { background: #f1f5f9; }
+.item-row:nth-child(odd) .item-header { background: #f8fafc; }
+.item-row:nth-child(odd) .item-header:hover { background: #eef2f7; }
+.item-row.expanded .item-header { background: #eff6ff; border-bottom: 1px solid #bfdbfe; }
+.item-chevron { font-size: 14px; color: #94a3b8; transition: transform 0.2s; display: flex; align-items: center; justify-content: center; }
+.item-row.expanded .item-chevron { transform: rotate(90deg); color: #3b82f6; }
+.item-id { font-family: monospace; font-weight: 700; color: #7c3aed; font-size: 12px; }
+.item-name { font-weight: 500; color: #0f172a; }
+.item-est { color: #64748b; text-align: center; }
+.item-status { text-align: center; }
+.item-dep { font-size: 11px; color: #94a3b8; text-align: center; }
+.item-name .no-spec { font-size: 11px; color: #94a3b8; font-weight: 400; margin-left: 6px; }
+
+/* Items without specs - non-clickable */
+.item-row.no-expand .item-header { cursor: default; }
+.item-row.no-expand .item-header:hover { background: inherit; }
+.item-row.no-expand:nth-child(odd) .item-header:hover { background: #f8fafc; }
+.item-row.no-expand .item-chevron { visibility: hidden; }
+
+/* Expandable detail panel */
+.item-detail { display: none; border-top: 1px solid #e2e8f0; background: #f8fafc; }
+.item-row.expanded .item-detail { display: block; }
+.item-detail iframe { width: 100%; border: none; min-height: 600px; background: #fff; }
+.item-detail .detail-toolbar { padding: 8px 24px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #e2e8f0; background: #f1f5f9; }
+.item-detail .detail-toolbar .file-path { font-size: 12px; font-weight: 600; color: #64748b; }
+.item-detail .detail-toolbar code { color: #7c3aed; }
+.item-detail .open-link { display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; background: #fff; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 11px; font-weight: 600; color: #3b82f6; text-decoration: none; }
+.item-detail .open-link:hover { background: #eff6ff; border-color: #bfdbfe; }
+
+/* Detail tabs */
+.detail-tabs { display: flex; gap: 0; background: #f1f5f9; border-bottom: 1px solid #e2e8f0; padding: 0 24px; }
+.detail-tab { padding: 10px 20px; font-size: 13px; font-weight: 600; color: #64748b; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; user-select: none; transition: color 0.15s; }
+.detail-tab:hover { color: #0f172a; }
+.detail-tab.active { color: #3b82f6; border-bottom-color: #3b82f6; background: #fff; }
+.detail-tab.disabled { color: #cbd5e1; cursor: default; font-style: italic; }
+.detail-tab.disabled:hover { color: #cbd5e1; }
+.detail-tab-content { display: none; }
+.detail-tab-content.active { display: block; }
+.detail-tab-content .pending-msg { padding: 40px; text-align: center; color: #94a3b8; font-size: 13px; font-style: italic; }
+
+/* Header row */
+.header-row { display: grid; grid-template-columns: 36px 90px 1fr 90px 90px 90px; padding: 6px 14px; font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; }
+.header-row span:nth-child(4), .header-row span:nth-child(5), .header-row span:nth-child(6) { text-align: center; }
+
+/* Status tags */
+.status-tag { font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 4px; }
+.status-ready { background: #dcfce7; color: #166534; }
+.status-blocked { background: #fee2e2; color: #dc2626; }
+.status-parallel { background: #fef3c7; color: #92400e; }
+
+/* Connectors */
+.connector { text-align: center; padding: 8px; color: #94a3b8; font-size: 20px; }
+
+/* Summary cards */
+.summary-cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 32px; }
+.summary-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 16px; }
+.summary-card .sc-label { font-size: 11px; font-weight: 700; text-transform: uppercase; color: #64748b; letter-spacing: 0.5px; margin-bottom: 4px; }
+.summary-card .sc-value { font-size: 24px; font-weight: 800; color: #0f172a; }
+.summary-card .sc-detail { font-size: 12px; color: #94a3b8; margin-top: 2px; }
+
+/* Legend */
+.legend { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 24px; font-size: 12px; color: #64748b; }
+.legend-item { display: flex; align-items: center; gap: 6px; }
+.legend-dot { width: 10px; height: 10px; border-radius: 3px; }
+
+/* Critical path */
+.critical-path { background: #fff; border: 2px solid #dc2626; border-radius: 12px; padding: 24px 28px; margin-bottom: 24px; }
+.critical-path h2 { font-size: 17px; font-weight: 700; color: #dc2626; margin: 0 0 12px; }
+.cp-flow { display: flex; align-items: center; gap: 0; flex-wrap: wrap; margin: 12px 0; }
+.cp-node { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px 14px; font-size: 12px; font-weight: 600; }
+.cp-node.active { background: #dbeafe; border-color: #3b82f6; color: #1d4ed8; }
+.cp-node.blocker { background: #fee2e2; border-color: #dc2626; color: #dc2626; }
+.cp-arrow { font-size: 16px; color: #cbd5e1; padding: 0 4px; }
+
+/* Notes */
+.notes { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px 28px; margin-bottom: 16px; }
+.notes h2 { font-size: 17px; font-weight: 700; color: #0f172a; margin: 0 0 14px; padding-bottom: 10px; border-bottom: 2px solid #e2e8f0; }
+.notes p, .notes li { font-size: 14px; color: #334155; line-height: 1.65; }
+.notes ul { padding-left: 20px; margin: 8px 0; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+    <h1>Release 1.32 &mdash; Development Timeline</h1>
+    <p class="subtitle">LEM Foundation &rarr; Equipment Financial Layer &rarr; T&amp;M Work Orders<br>
+    Three phases building on each other, with parallel tracks where possible. <strong>Click any row with a spec to expand it inline.</strong></p>
+
+    <!-- Summary Cards -->
+    <div class="summary-cards">
+        <div class="summary-card">
+            <div class="sc-label">Total Features</div>
+            <div class="sc-value">23</div>
+            <div class="sc-detail">3 LEM + 8 Equipment + 12 Work Order</div>
+        </div>
+        <div class="summary-card">
+            <div class="sc-label">Phases</div>
+            <div class="sc-value">4</div>
+            <div class="sc-detail">Foundation &rarr; WO &rarr; Equip &rarr; Maintenance</div>
+        </div>
+        <div class="summary-card">
+            <div class="sc-label">Key Prerequisite</div>
+            <div class="sc-value">Job Refactor</div>
+            <div class="sc-detail">Emma's projectId optional branch</div>
+        </div>
+        <div class="summary-card">
+            <div class="sc-label">Key Customers</div>
+            <div class="sc-value">4+</div>
+            <div class="sc-detail">Rival, Mkwa, Tear Systems, Thermogenics</div>
+        </div>
+    </div>
+
+    <!-- Legend -->
+    <div class="legend">
+        <div class="legend-item"><div class="legend-dot" style="background:#dbeafe;"></div> LEM Foundation</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#d1fae5;"></div> Equipment Module</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#fce7f3;"></div> Work Orders</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#fef3c7;"></div> Can parallelize</div>
+        <div class="legend-item"><span class="status-tag status-ready">READY</span> No blockers</div>
+        <div class="legend-item"><span class="status-tag status-blocked">BLOCKED</span> Waiting on dependency</div>
+        <div class="legend-item" style="color:#94a3b8;">&#9654; = has spec (click to expand)</div>
+    </div>
+
+    <!-- Critical Path -->
+    <div class="critical-path">
+        <h2>Critical Path</h2>
+        <p style="font-size:13px; color:#64748b; margin-bottom:12px;">The longest dependency chain that determines minimum timeline:</p>
+        <div class="cp-flow">
+            <div class="cp-node active">LEM-1<br><small>Labor Rates</small></div>
+            <span class="cp-arrow">&rarr;</span>
+            <div class="cp-node active">LEM-2<br><small>Equip Rates</small></div>
+            <span class="cp-arrow">&rarr;</span>
+            <div class="cp-node blocker">Job Refactor<br><small>Merge Required</small></div>
+            <span class="cp-arrow">&rarr;</span>
+            <div class="cp-node">WO-1<br><small>Job Type Config</small></div>
+            <span class="cp-arrow">&rarr;</span>
+            <div class="cp-node">WO-2<br><small>Line Items</small></div>
+            <span class="cp-arrow">&rarr;</span>
+            <div class="cp-node">WO-3<br><small>Create/Edit</small></div>
+            <span class="cp-arrow">&rarr;</span>
+            <div class="cp-node">WO-4/5/6<br><small>Detail + List Pages</small></div>
+            <span class="cp-arrow">&rarr;</span>
+            <div class="cp-node">WO-8<br><small>Mobile Wizard</small></div>
+        </div>
+    </div>
+
+    <!-- Phase 1: LEM Foundation -->
+    <div class="phase">
+        <h2>
+            <span class="phase-badge badge-foundation">Phase 1</span>
+            LEM Foundation &mdash; Rate Data Models
+        </h2>
+        <p class="phase-desc">Prerequisite for all downstream features. Establishes structured cost vs. billable rate data for Labor, Equipment, and Materials. <strong>No blocking dependencies &mdash; can start immediately.</strong></p>
+
+        <div class="header-row">
+            <span></span>
+            <span>ID</span>
+            <span>Feature</span>
+            <span>Estimate</span>
+            <span>Status</span>
+            <span>Depends On</span>
+        </div>
+        <div class="items">
+            <div class="item-row" data-spec="uis-LEM-1-labor-billable-rates.html" data-plan="plans/LEM-1-labor-billable-rates.html">
+                <div class="item-header">
+                    <span class="item-chevron">&#9654;</span>
+                    <span class="item-id">LEM-1</span>
+                    <span class="item-name">Labor Billable Rates &mdash; Add billableValue to TradeLevelRate, new Billable Rates tab in Employee Agreement</span>
+                    <span class="item-est">2-3 days</span>
+                    <span class="item-status"><span class="status-tag status-ready">READY</span></span>
+                    <span class="item-dep">None</span>
+                </div>
+                <div class="item-detail"></div>
+            </div>
+            <div class="item-row" data-spec="uis-LEM-2-equipment-billable-rates.html" data-plan="plans/LEM-2-equipment-billable-rates.html">
+                <div class="item-header">
+                    <span class="item-chevron">&#9654;</span>
+                    <span class="item-id">LEM-2</span>
+                    <span class="item-name">Equipment Billable Rates &mdash; Category-level rates with per-equipment + per-job overrides, editable rate types, resolution engine</span>
+                    <span class="item-est">4-6 days</span>
+                    <span class="item-status"><span class="status-tag status-parallel">PARALLEL</span></span>
+                    <span class="item-dep">None (||)</span>
+                </div>
+                <div class="item-detail"></div>
+            </div>
+            <div class="item-row no-expand" style="opacity:0.85;">
+                <div class="item-header">
+                    <span class="item-chevron">&#9654;</span>
+                    <span class="item-id" style="color:#16a34a;">LEM-3 &#10003;</span>
+                    <span class="item-name">Material Rates &mdash; <strong>No schema changes needed.</strong> Existing Material catalog (name, description, UoM via MaterialGroup) supports WO catalog lookup. WO line items handle manual price entry for volatile-cost items (concrete, supplies). Dimension-based pricing (MaterialAttributePrice) available for complex materials. <span style="font-size:11px; color:#16a34a; font-weight:600;">VALIDATED</span></span>
+                    <span class="item-est">0 days</span>
+                    <span class="item-status"><span class="status-tag status-ready" style="background:#dcfce7;color:#166534;">DONE</span></span>
+                    <span class="item-dep">None</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="connector">&darr;</div>
+
+    <!-- Phase 2: Work Orders -->
+    <div class="phase">
+        <h2>
+            <span class="phase-badge badge-workorder">Phase 2</span>
+            T&amp;M Work Orders
+        </h2>
+        <p class="phase-desc">The highest priority feature. Requires the Job Refactor branch to be merged (makes projectId optional on Job). Uses LEM rate data for auto-pricing line items. <strong>No dependency on Equipment Financial Layer.</strong></p>
+
+        <div class="header-row">
+            <span></span>
+            <span>ID</span>
+            <span>Feature</span>
+            <span>Estimate</span>
+            <span>Status</span>
+            <span>Depends On</span>
+        </div>
+        <div class="items">
+            <div class="item-row no-expand">
+                <div class="item-header">
+                    <span class="item-chevron">&#9654;</span>
+                    <span class="item-id" style="color:#dc2626;">PREREQ</span>
+                    <span class="item-name"><strong>Job DataModel Refactor</strong> &mdash; Emma's branch making projectId optional, DataModel-driven forms</span>
+                    <span class="item-est">In progress</span>
+                    <span class="item-status"><span class="status-tag status-blocked">MERGE REQ</span></span>
+                    <span class="item-dep">Release 1.31</span>
+                </div>
+            </div>
+            <div class="item-row" data-spec="uis-20a-job-type-config.html">
+                <div class="item-header">
+                    <span class="item-chevron">&#9654;</span>
+                    <span class="item-id">WO-1</span>
+                    <span class="item-name">Job Classification &amp; WO Routing &mdash; JobClassification enum on PropertyValue, derived resolver on Job, Work Orders list page, WO statuses, admin classification mapping</span>
+                    <span class="item-est">3-5 days</span>
+                    <span class="item-status"><span class="status-tag status-blocked">BLOCKED</span></span>
+                    <span class="item-dep">Job Refactor</span>
+                </div>
+                <div class="item-detail"></div>
+            </div>
+            <div class="item-row" data-spec="uis-20b-line-item-tables.html" data-plan="plans/WO-2-line-item-tables.html">
+                <div class="item-header">
+                    <span class="item-chevron">&#9654;</span>
+                    <span class="item-id">WO-2</span>
+                    <span class="item-name">Line Item Tables &mdash; 3 new Prisma models (Labor/Material/Equipment), auto-pricing from LEM rates</span>
+                    <span class="item-est">5-8 days</span>
+                    <span class="item-status"><span class="status-tag status-blocked">BLOCKED</span></span>
+                    <span class="item-dep">WO-1, LEM-1/2/3</span>
+                </div>
+                <div class="item-detail"></div>
+            </div>
+            <div class="item-row" data-spec="uis-20c-1-schema-form-foundation.html" data-plan="plans/WO-3a-schema-form-foundation.html">
+                <div class="item-header">
+                    <span class="item-chevron">&#9654;</span>
+                    <span class="item-id">WO-3a</span>
+                    <span class="item-name">Schema &amp; Form Foundation &mdash; dateOfWork on Job, Signature model, DAA setup, classification-aware numbering</span>
+                    <span class="item-est">3-4 days</span>
+                    <span class="item-status"><span class="status-tag status-blocked">BLOCKED</span></span>
+                    <span class="item-dep">WO-1, WO-2, PR #6831</span>
+                </div>
+                <div class="item-detail"></div>
+            </div>
+            <div class="item-row" data-spec="uis-20c-2-line-item-editors.html" data-plan="plans/WO-3b-line-item-editors.html">
+                <div class="item-header">
+                    <span class="item-chevron">&#9654;</span>
+                    <span class="item-id">WO-3b</span>
+                    <span class="item-name">Line Item Editors &mdash; Labor/Material/Equipment custom input components for DataModel form, structured + blank patterns</span>
+                    <span class="item-est">4-5 days</span>
+                    <span class="item-status"><span class="status-tag status-blocked">BLOCKED</span></span>
+                    <span class="item-dep">WO-3a</span>
+                </div>
+                <div class="item-detail"></div>
+            </div>
+            <div class="item-row" data-spec="uis-20c-3-signatures-submission.html">
+                <div class="item-header">
+                    <span class="item-chevron">&#9654;</span>
+                    <span class="item-id">WO-3c</span>
+                    <span class="item-name">Signatures &amp; Submission &mdash; Signature canvas via react-signature-canvas, user selector, GPS capture, Draft/Submit flow, complete form mockup</span>
+                    <span class="item-est">2-3 days</span>
+                    <span class="item-status"><span class="status-tag status-blocked">BLOCKED</span></span>
+                    <span class="item-dep">WO-3a</span>
+                </div>
+                <div class="item-detail"></div>
+            </div>
+            <div class="item-row" data-spec="uis-20c-4-wo-property-settings.html" data-plan="plans/WO-3d-wo-property-settings.html">
+                <div class="item-header">
+                    <span class="item-chevron">&#9654;</span>
+                    <span class="item-id">WO-3d</span>
+                    <span class="item-name">WO Property Settings &mdash; Settings tab with layout builders, dual-status (jobStatus vs workOrderStatus) input resolution, subModel scoping</span>
+                    <span class="item-est">2-3 days</span>
+                    <span class="item-status"><span class="status-tag status-blocked">BLOCKED</span></span>
+                    <span class="item-dep">WO-1, WO-3a</span>
+                </div>
+                <div class="item-detail"></div>
+            </div>
+            <div class="item-row" data-spec="uis-20d-detail-page.html" data-plan="plans/WO-4-detail-page.html">
+                <div class="item-header">
+                    <span class="item-chevron">&#9654;</span>
+                    <span class="item-id">WO-4</span>
+                    <span class="item-name">Detail Page &mdash; WO-specific tabs, action buttons, line item display</span>
+                    <span class="item-est">4-6 days</span>
+                    <span class="item-status"><span class="status-tag status-blocked">BLOCKED</span></span>
+                    <span class="item-dep">WO-3a/b/c</span>
+                </div>
+                <div class="item-detail"></div>
+            </div>
+            <div class="item-row" data-spec="uis-20g-conversion.html" data-plan="plans/WO-7-conversion.html">
+                <div class="item-header">
+                    <span class="item-chevron">&#9654;</span>
+                    <span class="item-id">WO-7</span>
+                    <span class="item-name">WO &rarr; Invoice / CO Conversion &mdash; Generate Simple invoice from WO line items, Convert to CO with nullable accountItemId, rate resolution via LEM-1/2</span>
+                    <span class="item-est">3-4 days</span>
+                    <span class="item-status"><span class="status-tag status-blocked">BLOCKED</span></span>
+                    <span class="item-dep">WO-4, LEM-1/2</span>
+                </div>
+                <div class="item-detail"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="connector">&darr;</div>
+
+    <!-- Phase 2b: Parallel Work Order Tracks -->
+    <div class="phase">
+        <h2>
+            <span class="phase-badge badge-parallel">Parallel Tracks</span>
+            Independent Work Order Features
+        </h2>
+        <p class="phase-desc">These features can be developed in parallel with the main WO track or slotted in between phases.</p>
+
+        <div class="header-row">
+            <span></span>
+            <span>ID</span>
+            <span>Feature</span>
+            <span>Estimate</span>
+            <span>Status</span>
+            <span>Depends On</span>
+        </div>
+        <div class="items">
+            <div class="item-row" data-spec="uis-20e-tm-log.html" data-plan="plans/WO-5-tm-log.html">
+                <div class="item-header">
+                    <span class="item-chevron">&#9654;</span>
+                    <span class="item-id">WO-5</span>
+                    <span class="item-name">T&amp;M Work Order Log &mdash; Extract SharedJobListView from Jobs page, reuse with WORK_ORDER subModel. No new backend.</span>
+                    <span class="item-est">2-3 days</span>
+                    <span class="item-status"><span class="status-tag status-blocked">BLOCKED</span></span>
+                    <span class="item-dep">WO-1, WO-3d</span>
+                </div>
+                <div class="item-detail"></div>
+            </div>
+            <div class="item-row" data-spec="uis-20h-0-mobile-list-detail.html" data-plan="plans/WO-6-mobile-list-detail.html">
+                <div class="item-header">
+                    <span class="item-chevron">&#9654;</span>
+                    <span class="item-id">WO-6</span>
+                    <span class="item-name">Mobile WO List &amp; Detail &mdash; TableDataList + DetailOverview with Overview, Notes, Files tabs</span>
+                    <span class="item-est">1-2 days</span>
+                    <span class="item-status"><span class="status-tag status-blocked">BLOCKED</span></span>
+                    <span class="item-dep">WO-1, WO-3d</span>
+                </div>
+                <div class="item-detail"></div>
+            </div>
+            <div class="item-row" data-spec="uis-20h-1-stepped-form-wizard.html" data-plan="plans/WO-8a-stepped-form-wizard.html">
+                <div class="item-header">
+                    <span class="item-chevron">&#9654;</span>
+                    <span class="item-id">WO-8a</span>
+                    <span class="item-name">Stepped Form Wizard &mdash; DataModelForm steppedForm mode, section-as-step, disabled summary</span>
+                    <span class="item-est">3-4 days</span>
+                    <span class="item-status"><span class="status-tag status-blocked">BLOCKED</span></span>
+                    <span class="item-dep">WO-6, WO-3c</span>
+                </div>
+                <div class="item-detail"></div>
+            </div>
+            <div class="item-row" data-spec="uis-20h-2-collect-signatures.html" data-plan="plans/WO-8b-collect-signatures.html">
+                <div class="item-header">
+                    <span class="item-chevron">&#9654;</span>
+                    <span class="item-id">WO-8b</span>
+                    <span class="item-name">Collect Signatures &mdash; Request internal signature (ACK pattern) + collect in-person from external (device handoff)</span>
+                    <span class="item-est">3-4 days</span>
+                    <span class="item-status"><span class="status-tag status-blocked">BLOCKED</span></span>
+                    <span class="item-dep">WO-6, WO-8a</span>
+                </div>
+                <div class="item-detail"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="connector">&darr;</div>
+
+    <!-- Phase 3: Equipment Financial Layer -->
+    <div class="phase">
+        <h2>
+            <span class="phase-badge badge-equipment">Phase 3</span>
+            Equipment Financial Layer
+        </h2>
+        <p class="phase-desc">Equipment timesheet capture, P&amp;L integration, and invoicing. <strong>Requires LEM-2 (Equipment Rates).</strong> Can run in parallel with WO development since there are no cross-dependencies. Deferred after WO as lower priority.</p>
+
+        <div class="header-row">
+            <span></span>
+            <span>ID</span>
+            <span>Feature</span>
+            <span>Estimate</span>
+            <span>Status</span>
+            <span>Depends On</span>
+        </div>
+        <div class="items">
+            <div class="item-row" data-spec="equipment:uis-15h-equipment-timesheet-capture.html" data-plan="equipment:plans/uis-15h-equipment-timesheet-capture.html">
+                <div class="item-header">
+                    <span class="item-chevron">&#9654;</span>
+                    <span class="item-id">UIS-15H</span>
+                    <span class="item-name">Equipment Timesheet Capture &mdash; Equipment time as sibling to labor in timesheets, shared approval, mobile Log Time, tooltip + approval grid updates</span>
+                    <span class="item-est">5-7 days</span>
+                    <span class="item-status"><span class="status-tag status-blocked">BLOCKED</span></span>
+                    <span class="item-dep">LEM-2</span>
+                </div>
+                <div class="item-detail"></div>
+            </div>
+            <div class="item-row" data-spec="equipment:uis-15c-equipment-variable-rates.html" data-plan="equipment:plans/uis-15c-equipment-variable-rates.html">
+                <div class="item-header">
+                    <span class="item-chevron">&#9654;</span>
+                    <span class="item-id">UIS-15C</span>
+                    <span class="item-name">Equipment Variable Rates (Advanced) &mdash; Time-of-day windows, hour splitting, OT multipliers, attachment pricing, effective dating</span>
+                    <span class="item-est">3-5 days</span>
+                    <span class="item-status"><span class="status-tag status-blocked">BLOCKED</span></span>
+                    <span class="item-dep">LEM-2</span>
+                </div>
+                <div class="item-detail"></div>
+            </div>
+            <div class="item-row" data-spec="equipment:uis-15a-equipment-job-pl.html" data-plan="equipment:plans/uis-15a-equipment-job-pl.html">
+                <div class="item-header">
+                    <span class="item-chevron">&#9654;</span>
+                    <span class="item-id">UIS-15A</span>
+                    <span class="item-name">Equipment Job P&amp;L &mdash; Map EquipmentCategory to AccountItem, SQL CTE for equipment costs in Financial Summary</span>
+                    <span class="item-est">3-4 days</span>
+                    <span class="item-status"><span class="status-tag status-blocked">BLOCKED</span></span>
+                    <span class="item-dep">LEM-2, UIS-15H</span>
+                </div>
+                <div class="item-detail"></div>
+            </div>
+            <div class="item-row" data-spec="equipment:uis-15b-equipment-invoicing.html" data-plan="equipment:plans/uis-15b-equipment-invoicing.html">
+                <div class="item-header">
+                    <span class="item-chevron">&#9654;</span>
+                    <span class="item-id">UIS-15B</span>
+                    <span class="item-name">Equipment Invoicing &mdash; Generate Simple invoices from approved equipment time entries via Job or Equipment detail</span>
+                    <span class="item-est">4-6 days</span>
+                    <span class="item-status"><span class="status-tag status-blocked">BLOCKED</span></span>
+                    <span class="item-dep">LEM-2, UIS-15H, UIS-15A</span>
+                </div>
+                <div class="item-detail"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="connector">&darr;</div>
+
+    <!-- Phase 4: Equipment Maintenance & Mobile (Lower Priority) -->
+    <div class="phase">
+        <h2>
+            <span class="phase-badge badge-customer">Phase 4</span>
+            Equipment Maintenance &amp; Mobile (Lower Priority)
+        </h2>
+        <p class="phase-desc">These are valuable but not on the critical path for Work Orders. Can be deferred to 1.33 if timeline is tight.</p>
+
+        <div class="header-row">
+            <span></span>
+            <span>ID</span>
+            <span>Feature</span>
+            <span>Estimate</span>
+            <span>Status</span>
+            <span>Depends On</span>
+        </div>
+        <div class="items">
+            <div class="item-row" data-spec="equipment:uis-15d-equipment-maintenance-triggers.html" data-plan="equipment:plans/uis-15d-equipment-maintenance-triggers.html">
+                <div class="item-header">
+                    <span class="item-chevron">&#9654;</span>
+                    <span class="item-id">UIS-15D</span>
+                    <span class="item-name">Equipment Maintenance Triggers &mdash; Hour/calendar-based alerts, service logging, PropertyValue types, category &gt; equipment cascade</span>
+                    <span class="item-est">5-7 days</span>
+                    <span class="item-status"><span class="status-tag status-blocked">BLOCKED</span></span>
+                    <span class="item-dep">UIS-15H</span>
+                </div>
+                <div class="item-detail"></div>
+            </div>
+            <div class="item-row" data-spec="equipment:uis-15g-equipment-maintenance-scheduling.html" data-plan="equipment:plans/uis-15g-equipment-maintenance-scheduling.html">
+                <div class="item-header">
+                    <span class="item-chevron">&#9654;</span>
+                    <span class="item-id">UIS-15G</span>
+                    <span class="item-name">Equipment Maintenance Scheduling &mdash; Schedule instances, calendar view, completion workflow, downtime tracking, cost/downtime reports, reminders</span>
+                    <span class="item-est">6-8 days</span>
+                    <span class="item-status"><span class="status-tag status-blocked">BLOCKED</span></span>
+                    <span class="item-dep">UIS-15D</span>
+                </div>
+                <div class="item-detail"></div>
+            </div>
+            <div class="item-row" data-spec="equipment:uis-15f-daily-equipment-checklist.html">
+                <div class="item-header">
+                    <span class="item-chevron">&#9654;</span>
+                    <span class="item-id">UIS-15F</span>
+                    <span class="item-name">Daily Equipment Checklist &mdash; Digital inspections via SafetyForm system, defaultInspectionFormId on EquipmentCategory</span>
+                    <span class="item-est">3-4 days</span>
+                    <span class="item-status"><span class="status-tag status-blocked">BLOCKED</span></span>
+                    <span class="item-dep">UIS-15D</span>
+                </div>
+                <div class="item-detail"></div>
+            </div>
+            <div class="item-row" data-spec="equipment:uis-15e-equipment-search-mobile.html" data-plan="equipment:plans/uis-15e-equipment-search-mobile.html">
+                <div class="item-header">
+                    <span class="item-chevron">&#9654;</span>
+                    <span class="item-id">UIS-15E</span>
+                    <span class="item-name">Equipment Search &amp; Mobile QoL &mdash; QR scanner, mobile detail views, quick actions, history tabs, start form</span>
+                    <span class="item-est">4-5 days</span>
+                    <span class="item-status"><span class="status-tag status-blocked">BLOCKED</span></span>
+                    <span class="item-dep">UIS-15H, UIS-15D, UIS-15F</span>
+                </div>
+                <div class="item-detail"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notes -->
+    <div class="notes">
+        <h2>Sequencing Rationale</h2>
+        <ul>
+            <li><strong>LEM rates first (Phase 1)</strong> because Work Order line items need auto-pricing from structured rate data. Labor and Equipment billable rates are the foundation for WO line item pricing.</li>
+            <li><strong>Work Orders second (Phase 2)</strong> because WO is the highest priority customer-facing feature. WO depends on LEM rates and the Job Refactor merge, but has <strong>no dependency on the Equipment Financial Layer</strong>. This gets WO to market faster.</li>
+            <li><strong>Equipment Financial Layer third (Phase 3)</strong> because it only depends on LEM-2 (already done in Phase 1) and can run in parallel or after WO. Mkwa/Isolation Elite need equipment features but they don't block WO launch.</li>
+            <li><strong>Phase 4 features are important but deferrable</strong> &mdash; maintenance and mobile QoL are Mkwa priorities but don't block either WO or Equipment Financial launch.</li>
+        </ul>
+    </div>
+
+    <div class="notes">
+        <h2>Key Decisions &amp; Open Questions</h2>
+        <ul>
+            <li><strong>Decided:</strong> Work Order = type of Job (isWorkOrder flag), not a separate entity</li>
+            <li><strong>Decided:</strong> Phased build &mdash; LEM rates &rarr; Work Orders &rarr; Equipment Financial Layer (WO prioritized over Equipment)</li>
+            <li><strong>Decided:</strong> Labor billable rates live on TradeLevelRate.billableValue (not a new table)</li>
+            <li><strong>Open:</strong> Equipment rate complexity &mdash; need to confirm how quoting rates vs. actual time logging rates differ (daily rate for 3-day job vs. hourly rate for 3-hour job)</li>
+            <li><strong>Open:</strong> Material rate source &mdash; existing MCP endpoints exist, need to confirm UI approach for the material database</li>
+            <li><strong>Open:</strong> Rival's 16 tickets &mdash; need to confirm which overlap with this feature set vs. separate work</li>
+            <li><strong>Pending:</strong> Chris review of data structure decisions (extending Job model vs. separate entity &mdash; decided, but needs CTO sign-off)</li>
+        </ul>
+    </div>
+
+    <div class="notes">
+        <h2>Source Documents</h2>
+        <ul>
+            <li><strong>Meeting Recording:</strong> <a href="https://fathom.video/share/tCdWTKsWyyufQ6WZDr7wWg1PowEDDiw4">Corey &amp; Emma &mdash; March 30, 2026 @ 3:13 PM</a> (Meeting ID: 97696153)</li>
+            <li><strong>Equipment Specs:</strong> <code>appello-sdlc/docs/uis-15*.html</code> (8 child specs)</li>
+            <li><strong>Work Order Specs:</strong> <code>tm-work-orders-uis/uis-20*.html</code> (7 child specs, excludes CO Log &mdash; existing interface)</li>
+            <li><strong>Clearstory Gap Analysis:</strong> <code>tm-work-orders-uis/clearstory-mobile-gap-analysis.html</code></li>
+            <li><strong>Clearstory Process Map:</strong> <code>tm-work-orders-uis/clearstory-process-map.html</code></li>
+        </ul>
+    </div>
+
+</div>
+
+<script>
+// Cross-repo base URLs — update these if the GitHub Pages site changes
+var REPO_BASES = {
+    'equipment:': 'https://useanzen.github.io/appello-sdlc/docs/'
+};
+
+// Resolve paths that use a repo prefix (e.g. "equipment:uis-15h-..." → full URL)
+function resolvePath(path) {
+    if (!path) return path;
+    for (var prefix in REPO_BASES) {
+        if (path.indexOf(prefix) === 0) {
+            return REPO_BASES[prefix] + path.slice(prefix.length);
+        }
+    }
+    return path; // same-repo relative path, use as-is
+}
+
+// Create an iframe for a given path with auto-resize
+function createDocIframe(src) {
+    var iframe = document.createElement('iframe');
+    iframe.src = src;
+    iframe.style.cssText = 'width:100%;border:none;min-height:600px;background:#fff;';
+    iframe.addEventListener('load', function() {
+        try {
+            iframe.style.height = Math.min(iframe.contentDocument.documentElement.scrollHeight + 40, 2000) + 'px';
+        } catch (e) { iframe.style.height = '800px'; }
+    });
+    return iframe;
+}
+
+// Build a tab content panel (spec or plan) with toolbar + iframe
+function createTabContent(tabName, path, isActive) {
+    var content = document.createElement('div');
+    content.className = 'detail-tab-content' + (isActive ? ' active' : '');
+    content.dataset.tab = tabName;
+
+    if (path) {
+        var toolbar = document.createElement('div');
+        toolbar.className = 'detail-toolbar';
+        toolbar.innerHTML =
+            '<span class="file-path"><code>' + path + '</code></span>' +
+            '<a class="open-link" href="' + path + '" target="_blank">Open in new tab &#8599;</a>';
+        content.appendChild(toolbar);
+        // Lazy — iframe added on first tab activation
+        content.dataset.src = path;
+    } else {
+        var label = tabName === 'plan' ? 'Implementation plan' : 'Spec';
+        content.innerHTML = '<div class="pending-msg">' + label + ' not yet created for this feature.</div>';
+    }
+
+    return content;
+}
+
+// Ensure the active tab's iframe is loaded
+function ensureIframeLoaded(content) {
+    if (content.dataset.src && !content.querySelector('iframe')) {
+        content.appendChild(createDocIframe(content.dataset.src));
+    }
+}
+
+// Build the detail panel with tabs
+function buildDetailPanel(detail, specPath, planPath) {
+    var hasSpec = !!specPath;
+    var hasPlan = !!planPath;
+    var defaultTab = hasSpec ? 'spec' : (hasPlan ? 'plan' : 'spec');
+
+    // Tab bar
+    var tabBar = document.createElement('div');
+    tabBar.className = 'detail-tabs';
+
+    var specTab = document.createElement('div');
+    specTab.className = 'detail-tab' + (hasSpec && defaultTab === 'spec' ? ' active' : '') + (!hasSpec ? ' disabled' : '');
+    specTab.textContent = 'Spec / Analysis';
+    specTab.dataset.tab = 'spec';
+
+    var planTab = document.createElement('div');
+    planTab.className = 'detail-tab' + (defaultTab === 'plan' ? ' active' : '') + (!hasPlan ? ' disabled' : '');
+    planTab.textContent = 'Implementation Plan' + (!hasPlan ? ' (pending)' : '');
+    planTab.dataset.tab = 'plan';
+
+    tabBar.appendChild(specTab);
+    tabBar.appendChild(planTab);
+    detail.appendChild(tabBar);
+
+    // Tab content panels
+    var specContent = createTabContent('spec', specPath, defaultTab === 'spec');
+    var planContent = createTabContent('plan', planPath, defaultTab === 'plan');
+    detail.appendChild(specContent);
+    detail.appendChild(planContent);
+
+    // Load the default tab's iframe immediately
+    var activeContent = defaultTab === 'spec' ? specContent : planContent;
+    ensureIframeLoaded(activeContent);
+
+    // Tab switching
+    tabBar.querySelectorAll('.detail-tab:not(.disabled)').forEach(function(tab) {
+        tab.addEventListener('click', function() {
+            tabBar.querySelectorAll('.detail-tab').forEach(function(t) { t.classList.remove('active'); });
+            detail.querySelectorAll('.detail-tab-content').forEach(function(c) { c.classList.remove('active'); });
+            tab.classList.add('active');
+            var target = detail.querySelector('.detail-tab-content[data-tab="' + tab.dataset.tab + '"]');
+            target.classList.add('active');
+            ensureIframeLoaded(target);
+        });
+    });
+}
+
+// Expandable rows
+document.querySelectorAll('.item-row:not(.no-expand)').forEach(function(row) {
+    var header = row.querySelector('.item-header');
+    var detail = row.querySelector('.item-detail');
+    var specPath = resolvePath(row.dataset.spec);
+    var planPath = resolvePath(row.dataset.plan);
+
+    header.addEventListener('click', function() {
+        var wasExpanded = row.classList.contains('expanded');
+
+        // Collapse all other rows
+        document.querySelectorAll('.item-row.expanded').forEach(function(other) {
+            if (other !== row) other.classList.remove('expanded');
+        });
+
+        if (wasExpanded) {
+            row.classList.remove('expanded');
+        } else {
+            row.classList.add('expanded');
+
+            // Build detail panel on first expand
+            if (!detail.querySelector('.detail-tabs')) {
+                buildDetailPanel(detail, specPath, planPath);
+            }
+
+            setTimeout(function() {
+                row.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }, 50);
+        }
+    });
+});
+</script>
+</body>
+</html>

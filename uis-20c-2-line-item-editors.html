@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WO-3b: Line Item Editors</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Inter', -apple-system, sans-serif; background: #f1f5f9; color: #0f172a; }
+.uis-wrap { max-width: 960px; margin: 0 auto; padding: 40px 24px 80px; }
+.uis-hero { margin-bottom: 32px; }
+.uis-badges { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+.uis-badge { font-size: 11px; font-weight: 700; padding: 4px 12px; border-radius: 6px; display: inline-flex; align-items: center; gap: 5px; }
+.badge-q { background: #0f172a; color: #fff; }
+.badge-wo { background: #ec4899; color: #fff; }
+.badge-priority { background: #fee2e2; color: #dc2626; }
+.badge-status { background: #fef3c7; color: #92400e; }
+.uis-h1 { font-size: 30px; font-weight: 800; color: #0f172a; margin: 0 0 8px; letter-spacing: -0.01em; }
+.uis-sub { font-size: 15px; color: #64748b; line-height: 1.5; margin: 0; }
+.uis-meta { display: flex; gap: 24px; flex-wrap: wrap; margin-top: 14px; font-size: 13px; color: #64748b; }
+.uis-meta strong { color: #0f172a; }
+.uis-section { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px 28px; margin-bottom: 16px; }
+.uis-section h2 { font-size: 17px; font-weight: 700; margin: 0 0 14px; padding-bottom: 10px; border-bottom: 2px solid #e2e8f0; }
+.uis-section h3 { font-size: 15px; font-weight: 700; margin: 16px 0 8px; }
+.uis-section h4 { font-size: 14px; font-weight: 700; color: #334155; margin: 12px 0 6px; }
+.uis-section p, .uis-section li { font-size: 14px; color: #334155; line-height: 1.65; }
+.uis-section ul, .uis-section ol { padding-left: 20px; margin: 8px 0; }
+pre { background: #1e293b; color: #e2e8f0; border-radius: 8px; padding: 16px; overflow-x: auto; font-size: 13px; line-height: 1.5; font-family: 'SF Mono', monospace; margin: 12px 0; }
+table.schema-table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 12px 0; }
+table.schema-table th { text-align: left; padding: 8px 12px; background: #f8fafc; border-bottom: 2px solid #e2e8f0; font-weight: 600; }
+table.schema-table td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
+table.schema-table code { font-family: monospace; background: #f1f5f9; padding: 1px 5px; border-radius: 3px; font-size: 12px; color: #7c3aed; }
+.callout { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 14px 18px; margin: 14px 0; font-size: 13px; color: #1e40af; }
+.callout strong { color: #1e3a8a; }
+.mockup-container { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; margin: 14px 0; }
+.mockup-bar { background: #f1f5f9; padding: 8px 14px; font-size: 12px; font-weight: 600; color: #64748b; border-bottom: 1px solid #e2e8f0; display: flex; align-items: center; gap: 8px; }
+.mockup-dots { display: flex; gap: 5px; }
+.mockup-dot { width: 8px; height: 8px; border-radius: 50%; }
+.mockup-dot-r { background: #f87171; }
+.mockup-dot-y { background: #fbbf24; }
+.mockup-dot-g { background: #34d399; }
+.mockup-body { padding: 24px; min-height: 150px; font-size: 13px; color: #334155; line-height: 1.6; }
+.blast-summary { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 16px 20px; margin-bottom: 16px; }
+.blast-row { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; }
+.blast-row:not(:last-child) { border-bottom: 1px solid #f1f5f9; }
+.blast-label { font-size: 13px; color: #64748b; }
+.blast-value { font-size: 13px; font-weight: 700; color: #0f172a; }
+.action-new { background: #dcfce7; color: #166534; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 4px; }
+.action-mod { background: #fef3c7; color: #92400e; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 4px; }
+.ac-list { margin: 0; padding-left: 0; list-style: none; }
+.ac-list li { display: flex; gap: 10px; margin-bottom: 10px; font-size: 14px; color: #334155; line-height: 1.55; }
+.ac-list li::before { content: ''; flex-shrink: 0; width: 18px; height: 18px; border: 2px solid #e2e8f0; border-radius: 4px; margin-top: 2px; background: #fff; }
+.dep-tag { display: inline-block; font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 5px; margin-right: 6px; margin-bottom: 6px; }
+.dep-requires { background: #fee2e2; color: #dc2626; }
+.dep-enables { background: #dcfce7; color: #166534; }
+</style>
+</head>
+<body>
+<div class="uis-wrap">
+
+    <div class="uis-hero">
+        <div class="uis-badges">
+            <span class="uis-badge badge-q">WO-3b</span>
+            <span class="uis-badge badge-wo">Work Orders</span>
+            <span class="uis-badge badge-priority">P0</span>
+            <span class="uis-badge badge-status">Draft</span>
+        </div>
+        <h1 class="uis-h1">Line Item Editors</h1>
+        <p class="uis-sub">Custom input components for Labor, Material, and Equipment line items that plug into the DataModelForm via <code>customFormControl</code>. Each supports structured (from rate tables/catalog) and blank (manual entry) lines. Subtotals render within each editor. All state is local until form-level save.</p>
+        <div class="uis-meta">
+            <span><strong>Sequence:</strong> WO-3b of 3</span>
+            <span><strong>Estimate:</strong> 4-5 days</span>
+            <span><strong>Requires:</strong> WO-3a (DAA positions), WO-2 (line item models)</span>
+        </div>
+    </div>
+
+    <!-- 1. Architecture -->
+    <div class="uis-section">
+        <h2>1. How Editors Plug Into the DataModel Form</h2>
+
+        <p>WO-3a created 4 DAA positions (<code>wo-labor-items</code>, <code>wo-material-items</code>, <code>wo-equipment-items</code>, <code>wo-signatures</code>) with placeholder <code>&lt;p&gt;</code> tags in <code>customFormControl</code>. WO-3b replaces the first three with real editor components.</p>
+
+        <h3>Integration pattern (from PR #6831)</h3>
+<pre>
+const customFormControl = {
+    "wo-labor-items": (formData, setFormData) =&gt;
+        &lt;LaborItemEditor
+            jobId={jobId}
+            dateOfWork={formData["wo-date-of-work"]}
+            items={laborItems}
+            setItems={setLaborItems}
+        /&gt;,
+
+    "wo-material-items": (formData, setFormData) =&gt;
+        &lt;MaterialItemEditor
+            jobId={jobId}
+            items={materialItems}
+            setItems={setMaterialItems}
+        /&gt;,
+
+    "wo-equipment-items": (formData, setFormData) =&gt;
+        &lt;EquipmentItemEditor
+            jobId={jobId}
+            items={equipmentItems}
+            setItems={setEquipmentItems}
+        /&gt;,
+
+    "wo-signatures": () =&gt; &lt;p&gt;Signatures&lt;/p&gt;  // WO-3c
+};
+</pre>
+
+        <h3>Key behavior rules</h3>
+        <ul>
+            <li><strong>Local state only:</strong> Editors maintain their own state via <code>items</code> / <code>setItems</code>. Nothing saves to the database until the parent form's Save Draft or Submit is clicked.</li>
+            <li><strong>Subtotals within editors:</strong> Each editor renders its own subtotal at the bottom. For labor and equipment structured lines, subtotals are only shown if user has <code>viewWageDetails</code> permission. Material subtotals always shown (manually entered costs).</li>
+            <li><strong>On form save:</strong> The parent form collects all line item state and calls <code>upsertWorkOrderLineItems</code> (from WO-2) in the same transaction as the Job save.</li>
+            <li><strong>Structured + blank lines:</strong> Each editor has an "+ Add" dropdown button with "Structured Line" and "Blank Line" options. Both types coexist in the same list.</li>
+        </ul>
+    </div>
+
+    <!-- 2. Labor Item Editor -->
+    <div class="uis-section">
+        <h2>2. LaborItemEditor</h2>
+
+        <h3>Component interface</h3>
+<pre>
+interface ILaborItemEditorProps {
+    jobId: string;
+    dateOfWork: Date | null;  // determines which EmployeeAgreementContract is active
+    items: ILaborRow[];
+    setItems: (items: ILaborRow[]) => void;
+}
+
+type ILaborRow = IStructuredLaborRow | IBlankLaborRow;
+
+interface IStructuredLaborRow {
+    type: "structured";
+    orderNo: number;
+    employeeAgreementId: string;
+    tradeLevelId: string;
+    qtyOfWorkers: number;
+    rateLabelDurations: Record&lt;string, number&gt;;  // rateLabelId → seconds
+}
+
+interface IBlankLaborRow {
+    type: "blank";
+    orderNo: number;
+    description: string;
+    qtyOfWorkers: number;
+    submittedDuration: number;  // seconds
+    rate: number;
+}
+</pre>
+
+        <h3>Structured line behavior</h3>
+        <ul>
+            <li><strong>Employee Agreement:</strong> Auto-selected from the submitting user. If user has multiple agreements, shows a selector. If one agreement, shows read-only with "(auto)".</li>
+            <li><strong>Trade Level:</strong> Dropdown populated from the agreement's trade levels. Changing trade level reloads the rate label columns.</li>
+            <li><strong>Rate label columns:</strong> Loaded from the active <code>EmployeeAgreementContract</code> for the WO's <code>dateOfWork</code>. Columns are the <code>EmployeeAgreementRateLabel</code> records where <code>isLineItem = false</code> (e.g., Wages 1x, Wages 1.5x, Wages 2x). Hours entered per column. Mirrors the timesheet form pattern from <code>TimesheetRateLabelColumns.tsx</code>.</li>
+            <li><strong>Qty of Workers:</strong> Multiplier. Default 1.</li>
+            <li><strong>No rates shown:</strong> Hours only on the form. Rates applied at invoice generation (WO-7).</li>
+            <li><strong>Database mapping:</strong> Each rate label column with hours &gt; 0 becomes a separate <code>WorkOrderLaborItem</code> record with the same <code>orderNo</code>. The <code>tradeLevelRateId</code> is resolved from (contract + tradeLevel + rateLabel).</li>
+        </ul>
+
+        <h3>Blank line behavior</h3>
+        <ul>
+            <li>Description (free text, required), Workers qty, Hours (single input), Rate ($/hr, manual entry)</li>
+            <li>No agreement, no trade level, no rate label columns</li>
+            <li>Saves as a single <code>WorkOrderLaborItem</code> with <code>tradeLevelRateId = null</code> and <code>rate</code> set</li>
+        </ul>
+
+        <h3>UI Mockup</h3>
+        <div class="mockup-container">
+            <div class="mockup-bar">
+                <div class="mockup-dots"><div class="mockup-dot mockup-dot-r"></div><div class="mockup-dot mockup-dot-y"></div><div class="mockup-dot mockup-dot-g"></div></div>
+                LaborItemEditor &mdash; customFormControl["wo-labor-items"]
+            </div>
+            <div class="mockup-body">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                    <div style="font-size:14px; font-weight:700;">Labor</div>
+                    <div style="position:relative;">
+                        <div style="background:#10b981; color:#fff; border-radius:5px; padding:4px 10px; font-size:11px; font-weight:600; display:flex; align-items:center; gap:4px;">+ Add Labor <span style="opacity:0.7;">&#9662;</span></div>
+                    </div>
+                </div>
+
+                <!-- Structured row 1: 3 Journeymen -->
+                <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; padding:10px; margin-bottom:8px;">
+                    <div style="display:flex; gap:8px; align-items:center; margin-bottom:8px;">
+                        <div style="flex:1;"><div style="font-size:10px; color:#64748b; margin-bottom:2px;">Employee Agreement</div><div style="background:#fff; border:1px solid #e2e8f0; border-radius:4px; padding:5px 8px; font-size:11px;">UA Local 488 <span style="color:#94a3b8;">(auto)</span></div></div>
+                        <div style="flex:1;"><div style="font-size:10px; color:#64748b; margin-bottom:2px;">Trade Level</div><div style="background:#fff; border:1px solid #e2e8f0; border-radius:4px; padding:5px 8px; font-size:11px; display:flex; justify-content:space-between;"><span>Journeyman</span><span style="color:#94a3b8;">&#9662;</span></div></div>
+                        <div style="width:70px;"><div style="font-size:10px; color:#64748b; margin-bottom:2px;">Workers</div><div style="background:#fff; border:1px solid #e2e8f0; border-radius:4px; padding:5px 8px; font-size:11px; text-align:center;">3</div></div>
+                        <div style="color:#dc2626; cursor:pointer; font-size:14px; align-self:flex-end; padding-bottom:4px;">&times;</div>
+                    </div>
+                    <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:6px; font-size:10px;">
+                        <div style="text-align:center;"><div style="color:#64748b; margin-bottom:2px;">Wages 1x</div><div style="background:#fff; border:1px solid #e2e8f0; border-radius:4px; padding:4px; text-align:center; font-size:11px;">8.0</div></div>
+                        <div style="text-align:center;"><div style="color:#64748b; margin-bottom:2px;">Wages 1.5x</div><div style="background:#fff; border:1px solid #e2e8f0; border-radius:4px; padding:4px; text-align:center; font-size:11px;">2.0</div></div>
+                        <div style="text-align:center;"><div style="color:#64748b; margin-bottom:2px;">Wages 2x</div><div style="background:#fff; border:1px solid #e2e8f0; border-radius:4px; padding:4px; text-align:center; font-size:11px; color:#94a3b8;">&mdash;</div></div>
+                    </div>
+                </div>
+
+                <!-- Structured row 2: 1 Foreman -->
+                <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; padding:10px; margin-bottom:8px;">
+                    <div style="display:flex; gap:8px; align-items:center; margin-bottom:8px;">
+                        <div style="flex:1;"><div style="font-size:10px; color:#64748b; margin-bottom:2px;">Employee Agreement</div><div style="background:#fff; border:1px solid #e2e8f0; border-radius:4px; padding:5px 8px; font-size:11px;">UA Local 488 <span style="color:#94a3b8;">(auto)</span></div></div>
+                        <div style="flex:1;"><div style="font-size:10px; color:#64748b; margin-bottom:2px;">Trade Level</div><div style="background:#fff; border:1px solid #e2e8f0; border-radius:4px; padding:5px 8px; font-size:11px; display:flex; justify-content:space-between;"><span>Foreman</span><span style="color:#94a3b8;">&#9662;</span></div></div>
+                        <div style="width:70px;"><div style="font-size:10px; color:#64748b; margin-bottom:2px;">Workers</div><div style="background:#fff; border:1px solid #e2e8f0; border-radius:4px; padding:5px 8px; font-size:11px; text-align:center;">1</div></div>
+                        <div style="color:#dc2626; cursor:pointer; font-size:14px; align-self:flex-end; padding-bottom:4px;">&times;</div>
+                    </div>
+                    <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:6px; font-size:10px;">
+                        <div style="text-align:center;"><div style="color:#64748b; margin-bottom:2px;">Wages 1x</div><div style="background:#fff; border:1px solid #e2e8f0; border-radius:4px; padding:4px; text-align:center; font-size:11px;">8.0</div></div>
+                        <div style="text-align:center;"><div style="color:#64748b; margin-bottom:2px;">Wages 1.5x</div><div style="background:#fff; border:1px solid #e2e8f0; border-radius:4px; padding:4px; text-align:center; font-size:11px; color:#94a3b8;">&mdash;</div></div>
+                        <div style="text-align:center;"><div style="color:#64748b; margin-bottom:2px;">Wages 2x</div><div style="background:#fff; border:1px solid #e2e8f0; border-radius:4px; padding:4px; text-align:center; font-size:11px; color:#94a3b8;">&mdash;</div></div>
+                    </div>
+                </div>
+
+                <!-- Blank line -->
+                <div style="background:#fff; border:1px dashed #cbd5e1; border-radius:6px; padding:10px; margin-bottom:8px;">
+                    <div style="display:flex; gap:8px; align-items:center;">
+                        <div style="flex:2;"><div style="font-size:10px; color:#64748b; margin-bottom:2px;">Description *</div><div style="background:#fff; border:1px solid #e2e8f0; border-radius:4px; padding:5px 8px; font-size:11px; color:#334155;">2 labourers &mdash; scaffolding move</div></div>
+                        <div style="width:70px;"><div style="font-size:10px; color:#64748b; margin-bottom:2px;">Workers</div><div style="background:#fff; border:1px solid #e2e8f0; border-radius:4px; padding:5px 8px; font-size:11px; text-align:center;">2</div></div>
+                        <div style="width:80px;"><div style="font-size:10px; color:#64748b; margin-bottom:2px;">Hours</div><div style="background:#fff; border:1px solid #e2e8f0; border-radius:4px; padding:5px 8px; font-size:11px; text-align:center;">4.0</div></div>
+                        <div style="width:90px;"><div style="font-size:10px; color:#64748b; margin-bottom:2px;">Rate ($/hr)</div><div style="background:#fff; border:1px solid #e2e8f0; border-radius:4px; padding:5px 8px; font-size:11px; text-align:right;">$65.00</div></div>
+                        <div style="color:#dc2626; cursor:pointer; font-size:14px; align-self:flex-end; padding-bottom:4px;">&times;</div>
+                    </div>
+                    <div style="font-size:9px; color:#94a3b8; margin-top:4px; font-style:italic;">Blank line &mdash; no trade level, manual description + rate entry</div>
+                </div>
+
+                <!-- Subtotal -->
+                <div style="display:flex; justify-content:flex-end; padding:8px 0; font-size:12px; color:#64748b;">
+                    Total Labor Hours: <strong style="color:#0f172a; margin-left:4px;">30.0 hrs</strong> <span style="margin-left:8px;">(4 workers &middot; 2 trade levels &middot; 1 blank)</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="callout">
+            <strong>Where rates appear:</strong> No rates on the WO form for structured lines. Blank lines have manual rate entry. Rates for structured lines resolved from <code>TradeLevelRate.billableValue</code> at invoice generation (WO-7). Subtotal dollar amounts only shown on WO Detail Page (WO-4) with <code>viewWageDetails</code> permission.
+        </div>
+    </div>
+
+    <!-- 3. Material Item Editor -->
+    <div class="uis-section">
+        <h2>3. MaterialItemEditor</h2>
+
+        <h3>Component interface</h3>
+<pre>
+interface IMaterialItemEditorProps {
+    jobId: string;
+    items: IMaterialRow[];
+    setItems: (items: IMaterialRow[]) => void;
+}
+
+interface IMaterialRow {
+    type: "structured" | "blank";
+    orderNo: number;
+    materialId?: string;       // set for structured, null for blank
+    description?: string;
+    quantity?: number;
+    unitCost?: number;
+    total?: number;            // auto-calculated: qty * unitCost
+}
+</pre>
+
+        <h3>Structured line behavior</h3>
+        <ul>
+            <li><strong>Material selector:</strong> <code>CustomCombobox</code> searching the Material catalog (Solr-indexed). Selecting a material auto-populates description (name) and UoM (from MaterialGroup).</li>
+            <li><strong>Unit Cost:</strong> Manually entered &mdash; material prices are volatile (LEM-3 analysis). Not auto-populated from the catalog.</li>
+            <li><strong>Total:</strong> Auto-calculated: <code>quantity &times; unitCost</code>. Updated as the user types.</li>
+        </ul>
+
+        <h3>Blank line behavior</h3>
+        <ul>
+            <li>Description (free text, required), Qty, Unit Cost, Total (auto-calculated)</li>
+            <li>No material catalog lookup</li>
+            <li>Saves as <code>WorkOrderMaterialItem</code> with <code>materialId = null</code></li>
+        </ul>
+
+        <h3>UI Mockup</h3>
+        <div class="mockup-container">
+            <div class="mockup-bar">
+                <div class="mockup-dots"><div class="mockup-dot mockup-dot-r"></div><div class="mockup-dot mockup-dot-y"></div><div class="mockup-dot mockup-dot-g"></div></div>
+                MaterialItemEditor &mdash; customFormControl["wo-material-items"]
+            </div>
+            <div class="mockup-body">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                    <div style="font-size:14px; font-weight:700;">Materials</div>
+                    <div style="background:#10b981; color:#fff; border-radius:5px; padding:4px 10px; font-size:11px; font-weight:600; display:flex; align-items:center; gap:4px;">+ Add Material <span style="opacity:0.7;">&#9662;</span></div>
+                </div>
+
+                <!-- Structured row -->
+                <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; padding:10px; margin-bottom:8px;">
+                    <div style="display:flex; gap:8px; align-items:center;">
+                        <div style="flex:2;"><div style="font-size:10px; color:#64748b; margin-bottom:2px;">Material (catalog)</div><div style="background:#fff; border:1px solid #e2e8f0; border-radius:4px; padding:5px 8px; font-size:11px; display:flex; justify-content:space-between;"><span>R-30 Batt Insulation</span><span style="color:#94a3b8;">&#9662;</span></div></div>
+                        <div style="width:60px;"><div style="font-size:10px; color:#64748b; margin-bottom:2px;">Qty</div><div style="background:#fff; border:1px solid #e2e8f0; border-radius:4px; padding:5px 8px; font-size:11px; text-align:center;">24</div></div>
+                        <div style="width:50px;"><div style="font-size:10px; color:#64748b; margin-bottom:2px;">UoM</div><div style="font-size:11px; color:#64748b; padding:5px 0;">rolls</div></div>
+                        <div style="width:90px;"><div style="font-size:10px; color:#64748b; margin-bottom:2px;">Unit Cost</div><div style="background:#fff; border:1px solid #e2e8f0; border-radius:4px; padding:5px 8px; font-size:11px; text-align:right;">$18.50</div></div>
+                        <div style="width:80px;"><div style="font-size:10px; color:#64748b; margin-bottom:2px;">Total</div><div style="font-size:11px; font-weight:600; padding:5px 0; text-align:right;">$444.00</div></div>
+                        <div style="color:#dc2626; cursor:pointer; font-size:14px;">&times;</div>
+                    </div>
+                </div>
+
+                <!-- Blank row -->
+                <div style="background:#fff; border:1px dashed #cbd5e1; border-radius:6px; padding:10px; margin-bottom:8px;">
+                    <div style="display:flex; gap:8px; align-items:center;">
+                        <div style="flex:2;"><div style="font-size:10px; color:#64748b; margin-bottom:2px;">Description *</div><div style="background:#fff; border:1px solid #e2e8f0; border-radius:4px; padding:5px 8px; font-size:11px; color:#334155;">Misc hardware &amp; fasteners</div></div>
+                        <div style="width:60px;"><div style="font-size:10px; color:#64748b; margin-bottom:2px;">Qty</div><div style="background:#fff; border:1px solid #e2e8f0; border-radius:4px; padding:5px 8px; font-size:11px; text-align:center;">1</div></div>
+                        <div style="width:90px;"><div style="font-size:10px; color:#64748b; margin-bottom:2px;">Unit Cost</div><div style="background:#fff; border:1px solid #e2e8f0; border-radius:4px; padding:5px 8px; font-size:11px; text-align:right;">$87.50</div></div>
+                        <div style="width:80px;"><div style="font-size:10px; color:#64748b; margin-bottom:2px;">Total</div><div style="font-size:11px; font-weight:600; padding:5px 0; text-align:right;">$87.50</div></div>
+                        <div style="color:#dc2626; cursor:pointer; font-size:14px;">&times;</div>
+                    </div>
+                    <div style="font-size:9px; color:#94a3b8; margin-top:4px; font-style:italic;">Blank line &mdash; no catalog lookup, manual entry</div>
+                </div>
+
+                <!-- Material subtotal -->
+                <div style="display:flex; justify-content:flex-end; padding:8px 0; font-size:12px;">
+                    Material Total: <strong style="margin-left:4px;">$531.50</strong> <span style="margin-left:8px; color:#64748b;">(2 items)</span>
+                </div>
+            </div>
+        </div>
+        <p style="font-size:12px; color:#64748b;">Material costs always shown &mdash; they're manually entered by the user (volatile pricing). Structured lines auto-populate name + UoM from the catalog but unit cost is always manual.</p>
+    </div>
+
+    <!-- 4. Equipment Item Editor -->
+    <div class="uis-section">
+        <h2>4. EquipmentItemEditor</h2>
+
+        <h3>Component interface</h3>
+<pre>
+interface IEquipmentItemEditorProps {
+    jobId: string;
+    items: IEquipmentRow[];
+    setItems: (items: IEquipmentRow[]) => void;
+}
+
+type IEquipmentRow = IStructuredEquipmentRow | IBlankEquipmentRow;
+
+interface IStructuredEquipmentRow {
+    type: "structured";
+    orderNo: number;
+    equipmentId: string;
+    equipmentRateLabelId: string;
+    per: string;
+    operatorIncluded: boolean;
+    isFullDayBilling: boolean;
+    submittedDuration: number;  // seconds
+}
+
+interface IBlankEquipmentRow {
+    type: "blank";
+    orderNo: number;
+    description: string;
+    quantity: number;
+    per?: string;
+    unitRate: number;
+}
+</pre>
+
+        <h3>Structured line behavior</h3>
+        <ul>
+            <li><strong>Equipment selector:</strong> <code>CustomCombobox</code> searching Equipment catalog (Solr-indexed).</li>
+            <li><strong>Rate Type:</strong> Dropdown populated from <code>EquipmentRateLabel</code> for the selected equipment's category.</li>
+            <li><strong>Per:</strong> Dropdown (Hour, Day, Week, Month, Year). May be pre-set from EquipmentAssignment billing context (business question from UIS-15H).</li>
+            <li><strong>Duration:</strong> Input labeled based on <code>per</code> selection ("hrs", "days", etc.). Stored in seconds.</li>
+            <li><strong>No rates shown:</strong> Rates resolved from LEM-2 at invoice generation.</li>
+        </ul>
+
+        <h3>Blank line behavior</h3>
+        <ul>
+            <li>Description (free text, required), Qty, Per (unit label), Rate (manual)</li>
+            <li>No equipment catalog lookup, no rate labels</li>
+            <li>Saves as <code>WorkOrderEquipmentItem</code> with <code>equipmentId = null</code> and <code>unitRate</code> set</li>
+        </ul>
+
+        <h3>UI Mockup</h3>
+        <div class="mockup-container">
+            <div class="mockup-bar">
+                <div class="mockup-dots"><div class="mockup-dot mockup-dot-r"></div><div class="mockup-dot mockup-dot-y"></div><div class="mockup-dot mockup-dot-g"></div></div>
+                EquipmentItemEditor &mdash; customFormControl["wo-equipment-items"]
+            </div>
+            <div class="mockup-body">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                    <div style="font-size:14px; font-weight:700;">Equipment</div>
+                    <div style="background:#10b981; color:#fff; border-radius:5px; padding:4px 10px; font-size:11px; font-weight:600; display:flex; align-items:center; gap:4px;">+ Add Equipment <span style="opacity:0.7;">&#9662;</span></div>
+                </div>
+
+                <!-- Structured row -->
+                <div style="background:#f0fdf4; border:1px solid #d1fae5; border-radius:6px; padding:10px; margin-bottom:8px;">
+                    <div style="display:flex; gap:8px; align-items:center;">
+                        <div style="flex:2;"><div style="font-size:10px; color:#64748b; margin-bottom:2px;">Equipment</div><div style="background:#fff; border:1px solid #e2e8f0; border-radius:4px; padding:5px 8px; font-size:11px; display:flex; justify-content:space-between;"><span>CAT 320 Excavator</span><span style="color:#94a3b8;">&#9662;</span></div></div>
+                        <div style="flex:1;"><div style="font-size:10px; color:#64748b; margin-bottom:2px;">Rate Type</div><div style="background:#fff; border:1px solid #e2e8f0; border-radius:4px; padding:5px 8px; font-size:11px; display:flex; justify-content:space-between;"><span>Standard</span><span style="color:#94a3b8;">&#9662;</span></div></div>
+                        <div style="width:70px;"><div style="font-size:10px; color:#64748b; margin-bottom:2px;">Per</div><div style="font-size:11px; padding:5px 0;">Hour</div></div>
+                        <div style="width:70px;"><div style="font-size:10px; color:#64748b; margin-bottom:2px;">Duration</div><div style="background:#fff; border:1px solid #e2e8f0; border-radius:4px; padding:5px 8px; font-size:11px; text-align:center;">8.0 hrs</div></div>
+                        <div style="color:#dc2626; cursor:pointer; font-size:14px;">&times;</div>
+                    </div>
+                    <div style="font-size:10px; color:#94a3b8; margin-top:4px;">Rates resolved from LEM-2 at invoice generation.</div>
+                </div>
+
+                <!-- Blank row -->
+                <div style="background:#fff; border:1px dashed #cbd5e1; border-radius:6px; padding:10px; margin-bottom:8px;">
+                    <div style="display:flex; gap:8px; align-items:center;">
+                        <div style="flex:2;"><div style="font-size:10px; color:#64748b; margin-bottom:2px;">Description *</div><div style="background:#fff; border:1px solid #e2e8f0; border-radius:4px; padding:5px 8px; font-size:11px; color:#334155;">Rented boom lift &mdash; JLG 600S</div></div>
+                        <div style="width:60px;"><div style="font-size:10px; color:#64748b; margin-bottom:2px;">Qty</div><div style="background:#fff; border:1px solid #e2e8f0; border-radius:4px; padding:5px 8px; font-size:11px; text-align:center;">2</div></div>
+                        <div style="width:50px;"><div style="font-size:10px; color:#64748b; margin-bottom:2px;">Per</div><div style="font-size:11px; color:#64748b; padding:5px 0;">days</div></div>
+                        <div style="width:90px;"><div style="font-size:10px; color:#64748b; margin-bottom:2px;">Rate</div><div style="background:#fff; border:1px solid #e2e8f0; border-radius:4px; padding:5px 8px; font-size:11px; text-align:right;">$450.00</div></div>
+                        <div style="color:#dc2626; cursor:pointer; font-size:14px;">&times;</div>
+                    </div>
+                    <div style="font-size:9px; color:#94a3b8; margin-top:4px; font-style:italic;">Blank line &mdash; not from equipment catalog, manual rate entry</div>
+                </div>
+
+                <!-- Equipment subtotal -->
+                <div style="display:flex; justify-content:flex-end; padding:8px 0; font-size:12px; color:#64748b;">
+                    Total Equipment: <strong style="color:#0f172a; margin-left:4px;">8.0 hrs + 2 days</strong> <span style="margin-left:8px;">(1 structured &middot; 1 blank)</span>
+                </div>
+            </div>
+        </div>
+        <p style="font-size:12px; color:#64748b;">Structured lines: no rates shown, resolved from LEM-2 at invoice generation. Blank lines: manual rate entry for ad-hoc rentals or equipment not in the catalog.</p>
+    </div>
+
+    <!-- 5. Change Surface -->
+    <div class="uis-section">
+        <h2>5. Change Surface</h2>
+
+        <div class="blast-summary">
+            <div class="blast-row"><span class="blast-label">New frontend files</span><span class="blast-value">3 (LaborItemEditor, MaterialItemEditor, EquipmentItemEditor)</span></div>
+            <div class="blast-row"><span class="blast-label">Modified frontend files</span><span class="blast-value">1 (Job DataModelForm page — replace placeholders with real components)</span></div>
+            <div class="blast-row"><span class="blast-label">Backend changes</span><span class="blast-value">None — all models and mutations from WO-2</span></div>
+        </div>
+
+        <table class="schema-table">
+            <thead><tr><th>Action</th><th>File</th><th>Notes</th></tr></thead>
+            <tbody>
+                <tr><td><span class="action-new">NEW</span></td><td><code>apps/frontend/src/components/WorkOrder/LaborItemEditor.tsx</code></td><td>Structured + blank labor lines, rate label columns from EmployeeAgreement, qty of workers</td></tr>
+                <tr><td><span class="action-new">NEW</span></td><td><code>apps/frontend/src/components/WorkOrder/MaterialItemEditor.tsx</code></td><td>Structured (catalog) + blank material lines, manual pricing, auto-calculated totals</td></tr>
+                <tr><td><span class="action-new">NEW</span></td><td><code>apps/frontend/src/components/WorkOrder/EquipmentItemEditor.tsx</code></td><td>Structured (equipment catalog + rate labels) + blank equipment lines</td></tr>
+                <tr><td><span class="action-mod">MOD</span></td><td>Job DataModelForm page (from PR #6831)</td><td>Replace placeholder <code>&lt;p&gt;</code> tags in <code>customFormControl</code> with real editor components</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- 6. Acceptance Criteria -->
+    <div class="uis-section">
+        <h2>6. Acceptance Criteria</h2>
+        <ol class="ac-list">
+            <li><span><strong>Labor — Structured:</strong> Employee Agreement auto-selects, trade level dropdown loads rate label columns from active contract for <code>dateOfWork</code></span></li>
+            <li><span><strong>Labor — Structured:</strong> Hours entered per rate label column, qty of workers multiplier, no rates shown</span></li>
+            <li><span><strong>Labor — Blank:</strong> Free-text description, manual hours + rate + workers qty</span></li>
+            <li><span><strong>Material — Structured:</strong> Material catalog selector auto-populates name + UoM, manual unit cost, auto-calculated total</span></li>
+            <li><span><strong>Material — Blank:</strong> Free-text description, manual qty + unit cost + total</span></li>
+            <li><span><strong>Equipment — Structured:</strong> Equipment selector loads rate labels from category, per dropdown, duration input, no rates shown</span></li>
+            <li><span><strong>Equipment — Blank:</strong> Free-text description, manual qty + per + rate</span></li>
+            <li><span>All three editors have "+ Add" dropdown with "Structured Line" and "Blank Line" options</span></li>
+            <li><span>Remove button (×) on each row deletes the line item from local state</span></li>
+            <li><span>Subtotals render at the bottom of each editor (hours for labor/equipment, dollars for materials)</span></li>
+            <li><span><strong>Local state only</strong> &mdash; no database writes until parent form Save Draft or Submit is clicked</span></li>
+            <li><span>On form save, all line items collected and passed to <code>upsertWorkOrderLineItems</code> mutation (WO-2)</span></li>
+            <li><span>Existing line items loaded from database when editing an existing Work Order</span></li>
+            <li><span>Structured and blank lines can coexist in the same editor</span></li>
+        </ol>
+    </div>
+
+    <!-- 7. Dependencies -->
+    <div class="uis-section">
+        <h2>7. Dependencies</h2>
+        <h3>Requires</h3>
+        <p>
+            <span class="dep-tag dep-requires">WO-3a</span> DAA positions in <code>customFormControl</code> &mdash; defines where editors render in the form<br>
+            <span class="dep-tag dep-requires">WO-2</span> WorkOrderLaborItem / MaterialItem / EquipmentItem models + <code>upsertWorkOrderLineItems</code> mutation<br>
+            <span class="dep-tag dep-requires">PR #6831</span> DataModelForm with <code>customFormControl</code> pattern
+        </p>
+        <h3>Enables</h3>
+        <p>
+            <span class="dep-tag dep-enables">WO-3c</span> Signatures &amp; Submission &mdash; completes the form<br>
+            <span class="dep-tag dep-enables">WO-4</span> Detail Page &mdash; displays the line items in read-only view<br>
+            <span class="dep-tag dep-enables">WO-7</span> WO &rarr; Invoice Conversion &mdash; line items are the source for invoice generation
+        </p>
+    </div>
+
+</div>
+</body>
+</html>

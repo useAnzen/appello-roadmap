@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WO-3b: Line Item Editors — Implementation Plan</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Inter', -apple-system, sans-serif; background: #f8fafc; color: #0f172a; }
+.plan-wrap { max-width: 880px; margin: 0 auto; padding: 40px 24px 80px; }
+h1 { font-size: 24px; font-weight: 800; margin: 0 0 16px; }
+h2 { font-size: 18px; font-weight: 700; margin: 28px 0 12px; padding-bottom: 8px; border-bottom: 2px solid #e2e8f0; }
+h3 { font-size: 15px; font-weight: 700; margin: 20px 0 8px; padding-top: 10px; border-top: 1px solid #f1f5f9; }
+h4 { font-size: 14px; font-weight: 700; margin: 14px 0 6px; }
+p { font-size: 14px; color: #334155; line-height: 1.7; margin: 6px 0; }
+ul, ol { padding-left: 20px; margin: 8px 0; }
+li { font-size: 14px; color: #334155; line-height: 1.7; margin: 3px 0; }
+strong { color: #0f172a; }
+code { font-family: 'SF Mono', monospace; background: #f1f5f9; padding: 1px 6px; border-radius: 4px; font-size: 12px; color: #7c3aed; }
+pre { background: #1e293b; color: #e2e8f0; border-radius: 8px; padding: 16px; overflow-x: auto; font-size: 13px; line-height: 1.6; margin: 12px 0; font-family: 'SF Mono', monospace; }
+pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
+hr { border: none; border-top: 1px solid #e2e8f0; margin: 24px 0; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 12px 0; }
+th { text-align: left; padding: 8px 12px; background: #f1f5f9; border-bottom: 2px solid #e2e8f0; font-weight: 600; }
+td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
+.check-item { display: flex; gap: 8px; align-items: flex-start; padding: 5px 0; }
+.check-box { width: 16px; height: 16px; border: 2px solid #cbd5e1; border-radius: 3px; flex-shrink: 0; margin-top: 2px; }
+.callout { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 14px 18px; margin: 14px 0; font-size: 13px; color: #1e40af; }
+.callout strong { color: #1e3a8a; }
+    </style>
+</head>
+<body>
+<div class="plan-wrap" id="rendered"></div>
+
+<script type="text/plain" id="plan-md">
+# WO-3b: Line Item Editors — Implementation Plan
+
+## Overview
+
+Three custom input components (LaborItemEditor, MaterialItemEditor, EquipmentItemEditor) that replace the `<p>` tag placeholders in the DataModelForm's `customFormControl` from WO-3a. All maintain local state and save only when the parent form's Save Draft/Submit is clicked. No backend changes — all models and mutations are from WO-2.
+
+**Estimated effort:** 4-5 days
+**Risk:** Medium — complex frontend components, multiple interaction patterns
+**Spec:** `tm-work-orders-uis/uis-20c-2-line-item-editors.html`
+**Requires:** WO-3a (DAA positions + customFormControl), WO-2 (line item models + upsertWorkOrderLineItems mutation), PR #6831 (DataModelForm)
+
+---
+
+## Step 1: Shared Patterns and Utilities
+
+Before building the three editors, establish shared patterns they all use.
+
+### 1a. AddLineDropdown component
+
+All three editors use the same "+ Add [Type] ▾" dropdown with "Structured Line" and "Blank Line" options.
+
+**Create file:** `apps/frontend/src/components/WorkOrder/AddLineDropdown.tsx`
+
+```typescript
+interface IAddLineDropdownProps {
+    label: string;  // "Labor", "Material", "Equipment"
+    onAddStructured: () => void;
+    onAddBlank: () => void;
+}
+```
+
+- Uses `Popover` from `@headlessui/react` (existing dependency) or a simple dropdown state
+- Two options: "Structured Line" with helper text + "Blank Line" with helper text
+- Green button styling matching the mockups
+
+### 1b. Line item row visual convention
+
+- Structured rows: solid `border` + `bg-gray-50` background
+- Blank rows: dashed `border-dashed border-gray-300` + white background
+- Remove button (×): red, right-aligned, on every row
+- Each row is a self-contained card with padding
+
+### 1c. Duration/hours utility
+
+Shared conversion between display hours and stored seconds:
+
+```typescript
+// In a shared utils file or inline:
+const hoursToSeconds = (hours: number): number => Math.round(hours * 3600);
+const secondsToHours = (seconds: number): number => Number((seconds / 3600).toFixed(2));
+```
+
+---
+
+## Step 2: LaborItemEditor
+
+**Create file:** `apps/frontend/src/components/WorkOrder/LaborItemEditor.tsx`
+
+### Props
+
+```typescript
+interface ILaborItemEditorProps {
+    className?: string | ClassNames;
+    jobId: string;
+    dateOfWork: Date | null;
+    items: ILaborRow[];
+    setItems: (items: ILaborRow[]) => void;
+}
+```
+
+### Data loading
+
+On mount (and when `dateOfWork` changes), load:
+
+1. **User's EmployeeAgreement** — query the current user's employment record to find their agreement. If multiple, show selector. If one, auto-select.
+
+2. **Active EmployeeAgreementContract** — for the selected agreement, find the contract where `effectiveDate <= dateOfWork`:
+```graphql
+query ActiveContract($employeeAgreementId: ID!, $date: Date!) {
+    employeeAgreementContracts(
+        options: { where: { employeeAgreementId: $employeeAgreementId } }
+    ) {
+        # Filter client-side by effectiveDate <= dateOfWork, take most recent
+    }
+}
+```
+
+3. **TradeLevelRates for the contract** — load trade levels and rate labels:
+```graphql
+query TradeLevelRatesForContract($contractId: ID!) {
+    employeeAgreementContract(id: $contractId) {
+        TradeLevelRates {
+            id
+            tradeLevelId
+            employeeAgreementRateLabelId
+            TradeLevel { id, name, orderNo }
+            EmployeeAgreementRateLabel { id, name, isLineItem }
+        }
+        EmployeeAgreement {
+            EmployeeAgreementRateLabels {
+                id, name, isLineItem
+            }
+        }
+    }
+}
+```
+
+Filter rate labels to `isLineItem = false` for the column headers (e.g., Wages 1x, Wages 1.5x, Wages 2x).
+
+### Structured row rendering
+
+Each structured row renders:
+- Employee Agreement (read-only or selector)
+- Trade Level (dropdown from loaded trade levels)
+- Workers qty (number input)
+- Rate label columns (one per EmployeeAgreementRateLabel where `isLineItem = false`) — hour inputs matching the `TimesheetRateLabelColumns.tsx` pattern
+
+When the user enters hours in a column, update the `rateLabelDurations` map with the corresponding rateLabelId and seconds value.
+
+### Blank row rendering
+
+Simpler layout:
+- Description (text input, required)
+- Workers qty (number input)
+- Hours (number input, single column)
+- Rate (CurrencyInput)
+
+### Adding rows
+
+```typescript
+const handleAddStructured = () => {
+    setItems([...items, {
+        type: "structured",
+        orderNo: items.length,
+        employeeAgreementId: autoSelectedAgreementId,
+        tradeLevelId: "",
+        qtyOfWorkers: 1,
+        rateLabelDurations: {}
+    }]);
+};
+
+const handleAddBlank = () => {
+    setItems([...items, {
+        type: "blank",
+        orderNo: items.length,
+        description: "",
+        qtyOfWorkers: 1,
+        submittedDuration: 0,
+        rate: 0
+    }]);
+};
+```
+
+### Subtotal
+
+At the bottom of the editor, show total hours across all rows:
+
+```typescript
+const totalHours = items.reduce((sum, item) => {
+    if (item.type === "structured") {
+        const rowHours = Object.values(item.rateLabelDurations)
+            .reduce((s, seconds) => s + seconds, 0) / 3600;
+        return sum + (rowHours * item.qtyOfWorkers);
+    } else {
+        return sum + ((item.submittedDuration / 3600) * item.qtyOfWorkers);
+    }
+}, 0);
+```
+
+Display: `Total Labor Hours: 30.0 hrs (4 workers · 2 trade levels · 1 blank)`
+
+### Key pattern to follow
+
+The rate label columns should follow `TimesheetRateLabelColumns.tsx` (at `apps/frontend/src/components/Forms/TimesheetAddEditForm/TimesheetRateLabelColumns.tsx`) — same concept of one column per rate label with hour input per cell.
+
+---
+
+## Step 3: MaterialItemEditor
+
+**Create file:** `apps/frontend/src/components/WorkOrder/MaterialItemEditor.tsx`
+
+### Props
+
+```typescript
+interface IMaterialItemEditorProps {
+    className?: string | ClassNames;
+    jobId: string;
+    items: IMaterialRow[];
+    setItems: (items: IMaterialRow[]) => void;
+}
+
+interface IMaterialRow {
+    id?: string;  // set when editing existing
+    type: "structured" | "blank";
+    orderNo: number;
+    materialId?: string;
+    materialName?: string;   // display only
+    unitOfMeasure?: string;  // from MaterialGroup
+    description?: string;
+    quantity?: number;
+    unitCost?: number;
+    total?: number;
+}
+```
+
+### Structured row
+
+- Material selector: `CustomCombobox` with `useSearchCore`, `queryResultLabel="Material"` — same pattern as equipment/job selectors throughout the app
+- On material select: auto-populate `materialName` and `unitOfMeasure` (from the material's MaterialGroup)
+- Unit Cost: `CurrencyInput` — manual entry, not auto-populated (volatile pricing per LEM-3)
+- Total: auto-calculated `quantity * unitCost`, updated on every change
+
+### Blank row
+
+- Description: text input (required)
+- Qty: number input
+- Unit Cost: `CurrencyInput`
+- Total: auto-calculated
+
+### Subtotal
+
+```typescript
+const materialTotal = items.reduce(
+    (sum, item) => sum + (item.total ?? 0), 0
+);
+```
+
+Display: `Material Total: $531.50 (2 items)`
+
+---
+
+## Step 4: EquipmentItemEditor
+
+**Create file:** `apps/frontend/src/components/WorkOrder/EquipmentItemEditor.tsx`
+
+### Props
+
+```typescript
+interface IEquipmentItemEditorProps {
+    className?: string | ClassNames;
+    jobId: string;
+    items: IEquipmentRow[];
+    setItems: (items: IEquipmentRow[]) => void;
+}
+
+type IEquipmentRow = IStructuredEquipmentRow | IBlankEquipmentRow;
+
+interface IStructuredEquipmentRow {
+    id?: string;
+    type: "structured";
+    orderNo: number;
+    equipmentId: string;
+    equipmentName?: string;        // display
+    equipmentCategoryId?: string;  // for loading rate labels
+    equipmentRateLabelId: string;
+    per: string;
+    operatorIncluded: boolean;
+    isFullDayBilling: boolean;
+    submittedDuration: number;
+}
+
+interface IBlankEquipmentRow {
+    id?: string;
+    type: "blank";
+    orderNo: number;
+    description: string;
+    quantity: number;
+    per?: string;
+    unitRate: number;
+}
+```
+
+### Structured row
+
+- Equipment selector: `CustomCombobox` with `useSearchCore`, `queryResultLabel="Equipment"` — Solr-indexed
+- On equipment select: store `equipmentCategoryId`, load `EquipmentRateLabels` for the category via `equipmentRateLabels(equipmentCategoryId)` query (from LEM-2)
+- Rate Type: dropdown populated from loaded EquipmentRateLabels (Standard, Standby, OT, etc.)
+- Per: display from rate configuration (Hour, Day, etc.) — may be pre-set from EquipmentAssignment context (business question from UIS-15H)
+- Duration: number input labeled by `per` ("hrs", "days"), stored in seconds
+
+### Blank row
+
+- Description: text input (required)
+- Qty: number input
+- Per: text label (user types "days", "hrs", etc.)
+- Rate: `CurrencyInput`
+
+### Subtotal
+
+Show grouped by per-unit type:
+`Total Equipment: 8.0 hrs + 2 days (1 structured · 1 blank)`
+
+---
+
+## Step 5: Replace Placeholders in customFormControl
+
+**File:** Job DataModelForm page (from PR #6831)
+
+Replace the `<p>` tag placeholders from WO-3a with real components:
+
+```typescript
+import { LaborItemEditor } from "~root/components/WorkOrder/LaborItemEditor";
+import { MaterialItemEditor } from "~root/components/WorkOrder/MaterialItemEditor";
+import { EquipmentItemEditor } from "~root/components/WorkOrder/EquipmentItemEditor";
+
+// State for line items (managed at the form level, passed to editors)
+const [laborItems, setLaborItems] = useState<ILaborRow[]>([]);
+const [materialItems, setMaterialItems] = useState<IMaterialRow[]>([]);
+const [equipmentItems, setEquipmentItems] = useState<IEquipmentRow[]>([]);
+
+const customFormControl = {
+    "wo-labor-items": (formData, setFormData) => (
+        <LaborItemEditor
+            jobId={jobId}
+            dateOfWork={formData["wo-date-of-work"]}
+            items={laborItems}
+            setItems={setLaborItems}
+        />
+    ),
+    "wo-material-items": (formData, setFormData) => (
+        <MaterialItemEditor
+            jobId={jobId}
+            items={materialItems}
+            setItems={setMaterialItems}
+        />
+    ),
+    "wo-equipment-items": (formData, setFormData) => (
+        <EquipmentItemEditor
+            jobId={jobId}
+            items={equipmentItems}
+            setItems={setEquipmentItems}
+        />
+    ),
+    "wo-signatures": () => <p>Signatures</p>  // WO-3c
+};
+```
+
+### Load existing items on edit
+
+When editing an existing WO, query the line items and populate state:
+
+```typescript
+useEffect(() => {
+    if (jobId) {
+        // Load existing labor items
+        getWorkOrderLaborItems({ variables: { jobId } }).then(res => {
+            // Transform DB records back into ILaborRow format
+            // Group by orderNo for structured rows
+        });
+        // Same for material and equipment
+    }
+}, [jobId]);
+```
+
+### On form save
+
+Intercept the DataModelForm's save handler to include line items:
+
+```typescript
+const handleSave = async (formData) => {
+    // 1. Save the Job via DataModelForm's normal save
+    const savedJob = await saveJob(formData);
+
+    // 2. Transform local state into mutation input
+    const laborInput = transformLaborRowsToInput(laborItems);
+    const materialInput = transformMaterialRowsToInput(materialItems);
+    const equipmentInput = transformEquipmentRowsToInput(equipmentItems);
+
+    // 3. Save line items
+    await upsertWorkOrderLineItems({
+        variables: {
+            input: {
+                jobId: savedJob.id,
+                laborItems: laborInput,
+                materialItems: materialInput,
+                equipmentItems: equipmentInput
+            }
+        }
+    });
+};
+```
+
+### Transform functions
+
+```typescript
+// Structured labor rows expand into multiple DB records (one per rate label with hours > 0)
+function transformLaborRowsToInput(rows: ILaborRow[]): UpsertWorkOrderLaborItemInput[] {
+    const items: UpsertWorkOrderLaborItemInput[] = [];
+    for (const row of rows) {
+        if (row.type === "structured") {
+            for (const [rateLabelId, seconds] of Object.entries(row.rateLabelDurations)) {
+                if (seconds > 0) {
+                    // Resolve tradeLevelRateId from (contractId + tradeLevelId + rateLabelId)
+                    const tradeLevelRateId = resolveTradeLevelRateId(
+                        row.tradeLevelId, rateLabelId
+                    );
+                    items.push({
+                        tradeLevelRateId,
+                        qtyOfWorkers: row.qtyOfWorkers,
+                        submittedDuration: seconds,
+                        orderNo: row.orderNo
+                    });
+                }
+            }
+        } else {
+            items.push({
+                tradeLevelRateId: null,
+                rate: row.rate,
+                qtyOfWorkers: row.qtyOfWorkers,
+                submittedDuration: row.submittedDuration,
+                description: row.description,
+                orderNo: row.orderNo
+            });
+        }
+    }
+    return items;
+}
+
+// Material and equipment transforms are simpler — 1:1 mapping
+```
+
+---
+
+## Step 6: Style Conventions
+
+Follow CLAUDE.md conventions throughout:
+
+- FC arrow function pattern for all components
+- `ClassNames` from `@useanzen/shared-utils` for dynamic className
+- `CurrencyInput` from `@useanzen/ui` for all monetary inputs
+- `CustomCombobox` with `useSearchCore` for catalog lookups
+- `FormControl` from app-specific path for standard inputs
+- No trailing commas, 4-space indent, double quotes
+- `gql` queries at bottom of each file
+- One component per file
+
+---
+
+## Verification Checklist
+
+- [ ] LaborItemEditor component renders in the `wo-labor-items` DAA position
+- [ ] Labor structured row: Employee Agreement auto-selects from current user
+- [ ] Labor structured row: Trade Level dropdown loads from the agreement
+- [ ] Labor structured row: Rate label columns load from active contract for dateOfWork
+- [ ] Labor structured row: Changing dateOfWork reloads the contract and rate labels
+- [ ] Labor structured row: Hours entered per rate label column, stored in rateLabelDurations map
+- [ ] Labor structured row: Qty of Workers multiplier defaults to 1
+- [ ] Labor blank row: Description required, manual hours + rate + workers
+- [ ] Labor subtotal shows total hours across all rows
+- [ ] MaterialItemEditor component renders in the `wo-material-items` DAA position
+- [ ] Material structured row: CustomCombobox searches Material catalog
+- [ ] Material structured row: Selecting material auto-populates name + UoM
+- [ ] Material structured row: Unit cost is manual (not auto-populated)
+- [ ] Material structured row: Total auto-calculates qty * unitCost
+- [ ] Material blank row: Free-text description + manual qty/cost
+- [ ] Material subtotal shows dollar total
+- [ ] EquipmentItemEditor component renders in the `wo-equipment-items` DAA position
+- [ ] Equipment structured row: CustomCombobox searches Equipment catalog
+- [ ] Equipment structured row: Rate Type dropdown loads from equipment's category EquipmentRateLabels
+- [ ] Equipment structured row: Duration input labeled by per selection
+- [ ] Equipment blank row: Free-text description + manual qty/rate
+- [ ] Equipment subtotal shows hours/days grouped by per-unit
+- [ ] All editors: "+ Add" dropdown with Structured Line and Blank Line options
+- [ ] All editors: Remove (×) button per row works
+- [ ] All editors: Structured and blank rows coexist in the same list
+- [ ] All editors: Local state only — no DB writes on item changes
+- [ ] On form save: upsertWorkOrderLineItems called with all three item types
+- [ ] On form save: Structured labor rows correctly expand into multiple records (one per rate label with hours > 0)
+- [ ] Editing existing WO: Items loaded from DB and populated into editor state
+- [ ] No backend changes — all API from WO-2
+
+---
+
+## Files Summary
+
+| Action | File | What to do |
+|--------|------|------------|
+| CREATE | `apps/frontend/src/components/WorkOrder/AddLineDropdown.tsx` | Shared "+ Add [Type] ▾" dropdown with Structured/Blank options |
+| CREATE | `apps/frontend/src/components/WorkOrder/LaborItemEditor.tsx` | Structured rows (agreement + trade level + rate label columns) + blank rows + subtotal |
+| CREATE | `apps/frontend/src/components/WorkOrder/MaterialItemEditor.tsx` | Structured rows (catalog lookup) + blank rows + auto-calculated totals + subtotal |
+| CREATE | `apps/frontend/src/components/WorkOrder/EquipmentItemEditor.tsx` | Structured rows (equipment catalog + rate labels) + blank rows + subtotal |
+| MODIFY | Job DataModelForm page (from PR #6831) | Replace `<p>` placeholders with real editor components, add line item state, add save handler with upsertWorkOrderLineItems |
+</script>
+
+<script>
+(function() {
+    var md = document.getElementById('plan-md').textContent;
+    var target = document.getElementById('rendered');
+    var html = md
+        .replace(/```(\w*)\n([\s\S]*?)```/g, function(_, lang, code) {
+            return '<pre><code>' + code.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</code></pre>';
+        })
+        .replace(/`([^`\n]+)`/g, '<code>$1</code>')
+        .replace(/^#### (.+)$/gm, '<h4>$1</h4>')
+        .replace(/^### (.+)$/gm, '<h3>$1</h3>')
+        .replace(/^## (.+)$/gm, '<h2>$1</h2>')
+        .replace(/^# (.+)$/gm, '<h1>$1</h1>')
+        .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\*(.+?)\*/g, '<em>$1</em>')
+        .replace(/^---$/gm, '<hr>');
+    html = html.replace(/^- \[ \] (.+)$/gm, '<div class="check-item"><div class="check-box"></div><span>$1</span></div>');
+    html = html.replace(/(\|.+\|\n)+/g, function(table) {
+        var rows = table.trim().split('\n');
+        if (rows.length < 2) return table;
+        var headers = rows[0].split('|').filter(function(c) { return c.trim(); });
+        var isSep = /^[\s|:\-]+$/.test(rows[1]);
+        var start = isSep ? 2 : 1;
+        var out = '<table><thead><tr>';
+        headers.forEach(function(h) { out += '<th>' + h.trim() + '</th>'; });
+        out += '</tr></thead><tbody>';
+        for (var i = start; i < rows.length; i++) {
+            var cells = rows[i].split('|').filter(function(c) { return c.trim(); });
+            out += '<tr>'; cells.forEach(function(c) { out += '<td>' + c.trim() + '</td>'; }); out += '</tr>';
+        }
+        out += '</tbody></table>';
+        return out;
+    });
+    html = html.replace(/^- (.+)$/gm, '<li>$1</li>');
+    html = html.replace(/(<li>[\s\S]*?<\/li>\n?)+/g, function(m) { return '<ul>' + m + '</ul>'; });
+    html = html.replace(/^(?!<[hultdps\/<]|<\/|<code|<pre|<hr|<div|<strong|<em)(.+)$/gm, '<p>$1</p>');
+    target.innerHTML = html;
+})();
+</script>
+</body>
+</html>

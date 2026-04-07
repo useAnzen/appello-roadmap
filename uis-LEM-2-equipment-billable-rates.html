@@ -1,0 +1,912 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UIS-LEM-2: Equipment Billable Rates</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Inter', -apple-system, sans-serif; background: #f1f5f9; color: #0f172a; }
+.uis-wrap { max-width: 960px; margin: 0 auto; padding: 40px 24px 80px; }
+.uis-hero { margin-bottom: 32px; }
+.uis-badges { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+.uis-badge { font-size: 11px; font-weight: 700; padding: 4px 12px; border-radius: 6px; display: inline-flex; align-items: center; gap: 5px; }
+.badge-q { background: #0f172a; color: #fff; }
+.badge-prereq { background: #3b82f6; color: #fff; }
+.badge-priority { background: #fee2e2; color: #dc2626; }
+.badge-status { background: #fef3c7; color: #92400e; }
+.uis-h1 { font-size: 30px; font-weight: 800; color: #0f172a; margin: 0 0 8px; letter-spacing: -0.01em; }
+.uis-sub { font-size: 15px; color: #64748b; line-height: 1.5; margin: 0; }
+.uis-meta { display: flex; gap: 24px; flex-wrap: wrap; margin-top: 14px; font-size: 13px; color: #64748b; }
+.uis-meta strong { color: #0f172a; }
+.uis-toc { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px 28px; margin-bottom: 16px; }
+.uis-toc h3 { font-size: 13px; font-weight: 700; color: #0f172a; margin: 0 0 10px; text-transform: uppercase; letter-spacing: 0.5px; }
+.uis-toc ol { margin: 0; padding-left: 20px; }
+.uis-toc li { font-size: 14px; color: #3b82f6; margin-bottom: 4px; }
+.uis-toc a { color: #3b82f6; text-decoration: none; }
+.uis-section { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px 28px; margin-bottom: 16px; }
+.uis-section h2 { font-size: 17px; font-weight: 700; color: #0f172a; margin: 0 0 14px; padding-bottom: 10px; border-bottom: 2px solid #e2e8f0; }
+.uis-section h3 { font-size: 15px; font-weight: 700; color: #0f172a; margin: 16px 0 8px; }
+.uis-section h4 { font-size: 14px; font-weight: 700; color: #334155; margin: 12px 0 6px; }
+.uis-section p, .uis-section li { font-size: 14px; color: #334155; line-height: 1.65; }
+.uis-section ul, .uis-section ol { padding-left: 20px; margin: 8px 0; }
+.customer-quote { background: #fef3c7; border-left: 3px solid #f59e0b; padding: 12px 16px; border-radius: 0 8px 8px 0; margin: 14px 0; font-style: italic; font-size: 14px; color: #92400e; }
+.customer-quote .attribution { font-style: normal; font-weight: 600; display: block; margin-top: 6px; }
+pre { background: #1e293b; color: #e2e8f0; border-radius: 8px; padding: 16px; overflow-x: auto; font-size: 13px; line-height: 1.5; font-family: 'SF Mono', monospace; }
+table.schema-table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 12px 0; }
+table.schema-table th { text-align: left; padding: 8px 12px; background: #f8fafc; border-bottom: 2px solid #e2e8f0; font-weight: 600; }
+table.schema-table td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
+table.schema-table code { font-family: monospace; background: #f1f5f9; padding: 1px 5px; border-radius: 3px; font-size: 12px; color: #7c3aed; }
+.blast-summary { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 16px 20px; margin-bottom: 16px; }
+.blast-row { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; }
+.blast-row:not(:last-child) { border-bottom: 1px solid #f1f5f9; }
+.blast-label { font-size: 13px; color: #64748b; }
+.blast-value { font-size: 13px; font-weight: 700; color: #0f172a; }
+.action-new { background: #dcfce7; color: #166534; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 4px; }
+.action-mod { background: #fef3c7; color: #92400e; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 4px; }
+.criteria-list { list-style: none; padding: 0; }
+.criteria-list li { padding: 8px 0; border-bottom: 1px solid #f1f5f9; display: flex; gap: 10px; align-items: flex-start; font-size: 14px; color: #334155; }
+.criteria-list li:last-child { border-bottom: none; }
+.criteria-check { width: 18px; height: 18px; border: 2px solid #cbd5e1; border-radius: 4px; flex-shrink: 0; margin-top: 1px; }
+.dep-tag { display: inline-block; font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 5px; margin-right: 6px; margin-bottom: 6px; }
+.dep-requires { background: #fee2e2; color: #dc2626; }
+.dep-enables { background: #dcfce7; color: #166534; }
+.scope-tag { display: inline-block; font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 5px; margin-right: 6px; }
+.scope-in { background: #dcfce7; color: #166534; }
+.scope-out { background: #fee2e2; color: #dc2626; }
+.scope-future { background: #eff6ff; color: #3b82f6; }
+.hierarchy-box { display: flex; flex-direction: column; gap: 4px; margin: 14px 0; }
+.hierarchy-level { display: flex; align-items: center; gap: 10px; padding: 10px 16px; border-radius: 8px; font-size: 13px; }
+.hierarchy-level .h-num { width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 12px; flex-shrink: 0; }
+.hierarchy-level .h-label { font-weight: 600; }
+.hierarchy-level .h-desc { color: #64748b; margin-left: auto; font-size: 12px; }
+.h-active { background: #f0fdf4; border: 1px solid #bbf7d0; }
+.h-active .h-num { background: #16a34a; color: #fff; }
+.h-future { background: #fefce8; border: 1px dashed #fde047; }
+.h-future .h-num { background: #eab308; color: #fff; }
+.mockup-container { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; margin: 14px 0; }
+.mockup-bar { background: #f1f5f9; padding: 8px 14px; font-size: 12px; font-weight: 600; color: #64748b; border-bottom: 1px solid #e2e8f0; display: flex; align-items: center; gap: 8px; }
+.mockup-dots { display: flex; gap: 5px; }
+.mockup-dot { width: 8px; height: 8px; border-radius: 50%; }
+.mockup-dot-r { background: #f87171; }
+.mockup-dot-y { background: #fbbf24; }
+.mockup-dot-g { background: #34d399; }
+.mockup-body { padding: 24px; min-height: 200px; font-size: 13px; color: #334155; line-height: 1.6; }
+.mockup-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.mockup-table th { background: #e2e8f0; padding: 8px; text-align: left; font-weight: 600; border: 1px solid #cbd5e1; }
+.mockup-table td { padding: 8px; border: 1px solid #e2e8f0; }
+.mockup-table .sticky-col { background: #f8fafc; font-weight: 600; }
+.mockup-table .readonly { background: #f1f5f9; color: #64748b; }
+.mockup-table .editable { background: #fff; }
+.mockup-table .inherited { background: #fefce8; color: #92400e; font-style: italic; font-size: 11px; }
+.mockup-input { border: 1px solid #cbd5e1; border-radius: 4px; padding: 4px 8px; width: 80px; font-size: 12px; text-align: right; }
+.mockup-select { border: 1px solid #cbd5e1; border-radius: 4px; padding: 4px 8px; font-size: 11px; background: #fff; }
+.callout { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 14px 18px; margin: 14px 0; font-size: 13px; color: #1e40af; }
+.callout strong { color: #1e3a8a; }
+</style>
+</head>
+<body>
+<div class="uis-wrap">
+
+    <!-- Hero -->
+    <div class="uis-hero">
+        <div class="uis-badges">
+            <span class="uis-badge badge-q">LEM-2</span>
+            <span class="uis-badge badge-prereq">Prerequisite</span>
+            <span class="uis-badge badge-priority">P0 - Foundation</span>
+            <span class="uis-badge badge-status">Draft</span>
+        </div>
+        <h1 class="uis-h1">Equipment Billable Rates</h1>
+        <p class="uis-sub">Category-level rate configuration with per-equipment and per-job overrides using a polymorphic rate value table, editable rate types, and a rate resolution engine. Extracted from and replaces the data model layer of UIS-15C.</p>
+        <div class="uis-meta">
+            <span><strong>Estimate:</strong> 4-6 days</span>
+            <span><strong>Sequence:</strong> 2 of 3 (LEM Foundation)</span>
+            <span><strong>Enables:</strong> UIS-15H Timesheet Capture, UIS-15B Invoicing, UIS-20b WO Line Items</span>
+            <span><strong>New files:</strong> ~10</span>
+            <span><strong>Modified files:</strong> ~6</span>
+        </div>
+    </div>
+
+    <!-- TOC -->
+    <div class="uis-toc">
+        <h3>Contents</h3>
+        <ol>
+            <li><a href="#business-case">Business Case</a></li>
+            <li><a href="#scope">Scope &amp; Relationship to UIS-15C</a></li>
+            <li><a href="#industry">Industry Standards Research</a></li>
+            <li><a href="#rate-hierarchy">Rate Hierarchy &amp; Resolution</a></li>
+            <li><a href="#data-model">Data Model</a></li>
+            <li><a href="#operator">Operator-Included &amp; Work Order Tie-In</a></li>
+            <li><a href="#api-surface">API Surface</a></li>
+            <li><a href="#ui-spec">UI Specification</a></li>
+            <li><a href="#ui-mockup">UI Mockups</a></li>
+            <li><a href="#change-surface">Change Surface</a></li>
+            <li><a href="#acceptance-criteria">Acceptance Criteria</a></li>
+            <li><a href="#dependencies">Dependencies</a></li>
+        </ol>
+    </div>
+
+    <!-- 1. Business Case -->
+    <div class="uis-section" id="business-case">
+        <h2>1. Business Case</h2>
+        <p>Equipment billing in construction requires structured rate data at multiple levels. A CAT 320 excavator might bill $150/hr standard, $225/hr overtime, $75/hr standby. These rates differ by equipment category (all excavators vs. all skid steers), by individual machine (newer units command higher rates), and by job (negotiated project rates). Without structured rate data, Work Orders and LEM sheets require manual fill-in pricing.</p>
+
+        <div class="customer-quote">
+            "In construction, they call it labor equipment material, LEM. Right now, we don't have structured data for labor rates. We don't have structured data for material rates or equipment rates. It's like we kind of have to add all three of these for work orders to be functional."
+            <span class="attribution">&mdash; Corey Shelson, March 30, 2026</span>
+        </div>
+
+        <h3>Industry Context</h3>
+        <ul>
+            <li><strong>Blue Book (EquipmentWatch)</strong> publishes Operating and Standby rates at hourly, daily, weekly, and monthly periods</li>
+            <li><strong>FEMA 325</strong> explicitly separates equipment rate and operator rate into two columns</li>
+            <li>Every major construction ERP (HCSS, B2W, CMiC, Viewpoint) supports category-level defaults with per-equipment and per-job overrides</li>
+            <li>Operator-included vs. bare (dry hire) is a fundamental distinction in every equipment billing system</li>
+        </ul>
+    </div>
+
+    <!-- 2. Scope -->
+    <div class="uis-section" id="scope">
+        <h2>2. Scope &amp; Relationship to UIS-15C</h2>
+
+        <h3>What LEM-2 Covers (extracted from UIS-15C)</h3>
+        <ul>
+            <li><span class="scope-tag scope-in">IN</span> <code>EquipmentRateLabel</code> model &mdash; editable rate type definitions per EquipmentCategory</li>
+            <li><span class="scope-tag scope-in">IN</span> <code>EquipmentRateSchedule</code> model &mdash; versioned rate schedule per category with <code>effectiveDate</code></li>
+            <li><span class="scope-tag scope-in">IN</span> <code>EquipmentRateValue</code> model &mdash; polymorphic rate values scoped via <code>referenceModel</code> + <code>referenceId</code>, linked to schedule</li>
+            <li><span class="scope-tag scope-in">IN</span> <code>EquipmentRatePer</code> enum &mdash; HOUR, DAY, WEEK, MONTH, YEAR</li>
+            <li><span class="scope-tag scope-in">IN</span> Operator-included flag on rate values</li>
+            <li><span class="scope-tag scope-in">IN</span> Rate resolution engine with cascading priority and provenance</li>
+            <li><span class="scope-tag scope-in">IN</span> UI: Rates tab on EquipmentCategory detail page</li>
+            <li><span class="scope-tag scope-in">IN</span> UI: Rates tab on Equipment detail page (inherited + override)</li>
+            <li><span class="scope-tag scope-in">IN</span> UI: Job rate overrides on Equipment detail (from equipment side)</li>
+            <li><span class="scope-tag scope-in">IN</span> UI: Equipment rate overrides on Job detail (from job side)</li>
+        </ul>
+
+        <h3>What Stays in UIS-15C (built on top of LEM-2)</h3>
+        <ul>
+            <li><span class="scope-tag scope-out">UIS-15C</span> Time-of-day rate windows &amp; hour splitting across windows</li>
+            <li><span class="scope-tag scope-out">UIS-15C</span> Effective dating / rate schedule versioning</li>
+            <li><span class="scope-tag scope-out">UIS-15C</span> Attachment-specific pricing</li>
+            <li><span class="scope-tag scope-out">UIS-15C</span> Overtime multiplier auto-calculation</li>
+        </ul>
+
+        <h3>Out of Scope (designed for, not built)</h3>
+        <ul>
+            <li><span class="scope-tag scope-future">FUTURE</span> Customer-specific pricing &mdash; just add <code>referenceModel = "Company"</code>, zero schema changes</li>
+            <li><span class="scope-tag scope-future">FUTURE</span> Project-level pricing &mdash; <code>referenceModel = "Project"</code></li>
+            <li><span class="scope-tag scope-future">FUTURE</span> Unit-based rates (per cubic yard, per ton), mob/demob fees, fuel surcharges</li>
+        </ul>
+    </div>
+
+    <!-- 3. Industry Standards -->
+    <div class="uis-section" id="industry">
+        <h2>3. Industry Standards Research</h2>
+
+        <h3>Rate Periods (EquipmentRatePer)</h3>
+        <table class="schema-table">
+            <thead><tr><th>Period</th><th>Industry Usage</th><th>Include?</th></tr></thead>
+            <tbody>
+                <tr><td><code>HOUR</code></td><td>Universal &mdash; base unit for Blue Book, FEMA 325, USACE</td><td><strong>Yes</strong></td></tr>
+                <tr><td><code>DAY</code></td><td>Most common rental billing unit. Typically 8 hours.</td><td><strong>Yes</strong></td></tr>
+                <tr><td><code>WEEK</code></td><td>Very common for rentals. Typically 40 hours.</td><td><strong>Yes</strong></td></tr>
+                <tr><td><code>MONTH</code></td><td>Standard for longer-term rentals. Typically 176 hours.</td><td><strong>Yes</strong></td></tr>
+                <tr><td><code>YEAR</code></td><td>Used for long-term leases and internal fleet cost allocation.</td><td><strong>Yes</strong></td></tr>
+            </tbody>
+        </table>
+
+        <h3>Rate Type Categories (EquipmentRateLabel seed defaults)</h3>
+        <table class="schema-table">
+            <thead><tr><th>Type</th><th>Description</th><th>Source</th></tr></thead>
+            <tbody>
+                <tr><td><strong>Standard</strong></td><td>Equipment actively working</td><td>Universal</td></tr>
+                <tr><td><strong>Standby</strong></td><td>On-site but not operating. Typically ~50% of standard.</td><td>Blue Book, FEMA 325</td></tr>
+                <tr><td><strong>Overtime</strong></td><td>Hours beyond standard shift</td><td>Union / govt work</td></tr>
+                <tr><td><strong>Weekend</strong></td><td>Saturday/Sunday premium</td><td>Union / public works</td></tr>
+                <tr><td><strong>Holiday</strong></td><td>Recognized holiday premium</td><td>Union / public works</td></tr>
+            </tbody>
+        </table>
+        <p>Seeded as default <code>EquipmentRateLabel</code> records per category. Users can add, rename, reorder, and delete them.</p>
+    </div>
+
+    <!-- 4. Rate Hierarchy -->
+    <div class="uis-section" id="rate-hierarchy">
+        <h2>4. Rate Hierarchy &amp; Resolution</h2>
+
+        <p>All rate values live in a single <code>EquipmentRateValue</code> table, scoped by <code>referenceModel</code> + <code>referenceId</code>. Resolution checks from most specific to least specific &mdash; first match wins.</p>
+
+        <div class="hierarchy-box">
+            <div class="hierarchy-level h-future">
+                <span class="h-num">4</span>
+                <span class="h-label">Company (Customer)</span>
+                <span class="h-desc"><code>referenceModel = "Company"</code> &mdash; contract pricing <span class="scope-tag scope-future">FUTURE</span></span>
+            </div>
+            <div class="hierarchy-level h-active">
+                <span class="h-num">3</span>
+                <span class="h-label">Job</span>
+                <span class="h-desc"><code>referenceModel = "Job"</code> &mdash; negotiated project rates</span>
+            </div>
+            <div class="hierarchy-level h-active">
+                <span class="h-num">2</span>
+                <span class="h-label">Equipment</span>
+                <span class="h-desc"><code>referenceModel = "Equipment"</code> &mdash; per-machine override</span>
+            </div>
+            <div class="hierarchy-level h-active">
+                <span class="h-num">1</span>
+                <span class="h-label">EquipmentCategory</span>
+                <span class="h-desc"><code>referenceModel = "EquipmentCategory"</code> &mdash; fleet-wide fallback</span>
+            </div>
+        </div>
+
+        <h3>Resolution Function</h3>
+<pre>
+resolveEquipmentRate(equipmentId, rateLabelId, per, jobId?, operatorIncluded?, date?):
+  equipment = Equipment.find(equipmentId)
+  priority = ["Job", "Equipment", "EquipmentCategory"]
+
+  // Determine active schedule for this category (if date provided)
+  scheduleId = null
+  if date:
+    activeSchedule = EquipmentRateSchedule.findFirst({
+      equipmentCategoryId: equipment.equipmentCategoryId,
+      effectiveDate: { lte: date },
+      orderBy: { effectiveDate: "desc" }
+    })
+    scheduleId = activeSchedule?.id ?? null
+
+  candidates = EquipmentRateValue.findMany({
+    equipmentRateLabelId: rateLabelId,
+    per: per,
+    operatorIncluded: operatorIncluded ?? true,
+    equipmentRateScheduleId: scheduleId,  // null = default rates
+    OR: [
+      { referenceModel: "Job",               referenceId: jobId },
+      { referenceModel: "Equipment",          referenceId: equipmentId },
+      { referenceModel: "EquipmentCategory",  referenceId: equipment.equipmentCategoryId }
+    ]
+  })
+
+  // Pick highest priority match
+  for model in priority:
+    match = candidates.find(c => c.referenceModel === model)
+    if match: return { amount, per, operatorIncluded, provenance: model, scheduleId }
+
+  return null
+</pre>
+        <p>The <code>per</code> parameter is required &mdash; determined by what unit the user selects when adding equipment to a Work Order (e.g., "3 hours" &rarr; <code>HOUR</code>, "2 days" &rarr; <code>DAY</code>).</p>
+
+        <div class="callout">
+            <strong>Polymorphic advantage:</strong> Adding Customer-level overrides in the future means adding <code>referenceModel = "Company"</code> rows and prepending <code>"Company"</code> to the priority array. Zero schema changes, zero migrations.
+        </div>
+    </div>
+
+    <!-- 5. Data Model -->
+    <div class="uis-section" id="data-model">
+        <h2>5. Data Model</h2>
+
+        <h3>New Enum</h3>
+<pre>
+enum EquipmentRatePer {
+  HOUR
+  DAY
+  WEEK
+  MONTH
+  YEAR
+}
+</pre>
+
+        <h3>New Model: <code>EquipmentRateLabel</code></h3>
+        <p>Editable rate type definitions per EquipmentCategory. Follows the <code>EmployeeAgreementRateLabel</code> pattern (without <code>isLineItem</code>).</p>
+<pre>
+model EquipmentRateLabel {
+  id                    String              @id @db.VarChar(21)
+  isDeleted             Boolean             @default(false)
+  isArchived            Boolean             @default(false)
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @default(now()) @updatedAt
+  name                  String              // e.g. "Standard", "Overtime", "Standby"
+  description           String              @db.Text @default("")
+  orderNo               Int                 @default(0)
+
+  equipmentCategoryId   String              @db.VarChar(21)
+  EquipmentCategory     EquipmentCategory   @relation(fields: [equipmentCategoryId], references: [id])
+  EquipmentRateValues   EquipmentRateValue[]
+
+  @@unique([name, equipmentCategoryId])
+  @@index([equipmentCategoryId, isArchived, isDeleted])
+}
+</pre>
+
+        <h3>New Model: <code>EquipmentRateSchedule</code></h3>
+        <p>Groups <code>EquipmentRateValue</code> records into versioned rate schedules per category. Mirrors the <code>EmployeeAgreementContract</code> pattern for labor rate versioning. In LEM-2, the initial schedule represents the "current rates." UIS-15C later adds the ability to create future-dated schedules.</p>
+<pre>
+model EquipmentRateSchedule {
+  id                    String              @id @db.VarChar(21)
+  isDeleted             Boolean             @default(false)
+  isArchived            Boolean             @default(false)
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @default(now()) @updatedAt
+  name                  String              // e.g. "2026 Rates", "2027 Rate Increase"
+  effectiveDate         DateTime            @db.Date
+  description           String?             @db.Text
+
+  equipmentCategoryId   String              @db.VarChar(21)
+  EquipmentCategory     EquipmentCategory   @relation(fields: [equipmentCategoryId], references: [id])
+
+  EquipmentRateValues   EquipmentRateValue[]
+
+  @@index([equipmentCategoryId, effectiveDate, isArchived, isDeleted])
+}
+</pre>
+
+        <h3>New Model: <code>EquipmentRateValue</code> (Polymorphic)</h3>
+        <p>Single table for all rate values across all scope levels. The <code>referenceModel</code> + <code>referenceId</code> pair determines what the rate is scoped to. The optional <code>equipmentRateScheduleId</code> links values to a versioned schedule.</p>
+<pre>
+model EquipmentRateValue {
+  id                    String              @id @db.VarChar(21)
+  isDeleted             Boolean             @default(false)
+  isArchived            Boolean             @default(false)
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @default(now()) @updatedAt
+
+  // Polymorphic scope
+  referenceModel        String              // "EquipmentCategory" | "Equipment" | "Job"
+  referenceId           String              @db.VarChar(21)
+
+  // Schedule versioning
+  equipmentRateScheduleId String?            @db.VarChar(21)
+  EquipmentRateSchedule   EquipmentRateSchedule? @relation(fields: [equipmentRateScheduleId], references: [id])
+
+  // Rate data
+  equipmentRateLabelId  String              @db.VarChar(21)
+  EquipmentRateLabel    EquipmentRateLabel  @relation(fields: [equipmentRateLabelId], references: [id])
+  amount                Decimal             @db.Decimal(12, 2)
+  per                   EquipmentRatePer    @default(HOUR)
+  operatorIncluded      Boolean             @default(true)
+
+  @@unique([equipmentRateLabelId, referenceModel, referenceId, per, operatorIncluded, equipmentRateScheduleId])
+  @@index([referenceModel, referenceId, isArchived, isDeleted])
+  @@index([equipmentRateLabelId, referenceModel])
+  @@index([equipmentRateScheduleId])
+}
+</pre>
+
+        <h3>Example Data</h3>
+        <p>A single rate label can have multiple records &mdash; one per <code>per</code> type. This mirrors how rental companies publish hourly, daily, and weekly rates for the same equipment (daily &#8800; hourly &times; 8 &mdash; longer periods are typically discounted).</p>
+        <table class="schema-table">
+            <thead><tr><th>referenceModel</th><th>referenceId</th><th>rateLabel</th><th>amount</th><th>per</th><th>operatorIncl</th><th>Meaning</th></tr></thead>
+            <tbody>
+                <tr><td><code>EquipmentCategory</code></td><td>heavy-equip-id</td><td>Standard</td><td>$150.00</td><td>HOUR</td><td>true</td><td>Fleet default &mdash; hourly</td></tr>
+                <tr><td><code>EquipmentCategory</code></td><td>heavy-equip-id</td><td>Standard</td><td>$1,050.00</td><td>DAY</td><td>true</td><td>Fleet default &mdash; daily (7&times; hourly, discounted)</td></tr>
+                <tr><td><code>EquipmentCategory</code></td><td>heavy-equip-id</td><td>Standard</td><td>$3,750.00</td><td>WEEK</td><td>true</td><td>Fleet default &mdash; weekly</td></tr>
+                <tr><td><code>EquipmentCategory</code></td><td>heavy-equip-id</td><td>Standby</td><td>$75.00</td><td>HOUR</td><td>true</td><td>Standby &mdash; hourly only</td></tr>
+                <tr><td><code>Equipment</code></td><td>cat-320-id</td><td>Standard</td><td>$165.00</td><td>HOUR</td><td>true</td><td>Override for this CAT 320 &mdash; hourly</td></tr>
+                <tr><td><code>Job</code></td><td>job-123-id</td><td>Standard</td><td>$140.00</td><td>HOUR</td><td>true</td><td>Negotiated rate for Job #123</td></tr>
+                <tr><td><code>EquipmentCategory</code></td><td>heavy-equip-id</td><td>Standard</td><td>$120.00</td><td>HOUR</td><td>false</td><td>Fleet default &mdash; bare (no operator)</td></tr>
+            </tbody>
+        </table>
+        <p>For the CAT 320 on Job #123 at <strong>HOUR</strong>, Standard resolves to <strong>$140.00</strong> (Job). At <strong>DAY</strong>, Standard resolves to <strong>$1,050.00</strong> (EquipmentCategory fallback &mdash; no day-rate override at Equipment or Job level). Standby at <strong>HOUR</strong> resolves to <strong>$75.00</strong> (EquipmentCategory fallback).</p>
+
+        <h3>Relations Added to Existing Models</h3>
+        <table class="schema-table">
+            <thead><tr><th>Model</th><th>New Relation</th></tr></thead>
+            <tbody>
+                <tr><td><code>EquipmentCategory</code></td><td><code>EquipmentRateLabels EquipmentRateLabel[]</code><br><code>EquipmentRateSchedules EquipmentRateSchedule[]</code></td></tr>
+            </tbody>
+        </table>
+        <p>Note: <code>EquipmentRateValue</code> does NOT have Prisma <code>@relation</code> fields to Equipment, Job, or EquipmentCategory since it's polymorphic. Joins are handled in the GraphQL resolver / model class layer.</p>
+
+        <h3>Future-Proofing</h3>
+        <p>Adding a new scope level (e.g., Customer, Project) requires:</p>
+        <ol>
+            <li>Insert <code>EquipmentRateValue</code> rows with the new <code>referenceModel</code> value</li>
+            <li>Add the new model name to the priority array in the resolution function</li>
+            <li>Build the UI entry point for that scope</li>
+        </ol>
+        <p><strong>Zero schema changes. Zero migrations.</strong></p>
+    </div>
+
+    <!-- 6. Operator-Included & WO Tie-In -->
+    <div class="uis-section" id="operator">
+        <h2>6. Operator-Included &amp; Work Order Tie-In</h2>
+
+        <h3>How Operator-Included Works</h3>
+        <p><code>operatorIncluded</code> is a flag on the rate value indicating which billing scenario the rate applies to:</p>
+        <ul>
+            <li><strong>Operated (wet hire)</strong> &mdash; <code>operatorIncluded = true</code> &mdash; rate covers both machine and operator. The $165/hr rate includes the operator's cost.</li>
+            <li><strong>Bare (dry hire)</strong> &mdash; <code>operatorIncluded = false</code> &mdash; rate covers machine only. Operator labor is tracked separately via labor line items (LEM-1 billable rates).</li>
+        </ul>
+
+        <h3>UI Behavior</h3>
+        <ul>
+            <li>The rates table shows <strong>one set of rates by default</strong> (operator-included = true, the more common scenario)</li>
+            <li>A toggle at the top of the table: <strong>"Also configure bare (equipment-only) rates"</strong> &mdash; reveals a second row per rate label for the without-operator rate</li>
+            <li>Most companies will only configure one mode. Companies that do both (e.g., crane rental) opt in to the second set.</li>
+            <li>Standby rates follow the same pattern &mdash; a Standby rate with <code>operatorIncluded = true</code> means "operator on-site waiting, equipment idle, rate covers both"</li>
+        </ul>
+
+        <h3>Work Order Tie-In</h3>
+        <p>When logging equipment on a Work Order (UIS-20b line items) or equipment timesheet (UIS-15H):</p>
+        <ol>
+            <li>User selects <strong>equipment</strong> + <strong>rate type</strong> (Standard, OT, Standby, etc.)</li>
+            <li>System calls <code>resolveEquipmentRate(equipmentId, rateLabelId, jobId, operatorIncluded)</code></li>
+            <li>Resolved rate auto-populates the line item amount</li>
+            <li>If <strong>operator-included</strong>: the operator's labor is bundled in the equipment rate. No separate labor line item for that person's time on that equipment.</li>
+            <li>If <strong>bare</strong>: the operator's labor is logged separately via labor line items using their trade level billable rate (from LEM-1). Both lines appear on the WO/LEM sheet.</li>
+        </ol>
+
+        <div class="callout">
+            <strong>LEM Sheet connection:</strong> A complete LEM (Labor, Equipment, Material) sheet draws from all three LEM rate systems: labor billable rates (LEM-1) for worker time, equipment billable rates (LEM-2) for machines, and material rates (LEM-3) for supplies. The <code>operatorIncluded</code> flag determines whether operator cost appears in the labor section or the equipment section.
+        </div>
+    </div>
+
+    <!-- 7. API Surface -->
+    <div class="uis-section" id="api-surface">
+        <h2>7. API Surface</h2>
+
+        <h3>New GraphQL Types</h3>
+<pre>
+type EquipmentRateLabel {
+  id: ID!
+  name: String!
+  description: String
+  orderNo: Int
+  equipmentCategoryId: String!
+  EquipmentCategory: EquipmentCategory
+}
+
+type EquipmentRateValue {
+  id: ID!
+  referenceModel: String!
+  referenceId: String!
+  equipmentRateLabelId: String!
+  EquipmentRateLabel: EquipmentRateLabel
+  amount: Float!
+  per: EquipmentRatePer!
+  operatorIncluded: Boolean!
+}
+
+type EquipmentRateSchedule {
+  id: ID!
+  name: String!
+  effectiveDate: String!
+  description: String
+  equipmentCategoryId: String!
+  EquipmentCategory: EquipmentCategory
+}
+
+type ResolvedEquipmentRate {
+  amount: Float
+  per: EquipmentRatePer
+  operatorIncluded: Boolean
+  provenance: String!           # "EquipmentCategory" | "Equipment" | "Job"
+  rateLabelName: String!
+  equipmentRateScheduleId: String  # which schedule was used
+}
+
+enum EquipmentRatePer { HOUR, DAY, WEEK, MONTH, YEAR }
+</pre>
+
+        <h3>Queries</h3>
+        <table class="schema-table">
+            <thead><tr><th>Query</th><th>Purpose</th></tr></thead>
+            <tbody>
+                <tr><td><code>equipmentRateLabels(equipmentCategoryId: ID!)</code></td><td>Rate types for a category</td></tr>
+                <tr><td><code>equipmentRateValues(referenceModel: String!, referenceId: ID!)</code></td><td>Rate values for any scope level</td></tr>
+                <tr><td><code>equipmentRatesForEquipment(equipmentId: ID!)</code></td><td>All rate labels with resolved values showing inheritance (category default + equipment override)</td></tr>
+                <tr><td><code>equipmentJobRateOverrides(jobId: ID!)</code></td><td>All equipment rate overrides for a job (for Job detail page)</td></tr>
+                <tr><td><code>equipmentRateSchedules(equipmentCategoryId: ID!)</code></td><td>List all rate schedules for a category</td></tr>
+                <tr><td><code>resolveEquipmentRate(equipmentId: ID!, rateLabelId: ID!, per: EquipmentRatePer!, jobId: ID, operatorIncluded: Boolean, date: String)</code></td><td>Resolve effective rate via cascade, using active schedule for the given date</td></tr>
+            </tbody>
+        </table>
+
+        <h3>Mutations</h3>
+        <table class="schema-table">
+            <thead><tr><th>Mutation</th><th>Purpose</th></tr></thead>
+            <tbody>
+                <tr><td><code>createEquipmentRateLabel / editEquipmentRateLabel / deleteEquipmentRateLabel</code></td><td>Manage rate type definitions per category</td></tr>
+                <tr><td><code>upsertEquipmentRateValue / upsertManyEquipmentRateValues</code></td><td>Set rate values at any scope level (batch save)</td></tr>
+                <tr><td><code>deleteEquipmentRateValue</code></td><td>Remove an override (reverts to inherited value)</td></tr>
+                <tr><td><code>initializeEquipmentRateLabels(equipmentCategoryId: ID!)</code></td><td>Seed default labels for a new category</td></tr>
+                <tr><td><code>createEquipmentRateSchedule / editEquipmentRateSchedule / deleteEquipmentRateSchedule</code></td><td>CRUD for rate schedules per category</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- 8. UI Spec -->
+    <div class="uis-section" id="ui-spec">
+        <h2>8. UI Specification</h2>
+
+        <h3>8.1 Shared Component: <code>EquipmentRateTable</code></h3>
+        <p>A single reusable component used across all three entry points (EquipmentCategory, Equipment detail, Job detail). It takes <code>referenceModel</code> and <code>referenceId</code> as props to determine what scope it's saving to.</p>
+
+<pre>
+EquipmentRateTable
+  Props:
+    referenceModel: "EquipmentCategory" | "Equipment" | "Job"
+    referenceId: string
+    equipmentCategoryId: string   // to load rate labels
+    parentRates?: EquipmentRateValue[]  // inherited values to show read-only (optional)
+
+  Structure:
+    Level 1 TabGroup: "Operator Included" | "Equipment Only"
+      Level 2 TabGroup: "Hourly" | "Daily" | "Weekly" | "Monthly" | "Yearly"
+        Table:
+          Rows = EquipmentRateLabels (Standard, Standby, OT, Weekend, Holiday)
+          Column(s):
+            - If parentRates provided: "Default" (read-only) | "Override" (editable)
+            - If no parentRates: single "Amount" column (editable)
+          Edit mode + ExitPageWarning footer
+</pre>
+
+        <h4>Tab Behavior</h4>
+        <ul>
+            <li><strong>Level 1 tabs</strong> filter by <code>operatorIncluded</code> &mdash; "Operator Included" = <code>true</code>, "Equipment Only" = <code>false</code></li>
+            <li><strong>Level 2 tabs</strong> filter by <code>per</code> &mdash; one tab per <code>EquipmentRatePer</code> value (Hourly, Daily, Weekly, Monthly, Yearly)</li>
+            <li>Not every tab needs values &mdash; a company might only configure Hourly and Daily rates. Empty tabs show rate labels with blank amount cells.</li>
+            <li>"Equipment Only" tab is hidden by default. A toggle or setting reveals it for companies that need bare rates.</li>
+        </ul>
+
+        <h4>Table Per Tab</h4>
+        <ul>
+            <li>Rows = all <code>EquipmentRateLabel</code> records for the category, ordered by <code>orderNo</code></li>
+            <li>Each cell is a <code>CurrencyInput</code> &mdash; fill in the dollar value, leave blank for unconfigured</li>
+            <li>On <strong>Category page</strong>: single "Amount" column per row &mdash; these are the fleet defaults</li>
+            <li>On <strong>Equipment page</strong>: "Category Default" (read-only gray) + "This Equipment" (editable or "Inherited" badge) columns</li>
+            <li>On <strong>Job page</strong>: "Effective Rate" (resolved, read-only with provenance badge) + "Job Override" (editable or "Using default") columns</li>
+            <li>Save calls <code>upsertManyEquipmentRateValues</code> with the component's <code>referenceModel</code> and <code>referenceId</code></li>
+        </ul>
+
+        <h4>How It Mirrors WageRates</h4>
+        <table class="schema-table">
+            <thead><tr><th>WageRates Pattern</th><th>EquipmentRateTable Pattern</th></tr></thead>
+            <tbody>
+                <tr><td>Tab per rate type (Wages, Benefits)</td><td>Level 1: Operator / Bare; Level 2: Hourly / Daily / Weekly / Monthly / Yearly</td></tr>
+                <tr><td>Rows = line items (Base Wage, Vacation Pay&hellip;)</td><td>Rows = rate labels (Standard, Standby, OT, Weekend, Holiday)</td></tr>
+                <tr><td>Columns = trade levels (Journeyman, Foreman&hellip;)</td><td>Single amount column (or Default + Override on Equipment/Job pages)</td></tr>
+                <tr><td>CurrencyInput per cell, edit mode toggle</td><td>Same</td></tr>
+                <tr><td>ExitPageWarning footer on save</td><td>Same</td></tr>
+                <tr><td>CustomCombobox for wage region filter</td><td>Not needed (no region concept for equipment rates)</td></tr>
+            </tbody>
+        </table>
+
+        <h3>8.2 Equipment Category &mdash; Rates Tab</h3>
+        <p>Uses <code>EquipmentRateTable</code> with <code>referenceModel="EquipmentCategory"</code> and <code>referenceId={categoryId}</code>. No <code>parentRates</code> prop (this IS the base level).</p>
+        <ul>
+            <li>Above the rate table: Rate Labels management section (add/edit/reorder/delete rate types)</li>
+            <li>Below: the <code>EquipmentRateTable</code> with the two-level tabs</li>
+            <li>Default labels (Standard, Standby, OT, Weekend, Holiday) seeded on first visit via <code>initializeEquipmentRateLabels</code></li>
+        </ul>
+
+        <h3>8.3 Equipment Detail &mdash; Rates Tab</h3>
+        <p>Uses <code>EquipmentRateTable</code> with <code>referenceModel="Equipment"</code>, <code>referenceId={equipmentId}</code>, and <code>parentRates</code> loaded from the equipment's category.</p>
+        <ul>
+            <li>Shows "Category Default" read-only column alongside the editable "This Equipment" column</li>
+            <li>"Inherited" badge when no equipment-level override exists for that (label + per + operatorIncluded) combination</li>
+            <li>"Reset" action per row deletes the equipment override</li>
+            <li>Below the equipment rate table: <strong>Job Rate Overrides</strong> section with Job selector (CustomCombobox) and a second <code>EquipmentRateTable</code> instance with <code>referenceModel="Job"</code></li>
+        </ul>
+
+        <h3>8.4 Job Detail &mdash; Equipment Rate Overrides</h3>
+        <p>New tab or section on Job detail page. Equipment selector (CustomCombobox) at the top, then <code>EquipmentRateTable</code> with <code>referenceModel="Job"</code> and <code>parentRates</code> loaded from the resolved equipment + category cascade.</p>
+        <ul>
+            <li>"Effective Rate" column shows the resolved value with provenance badge (Category / Equipment / Job)</li>
+            <li>"Job Override" column is editable &mdash; "Using default" when no job override exists</li>
+            <li>"Clear" action per row removes the job override</li>
+            <li>This is where a PM sets job-specific rates before work begins &mdash; auto-populates WO line items</li>
+        </ul>
+
+        <div class="callout">
+            <strong>One component, three contexts:</strong> <code>EquipmentRateTable</code> renders the same two-level tab structure everywhere. The <code>referenceModel</code> prop determines what it saves to. The <code>parentRates</code> prop determines whether it shows an "inherited/default" read-only column alongside the editable values.
+        </div>
+    </div>
+
+    <!-- 9. UI Mockups -->
+    <div class="uis-section" id="ui-mockup">
+        <h2>9. UI Mockups</h2>
+
+        <h3>9.1 Equipment Category &mdash; Rates Tab (Hourly, Operator Included)</h3>
+        <div class="mockup-container">
+            <div class="mockup-bar">
+                <div class="mockup-dots"><div class="mockup-dot mockup-dot-r"></div><div class="mockup-dot mockup-dot-y"></div><div class="mockup-dot mockup-dot-g"></div></div>
+                Equipment Categories &rsaquo; Heavy Equipment &rsaquo; <strong>Rates</strong>
+            </div>
+            <div class="mockup-body">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+                    <h3 style="font-size:16px; font-weight:700; margin:0;">Default Equipment Rates</h3>
+                    <div style="display:flex;gap:8px;">
+                        <div style="background:#10b981; color:#fff; border-radius:6px; padding:6px 14px; font-size:12px; font-weight:600;">+ Add Rate Type</div>
+                        <div style="background:#3b82f6; color:#fff; border-radius:6px; padding:6px 12px; font-size:12px; font-weight:600;">&#9998;</div>
+                    </div>
+                </div>
+
+                <!-- Level 1 tabs: Operator -->
+                <div style="display:flex; gap:0; margin-bottom:0; border-bottom:2px solid #e2e8f0;">
+                    <div style="padding:8px 16px; font-size:13px; font-weight:600; border-bottom:2px solid #3b82f6; color:#3b82f6; margin-bottom:-2px;">Operator Included</div>
+                    <div style="padding:8px 16px; font-size:13px; color:#94a3b8;">Equipment Only</div>
+                </div>
+
+                <!-- Level 2 tabs: Per -->
+                <div style="display:flex; gap:0; background:#f8fafc; border-bottom:1px solid #e2e8f0; padding:0 8px;">
+                    <div style="padding:6px 14px; font-size:12px; font-weight:600; border-bottom:2px solid #0f172a; color:#0f172a; margin-bottom:-1px;">Hourly</div>
+                    <div style="padding:6px 14px; font-size:12px; color:#94a3b8;">Daily</div>
+                    <div style="padding:6px 14px; font-size:12px; color:#94a3b8;">Weekly</div>
+                    <div style="padding:6px 14px; font-size:12px; color:#94a3b8;">Monthly</div>
+                    <div style="padding:6px 14px; font-size:12px; color:#94a3b8;">Yearly</div>
+                </div>
+
+                <table class="mockup-table" style="margin-top:12px;">
+                    <thead><tr><th style="min-width:160px;">Rate Type</th><th style="min-width:140px;">Amount (per hour)</th></tr></thead>
+                    <tbody>
+                        <tr><td class="sticky-col">Standard</td><td class="editable"><input class="mockup-input" value="$150.00" /></td></tr>
+                        <tr><td class="sticky-col">Standby</td><td class="editable"><input class="mockup-input" value="$75.00" /></td></tr>
+                        <tr><td class="sticky-col">Overtime</td><td class="editable"><input class="mockup-input" value="$225.00" /></td></tr>
+                        <tr><td class="sticky-col">Weekend</td><td class="editable"><input class="mockup-input" value="$225.00" /></td></tr>
+                        <tr><td class="sticky-col">Holiday</td><td class="editable"><input class="mockup-input" value="$300.00" /></td></tr>
+                    </tbody>
+                </table>
+                <div style="font-size:11px; color:#94a3b8; margin-top:8px;">These rates are inherited by all equipment in this category. Individual equipment can override.</div>
+            </div>
+        </div>
+
+        <h3>9.2 Equipment Category &mdash; Daily Tab (showing different amounts)</h3>
+        <div class="mockup-container">
+            <div class="mockup-bar">
+                <div class="mockup-dots"><div class="mockup-dot mockup-dot-r"></div><div class="mockup-dot mockup-dot-y"></div><div class="mockup-dot mockup-dot-g"></div></div>
+                Equipment Categories &rsaquo; Heavy Equipment &rsaquo; <strong>Rates</strong>
+            </div>
+            <div class="mockup-body">
+                <!-- Level 1 tabs -->
+                <div style="display:flex; gap:0; margin-bottom:0; border-bottom:2px solid #e2e8f0;">
+                    <div style="padding:8px 16px; font-size:13px; font-weight:600; border-bottom:2px solid #3b82f6; color:#3b82f6; margin-bottom:-2px;">Operator Included</div>
+                    <div style="padding:8px 16px; font-size:13px; color:#94a3b8;">Equipment Only</div>
+                </div>
+                <!-- Level 2 tabs -->
+                <div style="display:flex; gap:0; background:#f8fafc; border-bottom:1px solid #e2e8f0; padding:0 8px;">
+                    <div style="padding:6px 14px; font-size:12px; color:#94a3b8;">Hourly</div>
+                    <div style="padding:6px 14px; font-size:12px; font-weight:600; border-bottom:2px solid #0f172a; color:#0f172a; margin-bottom:-1px;">Daily</div>
+                    <div style="padding:6px 14px; font-size:12px; color:#94a3b8;">Weekly</div>
+                    <div style="padding:6px 14px; font-size:12px; color:#94a3b8;">Monthly</div>
+                    <div style="padding:6px 14px; font-size:12px; color:#94a3b8;">Yearly</div>
+                </div>
+                <table class="mockup-table" style="margin-top:12px;">
+                    <thead><tr><th style="min-width:160px;">Rate Type</th><th style="min-width:140px;">Amount (per day)</th></tr></thead>
+                    <tbody>
+                        <tr><td class="sticky-col">Standard</td><td class="editable"><input class="mockup-input" value="$1,050.00" /></td></tr>
+                        <tr><td class="sticky-col">Standby</td><td class="editable"><input class="mockup-input" value="$525.00" /></td></tr>
+                        <tr><td class="sticky-col">Overtime</td><td class="editable" style="color:#94a3b8; font-style:italic;"><span style="font-size:11px;">Not configured</span></td></tr>
+                        <tr><td class="sticky-col">Weekend</td><td class="editable"><input class="mockup-input" value="$1,575.00" /></td></tr>
+                        <tr><td class="sticky-col">Holiday</td><td class="editable"><input class="mockup-input" value="$2,100.00" /></td></tr>
+                    </tbody>
+                </table>
+                <div style="font-size:11px; color:#94a3b8; margin-top:8px;">Daily rates are independent of hourly rates (not auto-calculated). Leave blank for rate types that don't apply at this period.</div>
+            </div>
+        </div>
+
+        <h3>9.3 Equipment Detail &mdash; Rates Tab (with inheritance)</h3>
+        <div class="mockup-container">
+            <div class="mockup-bar">
+                <div class="mockup-dots"><div class="mockup-dot mockup-dot-r"></div><div class="mockup-dot mockup-dot-y"></div><div class="mockup-dot mockup-dot-g"></div></div>
+                Equipment &rsaquo; CAT 320 Excavator (#EQ-0042) &rsaquo; <strong>Rates</strong>
+            </div>
+            <div class="mockup-body">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                    <div>
+                        <h3 style="font-size:16px; font-weight:700; margin:0 0 4px;">Equipment Rates</h3>
+                        <span style="font-size:12px; color:#64748b;">Category: Heavy Equipment &mdash; overrides shown in bold</span>
+                    </div>
+                    <div style="background:#3b82f6; color:#fff; border-radius:6px; padding:6px 12px; font-size:12px; font-weight:600;">&#9998;</div>
+                </div>
+
+                <!-- Level 1 + Level 2 tabs (same as category) -->
+                <div style="display:flex; gap:0; margin-bottom:0; border-bottom:2px solid #e2e8f0;">
+                    <div style="padding:8px 16px; font-size:13px; font-weight:600; border-bottom:2px solid #3b82f6; color:#3b82f6; margin-bottom:-2px;">Operator Included</div>
+                    <div style="padding:8px 16px; font-size:13px; color:#94a3b8;">Equipment Only</div>
+                </div>
+                <div style="display:flex; gap:0; background:#f8fafc; border-bottom:1px solid #e2e8f0; padding:0 8px;">
+                    <div style="padding:6px 14px; font-size:12px; font-weight:600; border-bottom:2px solid #0f172a; color:#0f172a; margin-bottom:-1px;">Hourly</div>
+                    <div style="padding:6px 14px; font-size:12px; color:#94a3b8;">Daily</div>
+                    <div style="padding:6px 14px; font-size:12px; color:#94a3b8;">Weekly</div>
+                    <div style="padding:6px 14px; font-size:12px; color:#94a3b8;">Monthly</div>
+                    <div style="padding:6px 14px; font-size:12px; color:#94a3b8;">Yearly</div>
+                </div>
+
+                <table class="mockup-table" style="margin-top:12px;">
+                    <thead><tr><th style="min-width:140px;">Rate Type</th><th style="min-width:120px;">Category Default</th><th style="min-width:140px;">This Equipment</th><th style="min-width:50px;"></th></tr></thead>
+                    <tbody>
+                        <tr>
+                            <td class="sticky-col">Standard</td>
+                            <td class="readonly">$150.00</td>
+                            <td class="editable" style="font-weight:700;"><input class="mockup-input" value="$165.00" style="font-weight:700;" /></td>
+                            <td><span style="font-size:10px;color:#3b82f6;cursor:pointer;">Reset</span></td>
+                        </tr>
+                        <tr>
+                            <td class="sticky-col">Standby</td>
+                            <td class="readonly">$75.00</td>
+                            <td class="inherited"><span style="padding:2px 8px;background:#fef3c7;border-radius:4px;font-size:10px;font-weight:600;color:#92400e;">Inherited</span></td>
+                            <td></td>
+                        </tr>
+                        <tr>
+                            <td class="sticky-col">Overtime</td>
+                            <td class="readonly">$225.00</td>
+                            <td class="editable" style="font-weight:700;"><input class="mockup-input" value="$250.00" style="font-weight:700;" /></td>
+                            <td><span style="font-size:10px;color:#3b82f6;cursor:pointer;">Reset</span></td>
+                        </tr>
+                        <tr>
+                            <td class="sticky-col">Weekend</td>
+                            <td class="readonly">$225.00</td>
+                            <td class="inherited"><span style="padding:2px 8px;background:#fef3c7;border-radius:4px;font-size:10px;font-weight:600;color:#92400e;">Inherited</span></td>
+                            <td></td>
+                        </tr>
+                        <tr>
+                            <td class="sticky-col">Holiday</td>
+                            <td class="readonly">$300.00</td>
+                            <td class="inherited"><span style="padding:2px 8px;background:#fef3c7;border-radius:4px;font-size:10px;font-weight:600;color:#92400e;">Inherited</span></td>
+                            <td></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <h3>9.4 Job Detail &mdash; Equipment Rate Overrides</h3>
+        <div class="mockup-container">
+            <div class="mockup-bar">
+                <div class="mockup-dots"><div class="mockup-dot mockup-dot-r"></div><div class="mockup-dot mockup-dot-y"></div><div class="mockup-dot mockup-dot-g"></div></div>
+                Jobs &rsaquo; Inovum Data Center (#26028) &rsaquo; <strong>Equipment Rate Overrides</strong>
+            </div>
+            <div class="mockup-body">
+                <div style="margin-bottom:16px;">
+                    <h3 style="font-size:16px; font-weight:700; margin:0 0 4px;">Equipment Rate Overrides for This Job</h3>
+                    <span style="font-size:12px; color:#64748b;">Set job-specific equipment rates. These auto-populate on Work Orders for this job.</span>
+                </div>
+                <div style="background:#e2e8f0; border-radius:6px; padding:8px 16px; width:320px; font-size:12px; color:#64748b; margin-bottom:12px;">Select Equipment &nbsp; &#9662;</div>
+                <div style="font-size:12px; color:#64748b; margin-bottom:12px;">Showing rates for: <strong style="color:#0f172a;">CAT 320 Excavator (#EQ-0042)</strong></div>
+
+                <!-- Same two-level tabs -->
+                <div style="display:flex; gap:0; margin-bottom:0; border-bottom:2px solid #e2e8f0;">
+                    <div style="padding:8px 16px; font-size:13px; font-weight:600; border-bottom:2px solid #3b82f6; color:#3b82f6; margin-bottom:-2px;">Operator Included</div>
+                    <div style="padding:8px 16px; font-size:13px; color:#94a3b8;">Equipment Only</div>
+                </div>
+                <div style="display:flex; gap:0; background:#f8fafc; border-bottom:1px solid #e2e8f0; padding:0 8px;">
+                    <div style="padding:6px 14px; font-size:12px; font-weight:600; border-bottom:2px solid #0f172a; color:#0f172a; margin-bottom:-1px;">Hourly</div>
+                    <div style="padding:6px 14px; font-size:12px; color:#94a3b8;">Daily</div>
+                    <div style="padding:6px 14px; font-size:12px; color:#94a3b8;">Weekly</div>
+                    <div style="padding:6px 14px; font-size:12px; color:#94a3b8;">Monthly</div>
+                    <div style="padding:6px 14px; font-size:12px; color:#94a3b8;">Yearly</div>
+                </div>
+
+                <table class="mockup-table" style="margin-top:12px;">
+                    <thead><tr><th>Rate Type</th><th>Effective Rate</th><th>Source</th><th>Job Override</th><th></th></tr></thead>
+                    <tbody>
+                        <tr>
+                            <td class="sticky-col">Standard</td>
+                            <td style="font-weight:700;">$140.00</td>
+                            <td><span style="padding:2px 8px;background:#dbeafe;border-radius:4px;font-size:10px;font-weight:600;color:#1d4ed8;">Job</span></td>
+                            <td class="editable"><input class="mockup-input" value="$140.00" /></td>
+                            <td><span style="font-size:10px;color:#dc2626;cursor:pointer;">Clear</span></td>
+                        </tr>
+                        <tr>
+                            <td class="sticky-col">Standby</td>
+                            <td>$75.00</td>
+                            <td><span style="padding:2px 8px;background:#dcfce7;border-radius:4px;font-size:10px;font-weight:600;color:#166534;">Category</span></td>
+                            <td style="color:#94a3b8; font-style:italic; font-size:11px;">Using default</td>
+                            <td></td>
+                        </tr>
+                        <tr>
+                            <td class="sticky-col">Overtime</td>
+                            <td>$250.00</td>
+                            <td><span style="padding:2px 8px;background:#fef3c7;border-radius:4px;font-size:10px;font-weight:600;color:#92400e;">Equipment</span></td>
+                            <td style="color:#94a3b8; font-style:italic; font-size:11px;">Using default</td>
+                            <td></td>
+                        </tr>
+                        <tr>
+                            <td class="sticky-col">Weekend</td>
+                            <td>$225.00</td>
+                            <td><span style="padding:2px 8px;background:#dcfce7;border-radius:4px;font-size:10px;font-weight:600;color:#166534;">Category</span></td>
+                            <td style="color:#94a3b8; font-style:italic; font-size:11px;">Using default</td>
+                            <td></td>
+                        </tr>
+                        <tr>
+                            <td class="sticky-col">Holiday</td>
+                            <td>$300.00</td>
+                            <td><span style="padding:2px 8px;background:#dcfce7;border-radius:4px;font-size:10px;font-weight:600;color:#166534;">Category</span></td>
+                            <td style="color:#94a3b8; font-style:italic; font-size:11px;">Using default</td>
+                            <td></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- 10. Change Surface -->
+    <div class="uis-section" id="change-surface">
+        <h2>10. Change Surface</h2>
+
+        <div class="blast-summary">
+            <div class="blast-row"><span class="blast-label">New Prisma models</span><span class="blast-value">3 + 1 enum</span></div>
+            <div class="blast-row"><span class="blast-label">New API files</span><span class="blast-value">~5 (models, graphql resolvers, types)</span></div>
+            <div class="blast-row"><span class="blast-label">New frontend files</span><span class="blast-value">~4 (tab components)</span></div>
+            <div class="blast-row"><span class="blast-label">Modified files</span><span class="blast-value">~6</span></div>
+            <div class="blast-row"><span class="blast-label">Risk level</span><span class="blast-value">Medium &mdash; new models, no existing behavior changes</span></div>
+        </div>
+
+        <h3>New Files</h3>
+        <table class="schema-table">
+            <thead><tr><th>File</th><th>Type</th><th>Purpose</th></tr></thead>
+            <tbody>
+                <tr><td><code>apps/api/prisma/migrations/.../migration.sql</code></td><td><span class="action-new">NEW</span></td><td>Create 3 tables + 1 enum</td></tr>
+                <tr><td><code>apps/api/src/models/EquipmentRateLabel.ts</code></td><td><span class="action-new">NEW</span></td><td>Model class with initializeLabels method</td></tr>
+                <tr><td><code>apps/api/src/models/EquipmentRateSchedule.ts</code></td><td><span class="action-new">NEW</span></td><td>Model class for rate schedule versioning</td></tr>
+                <tr><td><code>apps/api/src/models/EquipmentRateValue.ts</code></td><td><span class="action-new">NEW</span></td><td>Model class with schedule-aware rate resolution engine</td></tr>
+                <tr><td><code>apps/api/src/graphql/models/EquipmentRateLabel.ts</code></td><td><span class="action-new">NEW</span></td><td>GraphQL resolver for rate labels</td></tr>
+                <tr><td><code>apps/api/src/graphql/models/EquipmentRateValue.ts</code></td><td><span class="action-new">NEW</span></td><td>GraphQL resolver for rate values + schedules + resolution query</td></tr>
+                <tr><td><code>apps/frontend/src/components/EquipmentRateTable/EquipmentRateTable.tsx</code></td><td><span class="action-new">NEW</span></td><td>Shared rate table component with two-level tabs (Operator/Bare &times; Per). Takes referenceModel + referenceId props.</td></tr>
+                <tr><td><code>apps/frontend/.../EquipmentCategory/Tabs/EquipmentCategoryRates.tsx</code></td><td><span class="action-new">NEW</span></td><td>Category rates tab &mdash; wraps EquipmentRateTable + rate label management</td></tr>
+                <tr><td><code>apps/frontend/.../EquipmentDetailPage/Tabs/EquipmentRates.tsx</code></td><td><span class="action-new">NEW</span></td><td>Equipment rates tab &mdash; wraps EquipmentRateTable with parentRates for inheritance + job override section</td></tr>
+                <tr><td><code>apps/frontend/.../JobDetailsPage/Tabs/JobEquipmentRates.tsx</code></td><td><span class="action-new">NEW</span></td><td>Job equipment rate overrides &mdash; equipment selector + wraps EquipmentRateTable with resolved effective rates</td></tr>
+            </tbody>
+        </table>
+
+        <h3>Modified Files</h3>
+        <table class="schema-table">
+            <thead><tr><th>File</th><th>Change</th></tr></thead>
+            <tbody>
+                <tr><td><code>apps/api/prisma/schema.prisma</code></td><td>Add 3 models (EquipmentRateLabel, EquipmentRateSchedule, EquipmentRateValue), 1 enum, relations on EquipmentCategory</td></tr>
+                <tr><td><code>apps/api/src/graphql/schema.ts</code></td><td>Register new resolvers</td></tr>
+                <tr><td><code>apps/api/src/types/Equipment.types.ts</code></td><td>Add new interfaces</td></tr>
+                <tr><td><code>apps/frontend/.../EquipmentCategory/index.tsx</code></td><td>Add Rates tab</td></tr>
+                <tr><td><code>apps/frontend/.../EquipmentDetailPage/index.tsx</code></td><td>Add Rates tab</td></tr>
+                <tr><td><code>apps/frontend/.../JobDetailsPage/index.tsx</code></td><td>Add Equipment Rate Overrides tab/section</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- 11. Acceptance Criteria -->
+    <div class="uis-section" id="acceptance-criteria">
+        <h2>11. Acceptance Criteria</h2>
+        <ul class="criteria-list">
+            <li><div class="criteria-check"></div><strong>EquipmentRateLabel CRUD</strong> &mdash; create, edit, reorder, delete rate types per category</li>
+            <li><div class="criteria-check"></div><strong>Default labels seeded</strong> &mdash; new categories get Standard, Standby, Overtime, Weekend, Holiday</li>
+            <li><div class="criteria-check"></div><strong>Category rates configurable</strong> &mdash; amount, per (HOUR/DAY/WEEK/MONTH/YEAR), operatorIncluded</li>
+            <li><div class="criteria-check"></div><strong>Equipment inherits category rates</strong> &mdash; "Inherited" badge for un-overridden labels</li>
+            <li><div class="criteria-check"></div><strong>Equipment override</strong> &mdash; editing creates <code>EquipmentRateValue</code> with <code>referenceModel = "Equipment"</code>; "Reset" deletes it</li>
+            <li><div class="criteria-check"></div><strong>Job override from Equipment detail</strong> &mdash; can set per-job rates; "Clear" deletes the override</li>
+            <li><div class="criteria-check"></div><strong>Job override from Job detail</strong> &mdash; same data accessible from the job side with equipment selector and provenance badges</li>
+            <li><div class="criteria-check"></div><strong>Rate resolution</strong> &mdash; Job &gt; Equipment &gt; EquipmentCategory cascade with provenance</li>
+            <li><div class="criteria-check"></div><strong>resolveEquipmentRate query</strong> returns amount, per, operatorIncluded, provenance, rateLabelName</li>
+            <li><div class="criteria-check"></div><strong>Polymorphic model works</strong> &mdash; all rate values in single <code>EquipmentRateValue</code> table using <code>referenceModel</code> + <code>referenceId</code></li>
+            <li><div class="criteria-check"></div><strong>Unique constraints enforced</strong> &mdash; no duplicate (rateLabelId + referenceModel + referenceId + per + operatorIncluded)</li>
+            <li><div class="criteria-check"></div><strong>Two-level tab structure</strong> &mdash; Level 1: Operator Included / Equipment Only; Level 2: Hourly / Daily / Weekly / Monthly / Yearly</li>
+            <li><div class="criteria-check"></div><strong>Multiple per-type rates</strong> &mdash; same rate label can have different amounts at different per-units (hourly &ne; daily &divide; 8)</li>
+            <li><div class="criteria-check"></div><strong>Shared EquipmentRateTable component</strong> &mdash; one component used on Category, Equipment, and Job pages via referenceModel/referenceId props</li>
+            <li><div class="criteria-check"></div><strong>Tabs visible</strong> &mdash; Rates tab on EquipmentCategory, Equipment detail, and Job detail pages</li>
+            <li><div class="criteria-check"></div><strong>No regression</strong> &mdash; existing equipment CRUD, assignments, and other tabs unaffected</li>
+        </ul>
+    </div>
+
+    <!-- 12. Dependencies -->
+    <div class="uis-section" id="dependencies">
+        <h2>12. Dependencies</h2>
+
+        <h3>Requires</h3>
+        <p><span class="dep-tag dep-requires">None</span> &mdash; Can be built in parallel with LEM-1. No blocking dependencies.</p>
+
+        <h3>Enables</h3>
+        <p>
+            <span class="dep-tag dep-enables">UIS-15H</span> Equipment Timesheet Capture &mdash; resolved rates at approval time<br>
+            <span class="dep-tag dep-enables">UIS-15C</span> Equipment Variable Rates (advanced) &mdash; time windows, effective dating, attachments build on this<br>
+            <span class="dep-tag dep-enables">UIS-15A</span> Equipment Job P&amp;L &mdash; cost rollups use resolved rates<br>
+            <span class="dep-tag dep-enables">UIS-15B</span> Equipment Invoicing &mdash; invoice lines use resolved billable rates<br>
+            <span class="dep-tag dep-enables">UIS-20b</span> WO Line Item Tables &mdash; equipment line items auto-populate from resolved rates
+        </p>
+
+        <h3>Relationship to UIS-15C</h3>
+        <p>LEM-2 extracts the <strong>data model and rate resolution engine</strong> from UIS-15C. After LEM-2 ships, UIS-15C becomes an enhancement layer adding time-of-day windows, effective dating, attachment pricing, and overtime multiplier auto-calculation on top of the LEM-2 foundation.</p>
+    </div>
+
+</div>
+</body>
+</html>

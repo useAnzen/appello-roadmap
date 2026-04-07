@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WO-8b: Collect Signatures</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Inter', -apple-system, sans-serif; background: #f1f5f9; color: #0f172a; }
+.uis-wrap { max-width: 960px; margin: 0 auto; padding: 40px 24px 80px; }
+.uis-hero { margin-bottom: 32px; }
+.uis-badges { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+.uis-badge { font-size: 11px; font-weight: 700; padding: 4px 12px; border-radius: 6px; display: inline-flex; align-items: center; gap: 5px; }
+.badge-q { background: #0f172a; color: #fff; }
+.badge-wo { background: #ec4899; color: #fff; }
+.badge-status { background: #fef3c7; color: #92400e; }
+.badge-priority { background: #fee2e2; color: #dc2626; }
+.uis-h1 { font-size: 30px; font-weight: 800; color: #0f172a; margin: 0 0 8px; letter-spacing: -0.01em; }
+.uis-sub { font-size: 15px; color: #64748b; line-height: 1.5; margin: 0; }
+.uis-meta { display: flex; gap: 24px; flex-wrap: wrap; margin-top: 14px; font-size: 13px; color: #64748b; }
+.uis-meta strong { color: #0f172a; }
+.uis-section { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px 28px; margin-bottom: 16px; }
+.uis-section h2 { font-size: 17px; font-weight: 700; margin: 0 0 14px; padding-bottom: 10px; border-bottom: 2px solid #e2e8f0; }
+.uis-section h3 { font-size: 15px; font-weight: 700; margin: 16px 0 8px; }
+.uis-section h4 { font-size: 14px; font-weight: 700; color: #334155; margin: 12px 0 6px; }
+.uis-section p, .uis-section li { font-size: 14px; color: #334155; line-height: 1.65; }
+.uis-section ul, .uis-section ol { padding-left: 20px; margin: 8px 0; }
+pre { background: #1e293b; color: #e2e8f0; border-radius: 8px; padding: 16px; overflow-x: auto; font-size: 13px; line-height: 1.5; font-family: 'SF Mono', monospace; margin: 12px 0; }
+table.schema-table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 12px 0; }
+table.schema-table th { text-align: left; padding: 8px 12px; background: #f8fafc; border-bottom: 2px solid #e2e8f0; font-weight: 600; }
+table.schema-table td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
+table.schema-table code { font-family: monospace; background: #f1f5f9; padding: 1px 5px; border-radius: 3px; font-size: 12px; color: #7c3aed; }
+.callout { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 14px 18px; margin: 14px 0; font-size: 13px; color: #1e40af; }
+.callout strong { color: #1e3a8a; }
+.callout-warn { background: #fef3c7; border: 1px solid #fde68a; border-radius: 8px; padding: 14px 18px; margin: 14px 0; font-size: 13px; color: #92400e; }
+.callout-warn strong { color: #78350f; }
+.blast-summary { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 16px 20px; margin-bottom: 16px; }
+.blast-row { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; }
+.blast-row:not(:last-child) { border-bottom: 1px solid #f1f5f9; }
+.blast-label { font-size: 13px; color: #64748b; }
+.blast-value { font-size: 13px; font-weight: 700; color: #0f172a; }
+.action-new { background: #dcfce7; color: #166534; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 4px; }
+.action-mod { background: #fef3c7; color: #92400e; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 4px; }
+.ac-list { margin: 0; padding-left: 0; list-style: none; }
+.ac-list li { display: flex; gap: 10px; margin-bottom: 10px; font-size: 14px; color: #334155; line-height: 1.55; }
+.ac-list li::before { content: ''; flex-shrink: 0; width: 18px; height: 18px; border: 2px solid #e2e8f0; border-radius: 4px; margin-top: 2px; background: #fff; }
+.dep-tag { display: inline-block; font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 5px; margin-right: 6px; margin-bottom: 6px; }
+.dep-requires { background: #fee2e2; color: #dc2626; }
+.dep-enables { background: #dcfce7; color: #166534; }
+.mobile-frame { max-width: 375px; margin: 0 auto; border: 2px solid #e2e8f0; border-radius: 24px; overflow: hidden; }
+.mobile-header { background: #0f172a; color: #fff; padding: 12px 16px; font-size: 14px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+.mobile-body { padding: 16px; background: #fff; min-height: 400px; }
+.mobile-input { width: 100%; height: 52px; border: 1px solid #e2e8f0; border-radius: 10px; padding: 0 14px; font-size: 14px; margin-bottom: 12px; display: flex; align-items: center; color: #94a3b8; }
+.mobile-btn { width: 100%; padding: 14px; border-radius: 10px; font-size: 16px; font-weight: 600; text-align: center; border: none; }
+.mobile-btn-primary { background: #3b82f6; color: #fff; }
+.mobile-btn-success { background: #10b981; color: #fff; }
+.mobile-btn-outline { background: #fff; color: #3b82f6; border: 1px solid #3b82f6; }
+.flow-diagram { display: flex; align-items: center; gap: 0; flex-wrap: wrap; margin: 16px 0; }
+.flow-node { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 14px; font-size: 12px; font-weight: 600; text-align: center; min-width: 120px; }
+.flow-node-active { background: #dbeafe; border-color: #3b82f6; color: #1d4ed8; }
+.flow-node-external { background: #fce7f3; border-color: #ec4899; color: #be185d; }
+.flow-arrow { font-size: 16px; color: #cbd5e1; padding: 0 6px; }
+.summary-section { border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px; margin-bottom: 12px; }
+.summary-section-title { font-size: 12px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+.summary-row { display: flex; justify-content: space-between; padding: 4px 0; font-size: 13px; }
+.summary-label { color: #64748b; }
+.summary-value { color: #0f172a; font-weight: 600; }
+.signer-card { border: 1px solid #e2e8f0; border-radius: 10px; padding: 12px; margin-bottom: 8px; display: flex; align-items: center; gap: 10px; }
+.signer-avatar { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700; flex-shrink: 0; }
+.signer-avatar-internal { background: #eff6ff; color: #3b82f6; }
+.signer-avatar-external { background: #fce7f3; color: #be185d; }
+.signer-info { flex: 1; }
+.signer-name { font-size: 13px; font-weight: 600; color: #0f172a; }
+.signer-detail { font-size: 11px; color: #64748b; }
+.signer-status { font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 4px; }
+.status-signed { background: #dcfce7; color: #166534; }
+.status-pending { background: #fef3c7; color: #92400e; }
+.status-requested { background: #dbeafe; color: #1d4ed8; }
+    </style>
+</head>
+<body>
+<div class="uis-wrap">
+
+    <div class="uis-hero">
+        <div class="uis-badges">
+            <span class="uis-badge badge-q">WO-8b</span>
+            <span class="uis-badge badge-wo">Work Orders</span>
+            <span class="uis-badge badge-priority">P0</span>
+            <span class="uis-badge badge-status">Draft</span>
+        </div>
+        <h1 class="uis-h1">Collect Signatures</h1>
+        <p class="uis-sub">Two signature collection workflows for submitted work orders: <strong>Request Signature</strong> (send to internal Appello user for remote signing, mirrors form ACK pattern) and <strong>Collect In-Person</strong> (hand phone to external person &mdash; client, GC rep &mdash; who signs on the device without an Appello account). Both workflows can chain together on a single work order.</p>
+        <div class="uis-meta">
+            <span><strong>Estimate:</strong> 3-4 days</span>
+            <span><strong>Requires:</strong> WO-8a (stepped form + self-sign), WO-3a (Signature model), WO-4 (detail page)</span>
+        </div>
+    </div>
+
+    <!-- 1. Workflow Overview -->
+    <div class="uis-section">
+        <h2>1. Signature Workflows</h2>
+
+        <p>After a work order is submitted (status = Submitted), the submitter and other authorized users can collect additional signatures via two methods. These are accessed from the <strong>WO detail page</strong> (WO-4), not the create form.</p>
+
+        <h3>Workflow A: Request Signature (Internal User)</h3>
+        <div class="flow-diagram">
+            <div class="flow-node flow-node-active">Submitter<br><small>taps "Request Signature"</small></div>
+            <span class="flow-arrow">&rarr;</span>
+            <div class="flow-node">Select User<br><small>from team list</small></div>
+            <span class="flow-arrow">&rarr;</span>
+            <div class="flow-node">Notification Sent<br><small>push + in-app</small></div>
+            <span class="flow-arrow">&rarr;</span>
+            <div class="flow-node flow-node-active">Recipient Opens WO<br><small>read-only view</small></div>
+            <span class="flow-arrow">&rarr;</span>
+            <div class="flow-node" style="background:#dcfce7; border-color:#10b981; color:#166534;">Signs on Canvas<br><small>Signature saved with userId</small></div>
+        </div>
+        <ul>
+            <li>Mirrors the existing <strong>form acknowledgement</strong> notification pattern</li>
+            <li>Recipient receives a push notification: <em>"[User] requested your signature on WO-0042"</em></li>
+            <li>Tapping the notification opens the WO detail page in <strong>read-only mode</strong> with the signature canvas at the bottom</li>
+            <li>Signature is saved with <code>userId</code> set to the signing user</li>
+            <li><strong>Use case:</strong> Site worker fills out WO, sends to foreman for approval signature</li>
+        </ul>
+
+        <h3>Workflow B: Collect In-Person (External Person)</h3>
+        <div class="flow-diagram">
+            <div class="flow-node flow-node-active">User<br><small>taps "Collect Signature"</small></div>
+            <span class="flow-arrow">&rarr;</span>
+            <div class="flow-node flow-node-external">Device Handoff<br><small>phone to client</small></div>
+            <span class="flow-arrow">&rarr;</span>
+            <div class="flow-node">WO Read-Only View<br><small>full WO displayed</small></div>
+            <span class="flow-arrow">&rarr;</span>
+            <div class="flow-node flow-node-external">Enter Name + Sign<br><small>signerName, no userId</small></div>
+            <span class="flow-arrow">&rarr;</span>
+            <div class="flow-node" style="background:#dcfce7; border-color:#10b981; color:#166534;">Signature Saved<br><small>returns to WO detail</small></div>
+        </div>
+        <ul>
+            <li>Initiating user taps "Collect Signature" which opens a <strong>dedicated signing view</strong></li>
+            <li>The signing view shows the WO content read-only, then a signature area at the bottom</li>
+            <li>External signer enters their name (required), optionally email and company</li>
+            <li>Signature is saved with <code>userId = null</code>, <code>signerName</code> populated</li>
+            <li>After signing, the view returns to the WO detail page (not left on the signing screen)</li>
+            <li><strong>Use case:</strong> Foreman hands phone to GC rep / client for on-site sign-off</li>
+        </ul>
+
+        <h3>Chained Example</h3>
+        <div class="flow-diagram">
+            <div class="flow-node flow-node-active">Worker<br><small>creates + self-signs<br>(WO-8a step 5)</small></div>
+            <span class="flow-arrow">&rarr;</span>
+            <div class="flow-node flow-node-active">Request Signature<br><small>sends to Foreman<br>(Workflow A)</small></div>
+            <span class="flow-arrow">&rarr;</span>
+            <div class="flow-node flow-node-active">Foreman<br><small>opens notification<br>signs on WO</small></div>
+            <span class="flow-arrow">&rarr;</span>
+            <div class="flow-node flow-node-external">Foreman<br><small>taps "Collect Signature"<br>hands to Client</small></div>
+            <span class="flow-arrow">&rarr;</span>
+            <div class="flow-node" style="background:#dcfce7; border-color:#10b981; color:#166534;">Client<br><small>signs in-person<br>(Workflow B)</small></div>
+        </div>
+    </div>
+
+    <!-- 2. Entry Points -->
+    <div class="uis-section">
+        <h2>2. Entry Points</h2>
+
+        <p>Both workflows are accessed from the <strong>WO detail page</strong> (WO-4) overview tab, within the Signatures section.</p>
+
+        <h3>Signatures section on WO detail</h3>
+        <p>The existing WO detail page (WO-4) shows signatures on the overview tab via <code>customColumnRender</code>. This section is extended with two action buttons and a live list of all signatures + pending requests.</p>
+
+        <h3>Mockup: WO Detail &mdash; Signatures Section</h3>
+        <div style="max-width:600px; margin:14px 0; border:1px solid #e2e8f0; border-radius:12px; overflow:hidden;">
+            <div style="background:#f8fafc; padding:12px 16px; border-bottom:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center;">
+                <span style="font-size:14px; font-weight:700;">Signatures</span>
+                <div style="display:flex; gap:8px;">
+                    <div style="background:#3b82f6; color:#fff; border-radius:6px; padding:6px 12px; font-size:12px; font-weight:600; cursor:pointer;">Request Signature</div>
+                    <div style="background:#ec4899; color:#fff; border-radius:6px; padding:6px 12px; font-size:12px; font-weight:600; cursor:pointer;">Collect In-Person</div>
+                </div>
+            </div>
+            <div style="padding:16px;">
+                <!-- Signed -->
+                <div class="signer-card">
+                    <div class="signer-avatar signer-avatar-internal">MJ</div>
+                    <div class="signer-info">
+                        <div class="signer-name">Mike Johnson</div>
+                        <div class="signer-detail">Self-signed &bull; Mar 30, 2026 at 4:32 PM</div>
+                    </div>
+                    <span class="signer-status status-signed">SIGNED</span>
+                </div>
+                <!-- Pending request -->
+                <div class="signer-card">
+                    <div class="signer-avatar signer-avatar-internal">DW</div>
+                    <div class="signer-info">
+                        <div class="signer-name">Dave Wilson</div>
+                        <div class="signer-detail">Requested &bull; Sent Mar 30, 2026 at 5:10 PM</div>
+                    </div>
+                    <span class="signer-status status-requested">REQUESTED</span>
+                </div>
+                <!-- External signed -->
+                <div class="signer-card">
+                    <div class="signer-avatar signer-avatar-external">JD</div>
+                    <div class="signer-info">
+                        <div class="signer-name">John Doe</div>
+                        <div class="signer-detail">In-person &bull; Pedersen Corp &bull; Mar 31, 2026 at 9:15 AM</div>
+                    </div>
+                    <span class="signer-status status-signed">SIGNED</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3. Workflow A: Request Signature -->
+    <div class="uis-section">
+        <h2>3. Workflow A: Request Signature (Internal)</h2>
+
+        <h3>Trigger</h3>
+        <p>User taps <strong>"Request Signature"</strong> on the WO detail signatures section. Opens a user selection flyout.</p>
+
+        <h3>User Selection</h3>
+        <ul>
+            <li>Standard <code>CustomCombobox</code> searching active Users in the organization</li>
+            <li>Shows user name + role</li>
+            <li>Can request from multiple users (one at a time, each creates a separate request)</li>
+            <li>Cannot request from a user who has already signed or has a pending request</li>
+        </ul>
+
+        <h3>On request</h3>
+        <ol>
+            <li>Create a <code>SignatureRequest</code> record (new model &mdash; see Section 6) linking the WO to the requested user</li>
+            <li>Send push notification via existing notification infrastructure: <em>"[Requester Name] requested your signature on [WO Number]"</em></li>
+            <li>Send in-app notification (activity feed entry)</li>
+            <li>The request appears in the signatures section with status = REQUESTED</li>
+        </ol>
+
+        <h3>Recipient experience</h3>
+        <ol>
+            <li>Receives push notification</li>
+            <li>Tapping opens the WO detail page</li>
+            <li>A banner at the top: <em>"Your signature has been requested"</em> with a <strong>"Sign Now"</strong> button</li>
+            <li>"Sign Now" scrolls to / opens the signature area: canvas + GPS capture</li>
+            <li>On sign, a <code>Signature</code> record is created with <code>userId</code> = the signing user, and the <code>SignatureRequest</code> status is updated to SIGNED</li>
+        </ol>
+
+        <h3>Mockup: Request Signature Flyout</h3>
+        <div class="mobile-frame">
+            <div class="mobile-header">
+                <span style="flex:1; text-align:center;">Request Signature</span>
+            </div>
+            <div class="mobile-body" style="min-height:350px;">
+                <div style="font-size:14px; color:#334155; margin-bottom:12px;">Select a team member to request their signature on <strong>WO-0042</strong>.</div>
+
+                <div style="font-size:12px; font-weight:600; color:#64748b; margin-bottom:6px;">Team Member *</div>
+                <div class="mobile-input" style="justify-content:space-between;">
+                    <span style="color:#94a3b8;">Search team members...</span>
+                    <span style="color:#0f172a;">&#128269;</span>
+                </div>
+
+                <!-- Selected user -->
+                <div class="signer-card" style="border-color:#3b82f6; background:#eff6ff;">
+                    <div class="signer-avatar signer-avatar-internal">DW</div>
+                    <div class="signer-info">
+                        <div class="signer-name">Dave Wilson</div>
+                        <div class="signer-detail">Site Foreman</div>
+                    </div>
+                    <span style="color:#dc2626; cursor:pointer; font-size:16px;">&times;</span>
+                </div>
+
+                <div style="margin-top:16px;">
+                    <div class="mobile-btn mobile-btn-primary">Send Request</div>
+                </div>
+                <div style="margin-top:8px;">
+                    <div class="mobile-btn" style="background:#f1f5f9; color:#0f172a;">Cancel</div>
+                </div>
+            </div>
+        </div>
+
+        <h3>Mockup: Recipient Banner on WO Detail</h3>
+        <div style="max-width:600px; margin:14px 0; background:#eff6ff; border:1px solid #bfdbfe; border-radius:10px; padding:14px 18px; display:flex; align-items:center; justify-content:space-between;">
+            <div>
+                <div style="font-size:14px; font-weight:600; color:#1d4ed8;">Your signature has been requested</div>
+                <div style="font-size:12px; color:#3b82f6;">Requested by Mike Johnson &bull; Mar 30, 2026</div>
+            </div>
+            <div style="background:#3b82f6; color:#fff; border-radius:6px; padding:8px 16px; font-size:13px; font-weight:600; cursor:pointer; flex-shrink:0;">Sign Now</div>
+        </div>
+    </div>
+
+    <!-- 4. Workflow B: Collect In-Person -->
+    <div class="uis-section">
+        <h2>4. Workflow B: Collect In-Person (External)</h2>
+
+        <h3>Trigger</h3>
+        <p>User taps <strong>"Collect In-Person"</strong> on the WO detail signatures section. Opens a dedicated signing view designed for device handoff.</p>
+
+        <h3>Signing view flow</h3>
+        <ol>
+            <li><strong>WO read-only display:</strong> The full work order content is shown in a scrollable read-only view (same layout as the Summary step from WO-8a). The external person can review all details before signing.</li>
+            <li><strong>Signer info inputs:</strong> Below the WO content, the signer enters:
+                <ul>
+                    <li><strong>Name</strong> (required) &mdash; maps to <code>Signature.signerName</code></li>
+                    <li><strong>Email</strong> (optional) &mdash; stored on the Signature for reference</li>
+                    <li><strong>Company</strong> (optional) &mdash; stored on the Signature for reference</li>
+                </ul>
+            </li>
+            <li><strong>Signature canvas:</strong> Standard <code>react-signature-canvas</code> with Clear button</li>
+            <li><strong>GPS capture:</strong> On sign, capture browser geolocation (same as WO-3c)</li>
+            <li><strong>"Confirm Signature" button:</strong> Creates the Signature record and returns to WO detail</li>
+        </ol>
+
+        <div class="callout">
+            <strong>Device handoff UX:</strong> The signing view should feel like a self-contained document the external person is reviewing and signing. No app navigation is visible &mdash; just the WO content, signer info, and signature canvas. A simple "Back" in the header returns the device owner to the WO detail page (with a confirmation if the canvas has content).
+        </div>
+
+        <h3>Mockup: In-Person Signing View</h3>
+        <div class="mobile-frame">
+            <div class="mobile-header">
+                <span style="font-size:13px; opacity:0.9; cursor:pointer;">&larr; Back</span>
+                <span style="flex:1; text-align:center;">WO-0042 &mdash; Sign</span>
+                <span></span>
+            </div>
+            <div class="mobile-body" style="min-height:700px;">
+                <div style="font-size:11px; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:12px;">Work Order Summary</div>
+
+                <!-- Compact WO summary -->
+                <div class="summary-section">
+                    <div class="summary-section-title">Work Order Info</div>
+                    <div class="summary-row">
+                        <span class="summary-label">WO Number</span>
+                        <span class="summary-value">WO-0042</span>
+                    </div>
+                    <div class="summary-row">
+                        <span class="summary-label">Project</span>
+                        <span class="summary-value">Riverdale Phase 2</span>
+                    </div>
+                    <div class="summary-row">
+                        <span class="summary-label">Date of Work</span>
+                        <span class="summary-value">Mar 30, 2026</span>
+                    </div>
+                    <div class="summary-row">
+                        <span class="summary-label">Description</span>
+                        <span class="summary-value" style="max-width:180px; text-align:right;">Extra insulation &mdash; 3rd floor</span>
+                    </div>
+                </div>
+
+                <div class="summary-section">
+                    <div class="summary-section-title">Labor</div>
+                    <div style="font-size:13px; color:#334155;">Journeyman Insulator &times; 3 &mdash; 8.0 hrs</div>
+                    <div style="font-size:13px; color:#334155; margin-top:4px;">Apprentice Insulator &times; 1 &mdash; 6.0 hrs</div>
+                </div>
+
+                <div class="summary-section">
+                    <div class="summary-section-title">Materials</div>
+                    <div style="font-size:13px; color:#334155;">R-30 Fiberglass Batts &mdash; Qty 24</div>
+                </div>
+
+                <div class="summary-section">
+                    <div class="summary-section-title">Equipment</div>
+                    <div style="font-size:13px; color:#334155;">Scissor Lift 26ft &mdash; Qty 1</div>
+                </div>
+
+                <!-- Previous signatures -->
+                <div class="summary-section">
+                    <div class="summary-section-title">Previous Signatures</div>
+                    <div style="display:flex; gap:8px; align-items:center; margin-bottom:6px;">
+                        <div style="width:80px; height:30px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:4px; display:flex; align-items:center; justify-content:center;">
+                            <span style="font-family:cursive; font-size:12px; color:#3b82f6; transform:rotate(-2deg);">M Johnson</span>
+                        </div>
+                        <div style="font-size:11px; color:#64748b;">Mike Johnson &bull; Mar 30</div>
+                    </div>
+                    <div style="display:flex; gap:8px; align-items:center;">
+                        <div style="width:80px; height:30px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:4px; display:flex; align-items:center; justify-content:center;">
+                            <span style="font-family:cursive; font-size:12px; color:#3b82f6; transform:rotate(-2deg);">D Wilson</span>
+                        </div>
+                        <div style="font-size:11px; color:#64748b;">Dave Wilson &bull; Mar 30</div>
+                    </div>
+                </div>
+
+                <!-- Divider -->
+                <div style="border-top:2px solid #e2e8f0; margin:16px 0; padding-top:16px;">
+                    <div style="font-size:15px; font-weight:700; margin-bottom:12px;">Your Signature</div>
+
+                    <!-- Signer name -->
+                    <div style="font-size:12px; font-weight:600; color:#64748b; margin-bottom:6px;">Full Name *</div>
+                    <div class="mobile-input" style="height:44px;">
+                        <span style="color:#0f172a;">John Doe</span>
+                    </div>
+
+                    <!-- Email -->
+                    <div style="font-size:12px; font-weight:600; color:#64748b; margin-bottom:6px;">Email <span style="font-weight:400; color:#94a3b8;">(optional)</span></div>
+                    <div class="mobile-input" style="height:44px;">
+                        <span style="color:#0f172a;">john@pedersencorp.com</span>
+                    </div>
+
+                    <!-- Company -->
+                    <div style="font-size:12px; font-weight:600; color:#64748b; margin-bottom:6px;">Company <span style="font-weight:400; color:#94a3b8;">(optional)</span></div>
+                    <div class="mobile-input" style="height:44px;">
+                        <span style="color:#0f172a;">Pedersen Corp</span>
+                    </div>
+
+                    <!-- Signature canvas -->
+                    <div style="font-size:12px; font-weight:600; color:#64748b; margin-bottom:6px;">Signature *</div>
+                    <div style="border:2px solid #0f172a; border-radius:10px; height:120px; display:flex; align-items:center; justify-content:center; background:#fff; margin-bottom:8px; position:relative;">
+                        <span style="font-family:cursive; font-size:28px; color:#0f172a; transform:rotate(-3deg);">John Doe</span>
+                        <div style="position:absolute; top:8px; right:8px; background:#f1f5f9; border-radius:4px; padding:4px 10px; font-size:11px; color:#64748b; cursor:pointer;">Clear</div>
+                    </div>
+                    <div style="font-size:10px; color:#94a3b8; margin-bottom:16px;">GPS coordinates will be captured on signature</div>
+
+                    <div class="mobile-btn mobile-btn-success">Confirm Signature</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 5. Signature Record Handling -->
+    <div class="uis-section">
+        <h2>5. Signature Record Handling</h2>
+
+        <p>Both workflows create the same <code>Signature</code> model record (from WO-3a). The difference is which fields are populated.</p>
+
+        <table class="schema-table">
+            <thead><tr><th>Field</th><th>Workflow A (Internal)</th><th>Workflow B (External)</th></tr></thead>
+            <tbody>
+                <tr><td><code>referenceModel</code></td><td><code>"Job"</code></td><td><code>"Job"</code></td></tr>
+                <tr><td><code>referenceId</code></td><td>The WO's job ID</td><td>The WO's job ID</td></tr>
+                <tr><td><code>assetId</code></td><td>Signature image asset</td><td>Signature image asset</td></tr>
+                <tr><td><code>userId</code></td><td>Signing user's ID</td><td><code>null</code></td></tr>
+                <tr><td><code>signerName</code></td><td>Populated from User record</td><td>Manually entered name</td></tr>
+                <tr><td><code>signerEmail</code></td><td>From User record</td><td>Manually entered (optional)</td></tr>
+                <tr><td><code>signerCompany</code></td><td><code>null</code></td><td>Manually entered (optional)</td></tr>
+                <tr><td><code>latitude / longitude</code></td><td>GPS at time of signing</td><td>GPS at time of signing</td></tr>
+                <tr><td><code>signedAt</code></td><td>Timestamp</td><td>Timestamp</td></tr>
+            </tbody>
+        </table>
+
+        <div class="callout-warn">
+            <strong>Signature model additions:</strong> The Signature model from WO-3a needs two new optional fields: <code>signerEmail String? @db.VarChar(191)</code> and <code>signerCompany String? @db.VarChar(191)</code>. These are useful for both tracking and potential future email-based signature workflows.
+        </div>
+    </div>
+
+    <!-- 6. SignatureRequest Model -->
+    <div class="uis-section">
+        <h2>6. SignatureRequest Model</h2>
+
+        <p>Tracks pending signature requests for Workflow A. This is a lightweight model that links a WO to a requested user and tracks whether they've signed.</p>
+
+<pre>
+model SignatureRequest {
+    id              String    @id @db.VarChar(21)
+    isDeleted       Boolean   @default(false)
+    isArchived      Boolean   @default(false)
+    createdAt       DateTime  @default(now())
+    updatedAt       DateTime  @default(now()) @updatedAt
+    referenceModel  String                         // "Job"
+    referenceId     String    @db.VarChar(21)      // the WO's job ID
+    requestedById   String    @db.VarChar(21)      // user who sent the request
+    RequestedBy     User      @relation("SignatureRequestedBy", fields: [requestedById], references: [id])
+    requestedUserId String    @db.VarChar(21)      // user being asked to sign
+    RequestedUser   User      @relation("SignatureRequestedUser", fields: [requestedUserId], references: [id])
+    status          String    @default("PENDING")  // PENDING | SIGNED | DECLINED
+    signatureId     String?   @db.VarChar(21)      // FK to Signature once signed
+    Signature       Signature? @relation(fields: [signatureId], references: [id])
+    signedAt        DateTime?
+
+    @@index([referenceModel, referenceId, isDeleted])
+    @@index([requestedUserId, status, isDeleted])
+}
+</pre>
+
+        <h3>Status transitions</h3>
+        <table class="schema-table">
+            <thead><tr><th>Transition</th><th>Trigger</th></tr></thead>
+            <tbody>
+                <tr><td>PENDING &rarr; SIGNED</td><td>Requested user signs on the WO</td></tr>
+                <tr><td>PENDING &rarr; DECLINED</td><td>Requested user declines (optional v1 &mdash; can just ignore)</td></tr>
+            </tbody>
+        </table>
+
+        <div class="callout">
+            <strong>Polymorphic pattern.</strong> <code>SignatureRequest</code> uses <code>referenceModel</code> + <code>referenceId</code> so it can be reused for other models that need signature requests in the future (e.g., Change Orders, Estimates). For now only used with <code>referenceModel = "Job"</code>.
+        </div>
+    </div>
+
+    <!-- 7. Notifications -->
+    <div class="uis-section">
+        <h2>7. Notifications</h2>
+
+        <h3>Request Signature notification</h3>
+        <p>Follows the existing notification infrastructure (FCM push + in-app activity feed). Same pattern as form acknowledgement notifications.</p>
+
+        <table class="schema-table">
+            <thead><tr><th>Channel</th><th>Content</th></tr></thead>
+            <tbody>
+                <tr><td>Push (FCM)</td><td><em>"[Requester Name] requested your signature on [WO Number]"</em></td></tr>
+                <tr><td>In-app</td><td>Activity feed entry with link to WO detail page</td></tr>
+            </tbody>
+        </table>
+
+        <h3>Notification tap behavior</h3>
+        <p>Opens the WO detail page. The "Your signature has been requested" banner is shown based on querying <code>SignatureRequest</code> records where <code>requestedUserId = currentUser</code> and <code>status = PENDING</code>.</p>
+
+        <h3>Signature completed notification (back to requester)</h3>
+        <table class="schema-table">
+            <thead><tr><th>Channel</th><th>Content</th></tr></thead>
+            <tbody>
+                <tr><td>Push (FCM)</td><td><em>"[Signer Name] signed [WO Number]"</em></td></tr>
+                <tr><td>In-app</td><td>Activity feed entry</td></tr>
+            </tbody>
+        </table>
+        <p>Sent to the user who created the SignatureRequest. Also applies to in-person signatures &mdash; the user who initiated "Collect In-Person" doesn't need a notification (they're present), but other users who previously signed or requested signatures may want visibility. This is a v2 consideration.</p>
+    </div>
+
+    <!-- 8. Signing View Component -->
+    <div class="uis-section">
+        <h2>8. Signing View Component</h2>
+
+        <p>A shared component used by both workflows. Shows the WO in read-only mode with a signature area at the bottom.</p>
+
+<pre>
+interface IWOSigningViewProps {
+    jobId: string;
+    mode: "internal" | "external";  // determines which fields to show
+    signatureRequestId?: string;    // for Workflow A, to update request status
+    onComplete: () => void;         // callback after signature saved
+    onCancel: () => void;
+}
+</pre>
+
+        <h3>Mode differences</h3>
+        <table class="schema-table">
+            <thead><tr><th>Aspect</th><th><code>internal</code></th><th><code>external</code></th></tr></thead>
+            <tbody>
+                <tr><td>Signer name</td><td>Auto-populated from current user</td><td>Manual text input (required)</td></tr>
+                <tr><td>Email field</td><td>Hidden (known from user record)</td><td>Shown (optional)</td></tr>
+                <tr><td>Company field</td><td>Hidden</td><td>Shown (optional)</td></tr>
+                <tr><td>Signature.userId</td><td>Set to current user</td><td><code>null</code></td></tr>
+                <tr><td>On complete</td><td>Updates SignatureRequest status</td><td>Just creates Signature</td></tr>
+            </tbody>
+        </table>
+
+        <h3>Read-only WO content</h3>
+        <p>Reuses the <code>readOnlySummary</code> renderers from WO-8a's Summary step. Each section displays its data using the same compact read-only format. This avoids building a second read-only view.</p>
+    </div>
+
+    <!-- 9. Change Surface -->
+    <div class="uis-section">
+        <h2>9. Change Surface</h2>
+        <div class="blast-summary">
+            <div class="blast-row"><span class="blast-label">New backend models</span><span class="blast-value">1 (SignatureRequest)</span></div>
+            <div class="blast-row"><span class="blast-label">Modified backend models</span><span class="blast-value">1 (Signature + signerEmail, signerCompany)</span></div>
+            <div class="blast-row"><span class="blast-label">New API mutations</span><span class="blast-value">2 (createSignatureRequest, sign on request)</span></div>
+            <div class="blast-row"><span class="blast-label">New frontend components</span><span class="blast-value">3 (WOSigningView, RequestSignatureFlyout, Signatures detail section)</span></div>
+            <div class="blast-row"><span class="blast-label">Modified frontend</span><span class="blast-value">1 (WO detail page &mdash; signatures section)</span></div>
+            <div class="blast-row"><span class="blast-label">Notification templates</span><span class="blast-value">2 (request + signed confirmation)</span></div>
+        </div>
+        <table class="schema-table">
+            <thead><tr><th>Action</th><th>File / Area</th><th>Notes</th></tr></thead>
+            <tbody>
+                <tr>
+                    <td><span class="action-new">NEW</span></td>
+                    <td>Prisma: <code>SignatureRequest</code></td>
+                    <td>Polymorphic model tracking pending signature requests</td>
+                </tr>
+                <tr>
+                    <td><span class="action-mod">MOD</span></td>
+                    <td>Prisma: <code>Signature</code></td>
+                    <td>Add <code>signerEmail</code>, <code>signerCompany</code> optional fields</td>
+                </tr>
+                <tr>
+                    <td><span class="action-new">NEW</span></td>
+                    <td>API: <code>createSignatureRequest</code> mutation</td>
+                    <td>Creates request + sends notification</td>
+                </tr>
+                <tr>
+                    <td><span class="action-new">NEW</span></td>
+                    <td>API: Notification template</td>
+                    <td>Push + in-app for signature request and completion</td>
+                </tr>
+                <tr>
+                    <td><span class="action-new">NEW</span></td>
+                    <td>Frontend: <code>WOSigningView.tsx</code></td>
+                    <td>Shared signing view with read-only WO content + signature canvas. Used by both workflows.</td>
+                </tr>
+                <tr>
+                    <td><span class="action-new">NEW</span></td>
+                    <td>Frontend: <code>RequestSignatureFlyout.tsx</code></td>
+                    <td>User picker flyout for Workflow A</td>
+                </tr>
+                <tr>
+                    <td><span class="action-mod">MOD</span></td>
+                    <td>Frontend: WO detail overview</td>
+                    <td>Extended signatures section with action buttons, status badges, pending request display</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- 10. Acceptance Criteria -->
+    <div class="uis-section">
+        <h2>10. Acceptance Criteria</h2>
+        <ol class="ac-list">
+            <li><span><strong>Workflow A:</strong> "Request Signature" button on WO detail opens user picker flyout</span></li>
+            <li><span>Selecting a user creates a <code>SignatureRequest</code> and sends push + in-app notification</span></li>
+            <li><span>Requested user sees "Your signature has been requested" banner on WO detail</span></li>
+            <li><span>"Sign Now" opens the signing view with signer name auto-populated from user record</span></li>
+            <li><span>Signing creates a <code>Signature</code> with <code>userId</code> set and updates <code>SignatureRequest</code> status to SIGNED</span></li>
+            <li><span>Requester receives a "signed" confirmation notification</span></li>
+            <li><span><strong>Workflow B:</strong> "Collect In-Person" button opens the signing view in external mode</span></li>
+            <li><span>Signing view shows full WO content in read-only (reuses readOnlySummary renderers)</span></li>
+            <li><span>External signer enters name (required), optionally email and company</span></li>
+            <li><span>Signing creates a <code>Signature</code> with <code>userId = null</code> and <code>signerName</code> populated</span></li>
+            <li><span>GPS coordinates captured on both workflows</span></li>
+            <li><span>After signing, view returns to WO detail page</span></li>
+            <li><span>Signatures section on WO detail shows all signatures (self, internal, external) with status badges</span></li>
+            <li><span>Cannot request signature from user who already signed or has a pending request</span></li>
+            <li><span>Chained flow works: self-sign &rarr; request internal &rarr; collect external on same WO</span></li>
+        </ol>
+    </div>
+
+    <!-- 11. Dependencies -->
+    <div class="uis-section">
+        <h2>11. Dependencies</h2>
+        <h3>Requires</h3>
+        <p>
+            <span class="dep-tag dep-requires">WO-8a</span> Stepped form wizard with self-signing (step 5) + readOnlySummary renderers<br>
+            <span class="dep-tag dep-requires">WO-3a</span> Signature model (polymorphic, referenceModel/referenceId)<br>
+            <span class="dep-tag dep-requires">WO-3c</span> Signature canvas component + GPS capture<br>
+            <span class="dep-tag dep-requires">WO-4</span> WO detail page (entry point for both workflows)
+        </p>
+        <h3>Enables</h3>
+        <p>
+            <span class="dep-tag dep-enables">Future</span> Email-based remote signing (external signer receives link, signs in browser &mdash; not v1)
+        </p>
+    </div>
+
+</div>
+</body>
+</html>

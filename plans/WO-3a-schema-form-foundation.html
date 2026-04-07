@@ -1,0 +1,700 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WO-3a: Schema & Form Foundation — Implementation Plan</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Inter', -apple-system, sans-serif; background: #f8fafc; color: #0f172a; }
+.plan-wrap { max-width: 880px; margin: 0 auto; padding: 40px 24px 80px; }
+h1 { font-size: 24px; font-weight: 800; margin: 0 0 16px; }
+h2 { font-size: 18px; font-weight: 700; margin: 28px 0 12px; padding-bottom: 8px; border-bottom: 2px solid #e2e8f0; }
+h3 { font-size: 15px; font-weight: 700; margin: 20px 0 8px; padding-top: 10px; border-top: 1px solid #f1f5f9; }
+h4 { font-size: 14px; font-weight: 700; margin: 14px 0 6px; }
+p { font-size: 14px; color: #334155; line-height: 1.7; margin: 6px 0; }
+ul, ol { padding-left: 20px; margin: 8px 0; }
+li { font-size: 14px; color: #334155; line-height: 1.7; margin: 3px 0; }
+strong { color: #0f172a; }
+code { font-family: 'SF Mono', monospace; background: #f1f5f9; padding: 1px 6px; border-radius: 4px; font-size: 12px; color: #7c3aed; }
+pre { background: #1e293b; color: #e2e8f0; border-radius: 8px; padding: 16px; overflow-x: auto; font-size: 13px; line-height: 1.6; margin: 12px 0; font-family: 'SF Mono', monospace; }
+pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
+hr { border: none; border-top: 1px solid #e2e8f0; margin: 24px 0; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 12px 0; }
+th { text-align: left; padding: 8px 12px; background: #f1f5f9; border-bottom: 2px solid #e2e8f0; font-weight: 600; }
+td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
+.check-item { display: flex; gap: 8px; align-items: flex-start; padding: 5px 0; }
+.check-box { width: 16px; height: 16px; border: 2px solid #cbd5e1; border-radius: 3px; flex-shrink: 0; margin-top: 2px; }
+.callout { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 14px 18px; margin: 14px 0; font-size: 13px; color: #1e40af; }
+.callout strong { color: #1e3a8a; }
+    </style>
+</head>
+<body>
+<div class="plan-wrap" id="rendered"></div>
+
+<script type="text/plain" id="plan-md">
+# WO-3a: Schema & Form Foundation — Implementation Plan
+
+## Overview
+
+Add `dateOfWork` to Job, create the polymorphic `Signature` model, seed DocumentAttributeAssignments for WO-specific fields, and update job number generation to be classification-aware. This establishes the foundation that WO-3b (Line Item Editors) and WO-3c (Signatures & Submission) build on.
+
+**Estimated effort:** 3-4 days
+**Risk:** Medium — modifies Job model, new Signature model, DAA seed migration
+**Spec:** `tm-work-orders-uis/uis-20c-1-schema-form-foundation.html`
+**Requires:** WO-1 (JobClassification), WO-2 (Line Item Tables), PR #6831 (Job DataModel Refactor)
+
+---
+
+## Step 1: Prisma Schema — dateOfWork on Job
+
+**File:** `apps/api/prisma/schema.prisma`
+
+Add to the existing Job model (around line ~1183, after existing date fields):
+
+```prisma
+dateOfWork    DateTime?   @db.Date
+```
+
+### Job Model Class
+
+**File:** `apps/api/src/models/Job.ts`
+
+Add to modelFields (after existing date fields):
+
+```typescript
+{
+    name: "dateOfWork",
+    type: "date",
+    options: {
+        isFilterable: true,
+        canEdit: true,
+        canCreate: true
+    }
+}
+```
+
+### Job GraphQL
+
+**File:** `apps/api/src/graphql/models/Job.ts`
+
+Add `dateOfWork: Date` to the Job type definition, CreateJob input, and EditJob input.
+
+---
+
+## Step 2: Prisma Schema — Signature Model
+
+**File:** `apps/api/prisma/schema.prisma`
+
+```prisma
+model Signature {
+  id                String    @id @db.VarChar(21)
+  isDeleted         Boolean   @default(false)
+  isArchived        Boolean   @default(false)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @default(now()) @updatedAt
+
+  referenceModel    String
+  referenceId       String    @db.VarChar(21)
+
+  assetId           String    @db.VarChar(21)
+  Asset             Asset     @relation(fields: [assetId], references: [id])
+
+  userId            String?   @db.VarChar(21)
+  User              User?     @relation(fields: [userId], references: [id])
+
+  signerName        String?   @db.VarChar(191)   // for external signers not in the system
+  signerEmail       String?   @db.VarChar(191)   // optional contact email
+  signerCompany     String?   @db.VarChar(191)   // optional company affiliation
+
+  signedAt          DateTime  @default(now())
+  latitude          Decimal?  @db.Decimal(10, 7)
+  longitude         Decimal?  @db.Decimal(10, 7)
+
+  SignatureRequests  SignatureRequest[]
+
+  @@index([referenceModel, referenceId, isDeleted])
+  @@index([assetId])
+}
+```
+
+Add relations on existing models:
+
+```prisma
+// On Asset:
+Signatures    Signature[]
+
+// On User:
+Signatures    Signature[]
+```
+
+---
+
+## Step 3: Migration — Schema Changes
+
+**Create file:** `apps/api/prisma/migrations/[timestamp]_wo_3a_schema_foundation/migration.sql`
+
+```sql
+-- dateOfWork on Job
+ALTER TABLE `Job` ADD COLUMN `dateOfWork` DATE NULL;
+
+-- Signature table
+CREATE TABLE `Signature` (
+  `id` VARCHAR(21) NOT NULL,
+  `isDeleted` BOOLEAN NOT NULL DEFAULT false,
+  `isArchived` BOOLEAN NOT NULL DEFAULT false,
+  `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  `updatedAt` DATETIME(3) NOT NULL,
+  `referenceModel` VARCHAR(191) NOT NULL,
+  `referenceId` VARCHAR(21) NOT NULL,
+  `assetId` VARCHAR(21) NOT NULL,
+  `userId` VARCHAR(21) NULL,
+  `signerName` VARCHAR(191) NULL,
+  `signerEmail` VARCHAR(191) NULL,
+  `signerCompany` VARCHAR(191) NULL,
+  `signedAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  `latitude` DECIMAL(10, 7) NULL,
+  `longitude` DECIMAL(10, 7) NULL,
+  PRIMARY KEY (`id`),
+  INDEX `Signature_ref_idx` (`referenceModel`, `referenceId`, `isDeleted`),
+  INDEX `Signature_assetId_idx` (`assetId`),
+  CONSTRAINT `Signature_assetId_fkey` FOREIGN KEY (`assetId`) REFERENCES `Asset`(`id`),
+  CONSTRAINT `Signature_userId_fkey` FOREIGN KEY (`userId`) REFERENCES `User`(`id`)
+);
+```
+
+---
+
+## Step 4: TypeScript Types
+
+**File:** `apps/api/src/types/Signature.types.ts` (new file)
+
+```typescript
+export interface ISignature {
+    referenceModel: string;
+    referenceId: string;
+    assetId: string;
+    userId?: string;
+    signerName?: string;
+    signerEmail?: string;
+    signerCompany?: string;
+    signedAt: Date;
+    latitude?: number;
+    longitude?: number;
+}
+```
+
+---
+
+## Step 5: Signature Model Class
+
+**Create file:** `apps/api/src/models/Signature.ts`
+
+```typescript
+protected modelFields: IField<ISignature>[] = [
+    {
+        name: "referenceModel",
+        type: "string",
+        options: { isRequiredOnCreate: true, isFilterable: true, canEdit: false }
+    },
+    {
+        name: "referenceId",
+        type: "string",
+        options: { isRequiredOnCreate: true, isFilterable: true, canEdit: false }
+    },
+    {
+        name: "assetId",
+        type: "string",
+        options: { isRequiredOnCreate: true, canEdit: false }
+    },
+    {
+        name: "userId",
+        type: "string",
+        options: { isFilterable: true }
+    },
+    {
+        name: "signerName",
+        type: "string"
+    },
+    {
+        name: "signerEmail",
+        type: "string"
+    },
+    {
+        name: "signerCompany",
+        type: "string"
+    },
+    {
+        name: "signedAt",
+        type: "datetime",
+        options: { defaultValue: () => new Date() }
+    },
+    {
+        name: "latitude",
+        type: "float"
+    },
+    {
+        name: "longitude",
+        type: "float"
+    }
+];
+```
+
+---
+
+## Step 6: Signature GraphQL Resolver
+
+**Create file:** `apps/api/src/graphql/models/Signature.ts`
+
+```graphql
+type Signature {
+    id: ID!
+    referenceModel: String!
+    referenceId: String!
+    assetId: String!
+    Asset: Asset
+    userId: String
+    User: User
+    signerName: String
+    signerEmail: String
+    signerCompany: String
+    signedAt: DateTime!
+    latitude: Float
+    longitude: Float
+    createdAt: DateTime
+}
+
+input CreateSignature {
+    referenceModel: String!
+    referenceId: String!
+    assetId: String!
+    userId: String
+    signerName: String
+    signerEmail: String
+    signerCompany: String
+    signedAt: DateTime
+    latitude: Float
+    longitude: Float
+}
+
+extend type Query {
+    signatures(referenceModel: String!, referenceId: ID!): [Signature]
+}
+
+extend type Mutation {
+    createSignature(data: CreateSignature!): Signature
+    deleteSignature(id: ID!): Boolean
+}
+```
+
+Resolvers:
+
+```typescript
+Resolvers: {
+    Asset: (parent) => prisma.asset.findUnique({ where: { id: parent.assetId } }),
+    User: (parent) => parent.userId
+        ? prisma.user.findUnique({ where: { id: parent.userId } })
+        : null
+},
+Query: {
+    signatures: (_, args, context) =>
+        prisma.signature.findMany({
+            where: {
+                referenceModel: args.referenceModel,
+                referenceId: args.referenceId,
+                isDeleted: false
+            },
+            orderBy: { signedAt: "asc" }
+        })
+},
+Mutation: {
+    createSignature: (_, args, context) =>
+        new SignatureModel().createItem(args.data, context.userId()),
+    deleteSignature: (_, args, context) =>
+        new SignatureModel().deleteItem(args.id, context.userId())
+}
+```
+
+Register in `apps/api/src/graphql/schema.ts` (5 places) and export from `models/index.ts`.
+
+---
+
+## Step 7: Add Signatures resolver on Job type
+
+**File:** `apps/api/src/graphql/models/Job.ts`
+
+Add field-level resolver for polymorphic signatures:
+
+```typescript
+// In Job Resolvers:
+Signatures: (parent) =>
+    prisma.signature.findMany({
+        where: {
+            referenceModel: "Job",
+            referenceId: parent.id,
+            isDeleted: false
+        },
+        orderBy: { signedAt: "asc" }
+    })
+```
+
+Add to Job type definition:
+
+```graphql
+Signatures: [Signature]
+```
+
+---
+
+## Step 8: Migration — Backfill Existing DAAs + Duplicate Shared + Create WO DAAs
+
+**Create file:** `apps/api/prisma/migrations/[timestamp]_wo_3a_daa_setup/migration.sql`
+
+**Pattern:** Follows the Expense separation migration (`20241209145000_expense_document_attribute_complete_separation`) exactly. NO comma-delimited subModel values — single values only. Shared fields are DUPLICATED into both `PROJECT_JOB` and `WORK_ORDER` sets.
+
+This migration does four things:
+1. Backfills all existing Job DAAs to `subModel = "PROJECT_JOB"`
+2. Backfills all existing Job DocumentSections to `subModel = "PROJECT_JOB"`
+3. Creates WO DocumentSections with `subModel = "WORK_ORDER"`
+4. Duplicates shared Job DAAs into the WO sections + creates WO-only DAAs
+
+### 8a. Backfill existing Job DAAs and sections to PROJECT_JOB
+
+```sql
+-- All existing Job DAAs become PROJECT_JOB
+UPDATE `DocumentAttributeAssignment`
+SET `subModel` = 'PROJECT_JOB'
+WHERE `referenceModel` = 'Job'
+AND (`subModel` IS NULL OR `subModel` = '');
+
+-- All existing Job sections become PROJECT_JOB
+UPDATE `DocumentSection`
+SET `subModel` = 'PROJECT_JOB'
+WHERE `referenceModel` = 'Job'
+AND (`subModel` IS NULL OR `subModel` = '');
+```
+
+After this, existing PROJECT_JOB forms work exactly as before — the form passes `subModel = "PROJECT_JOB"` and gets the same DAAs it always did.
+
+### 8b. Create WO DocumentSections
+
+```sql
+INSERT INTO `DocumentSection` (`id`, `createdAt`, `updatedAt`, `referenceModel`, `subModel`, `name`, `orderNo`)
+VALUES
+    ('GENERATE_ID_SEC_WO_1', NOW(), NOW(), 'Job', 'WORK_ORDER', 'Work Order Info', 0),
+    ('GENERATE_ID_SEC_WO_2', NOW(), NOW(), 'Job', 'WORK_ORDER', 'Labor', 1),
+    ('GENERATE_ID_SEC_WO_3', NOW(), NOW(), 'Job', 'WORK_ORDER', 'Materials', 2),
+    ('GENERATE_ID_SEC_WO_4', NOW(), NOW(), 'Job', 'WORK_ORDER', 'Equipment', 3),
+    ('GENERATE_ID_SEC_WO_5', NOW(), NOW(), 'Job', 'WORK_ORDER', 'Signatures', 4);
+```
+
+### 8c. Duplicate shared Job DAAs into the WO "Work Order Info" section
+
+For each shared field that needs to appear on WO forms, INSERT a new DAA record that copies the `defaultAttribute`, `defaultAttributeLabel`, `defaultAttributeType`, and config from the existing PROJECT_JOB DAA, but with `subModel = "WORK_ORDER"` and `sectionId` pointing to the WO "Work Order Info" section.
+
+This follows the exact pattern from the Expense separation migration (`20241209145000`).
+
+```sql
+-- Duplicate shared Job DAAs for WORK_ORDER
+-- Each gets a new ID, subModel = 'WORK_ORDER', and sectionId = WO Info section
+INSERT INTO `DocumentAttributeAssignment` (
+    `id`, `createdAt`, `updatedAt`, `referenceModel`, `subModel`,
+    `orderNo`, `sectionId`, `defaultAttribute`, `defaultAttributeLabel`,
+    `defaultAttributeType`, `defaultAttributeIsRequired`, `defaultAttributeIsDerived`,
+    `slug`
+)
+SELECT
+    -- Generate new IDs using CONCAT + existing ID suffix for traceability
+    CONCAT('wo_', SUBSTRING(daa.id, 1, 18)),
+    NOW(), NOW(),
+    'Job', 'WORK_ORDER',
+    daa.orderNo,
+    'GENERATE_ID_SEC_WO_1',  -- Work Order Info section
+    daa.defaultAttribute,
+    daa.defaultAttributeLabel,
+    daa.defaultAttributeType,
+    daa.defaultAttributeIsRequired,
+    daa.defaultAttributeIsDerived,
+    daa.slug
+FROM `DocumentAttributeAssignment` daa
+WHERE daa.referenceModel = 'Job'
+AND daa.subModel = 'PROJECT_JOB'
+AND daa.defaultAttribute IN (
+    'job-number',
+    'job-name',
+    'job-description',
+    'job-rate-type',
+    'job-wage-region',
+    'job-purchase-order',
+    'job-status',
+    'job-type'
+);
+```
+
+**Important:** The `CONCAT('wo_', SUBSTRING(...))` ID generation is illustrative — use proper 21-char nanoid values in the actual migration. The `IN` clause slugs must be verified against the database. Run `SELECT defaultAttribute FROM DocumentAttributeAssignment WHERE referenceModel = 'Job'` to confirm exact values from PR #6831.
+
+### 8d. Create WO-only DAAs
+
+```sql
+INSERT INTO `DocumentAttributeAssignment` (
+    `id`, `createdAt`, `updatedAt`, `referenceModel`, `subModel`,
+    `orderNo`, `sectionId`, `defaultAttribute`, `defaultAttributeLabel`,
+    `defaultAttributeType`, `defaultAttributeIsRequired`, `defaultAttributeIsDerived`,
+    `slug`
+)
+VALUES
+    -- Work Order Info section (dateOfWork is WO-only)
+    ('GENERATE_ID_DAA_1', NOW(), NOW(), 'Job', 'WORK_ORDER',
+     10, 'GENERATE_ID_SEC_WO_1', 'wo-date-of-work', 'Date of Work',
+     'date', false, false, 'wo-date-of-work'),
+
+    -- Labor section
+    ('GENERATE_ID_DAA_2', NOW(), NOW(), 'Job', 'WORK_ORDER',
+     0, 'GENERATE_ID_SEC_WO_2', 'wo-labor-items', 'Labor',
+     'custom', false, false, 'wo-labor-items'),
+
+    -- Materials section
+    ('GENERATE_ID_DAA_3', NOW(), NOW(), 'Job', 'WORK_ORDER',
+     0, 'GENERATE_ID_SEC_WO_3', 'wo-material-items', 'Materials',
+     'custom', false, false, 'wo-material-items'),
+
+    -- Equipment section
+    ('GENERATE_ID_DAA_4', NOW(), NOW(), 'Job', 'WORK_ORDER',
+     0, 'GENERATE_ID_SEC_WO_4', 'wo-equipment-items', 'Equipment',
+     'custom', false, false, 'wo-equipment-items'),
+
+    -- Signatures section
+    ('GENERATE_ID_DAA_5', NOW(), NOW(), 'Job', 'WORK_ORDER',
+     0, 'GENERATE_ID_SEC_WO_5', 'wo-signatures', 'Signatures',
+     'custom', false, false, 'wo-signatures');
+```
+
+### 8e. TableFeed configuration for Work Orders
+
+**File:** `apps/api/src/graphql/models/TableFeed/configureColumns.ts`
+
+Add Work Order table feed configuration (follows Expense pattern at lines 63-69):
+
+```typescript
+WorkOrder: {
+    ...jobCommon,  // or define WO-specific column defaults
+    subModel: "WorkOrder"
+},
+InnerWorkOrder: {
+    ...jobCommon,
+    subModel: "InnerWorkOrder",
+    mapTableName: "WorkOrder"
+}
+```
+
+This ensures the Work Orders list page (from WO-1) loads column configuration from `subModel = "WorkOrder"` DAAs, not from the PROJECT_JOB set.
+
+### Summary of DAA records after migration
+
+| subModel | Source | Content |
+|---|---|---|
+| `PROJECT_JOB` | Backfilled from existing NULL | All original Job DAAs — project-specific + shared fields. PROJECT_JOB forms unchanged. |
+| `WORK_ORDER` | Duplicated from shared + new WO-only | Shared fields (name, number, status, etc.) duplicated into WO sections + WO-only fields (dateOfWork, labor, material, equipment, signatures) |
+
+**Key design:** Each subModel value is a complete, self-contained set of DAAs for that form type. No field references the other set. The form passes `subModel` and gets exactly one set.
+
+**Note:** Generate unique 21-char nanoid values for all IDs. Verify exact defaultAttribute slugs from PR #6831 before running. The `job-type` DAA should also be duplicated so the WO form shows the job type selector (which is how the user selects "T&M Work Order", "Fireproofing WO", etc.).
+
+---
+
+## Step 9: Update Job Number Generation
+
+**File:** `apps/api/src/models/Job.ts`
+
+**Important:** PR #6831 already updated `generateJobNumber` to handle the case where `projectId` is null. WO-3a extends those changes to make number generation classification-aware. The branching is based on `jobClassification` derived from `jobTypeId`, NOT on whether a project is attached (a WO can optionally be under a project).
+
+### 9a. Resolve classification from jobTypeId
+
+Add a helper or inline lookup that derives the classification. This is needed before number generation and before fullJobNumber formatting:
+
+```typescript
+// Helper — can be a private method on the Job model:
+private async getJobClassification(jobTypeId?: string): Promise<string> {
+    if (!jobTypeId) return "PROJECT_JOB";
+    const jobType = await prisma.propertyValue.findUnique({
+        where: { id: jobTypeId },
+        select: { jobClassification: true }
+    });
+    return jobType?.jobClassification ?? "PROJECT_JOB";
+}
+```
+
+### 9b. Extend generateJobNumber with classification parameter
+
+The method signature from PR #6831 already accepts whatever params it needs for the project-optional case. Add `jobClassification` as a parameter (or derive it internally from `jobTypeId`):
+
+```typescript
+// Classification-aware numbering:
+if (jobClassification === "WORK_ORDER") {
+    // WO-specific numbering: auto-increment across all WORK_ORDER jobs
+    const instance = await prisma.instance.findFirst();
+    const pad = instance?.jobNumbering ?? 3;
+
+    const existingWOs = await prisma.job.findMany({
+        where: {
+            isDeleted: false,
+            jobType: { jobClassification: "WORK_ORDER" }
+        },
+        select: { number: true },
+        orderBy: { createdAt: "desc" }
+    });
+
+    const numbers = existingWOs
+        .map(j => parseInt(j.number?.replace(/\D/g, "") ?? "0"))
+        .filter(n => !isNaN(n));
+    const largest = numbers.length > 0 ? Math.max(...numbers) : 0;
+
+    return (largest + 1).toString().padStart(pad, "0");
+}
+
+// PROJECT_JOB numbering (existing logic from PR #6831)
+// ... handles both with-project and without-project cases ...
+```
+
+### 9c. Update fullJobNumber formatting
+
+Also classification-based, not project-based:
+
+```typescript
+// In customCreateItem — after number is generated:
+const classification = await this.getJobClassification(data.jobTypeId);
+
+if (classification === "WORK_ORDER") {
+    const woPrefix = "WO"; // Could be instance setting for v1
+    fullJobNumber = `${woPrefix}-${data.number}`;
+    // If WO is under a project, optionally include project prefix:
+    // fullJobNumber = data.projectId
+    //     ? `${project.number}-WO-${data.number}`
+    //     : `WO-${data.number}`;
+} else {
+    // Existing PROJECT_JOB logic from PR #6831
+    // Handles both with-project and without-project cases
+}
+```
+
+**Note:** The exact formatting for WO under a project (e.g., `"PRJ-001-WO-001"` vs just `"WO-001"`) is a UX decision. For v1, simple `"WO-001"` regardless of project attachment is cleanest. Project context is shown elsewhere in the UI.
+
+---
+
+## Step 10: Frontend — Custom Form Controls for WO DAA Positions
+
+**Important:** PR #6831 updated the Job form and detail pages from hardcoded layouts to use `DataModelForm` and `DataModelDetails`. All frontend work in this plan must be based on the PR #6831 architecture, NOT the pre-refactor `JobAddEditForm.tsx`.
+
+**PR #6831 pattern:** The Job form uses `DataModelForm` with a `customFormControl` prop (a Record mapping column slugs to render functions). This replaces the old `DocumentWrapperForm` + `renderChild` switch statement.
+
+### 10a. Add custom form controls
+
+The `customFormControl` prop on `DataModelForm` maps DAA slugs to render functions. Add entries for the WO DAA positions:
+
+```typescript
+const customFormControl: Record<string, (formData, setFormData, error?) => ReactNode> = {
+    "wo-labor-items": () => <p>Labor Items</p>,
+    "wo-material-items": () => <p>Material Items</p>,
+    "wo-equipment-items": () => <p>Equipment Items</p>,
+    "wo-signatures": () => <p>Signatures</p>
+};
+```
+
+**Note:** `wo-date-of-work` does NOT need a custom form control — the DataModelForm renders it automatically as a standard date input based on the DAA's `defaultAttributeType = "date"`. WO-3b and WO-3c will replace the placeholder `<p>` tags with real editor components. WO-3a is a stepping stone — it won't be deployed on its own.
+
+---
+
+## Verification Checklist
+
+- [ ] `dateOfWork` column exists on Job (nullable DATE)
+- [ ] `dateOfWork` in Job modelFields, GraphQL type, and create/edit inputs
+- [ ] `Signature` table created with correct indexes and FK constraints
+- [ ] `Signature` model class with standard CRUD methods
+- [ ] `Signature` GraphQL resolver with `signatures(referenceModel, referenceId)` query
+- [ ] `createSignature` and `deleteSignature` mutations work
+- [ ] `Job.Signatures` field-level resolver returns signatures where `referenceModel = "Job"`
+- [ ] Signature resolver registered in schema.ts (5 places)
+- [ ] 5 DocumentSections created with `subModel = "WORK_ORDER"`
+- [ ] 8 DocumentAttributeAssignments created with correct section assignments
+- [ ] DAAs only appear on WO forms (not PROJECT_JOB) — verified by creating both job types
+- [ ] Subtotal DAAs marked as `defaultAttributeIsDerived = true`
+- [ ] Job number generation branches on `jobClassification` (derived from `jobTypeId`), NOT on `projectId`
+- [ ] WORK_ORDER classification: auto-increments across all WORK_ORDER jobs, produces "WO-001" format
+- [ ] PROJECT_JOB classification: uses existing logic from PR #6831 (handles both with-project and without-project)
+- [ ] `fullJobNumber` formatted based on classification: "WO-001" for work orders, existing format for project jobs
+- [ ] A WORK_ORDER under a project still gets WO-prefixed numbering (not project-prefixed)
+- [ ] All existing Job DAAs backfilled to `subModel = "PROJECT_JOB"` (no NULL values remain)
+- [ ] All existing Job DocumentSections backfilled to `subModel = "PROJECT_JOB"`
+- [ ] Shared fields (name, number, description, rateType, wageRegion, purchaseOrder, status, type) DUPLICATED with `subModel = "WORK_ORDER"` in WO sections
+- [ ] NO comma-delimited subModel values anywhere — single values only
+- [ ] Existing PROJECT_JOB forms render identically to before (no regression from backfill)
+- [ ] WO form shows shared fields (from duplicated DAAs) + WO-only fields (dateOfWork, labor, material, equipment, signatures)
+- [ ] PROJECT_JOB form does NOT show WO-only fields (dateOfWork, labor items, etc.)
+- [ ] WO form does NOT show PROJECT_JOB-only fields
+- [ ] wageRegion visible on WO form for TradeLevelRate resolution
+- [ ] TableFeed configureColumns.ts has WorkOrder + InnerWorkOrder entries with correct subModel
+- [ ] `customFormControl` entries added for 4 WO DAA slugs with `<p>` tag placeholders
+- [ ] `dateOfWork` renders automatically via DataModelForm as standard date input
+
+---
+
+## Files Summary
+
+| Action | File | What to do |
+|--------|------|------------|
+| MODIFY | `apps/api/prisma/schema.prisma` | Add `dateOfWork` to Job; add `Signature` model; add relations on Asset + User |
+| CREATE | `apps/api/prisma/migrations/.../migration.sql` | ALTER TABLE Job; CREATE TABLE Signature |
+| CREATE | `apps/api/prisma/migrations/.../migration.sql` | Backfill existing Job DAAs/sections to PROJECT_JOB; duplicate shared DAAs into WORK_ORDER set; create 5 WO sections + 5 WO-only DAAs |
+| MODIFY | `apps/api/src/graphql/models/TableFeed/configureColumns.ts` | Add WorkOrder + InnerWorkOrder table feed configuration with `subModel: "WorkOrder"` |
+| CREATE | `apps/api/src/types/Signature.types.ts` | ISignature interface |
+| CREATE | `apps/api/src/models/Signature.ts` | Model class — standard CRUD with polymorphic reference fields |
+| CREATE | `apps/api/src/graphql/models/Signature.ts` | GraphQL resolver with type, query, mutations |
+| MODIFY | `apps/api/src/graphql/schema.ts` | Register Signature resolver (5 places) |
+| MODIFY | `apps/api/src/graphql/models/index.ts` | Export Signature resolver |
+| MODIFY | `apps/api/src/models/Job.ts` | Add `dateOfWork` to modelFields; update `generateJobNumber()` for WO classification; update `customCreateItem()` for WO fullJobNumber format |
+| MODIFY | `apps/api/src/graphql/models/Job.ts` | Add `dateOfWork` to type + inputs; add `Signatures` resolver |
+| MODIFY | Job DataModelForm page (from PR #6831) | Add `customFormControl` entries for 8 WO DAA slugs (dateOfWork real, rest as placeholders). Based on PR #6831's DataModelForm pattern, NOT the pre-refactor JobAddEditForm. |
+</script>
+
+<script>
+(function() {
+    var md = document.getElementById('plan-md').textContent;
+    var target = document.getElementById('rendered');
+    var html = md
+        .replace(/```(\w*)\n([\s\S]*?)```/g, function(_, lang, code) {
+            return '<pre><code>' + code.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</code></pre>';
+        })
+        .replace(/`([^`\n]+)`/g, '<code>$1</code>')
+        .replace(/^#### (.+)$/gm, '<h4>$1</h4>')
+        .replace(/^### (.+)$/gm, '<h3>$1</h3>')
+        .replace(/^## (.+)$/gm, '<h2>$1</h2>')
+        .replace(/^# (.+)$/gm, '<h1>$1</h1>')
+        .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\*(.+?)\*/g, '<em>$1</em>')
+        .replace(/^---$/gm, '<hr>');
+    html = html.replace(/^- \[ \] (.+)$/gm, '<div class="check-item"><div class="check-box"></div><span>$1</span></div>');
+    html = html.replace(/(\|.+\|\n)+/g, function(table) {
+        var rows = table.trim().split('\n');
+        if (rows.length < 2) return table;
+        var headers = rows[0].split('|').filter(function(c) { return c.trim(); });
+        var isSep = /^[\s|:\-]+$/.test(rows[1]);
+        var start = isSep ? 2 : 1;
+        var out = '<table><thead><tr>';
+        headers.forEach(function(h) { out += '<th>' + h.trim() + '</th>'; });
+        out += '</tr></thead><tbody>';
+        for (var i = start; i < rows.length; i++) {
+            var cells = rows[i].split('|').filter(function(c) { return c.trim(); });
+            out += '<tr>'; cells.forEach(function(c) { out += '<td>' + c.trim() + '</td>'; }); out += '</tr>';
+        }
+        out += '</tbody></table>';
+        return out;
+    });
+    html = html.replace(/^- (.+)$/gm, '<li>$1</li>');
+    html = html.replace(/(<li>[\s\S]*?<\/li>\n?)+/g, function(m) { return '<ul>' + m + '</ul>'; });
+    html = html.replace(/^(?!<[hultdps\/<]|<\/|<code|<pre|<hr|<div|<strong|<em)(.+)$/gm, '<p>$1</p>');
+    target.innerHTML = html;
+})();
+</script>
+</body>
+</html>

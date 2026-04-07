@@ -1,0 +1,1661 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cross-Release Continuity Audit — 1.33 + 1.34</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Inter', -apple-system, sans-serif; background: #f1f5f9; color: #0f172a; -webkit-font-smoothing: antialiased; }
+.wrap { max-width: 1120px; margin: 0 auto; padding: 40px 24px 80px; }
+
+/* Back link */
+.back-link { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; color: #3b82f6; text-decoration: none; margin-bottom: 24px; transition: color 0.15s; }
+.back-link:hover { color: #1d4ed8; }
+.back-link svg { width: 16px; height: 16px; }
+
+/* Header */
+h1 { font-size: 30px; font-weight: 800; color: #0f172a; margin: 0 0 4px; letter-spacing: -0.01em; }
+.header-sub { font-size: 14px; color: #64748b; margin-bottom: 6px; }
+.subtitle { font-size: 15px; color: #64748b; line-height: 1.55; margin: 0 0 32px; max-width: 780px; }
+
+/* Summary cards */
+.summary-cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 32px; }
+.summary-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 18px 20px; }
+.summary-card .sc-label { font-size: 11px; font-weight: 700; text-transform: uppercase; color: #64748b; letter-spacing: 0.5px; margin-bottom: 4px; }
+.summary-card .sc-value { font-size: 28px; font-weight: 800; color: #0f172a; }
+.summary-card .sc-detail { font-size: 12px; color: #94a3b8; margin-top: 2px; line-height: 1.4; }
+
+/* Severity breakdown bar */
+.severity-bar { display: flex; gap: 12px; margin-bottom: 32px; flex-wrap: wrap; }
+.severity-chip { display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; border-radius: 8px; font-size: 13px; font-weight: 600; }
+.severity-chip .chip-count { font-size: 18px; font-weight: 800; }
+.chip-critical { background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; }
+.chip-should { background: #fffbeb; color: #d97706; border: 1px solid #fde68a; }
+.chip-nice { background: #eef2ff; color: #6366f1; border: 1px solid #c7d2fe; }
+
+/* Sections */
+.section { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; margin-bottom: 16px; overflow: hidden; }
+.section > summary,
+.section > .section-header { padding: 20px 28px; font-size: 17px; font-weight: 700; color: #0f172a; cursor: pointer; user-select: none; display: flex; align-items: center; gap: 12px; list-style: none; transition: background 0.15s; }
+.section > summary:hover,
+.section > .section-header:hover { background: #f8fafc; }
+.section > summary::-webkit-details-marker { display: none; }
+.section > summary::marker { display: none; content: ""; }
+.section > summary .chevron { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 6px; background: #f1f5f9; color: #94a3b8; font-size: 12px; transition: all 0.2s; flex-shrink: 0; }
+.section[open] > summary .chevron { transform: rotate(90deg); background: #dbeafe; color: #3b82f6; }
+.section > summary .section-badge { font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 5px; margin-left: auto; }
+.section-body { padding: 0 28px 28px; }
+
+/* Narrative text */
+.narrative { font-size: 14px; color: #334155; line-height: 1.7; }
+.narrative p { margin-bottom: 14px; }
+.narrative strong { color: #0f172a; font-weight: 600; }
+
+/* Tables */
+.data-table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 16px 0; }
+.data-table thead th { background: #f8fafc; padding: 10px 14px; text-align: left; font-weight: 700; color: #475569; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 2px solid #e2e8f0; }
+.data-table tbody td { padding: 10px 14px; border-bottom: 1px solid #f1f5f9; color: #334155; vertical-align: top; }
+.data-table tbody tr:hover { background: #f8fafc; }
+.data-table code { font-size: 12px; background: #f1f5f9; padding: 2px 6px; border-radius: 4px; color: #7c3aed; font-family: 'SF Mono', 'Fira Code', monospace; }
+
+/* Phase group headers in data model table */
+.phase-group-header td { background: #f1f5f9 !important; font-weight: 700 !important; font-size: 12px !important; color: #475569 !important; text-transform: uppercase; letter-spacing: 0.5px; padding: 12px 14px !important; border-bottom: 2px solid #e2e8f0 !important; }
+.type-new { display: inline-block; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 4px; background: #dcfce7; color: #166534; }
+.type-mod { display: inline-block; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 4px; background: #dbeafe; color: #1d4ed8; }
+
+/* Finding cards */
+.finding-card { border: 1px solid #e2e8f0; border-radius: 10px; margin-bottom: 14px; overflow: hidden; transition: box-shadow 0.2s; }
+.finding-card:hover { box-shadow: 0 2px 12px rgba(0,0,0,0.04); }
+.finding-card.critical { border-left: 4px solid #dc2626; }
+.finding-card.should-fix { border-left: 4px solid #f59e0b; }
+.finding-card.nice-to-have { border-left: 4px solid #6366f1; }
+.finding-header { padding: 16px 20px; display: flex; align-items: flex-start; gap: 12px; cursor: pointer; user-select: none; }
+.finding-header:hover { background: #f8fafc; }
+.finding-id { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 12px; font-weight: 700; color: #64748b; white-space: nowrap; min-width: 100px; padding-top: 2px; }
+.finding-title { font-size: 14px; font-weight: 600; color: #0f172a; flex: 1; line-height: 1.4; }
+.finding-badge { font-size: 10px; font-weight: 700; padding: 3px 10px; border-radius: 5px; white-space: nowrap; flex-shrink: 0; }
+.badge-critical { background: #fef2f2; color: #dc2626; }
+.badge-should-fix { background: #fffbeb; color: #d97706; }
+.badge-nice-to-have { background: #eef2ff; color: #6366f1; }
+.finding-body { padding: 0 20px 20px; padding-left: 132px; display: none; }
+.finding-card.expanded .finding-body { display: block; }
+.finding-card.expanded .finding-header { background: #f8fafc; border-bottom: 1px solid #e2e8f0; }
+.finding-body p { font-size: 13px; color: #475569; line-height: 1.6; margin-bottom: 10px; }
+.finding-body .label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: #64748b; margin-bottom: 4px; margin-top: 14px; }
+.finding-body .recommendation { background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 12px 16px; font-size: 13px; color: #166534; line-height: 1.6; margin-top: 12px; }
+.finding-body .recommendation strong { font-weight: 700; }
+.finding-body ul { font-size: 13px; color: #475569; padding-left: 20px; margin: 6px 0; line-height: 1.6; }
+.finding-body .conflict-box { background: #fff7ed; border: 1px solid #fed7aa; border-radius: 8px; padding: 12px 16px; margin: 8px 0; }
+.finding-body .conflict-box code { background: #fef3c7; color: #92400e; }
+.finding-body .conflict-side { display: flex; gap: 12px; margin: 8px 0; }
+.finding-body .conflict-col { flex: 1; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 14px; font-size: 12px; }
+.finding-body .conflict-col .col-label { font-size: 10px; font-weight: 700; text-transform: uppercase; color: #64748b; margin-bottom: 6px; }
+
+/* Flow diagram */
+.flow-diagram { background: #0f172a; border-radius: 10px; padding: 24px 28px; font-family: 'SF Mono', 'Fira Code', monospace; font-size: 13px; color: #e2e8f0; line-height: 1.7; overflow-x: auto; margin: 16px 0; }
+.flow-diagram .flow-header { color: #60a5fa; font-weight: 700; }
+.flow-diagram .flow-branch { color: #94a3b8; }
+.flow-diagram .flow-leaf { color: #34d399; }
+.flow-diagram .flow-comment { color: #64748b; font-style: italic; }
+
+/* Priority list */
+.priority-section { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 28px; margin-bottom: 16px; }
+.priority-section h2 { font-size: 17px; font-weight: 700; color: #0f172a; margin-bottom: 20px; padding-bottom: 12px; border-bottom: 2px solid #e2e8f0; }
+.priority-group-label { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: #3b82f6; margin: 20px 0 10px; padding: 6px 12px; background: #eff6ff; border-radius: 6px; display: inline-block; }
+.priority-list { list-style: none; padding: 0; margin: 12px 0 20px; }
+.priority-list li { display: flex; align-items: flex-start; gap: 10px; padding: 10px 0; border-bottom: 1px solid #f1f5f9; font-size: 13px; color: #334155; line-height: 1.5; }
+.priority-list li:last-child { border-bottom: none; }
+.priority-num { display: flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 6px; background: #f1f5f9; color: #475569; font-size: 12px; font-weight: 700; flex-shrink: 0; }
+.priority-list li .ref { font-size: 11px; color: #94a3b8; margin-left: 4px; }
+
+/* Status indicators */
+.status-cell { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; }
+.status-dot { width: 8px; height: 8px; border-radius: 50%; }
+.dot-yes { background: #16a34a; }
+.dot-no { background: #dc2626; }
+.dot-partial { background: #f59e0b; }
+.dot-tbd { background: #94a3b8; }
+.check { color: #16a34a; font-weight: 700; }
+.cross { color: #dc2626; font-weight: 700; }
+.partial { color: #f59e0b; font-weight: 700; }
+.tbd { color: #94a3b8; font-weight: 700; }
+
+/* Footer */
+.footer { text-align: center; padding: 32px 0; font-size: 12px; color: #94a3b8; border-top: 1px solid #e2e8f0; margin-top: 24px; }
+.footer a { color: #3b82f6; text-decoration: none; }
+.footer a:hover { text-decoration: underline; }
+
+/* Print */
+@media print {
+    body { background: #fff; }
+    .section { break-inside: avoid; }
+    .finding-card { break-inside: avoid; }
+    .finding-body { display: block !important; }
+    .back-link { display: none; }
+    details[open] > .section-body { display: block; }
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .summary-cards { grid-template-columns: repeat(2, 1fr); }
+    .severity-bar { gap: 8px; }
+    .finding-body { padding-left: 20px; }
+    .finding-id { min-width: 70px; font-size: 11px; }
+    .conflict-side { flex-direction: column; }
+    .data-table { font-size: 11px; }
+    .data-table thead th, .data-table tbody td { padding: 8px 8px; }
+}
+    </style>
+</head>
+<body>
+<div class="wrap">
+
+    <a class="back-link" href="index.html">
+        <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M17 10a.75.75 0 01-.75.75H5.612l4.158 3.96a.75.75 0 11-1.04 1.08l-5.5-5.25a.75.75 0 010-1.08l5.5-5.25a.75.75 0 111.04 1.08L5.612 9.25H16.25A.75.75 0 0117 10z" clip-rule="evenodd"/></svg>
+        Back to Roadmap
+    </a>
+
+    <h1>Cross-Release Continuity Audit</h1>
+    <p class="header-sub">Releases 1.33 + 1.34 &mdash; Appello Platform</p>
+    <p class="subtitle">A systematic audit of 61 spec files across two releases, identifying data model conflicts, naming inconsistencies, architectural splits, and integration gaps that must be resolved before implementation begins.</p>
+
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <!-- EXECUTIVE SUMMARY                                       -->
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <div class="summary-cards">
+        <div class="summary-card">
+            <div class="sc-label">Features Analyzed</div>
+            <div class="sc-value">33</div>
+            <div class="sc-detail">12 LEM/Equipment &bull; 10 Work Order &bull; 11 Material</div>
+        </div>
+        <div class="summary-card">
+            <div class="sc-label">Findings</div>
+            <div class="sc-value">42</div>
+            <div class="sc-detail">9 Critical &bull; 16 Should Fix &bull; 17 Nice to Have</div>
+        </div>
+        <div class="summary-card">
+            <div class="sc-label">Spec Files Analyzed</div>
+            <div class="sc-value">61</div>
+            <div class="sc-detail">29 UIS specs &bull; 23 plans &bull; 9 equipment specs</div>
+        </div>
+        <div class="summary-card">
+            <div class="sc-label">New Prisma Models</div>
+            <div class="sc-value">25+</div>
+            <div class="sc-detail">Across both releases</div>
+        </div>
+    </div>
+
+    <div class="severity-bar">
+        <div class="severity-chip chip-critical"><span class="chip-count">9</span> Critical</div>
+        <div class="severity-chip chip-should"><span class="chip-count">16</span> Should Fix</div>
+        <div class="severity-chip chip-nice"><span class="chip-count">17</span> Nice to Have</div>
+    </div>
+
+
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <!-- 2. CAPABILITY EVOLUTION STORY                           -->
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <details class="section" id="evolution">
+        <summary>
+            <span class="chevron">&#9654;</span>
+            Capability Evolution Story
+            <span class="section-badge" style="background:#dbeafe;color:#1d4ed8;">Narrative</span>
+        </summary>
+        <div class="section-body">
+            <div class="narrative">
+                <p><strong>Release 1.33 Phase 1 (LEM Foundation)</strong> establishes the rate data models that everything downstream depends on. Labor billable rates are added via a new <code>billableValue</code> field on the existing <code>TradeLevelRate</code> model, giving each trade level a customer-facing rate alongside the internal cost rate. Equipment rates get a more ambitious treatment: a polymorphic <code>EquipmentRateValue</code> system (with <code>EquipmentRateLabel</code> and <code>EquipmentRateSchedule</code>) lets companies define rate cards at the equipment, category, or global level with per-unit pricing (hourly, daily, weekly, monthly, yearly). The existing material catalog is validated but not extended &mdash; that waits for 1.34. Together, these form the pricing backbone that Work Orders, Equipment P&amp;L, and Material Consumption all consume.</p>
+
+                <p><strong>Release 1.33 Phase 2 (T&amp;M Work Orders)</strong> is the hero feature of the release. Work Orders are implemented as a <em>type</em> of Job (not a new entity), using the existing <code>PropertyValue</code> system for <code>jobClassification</code> to distinguish T&amp;M jobs from standard jobs. Each Work Order gets structured line items &mdash; <code>WorkOrderLaborItem</code>, <code>WorkOrderMaterialItem</code>, and <code>WorkOrderEquipmentItem</code> &mdash; that consume the LEM rates for auto-pricing. The feature includes a full lifecycle: draft creation, line item editing, a signature collection workflow (with the new polymorphic <code>Signature</code> and <code>SignatureRequest</code> models), desktop and mobile form experiences, a T&amp;M Work Order Log dashboard, and conversion pipelines that transform approved Work Orders into Invoices (via <code>JobBill</code>) or Change Orders (via <code>EstimateChangeOrderRecord</code>).</p>
+
+                <p><strong>Release 1.33 Phases 3&ndash;4 (Equipment Module)</strong> round out the release by adding financial and operational depth to the Equipment domain. Equipment time entry (<code>EquipmentTimeEntry</code>) captures hours used per job, feeds into an Equipment P&amp;L report, and supports bulk approval workflows. Equipment invoicing generates customer-facing bills from approved time entries using the LEM-2 rate resolution engine. On the operations side, a maintenance subsystem introduces <code>MaintenanceThreshold</code>, <code>MaintenanceLog</code>, <code>MaintenanceSchedule</code>, and <code>MaintenanceScheduleTemplate</code> for threshold-based and scheduled maintenance tracking. Equipment scheduling with a Gantt-style calendar, inspection checklists tied to form submissions, and mobile QR code scanning (<code>Equipment.qrCode</code>) complete the module.</p>
+
+                <p><strong>Release 1.34 Phase 1 (Material Foundation)</strong> extends the material domain into a proper supply chain. The three-level model &mdash; <code>Material</code> (internal catalog) &rarr; <code>ManufacturerProduct</code> (manufacturer part numbers) &rarr; <code>DistributorPrice</code> (supplier-specific pricing) &mdash; enables multi-supplier price comparison. A first-class <code>PurchaseOrder</code> entity replaces the legacy <code>Job.purchaseOrder</code> string field, supporting both customer-facing POs and supplier POs with shared schema. <code>MaterialConsumptionEntry</code> logs material usage per job per day on both desktop and mobile, feeding directly into the Job Financial Summary. This phase is deliberately foundational &mdash; it creates the entities that procurement and operations features consume.</p>
+
+                <p><strong>Release 1.34 Phases 2&ndash;3 (Procurement &amp; Operations)</strong> complete the material lifecycle. Price book import (<code>PriceBookImport</code>) allows bulk CSV/Excel upload of distributor pricing with column mapping and validation. Mobile material requests (<code>MaterialRequest</code>, <code>MaterialRequestItem</code>) create a field-to-office workflow where workers request materials and office staff triages and fulfills. Discount management (<code>DistributorDiscount</code>) supports product, category, and global discounts with date ranges. Supplier purchase orders get a full CRUD lifecycle with PDF generation and sending. Receiving (<code>PurchaseOrderReceipt</code>, <code>ReceiptLineItem</code>) tracks partial and complete deliveries with three-way match capability. Inventory management introduces <code>InventoryLocation</code>, <code>InventoryItem</code>, and an append-only <code>InventoryMovement</code> ledger for stock tracking with QR-based mobile lookup. Vendor credits (<code>VendorCredit</code>, <code>VendorCreditLineItem</code>) handle returns and credit memos. Every financial entity feeds into <code>JobFinancialSummaryService</code>, creating a single source of truth for job-level profitability.</p>
+            </div>
+        </div>
+    </details>
+
+
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <!-- 3. DATA MODEL MAP                                       -->
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <details class="section" id="data-model">
+        <summary>
+            <span class="chevron">&#9654;</span>
+            Data Model Map
+            <span class="section-badge" style="background:#f3e8ff;color:#7c3aed;">25+ Models</span>
+        </summary>
+        <div class="section-body">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Model</th>
+                        <th>Type</th>
+                        <th>ID Pattern</th>
+                        <th>Key Fields</th>
+                        <th>Relations</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- 1.33 LEM Foundation -->
+                    <tr class="phase-group-header"><td colspan="5">1.33 &mdash; LEM Foundation (Phase 1)</td></tr>
+                    <tr>
+                        <td><code>TradeLevelRate</code></td>
+                        <td><span class="type-mod">MOD</span></td>
+                        <td><code>VarChar(21)</code></td>
+                        <td><code>+billableValue Decimal(10,2)</code></td>
+                        <td>TradeLevel, Instance</td>
+                    </tr>
+                    <tr>
+                        <td><code>EquipmentRateLabel</code></td>
+                        <td><span class="type-new">NEW</span></td>
+                        <td><code>VarChar(21)</code></td>
+                        <td><code>name</code>, <code>isDefault</code>, <code>instanceId</code></td>
+                        <td>Instance, EquipmentRateSchedule[]</td>
+                    </tr>
+                    <tr>
+                        <td><code>EquipmentRateSchedule</code></td>
+                        <td><span class="type-new">NEW</span></td>
+                        <td><code>VarChar(21)</code></td>
+                        <td><code>labelId</code>, <code>ratePer</code>, <code>effectiveDate</code></td>
+                        <td>EquipmentRateLabel, EquipmentRateValue[]</td>
+                    </tr>
+                    <tr>
+                        <td><code>EquipmentRateValue</code></td>
+                        <td><span class="type-new">NEW</span></td>
+                        <td><code>VarChar(21)</code></td>
+                        <td><code>referenceModel</code>, <code>referenceId</code>, <code>value Decimal</code></td>
+                        <td>EquipmentRateSchedule (polymorphic: Equipment | EquipmentCategory | Global)</td>
+                    </tr>
+
+                    <!-- 1.33 Work Orders -->
+                    <tr class="phase-group-header"><td colspan="5">1.33 &mdash; T&amp;M Work Orders (Phase 2)</td></tr>
+                    <tr>
+                        <td><code>WorkOrderLaborItem</code></td>
+                        <td><span class="type-new">NEW</span></td>
+                        <td><code>VarChar(21)</code></td>
+                        <td><code>jobId</code>, <code>tradeLevelId</code>, <code>submittedDuration Int</code>, <code>billableRate</code></td>
+                        <td>Job, TradeLevel, User</td>
+                    </tr>
+                    <tr>
+                        <td><code>WorkOrderMaterialItem</code></td>
+                        <td><span class="type-new">NEW</span></td>
+                        <td><code>VarChar(21)</code></td>
+                        <td><code>jobId</code>, <code>materialId?</code>, <code>quantity</code>, <code>unitCost</code></td>
+                        <td>Job, Material?</td>
+                    </tr>
+                    <tr>
+                        <td><code>WorkOrderEquipmentItem</code></td>
+                        <td><span class="type-new">NEW</span></td>
+                        <td><code>VarChar(21)</code></td>
+                        <td><code>jobId</code>, <code>equipmentId</code>, <code>duration Int</code>, <code>ratePer</code></td>
+                        <td>Job, Equipment</td>
+                    </tr>
+                    <tr>
+                        <td><code>Signature</code></td>
+                        <td><span class="type-new">NEW</span></td>
+                        <td><code>VarChar(21)</code></td>
+                        <td><code>referenceModel</code>, <code>referenceId</code>, <code>signatureData Text</code>, <code>signedAt</code></td>
+                        <td>User (polymorphic: WorkOrder | other)</td>
+                    </tr>
+                    <tr>
+                        <td><code>SignatureRequest</code></td>
+                        <td><span class="type-new">NEW</span></td>
+                        <td><code>VarChar(21)</code></td>
+                        <td><code>referenceModel</code>, <code>referenceId</code>, <code>requestedEmail</code>, <code>status</code></td>
+                        <td>User?, Signature?</td>
+                    </tr>
+                    <tr>
+                        <td><code>WorkOrderOtherItem</code></td>
+                        <td><span class="type-new">NEW</span></td>
+                        <td><code>VarChar(21)</code></td>
+                        <td><code>jobId</code>, <code>name</code>, <code>qty</code>, <code>unitPrice</code></td>
+                        <td>Job (mobile spec UIS-20h)</td>
+                    </tr>
+                    <tr>
+                        <td><code>WorkOrderSigner</code></td>
+                        <td><span class="type-new">NEW</span></td>
+                        <td><code>VarChar(21)</code></td>
+                        <td><code>jobId</code>, <code>name</code>, <code>role</code>, <code>order Int</code></td>
+                        <td>Job (mobile spec UIS-20h)</td>
+                    </tr>
+                    <tr>
+                        <td><code>PropertyValue</code></td>
+                        <td><span class="type-mod">MOD</span></td>
+                        <td><code>VarChar(21)</code></td>
+                        <td><code>+jobClassification</code> propertyName</td>
+                        <td>Instance, PropertyOption</td>
+                    </tr>
+                    <tr>
+                        <td><code>Job</code></td>
+                        <td><span class="type-mod">MOD</span></td>
+                        <td><code>VarChar(21)</code></td>
+                        <td><code>+dateOfWork DateTime? @db.Date</code></td>
+                        <td>Existing relations</td>
+                    </tr>
+                    <tr>
+                        <td><code>EstimateChangeOrderRecord</code></td>
+                        <td><span class="type-mod">MOD</span></td>
+                        <td><code>VarChar(21)</code></td>
+                        <td><code>+statusChangedAt DateTime?</code></td>
+                        <td>Existing relations</td>
+                    </tr>
+                    <tr>
+                        <td><code>EstimateChangeOrderRecordValue</code></td>
+                        <td><span class="type-mod">MOD</span></td>
+                        <td><code>VarChar(21)</code></td>
+                        <td><code>accountItemId</code> nullable</td>
+                        <td>Existing relations</td>
+                    </tr>
+
+                    <!-- 1.33 Equipment -->
+                    <tr class="phase-group-header"><td colspan="5">1.33 &mdash; Equipment Module (Phases 3&ndash;4)</td></tr>
+                    <tr>
+                        <td><code>EquipmentTimeEntry</code></td>
+                        <td><span class="type-new">NEW</span></td>
+                        <td><code>Int autoincrement()</code></td>
+                        <td><code>equipmentId</code>, <code>jobId</code>, <code>hours Decimal</code>, <code>status Enum</code></td>
+                        <td>Equipment, Job, User</td>
+                    </tr>
+                    <tr>
+                        <td><code>EquipmentBillingConfig</code></td>
+                        <td><span class="type-new">NEW</span></td>
+                        <td><code>Int autoincrement()</code></td>
+                        <td><code>equipmentId</code>, <code>billingType</code>, <code>defaultRate</code></td>
+                        <td>Equipment</td>
+                    </tr>
+                    <tr>
+                        <td><code>MaintenanceThreshold</code></td>
+                        <td><span class="type-new">NEW</span></td>
+                        <td><code>Int autoincrement()</code></td>
+                        <td><code>equipmentId</code>, <code>metric</code>, <code>thresholdValue</code></td>
+                        <td>Equipment, MaintenanceLog[]</td>
+                    </tr>
+                    <tr>
+                        <td><code>MaintenanceLog</code></td>
+                        <td><span class="type-new">NEW</span></td>
+                        <td><code>Int autoincrement()</code></td>
+                        <td><code>equipmentId</code>, <code>type</code>, <code>description</code>, <code>cost Decimal</code></td>
+                        <td>Equipment, MaintenanceThreshold?</td>
+                    </tr>
+                    <tr>
+                        <td><code>MaintenanceSchedule</code></td>
+                        <td><span class="type-new">NEW</span></td>
+                        <td><code>Int autoincrement()</code></td>
+                        <td><code>equipmentId</code>, <code>frequency</code>, <code>nextDue</code></td>
+                        <td>Equipment, MaintenanceScheduleTemplate?</td>
+                    </tr>
+                    <tr>
+                        <td><code>MaintenanceScheduleTemplate</code></td>
+                        <td><span class="type-new">NEW</span></td>
+                        <td><code>Int autoincrement()</code></td>
+                        <td><code>name</code>, <code>frequency</code>, <code>tasks Json</code></td>
+                        <td>Instance, MaintenanceSchedule[]</td>
+                    </tr>
+                    <tr>
+                        <td><code>DowntimeRecord</code></td>
+                        <td><span class="type-new">NEW</span></td>
+                        <td><code>Int autoincrement()</code></td>
+                        <td><code>equipmentId</code>, <code>startDate</code>, <code>endDate</code>, <code>reason</code></td>
+                        <td>Equipment</td>
+                    </tr>
+                    <tr>
+                        <td><code>EquipmentRate</code></td>
+                        <td><span class="type-new">NEW</span></td>
+                        <td><code>Int autoincrement()</code></td>
+                        <td><code>equipmentId</code>, <code>ratePer</code>, <code>rate Decimal</code>, <code>effectiveFrom</code></td>
+                        <td>Equipment (UIS-15C)</td>
+                    </tr>
+                    <tr>
+                        <td><code>EquipmentRateOverride</code></td>
+                        <td><span class="type-new">NEW</span></td>
+                        <td><code>Int autoincrement()</code></td>
+                        <td><code>equipmentRateId</code>, <code>companyId</code>, <code>overrideRate</code></td>
+                        <td>EquipmentRate, Company (UIS-15C)</td>
+                    </tr>
+                    <tr>
+                        <td><code>EquipmentAttachmentRate</code></td>
+                        <td><span class="type-new">NEW</span></td>
+                        <td><code>Int autoincrement()</code></td>
+                        <td><code>equipmentId</code>, <code>attachmentId</code>, <code>rate Decimal</code></td>
+                        <td>Equipment, Equipment (UIS-15C)</td>
+                    </tr>
+                    <tr>
+                        <td><code>Equipment</code></td>
+                        <td><span class="type-mod">MOD</span></td>
+                        <td><code>VarChar(21)</code></td>
+                        <td><code>+qrCode String?</code></td>
+                        <td>Existing relations</td>
+                    </tr>
+                    <tr>
+                        <td><code>EquipmentCategory</code></td>
+                        <td><span class="type-mod">MOD</span></td>
+                        <td><code>VarChar(21)</code></td>
+                        <td><code>+defaultInspectionFormId String?</code></td>
+                        <td>Existing + FormTemplate?</td>
+                    </tr>
+
+                    <!-- 1.34 Material Foundation -->
+                    <tr class="phase-group-header"><td colspan="5">1.34 &mdash; Material Foundation (Phase 1)</td></tr>
+                    <tr>
+                        <td><code>ManufacturerProduct</code></td>
+                        <td><span class="type-new">NEW</span></td>
+                        <td><code>VarChar(21)</code></td>
+                        <td><code>materialId</code>, <code>manufacturerId</code>, <code>partNumber</code>, <code>modelNumber</code></td>
+                        <td>Material, Company (Manufacturer)</td>
+                    </tr>
+                    <tr>
+                        <td><code>DistributorPrice</code></td>
+                        <td><span class="type-new">NEW</span></td>
+                        <td><code>VarChar(21)</code></td>
+                        <td><code>manufacturerProductId</code>, <code>distributorId</code>, <code>listPrice</code>, <code>discountPercent?</code></td>
+                        <td>ManufacturerProduct, Company (Distributor)</td>
+                    </tr>
+                    <tr>
+                        <td><code>PurchaseOrder</code></td>
+                        <td><span class="type-new">NEW</span></td>
+                        <td><code>VarChar(21)</code></td>
+                        <td><code>poNumber</code>, <code>type (Customer|Supplier)</code>, <code>companyId</code>, <code>status</code></td>
+                        <td>Company, Job, PurchaseOrderLineItem[]</td>
+                    </tr>
+                    <tr>
+                        <td><code>PurchaseOrderLineItem</code></td>
+                        <td><span class="type-new">NEW</span></td>
+                        <td><code>VarChar(21)</code></td>
+                        <td><code>purchaseOrderId</code>, <code>materialId?</code>, <code>quantity</code>, <code>unitPrice</code></td>
+                        <td>PurchaseOrder, Material?</td>
+                    </tr>
+                    <tr>
+                        <td><code>MaterialConsumptionEntry</code></td>
+                        <td><span class="type-new">NEW</span></td>
+                        <td><code>VarChar(21)</code></td>
+                        <td><code>jobId</code>, <code>materialId</code>, <code>quantity</code>, <code>dateOfWork</code>, <code>status</code></td>
+                        <td>Job, Material, User</td>
+                    </tr>
+
+                    <!-- 1.34 Procurement + Operations -->
+                    <tr class="phase-group-header"><td colspan="5">1.34 &mdash; Procurement &amp; Operations (Phases 2&ndash;3)</td></tr>
+                    <tr>
+                        <td><code>PriceBookImport</code></td>
+                        <td><span class="type-new">NEW</span></td>
+                        <td><code>VarChar(21)</code></td>
+                        <td><code>distributorId</code>, <code>fileName</code>, <code>status</code>, <code>errorLog</code></td>
+                        <td>Company (Distributor), User</td>
+                    </tr>
+                    <tr>
+                        <td><code>MaterialRequest</code></td>
+                        <td><span class="type-new">NEW</span></td>
+                        <td><code>VarChar(21)</code></td>
+                        <td><code>jobId</code>, <code>requestNumber</code>, <code>status</code>, <code>priority</code></td>
+                        <td>Job, User, MaterialRequestItem[]</td>
+                    </tr>
+                    <tr>
+                        <td><code>MaterialRequestItem</code></td>
+                        <td><span class="type-new">NEW</span></td>
+                        <td><code>VarChar(21)</code></td>
+                        <td><code>materialRequestId</code>, <code>materialId?</code>, <code>quantity</code>, <code>description</code></td>
+                        <td>MaterialRequest, Material?</td>
+                    </tr>
+                    <tr>
+                        <td><code>DistributorDiscount</code></td>
+                        <td><span class="type-new">NEW</span></td>
+                        <td><code>VarChar(21)</code></td>
+                        <td><code>distributorId</code>, <code>scope</code>, <code>discountPercent</code>, <code>validFrom/To</code></td>
+                        <td>Company, Material?, MaterialGroup?</td>
+                    </tr>
+                    <tr>
+                        <td><code>PurchaseOrderReceipt</code></td>
+                        <td><span class="type-new">NEW</span></td>
+                        <td><code>VarChar(21)</code></td>
+                        <td><code>purchaseOrderId</code>, <code>receiptNumber</code>, <code>receivedAt</code>, <code>receivedByUserId</code></td>
+                        <td>PurchaseOrder, User, ReceiptLineItem[]</td>
+                    </tr>
+                    <tr>
+                        <td><code>ReceiptLineItem</code></td>
+                        <td><span class="type-new">NEW</span></td>
+                        <td><code>VarChar(21)</code></td>
+                        <td><code>receiptId</code>, <code>poLineItemId</code>, <code>quantityReceived</code></td>
+                        <td>PurchaseOrderReceipt, PurchaseOrderLineItem</td>
+                    </tr>
+                    <tr>
+                        <td><code>InventoryLocation</code></td>
+                        <td><span class="type-new">NEW</span></td>
+                        <td><code>VarChar(21)</code></td>
+                        <td><code>name</code>, <code>type (Warehouse|JobSite|Vehicle)</code>, <code>address</code></td>
+                        <td>Instance, InventoryItem[]</td>
+                    </tr>
+                    <tr>
+                        <td><code>InventoryItem</code></td>
+                        <td><span class="type-new">NEW</span></td>
+                        <td><code>VarChar(21)</code></td>
+                        <td><code>materialId</code>, <code>locationId</code>, <code>quantityOnHand</code>, <code>unitCost</code></td>
+                        <td>Material, InventoryLocation</td>
+                    </tr>
+                    <tr>
+                        <td><code>InventoryMovement</code></td>
+                        <td><span class="type-new">NEW</span></td>
+                        <td><code>VarChar(21)</code></td>
+                        <td><code>materialId</code>, <code>type</code>, <code>quantity</code>, <code>fromLocationId?</code>, <code>toLocationId?</code></td>
+                        <td>Material, InventoryLocation (append-only ledger)</td>
+                    </tr>
+                    <tr>
+                        <td><code>VendorCredit</code></td>
+                        <td><span class="type-new">NEW</span></td>
+                        <td><code>VarChar(21)</code></td>
+                        <td><code>creditNumber</code>, <code>supplierId</code>, <code>status</code>, <code>totalAmount</code></td>
+                        <td>Company, PurchaseOrder?, VendorCreditLineItem[]</td>
+                    </tr>
+                    <tr>
+                        <td><code>VendorCreditLineItem</code></td>
+                        <td><span class="type-new">NEW</span></td>
+                        <td><code>VarChar(21)</code></td>
+                        <td><code>vendorCreditId</code>, <code>materialId?</code>, <code>quantity</code>, <code>unitPrice</code></td>
+                        <td>VendorCredit, Material?</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </details>
+
+
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <!-- 4. FINANCIAL FLOW MAP                                   -->
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <details class="section" id="financial-flow">
+        <summary>
+            <span class="chevron">&#9654;</span>
+            Financial Flow Map
+            <span class="section-badge" style="background:#dcfce7;color:#166534;">Cost Flow</span>
+        </summary>
+        <div class="section-body">
+            <div class="flow-diagram">
+<span class="flow-header">Rate Foundation (1.33)</span>
+<span class="flow-branch">├──</span> TradeLevelRate.billableValue <span class="flow-leaf">→ WO Labor Line Items</span>
+<span class="flow-branch">├──</span> EquipmentRateValue <span class="flow-leaf">→ WO Equipment Line Items</span>
+<span class="flow-branch">└──</span> Material catalog prices <span class="flow-leaf">→ WO Material Line Items</span>
+
+<span class="flow-header">Work Orders (1.33)</span>
+<span class="flow-branch">├──</span> WO → Invoice <span class="flow-leaf">→ generates JobBill</span>
+<span class="flow-branch">└──</span> WO → Change Order <span class="flow-leaf">→ generates EstimateChangeOrderRecord</span>
+
+<span class="flow-header">Equipment Financial (1.33)</span>
+<span class="flow-branch">├──</span> EquipmentTimeEntry <span class="flow-leaf">→ Equipment P&amp;L (UIS-15A)</span>
+<span class="flow-branch">└──</span> Approved entries <span class="flow-leaf">→ Equipment Invoice (UIS-15B)</span>
+
+<span class="flow-header">Material Supply Chain (1.34)</span>
+<span class="flow-branch">├──</span> DistributorPrice <span class="flow-leaf">→ effectivePrice</span> <span class="flow-comment">(with discount resolution MAT-9)</span>
+<span class="flow-branch">├──</span> MaterialConsumptionEntry <span class="flow-leaf">→ Job Financial Summary</span> <span class="flow-comment">(computed cost)</span>
+<span class="flow-branch">├──</span> Supplier PO <span class="flow-leaf">→ Committed costs</span>
+<span class="flow-branch">├──</span> Receiving <span class="flow-leaf">→ Material cost actuals</span>
+<span class="flow-branch">├──</span> Inventory checkout <span class="flow-leaf">→ Job material costs</span>
+<span class="flow-branch">└──</span> Vendor Credits <span class="flow-leaf">→ Reduce material costs</span> <span class="flow-comment">(negative)</span>
+            </div>
+        </div>
+    </details>
+
+
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <!-- 5. CRITICAL FINDINGS (9)                                -->
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <details class="section" open id="critical-findings">
+        <summary>
+            <span class="chevron">&#9654;</span>
+            Critical Findings
+            <span class="section-badge" style="background:#fef2f2;color:#dc2626;">9 Critical</span>
+        </summary>
+        <div class="section-body">
+
+            <!-- CRITICAL-1 -->
+            <div class="finding-card critical" onclick="this.classList.toggle('expanded')">
+                <div class="finding-header">
+                    <span class="finding-id">CRITICAL-1</span>
+                    <span class="finding-title">ID Pattern Conflict &mdash; Int vs VarChar(21)</span>
+                    <span class="finding-badge badge-critical">CRITICAL</span>
+                </div>
+                <div class="finding-body">
+                    <p class="label">Category</p>
+                    <p>Data Model &bull; Schema Consistency</p>
+                    <p class="label">Description</p>
+                    <p>Equipment specs (UIS-15*) use <code>Int @id @default(autoincrement())</code> for all new models, while everything else (LEM-1/2, all WO-*, all MAT-*) uses <code>String @id @db.VarChar(21)</code> (nanoid). This creates a fundamental inconsistency in the data layer &mdash; two different ID strategies in the same release.</p>
+                    <p class="label">Affected Models</p>
+                    <ul>
+                        <li><code>EquipmentTimeEntry</code>, <code>EquipmentRate</code>, <code>EquipmentRateOverride</code>, <code>EquipmentAttachmentRate</code></li>
+                        <li><code>MaintenanceThreshold</code>, <code>MaintenanceLog</code>, <code>MaintenanceSchedule</code>, <code>MaintenanceScheduleTemplate</code></li>
+                        <li><code>DowntimeRecord</code>, <code>EquipmentBillingConfig</code></li>
+                    </ul>
+                    <div class="recommendation"><strong>Recommendation:</strong> Standardize ALL new models on <code>VarChar(21)</code> nanoid. The Equipment specs were written earlier and should be updated to match the platform standard. Every existing Appello model uses nanoid &mdash; introducing autoincrement IDs would break GraphQL type conventions, caching assumptions, and the shared ID generation utility.</div>
+                </div>
+            </div>
+
+            <!-- CRITICAL-2 -->
+            <div class="finding-card critical" onclick="this.classList.toggle('expanded')">
+                <div class="finding-header">
+                    <span class="finding-id">CRITICAL-2</span>
+                    <span class="finding-title">EquipmentRatePer Enum Conflict</span>
+                    <span class="finding-badge badge-critical">CRITICAL</span>
+                </div>
+                <div class="finding-body">
+                    <p class="label">Category</p>
+                    <p>Enum Definition &bull; Cross-Spec Conflict</p>
+                    <p class="label">Description</p>
+                    <p>Two specs define the same enum with different values:</p>
+                    <div class="conflict-side">
+                        <div class="conflict-col">
+                            <div class="col-label">LEM-2 (Foundation)</div>
+                            <code>{ HOUR, DAY, WEEK, MONTH, YEAR }</code><br>5 values
+                        </div>
+                        <div class="conflict-col">
+                            <div class="col-label">UIS-15C / UIS-15B</div>
+                            <code>{ HOUR, DAY, WEEK }</code><br>3 values
+                        </div>
+                    </div>
+                    <p>WO-2 references <code>EquipmentRatePer</code> on <code>WorkOrderEquipmentItem</code>, making this a three-way dependency.</p>
+                    <div class="recommendation"><strong>Recommendation:</strong> Use LEM-2's 5-value enum as canonical since it's the foundation spec and covers more billing scenarios (monthly/yearly equipment rentals are common in construction). Update UIS-15C/15B to reference the same enum.</div>
+                </div>
+            </div>
+
+            <!-- CRITICAL-3 -->
+            <div class="finding-card critical" onclick="this.classList.toggle('expanded')">
+                <div class="finding-header">
+                    <span class="finding-id">CRITICAL-3</span>
+                    <span class="finding-title">Equipment Rate Model Architecture Split</span>
+                    <span class="finding-badge badge-critical">CRITICAL</span>
+                </div>
+                <div class="finding-body">
+                    <p class="label">Category</p>
+                    <p>Data Architecture &bull; Competing Designs</p>
+                    <p class="label">Description</p>
+                    <p>Two specs design fundamentally different architectures for equipment rate management:</p>
+                    <div class="conflict-side">
+                        <div class="conflict-col">
+                            <div class="col-label">LEM-2: Polymorphic Pattern</div>
+                            Single <code>EquipmentRateValue</code> with <code>referenceModel</code> + <code>referenceId</code> fields. Rate resolution cascades: Equipment → Category → Global. Clean, minimal schema.
+                        </div>
+                        <div class="conflict-col">
+                            <div class="col-label">UIS-15C: Separate Tables</div>
+                            Three tables: <code>EquipmentRate</code>, <code>EquipmentRateOverride</code>, <code>EquipmentAttachmentRate</code>. Supports time-of-day pricing, effective dating, customer-specific overrides, and attachment surcharges.
+                        </div>
+                    </div>
+                    <p>Both define rate resolution engines with different APIs. Implementing both would create duplicate rate logic.</p>
+                    <div class="recommendation"><strong>Recommendation:</strong> Reconcile before implementation. LEM-2's polymorphic pattern is cleaner and should be the base. UIS-15C's advanced features (time-of-day, effective dating, attachment rates) should extend it, not replace it. The resolution engine should be a single service.</div>
+                </div>
+            </div>
+
+            <!-- CRITICAL-4 -->
+            <div class="finding-card critical" onclick="this.classList.toggle('expanded')">
+                <div class="finding-header">
+                    <span class="finding-id">CRITICAL-4</span>
+                    <span class="finding-title">Status Storage Pattern Inconsistency (3 Different Patterns)</span>
+                    <span class="finding-badge badge-critical">CRITICAL</span>
+                </div>
+                <div class="finding-body">
+                    <p class="label">Category</p>
+                    <p>Architecture &bull; Pattern Consistency</p>
+                    <p class="label">Description</p>
+                    <p>Three different patterns for storing entity status across the two releases:</p>
+                    <div class="conflict-box">
+                        <p><strong>Pattern 1 &mdash; PropertyValue-based:</strong> Work Order statuses use <code>workOrderStatus</code> propertyName in the existing PropertyValue system.</p>
+                        <p><strong>Pattern 2 &mdash; Const-based strings:</strong> PurchaseOrder, MaterialConsumption, MaterialRequest, VendorCredit, PriceBookImport all use TypeScript const strings.</p>
+                        <p><strong>Pattern 3 &mdash; Prisma enum:</strong> <code>EquipmentTimeEntryStatus</code> is defined as a Prisma enum in the schema.</p>
+                    </div>
+                    <div class="recommendation"><strong>Recommendation:</strong> Standardize on ONE pattern. Const-based strings are the decided pattern per 1.34 specs ("All new enum-like values use const-based TypeScript patterns, not Prisma enums"). WO statuses use PropertyValue because they integrate with existing Job status infrastructure &mdash; this is an acceptable exception. New entities should all use const-based strings. Update Equipment specs to use const strings instead of Prisma enums.</div>
+                </div>
+            </div>
+
+            <!-- CRITICAL-5 -->
+            <div class="finding-card critical" onclick="this.classList.toggle('expanded')">
+                <div class="finding-header">
+                    <span class="finding-id">CRITICAL-5</span>
+                    <span class="finding-title">UIS vs Plan Field Name Discrepancies (10+ Conflicts)</span>
+                    <span class="finding-badge badge-critical">CRITICAL</span>
+                </div>
+                <div class="finding-body">
+                    <p class="label">Category</p>
+                    <p>Naming &bull; Spec Consistency</p>
+                    <p class="label">Description</p>
+                    <p>Over 10 field name conflicts between UIS specs and implementation plans for the same model fields:</p>
+                    <table class="data-table" style="margin-top:12px;">
+                        <thead><tr><th>Category</th><th>UIS Names</th><th>Plan Names</th><th>Affected Specs</th></tr></thead>
+                        <tbody>
+                            <tr><td>User FK naming</td><td><code>importedById</code></td><td><code>importedByUserId</code></td><td>MAT-3, MAT-4, MAT-6, MAT-7</td></tr>
+                            <tr><td>Quantity naming</td><td><code>quantityReceived</code></td><td><code>receivedQty</code></td><td>MAT-6</td></tr>
+                            <tr><td>Quantity naming</td><td><code>quantityOnHand</code></td><td><code>quantity</code></td><td>MAT-7</td></tr>
+                            <tr><td>Date naming</td><td><code>dateOfWork</code></td><td><code>workDate</code></td><td>MAT-2a</td></tr>
+                            <tr><td>Date naming</td><td><code>expectedDeliveryDate</code></td><td><code>deliveryDate</code></td><td>MAT-5</td></tr>
+                            <tr><td>Category FK</td><td><code>categoryId</code></td><td><code>materialGroupId</code></td><td>MAT-9</td></tr>
+                            <tr><td>Unit naming</td><td><code>unitOfMeasure</code></td><td><code>unit</code></td><td>MAT-2a, MAT-4</td></tr>
+                        </tbody>
+                    </table>
+                    <div class="recommendation"><strong>Recommendation:</strong> MUST resolve before implementation. Establish ONE canonical source: Plan should be canonical for Prisma schema field names, UIS for GraphQL API naming. Publish a field name reconciliation document mapping UIS names → Plan names for every affected model.</div>
+                </div>
+            </div>
+
+            <!-- CRITICAL-6 -->
+            <div class="finding-card critical" onclick="this.classList.toggle('expanded')">
+                <div class="finding-header">
+                    <span class="finding-id">CRITICAL-6</span>
+                    <span class="finding-title">VendorCredit Status Workflow Mismatch</span>
+                    <span class="finding-badge badge-critical">CRITICAL</span>
+                </div>
+                <div class="finding-body">
+                    <p class="label">Category</p>
+                    <p>Business Logic &bull; Workflow Design</p>
+                    <p class="label">Description</p>
+                    <p>The UIS and Plan define fundamentally different business processes for vendor credits:</p>
+                    <div class="conflict-side">
+                        <div class="conflict-col">
+                            <div class="col-label">UIS (4-step with approval)</div>
+                            Draft → Submitted → Approved → Applied
+                        </div>
+                        <div class="conflict-col">
+                            <div class="col-label">Plan (2-step, no approval)</div>
+                            Pending → Applied | Void
+                        </div>
+                    </div>
+                    <p>These represent different answers to the question: "Does applying a vendor credit require AP approval?" The UIS says yes (Submitted → Approved gate). The Plan says no (directly apply).</p>
+                    <div class="recommendation"><strong>Recommendation:</strong> Stakeholder decision required. If AP approval is needed (recommended for credits above a threshold), use UIS's 4-step workflow. If not, use Plan's simpler flow. Consider a hybrid: auto-approve below $X, require approval above.</div>
+                </div>
+            </div>
+
+            <!-- CRITICAL-7 -->
+            <div class="finding-card critical" onclick="this.classList.toggle('expanded')">
+                <div class="finding-header">
+                    <span class="finding-id">CRITICAL-7</span>
+                    <span class="finding-title">Inventory Movement Architecture Split</span>
+                    <span class="finding-badge badge-critical">CRITICAL</span>
+                </div>
+                <div class="finding-body">
+                    <p class="label">Category</p>
+                    <p>Data Architecture &bull; Competing Designs</p>
+                    <p class="label">Description</p>
+                    <p>The UIS and Plan take architecturally incompatible approaches to inventory movements:</p>
+                    <div class="conflict-side">
+                        <div class="conflict-col">
+                            <div class="col-label">UIS: Location-Agnostic Ledger</div>
+                            Standalone <code>materialId</code> + <code>fromLocationId</code> / <code>toLocationId</code>. A single record represents a transfer. More flexible.
+                        </div>
+                        <div class="conflict-col">
+                            <div class="col-label">Plan: InventoryItem FK</div>
+                            Uses <code>inventoryItemId</code> FK tying movement to a specific location-material pair. Requires two records per transfer. Simpler queries.
+                        </div>
+                    </div>
+                    <div class="recommendation"><strong>Recommendation:</strong> The UIS approach (standalone fields) is more flexible for transfers &mdash; a single movement record with from/to locations is cleaner and supports scenarios like direct job-to-job transfers. The Plan approach requires two records per transfer and makes transfer queries harder. Recommend UIS approach.</div>
+                </div>
+            </div>
+
+            <!-- CRITICAL-8 -->
+            <div class="finding-card critical" onclick="this.classList.toggle('expanded')">
+                <div class="finding-header">
+                    <span class="finding-id">CRITICAL-8</span>
+                    <span class="finding-title">Supplier PO Status Naming Conflict</span>
+                    <span class="finding-badge badge-critical">CRITICAL</span>
+                </div>
+                <div class="finding-body">
+                    <p class="label">Category</p>
+                    <p>Naming &bull; Status Values</p>
+                    <p class="label">Description</p>
+                    <p>The UIS and Plan use different words for the same PO state:</p>
+                    <div class="conflict-side">
+                        <div class="conflict-col">
+                            <div class="col-label">UIS</div>
+                            Draft → <strong>Issued</strong> → PartiallyReceived → FullyReceived → Closed
+                        </div>
+                        <div class="conflict-col">
+                            <div class="col-label">Plan</div>
+                            Draft → <strong>Sent</strong> → PartiallyReceived → FullyReceived → Closed
+                        </div>
+                    </div>
+                    <p><code>Issued</code> vs <code>Sent</code> are different words for the same business state: "PO has been communicated to the supplier."</p>
+                    <div class="recommendation"><strong>Recommendation:</strong> Pick one. <code>Issued</code> is more professional for purchase orders and is the industry-standard term in procurement and ERP systems.</div>
+                </div>
+            </div>
+
+            <!-- CRITICAL-9 -->
+            <div class="finding-card critical" onclick="this.classList.toggle('expanded')">
+                <div class="finding-header">
+                    <span class="finding-id">CRITICAL-9</span>
+                    <span class="finding-title">Duration Storage Inconsistency</span>
+                    <span class="finding-badge badge-critical">CRITICAL</span>
+                </div>
+                <div class="finding-body">
+                    <p class="label">Category</p>
+                    <p>Data Model &bull; Unit Convention</p>
+                    <p class="label">Description</p>
+                    <p>Two different patterns for storing time durations across the same release:</p>
+                    <div class="conflict-side">
+                        <div class="conflict-col">
+                            <div class="col-label">Work Order Line Items</div>
+                            <code>submittedDuration Int @default(0)</code><br>Stored in <strong>seconds</strong>
+                        </div>
+                        <div class="conflict-col">
+                            <div class="col-label">Equipment Time Entries</div>
+                            <code>hours Decimal @db.Decimal(10, 2)</code><br>Stored in <strong>hours</strong>
+                        </div>
+                    </div>
+                    <p>Both represent "how long equipment/labor was used on a job" but use incompatible units and types.</p>
+                    <div class="recommendation"><strong>Recommendation:</strong> Standardize on one pattern. Seconds (<code>Int</code>) is more precise and avoids floating-point issues, but requires conversion for display. Hours (<code>Decimal</code>) is more intuitive for construction workflows (crews think in hours). Since the existing timesheet system uses hours, recommend <code>Decimal(10, 2)</code> in hours for consistency with existing patterns.</div>
+                </div>
+            </div>
+
+        </div>
+    </details>
+
+
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <!-- 6. SHOULD FIX FINDINGS (16)                             -->
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <details class="section" id="should-fix-findings">
+        <summary>
+            <span class="chevron">&#9654;</span>
+            Should Fix Findings
+            <span class="section-badge" style="background:#fffbeb;color:#d97706;">16 Should Fix</span>
+        </summary>
+        <div class="section-body">
+
+            <!-- SF-1 -->
+            <div class="finding-card should-fix" onclick="this.classList.toggle('expanded')">
+                <div class="finding-header">
+                    <span class="finding-id">SHOULD-FIX-1</span>
+                    <span class="finding-title">Decimal Precision Inconsistency</span>
+                    <span class="finding-badge badge-should-fix">SHOULD FIX</span>
+                </div>
+                <div class="finding-body">
+                    <p>Most money fields use <code>Decimal(10, 2)</code>, but Equipment amounts (LEM-2) use <code>Decimal(12, 2)</code> for larger precision.</p>
+                    <div class="recommendation"><strong>Recommendation:</strong> Standardize on <code>Decimal(10, 2)</code> for all money fields. <code>Decimal(12, 2)</code> only if values genuinely exceed $99,999,999.99 &mdash; unlikely for per-item rates.</div>
+                </div>
+            </div>
+
+            <!-- SF-2 -->
+            <div class="finding-card should-fix" onclick="this.classList.toggle('expanded')">
+                <div class="finding-header">
+                    <span class="finding-id">SHOULD-FIX-2</span>
+                    <span class="finding-title">Missing isArchived on Multiple Models</span>
+                    <span class="finding-badge badge-should-fix">SHOULD FIX</span>
+                </div>
+                <div class="finding-body">
+                    <p>Some models have <code>isArchived Boolean @default(false)</code>, others don't. Missing on: <code>PurchaseOrderLineItem</code>, <code>ReceiptLineItem</code>, <code>VendorCreditLineItem</code>, <code>MaterialRequestItem</code>.</p>
+                    <div class="recommendation"><strong>Recommendation:</strong> Line items probably don't need archive (they're soft-deleted with parent), but the pattern should be documented. Decide: "child line items inherit parent archive status" and document this as a convention.</div>
+                </div>
+            </div>
+
+            <!-- SF-3 -->
+            <div class="finding-card should-fix" onclick="this.classList.toggle('expanded')">
+                <div class="finding-header">
+                    <span class="finding-id">SHOULD-FIX-3</span>
+                    <span class="finding-title">PriceBookImport Default Status Mismatch</span>
+                    <span class="finding-badge badge-should-fix">SHOULD FIX</span>
+                </div>
+                <div class="finding-body">
+                    <p>UIS defaults to <code>"Processing"</code>. Plan defaults to <code>"Pending"</code>.</p>
+                    <div class="recommendation"><strong>Recommendation:</strong> <code>"Pending"</code> is correct &mdash; the file has been uploaded but background processing hasn't started yet.</div>
+                </div>
+            </div>
+
+            <!-- SF-4 -->
+            <div class="finding-card should-fix" onclick="this.classList.toggle('expanded')">
+                <div class="finding-header">
+                    <span class="finding-id">SHOULD-FIX-4</span>
+                    <span class="finding-title">PriceBookImport Error Log Type Mismatch</span>
+                    <span class="finding-badge badge-should-fix">SHOULD FIX</span>
+                </div>
+                <div class="finding-body">
+                    <p>UIS defines <code>errorLog</code> as <code>String? @db.Text</code>. Plan defines it as <code>Json?</code>.</p>
+                    <div class="recommendation"><strong>Recommendation:</strong> Use <code>Json</code> &mdash; structured error data is more useful for displaying error tables in the UI (row number, column, error message per row).</div>
+                </div>
+            </div>
+
+            <!-- SF-5 -->
+            <div class="finding-card should-fix" onclick="this.classList.toggle('expanded')">
+                <div class="finding-header">
+                    <span class="finding-id">SHOULD-FIX-5</span>
+                    <span class="finding-title">PriceBookImport Status Values Don't Align</span>
+                    <span class="finding-badge badge-should-fix">SHOULD FIX</span>
+                </div>
+                <div class="finding-body">
+                    <p>UIS has <code>PartialSuccess</code> but omits <code>Pending</code>. Plan has <code>Pending</code> but omits <code>PartialSuccess</code>.</p>
+                    <div class="recommendation"><strong>Recommendation:</strong> Include both. Full set: <code>Pending</code>, <code>Processing</code>, <code>Complete</code>, <code>PartialSuccess</code>, <code>Failed</code>. <code>PartialSuccess</code> is essential for imports where some rows succeed and others fail.</div>
+                </div>
+            </div>
+
+            <!-- SF-6 -->
+            <div class="finding-card should-fix" onclick="this.classList.toggle('expanded')">
+                <div class="finding-header">
+                    <span class="finding-id">SHOULD-FIX-6</span>
+                    <span class="finding-title">No Defined Permission for PurchaseOrder CRUD</span>
+                    <span class="finding-badge badge-should-fix">SHOULD FIX</span>
+                </div>
+                <div class="finding-body">
+                    <p>MAT-1 says "appropriate permission required (specific permission name TBD)". No explicit permission group has been defined for Purchase Order operations.</p>
+                    <div class="recommendation"><strong>Recommendation:</strong> Define explicit permission group: <code>purchaseOrder: { view, create, edit, delete }</code>. POs involve financial commitments and should have dedicated access control.</div>
+                </div>
+            </div>
+
+            <!-- SF-7 -->
+            <div class="finding-card should-fix" onclick="this.classList.toggle('expanded')">
+                <div class="finding-header">
+                    <span class="finding-id">SHOULD-FIX-7</span>
+                    <span class="finding-title">Mobile Route Pattern Inconsistency</span>
+                    <span class="finding-badge badge-should-fix">SHOULD FIX</span>
+                </div>
+                <div class="finding-body">
+                    <p>Different specs define different URL patterns for the same mobile features:</p>
+                    <ul>
+                        <li>MAT-4 UIS: <code>/material-requests/new</code></li>
+                        <li>MAT-4 Plan: <code>/job-sites/[id]/material-request/new</code></li>
+                        <li>MAT-2b UIS: <code>/jobs/[jobId]/material-consumption/...</code></li>
+                        <li>MAT-2b Plan: <code>/job-sites/[id]/material-consumption/...</code></li>
+                    </ul>
+                    <div class="recommendation"><strong>Recommendation:</strong> Use <code>job-sites/[id]/...</code> pattern consistently. This matches the existing mobile app structure where job site is the primary navigation context.</div>
+                </div>
+            </div>
+
+            <!-- SF-8 -->
+            <div class="finding-card should-fix" onclick="this.classList.toggle('expanded')">
+                <div class="finding-header">
+                    <span class="finding-id">SHOULD-FIX-8</span>
+                    <span class="finding-title">PO PDF Template Location Conflict</span>
+                    <span class="finding-badge badge-should-fix">SHOULD FIX</span>
+                </div>
+                <div class="finding-body">
+                    <p>UIS places PDF generation in the API: <code>apps/api/src/templates/SupplierPO.pdf.ts</code>. Plan places it in the Frontend: <code>apps/frontend/.../DownloadablePDF/PurchaseOrder/SupplierPO.tsx</code>.</p>
+                    <div class="recommendation"><strong>Recommendation:</strong> Use the Frontend <code>DownloadablePDF</code> pattern. This matches existing Invoice, Estimate, and Work Order PDF patterns in the codebase.</div>
+                </div>
+            </div>
+
+            <!-- SF-9 -->
+            <div class="finding-card should-fix" onclick="this.classList.toggle('expanded')">
+                <div class="finding-header">
+                    <span class="finding-id">SHOULD-FIX-9</span>
+                    <span class="finding-title">WorkOrderSigner vs Signature/SignatureRequest &mdash; 3 Models for Signing</span>
+                    <span class="finding-badge badge-should-fix">SHOULD FIX</span>
+                </div>
+                <div class="finding-body">
+                    <p>Three separate models handle aspects of the signing workflow:</p>
+                    <ul>
+                        <li><code>Signature</code> (WO-3a) &mdash; stores actual signature images, polymorphic</li>
+                        <li><code>SignatureRequest</code> (WO-8b) &mdash; tracks pending signature requests</li>
+                        <li><code>WorkOrderSigner</code> (UIS-20h mobile) &mdash; separate signer management with ordering</li>
+                    </ul>
+                    <div class="recommendation"><strong>Recommendation:</strong> Consolidate. <code>WorkOrderSigner</code> overlaps significantly with <code>SignatureRequest</code>. Consider making <code>SignatureRequest</code> handle signing order and signer details, eliminating <code>WorkOrderSigner</code> as a separate model.</div>
+                </div>
+            </div>
+
+            <!-- SF-10 -->
+            <div class="finding-card should-fix" onclick="this.classList.toggle('expanded')">
+                <div class="finding-header">
+                    <span class="finding-id">SHOULD-FIX-10</span>
+                    <span class="finding-title">WorkOrderOtherItem Overlaps with WorkOrderMaterialItem</span>
+                    <span class="finding-badge badge-should-fix">SHOULD FIX</span>
+                </div>
+                <div class="finding-body">
+                    <p><code>WorkOrderOtherItem</code> (UIS-20h mobile) has name, qty, unitOfMeasure, qtyOfUnit, unitPrice. <code>WorkOrderMaterialItem</code> (WO-2) with <code>materialId = null</code> (blank line) has description, quantity, unitCost. Both serve similar purposes for ad-hoc/unlisted items.</p>
+                    <div class="recommendation"><strong>Recommendation:</strong> Consider whether <code>WorkOrderOtherItem</code> is truly needed or if blank <code>WorkOrderMaterialItem</code> lines (with null materialId) suffice. Fewer models means simpler queries and less conversion logic.</div>
+                </div>
+            </div>
+
+            <!-- SF-11 -->
+            <div class="finding-card should-fix" onclick="this.classList.toggle('expanded')">
+                <div class="finding-header">
+                    <span class="finding-id">SHOULD-FIX-11</span>
+                    <span class="finding-title">Notification Triggers Undefined for Most Features</span>
+                    <span class="finding-badge badge-should-fix">SHOULD FIX</span>
+                </div>
+                <div class="finding-body">
+                    <p>Only defined for: WO-8b (signature request), MAT-4 (request submitted), UIS-15D (maintenance thresholds). Missing for: PO issuance, receiving completion, low stock alerts, consumption approval, credit approval.</p>
+                    <div class="recommendation"><strong>Recommendation:</strong> Define a notification matrix before implementation. Map each status transition to its notification requirements (who, channel, template).</div>
+                </div>
+            </div>
+
+            <!-- SF-12 -->
+            <div class="finding-card should-fix" onclick="this.classList.toggle('expanded')">
+                <div class="finding-header">
+                    <span class="finding-id">SHOULD-FIX-12</span>
+                    <span class="finding-title">No Permission Group for Discount Management</span>
+                    <span class="finding-badge badge-should-fix">SHOULD FIX</span>
+                </div>
+                <div class="finding-body">
+                    <p>MAT-9 uses <code>material.edit</code> to gate discount CRUD. But discounts affect pricing across POs and P&amp;L &mdash; a user who can edit materials shouldn't necessarily be able to change discount percentages that affect financial calculations.</p>
+                    <div class="recommendation"><strong>Recommendation:</strong> Add a dedicated <code>pricing: { view, edit }</code> or <code>discount: { view, edit }</code> permission group to separate material catalog management from pricing/discount management.</div>
+                </div>
+            </div>
+
+            <!-- SF-13 -->
+            <div class="finding-card should-fix" onclick="this.classList.toggle('expanded')">
+                <div class="finding-header">
+                    <span class="finding-id">SHOULD-FIX-13</span>
+                    <span class="finding-title">MaterialConsumptionEntry.manufacturerProductId Missing from GraphQL</span>
+                    <span class="finding-badge badge-should-fix">SHOULD FIX</span>
+                </div>
+                <div class="finding-body">
+                    <p>The Plan adds <code>manufacturerProductId</code> to the Prisma model for price resolution (linking consumption to a specific manufacturer product and its distributor price). The UIS GraphQL type doesn't include this field.</p>
+                    <div class="recommendation"><strong>Recommendation:</strong> Add <code>manufacturerProductId</code> to the GraphQL type and creation input. Without it, consumption entries can't resolve to a specific supplier price, making cost computation ambiguous.</div>
+                </div>
+            </div>
+
+            <!-- SF-14 -->
+            <div class="finding-card should-fix" onclick="this.classList.toggle('expanded')">
+                <div class="finding-header">
+                    <span class="finding-id">SHOULD-FIX-14</span>
+                    <span class="finding-title">DistributorPrice.discountPercent Duplicates DistributorDiscount</span>
+                    <span class="finding-badge badge-should-fix">SHOULD FIX</span>
+                </div>
+                <div class="finding-body">
+                    <p><code>DistributorPrice</code> has an inline <code>discountPercent Decimal? @db.Decimal(5, 2)</code>. <code>DistributorDiscount</code> (MAT-9) is a separate model for managing discounts. Both can set discount percentages &mdash; which takes precedence?</p>
+                    <div class="recommendation"><strong>Recommendation:</strong> Clarify and document: <code>DistributorPrice.discountPercent</code> is the per-row import value from price book CSVs. <code>DistributorDiscount</code> is the managed entity with date ranges and scope. MAT-9 says DistributorDiscount takes precedence when present, with DistributorPrice.discountPercent as fallback. Document this cascade clearly in the resolver.</div>
+                </div>
+            </div>
+
+            <!-- SF-15 -->
+            <div class="finding-card should-fix" onclick="this.classList.toggle('expanded')">
+                <div class="finding-header">
+                    <span class="finding-id">SHOULD-FIX-15</span>
+                    <span class="finding-title">Missing Quantity Precision for PO Line Items</span>
+                    <span class="finding-badge badge-should-fix">SHOULD FIX</span>
+                </div>
+                <div class="finding-body">
+                    <p>UIS uses <code>Decimal(10, 4)</code> for quantity (supports fractional units). Plan uses <code>Decimal(10, 2)</code> for quantity.</p>
+                    <div class="recommendation"><strong>Recommendation:</strong> Use <code>Decimal(10, 4)</code> for quantities. Materials may have fractional units like 2.5 rolls, 0.75 gallons, or 12.375 linear feet. Two decimal places truncates valid quantities.</div>
+                </div>
+            </div>
+
+            <!-- SF-16 -->
+            <div class="finding-card should-fix" onclick="this.classList.toggle('expanded')">
+                <div class="finding-header">
+                    <span class="finding-id">SHOULD-FIX-16</span>
+                    <span class="finding-title">Job (MOD: +workDates) Conflict with dateOfWork</span>
+                    <span class="finding-badge badge-should-fix">SHOULD FIX</span>
+                </div>
+                <div class="finding-body">
+                    <p>WO-3a adds <code>dateOfWork DateTime? @db.Date</code> to Job. UIS-20h mobile adds <code>workDates Json</code> (array of dates for multi-date Work Orders). These represent the same concept differently.</p>
+                    <div class="recommendation"><strong>Recommendation:</strong> Use <code>dateOfWork</code> for the primary date. Only add <code>workDates Json?</code> if multi-date Work Orders are a confirmed v1 requirement. If so, <code>dateOfWork</code> becomes the first date and <code>workDates</code> stores additional dates.</div>
+                </div>
+            </div>
+
+        </div>
+    </details>
+
+
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <!-- 7. NICE TO HAVE FINDINGS (17)                           -->
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <details class="section" id="nice-to-have-findings">
+        <summary>
+            <span class="chevron">&#9654;</span>
+            Nice to Have Findings
+            <span class="section-badge" style="background:#eef2ff;color:#6366f1;">17 Nice to Have</span>
+        </summary>
+        <div class="section-body">
+
+            <div class="finding-card nice-to-have" onclick="this.classList.toggle('expanded')">
+                <div class="finding-header">
+                    <span class="finding-id">NTH-1</span>
+                    <span class="finding-title">Inconsistent Computed Field Patterns</span>
+                    <span class="finding-badge badge-nice-to-have">NICE TO HAVE</span>
+                </div>
+                <div class="finding-body">
+                    <p>Four different computation patterns for "price &times; quantity" across entities:</p>
+                    <ul>
+                        <li><code>PurchaseOrderLineItem.total</code>: query-time computed in resolver</li>
+                        <li><code>DistributorPrice.effectivePrice</code>: query-time computed</li>
+                        <li><code>WorkOrderMaterialItem.total</code>: stored field <code>Decimal(10,2)</code> (pre-computed)</li>
+                        <li><code>MaterialConsumptionEntry</code> costs: computed in <code>JobFinancialSummaryService</code> (aggregate)</li>
+                    </ul>
+                    <div class="recommendation"><strong>Recommendation:</strong> Document the pattern decision: use resolver-computed for display-only values, stored fields for values that need to be queried/aggregated.</div>
+                </div>
+            </div>
+
+            <div class="finding-card nice-to-have" onclick="this.classList.toggle('expanded')">
+                <div class="finding-header">
+                    <span class="finding-id">NTH-2</span>
+                    <span class="finding-title">No Consistent Export Pattern</span>
+                    <span class="finding-badge badge-nice-to-have">NICE TO HAVE</span>
+                </div>
+                <div class="finding-body">
+                    <p>WO Log: CSV export. CO Log: CSV + PDF export. Inventory, Material Requests, PO List: no export mentioned.</p>
+                    <div class="recommendation"><strong>Recommendation:</strong> Define export requirements for each list view. Consider a shared <code>ExportService</code> with CSV and PDF support.</div>
+                </div>
+            </div>
+
+            <div class="finding-card nice-to-have" onclick="this.classList.toggle('expanded')">
+                <div class="finding-header">
+                    <span class="finding-id">NTH-3</span>
+                    <span class="finding-title">Missing Empty State Designs</span>
+                    <span class="finding-badge badge-nice-to-have">NICE TO HAVE</span>
+                </div>
+                <div class="finding-body">
+                    <p>Most specs mention "handle empty data" in acceptance criteria but no specs define what the empty state looks like.</p>
+                    <div class="recommendation"><strong>Recommendation:</strong> Design a reusable <code>EmptyState</code> component with icon, message, and action button. Use consistently across all new list views.</div>
+                </div>
+            </div>
+
+            <div class="finding-card nice-to-have" onclick="this.classList.toggle('expanded')">
+                <div class="finding-header">
+                    <span class="finding-id">NTH-4</span>
+                    <span class="finding-title">No Consistent Error Handling for Bulk Operations</span>
+                    <span class="finding-badge badge-nice-to-have">NICE TO HAVE</span>
+                </div>
+                <div class="finding-body">
+                    <p><code>approveEquipmentTimeEntries(ids)</code>, <code>approveMaterialConsumptionEntries(ids)</code>, <code>upsertWorkOrderLineItems</code> &mdash; batch operations with no per-item error handling defined.</p>
+                    <div class="recommendation"><strong>Recommendation:</strong> Define pattern: return <code>{ success: [...], failed: [...] }</code> with per-item error messages, or use all-or-nothing transactions. Document the convention.</div>
+                </div>
+            </div>
+
+            <div class="finding-card nice-to-have" onclick="this.classList.toggle('expanded')">
+                <div class="finding-header">
+                    <span class="finding-id">NTH-5</span>
+                    <span class="finding-title">No Consistent Audit Trail Pattern</span>
+                    <span class="finding-badge badge-nice-to-have">NICE TO HAVE</span>
+                </div>
+                <div class="finding-body">
+                    <p>Some models have <code>createdAt</code>/<code>updatedAt</code> only. Some have <code>approvedByUserId</code>/<code>approvedAt</code>. No consistent change history logging.</p>
+                    <div class="recommendation"><strong>Recommendation:</strong> Consider a shared audit log pattern (e.g., append-only <code>AuditEntry</code> table) for financial entities where change history matters.</div>
+                </div>
+            </div>
+
+            <div class="finding-card nice-to-have" onclick="this.classList.toggle('expanded')">
+                <div class="finding-header">
+                    <span class="finding-id">NTH-6</span>
+                    <span class="finding-title">Company Detail Page Tab Explosion</span>
+                    <span class="finding-badge badge-nice-to-have">NICE TO HAVE</span>
+                </div>
+                <div class="finding-body">
+                    <p>A Supplier company page could have 9+ tabs: Overview, Jobs, Contacts, Notes, Files, Products &amp; Pricing (MAT-0), Supplier PO (MAT-5), Credits (MAT-8), Discounts (MAT-9).</p>
+                    <div class="recommendation"><strong>Recommendation:</strong> Consider grouping into sub-sections or a "Procurement" mega-tab to avoid tab overflow.</div>
+                </div>
+            </div>
+
+            <div class="finding-card nice-to-have" onclick="this.classList.toggle('expanded')">
+                <div class="finding-header">
+                    <span class="finding-id">NTH-7</span>
+                    <span class="finding-title">JobFinancialSummaryService Is a Merge Conflict Hotspot</span>
+                    <span class="finding-badge badge-nice-to-have">NICE TO HAVE</span>
+                </div>
+                <div class="finding-body">
+                    <p>Modified by 5 features in parallel: MAT-2a (material consumption), MAT-6 (committed PO costs), MAT-7 (inventory checkout costs), MAT-8 (vendor credits), UIS-15A (equipment costs).</p>
+                    <div class="recommendation"><strong>Recommendation:</strong> Refactor into a plugin/strategy pattern before implementing. Each cost source registers a "cost provider" function, and the summary service aggregates them. Prevents merge conflicts and makes adding new cost types trivial.</div>
+                </div>
+            </div>
+
+            <div class="finding-card nice-to-have" onclick="this.classList.toggle('expanded')">
+                <div class="finding-header">
+                    <span class="finding-id">NTH-8</span>
+                    <span class="finding-title">No Shared Line Item Base Component</span>
+                    <span class="finding-badge badge-nice-to-have">NICE TO HAVE</span>
+                </div>
+                <div class="finding-body">
+                    <p>WO Labor/Material/Equipment Editors, PO Line Item editor, VendorCredit Line Item editor &mdash; all are conceptually "repeating row with qty + price + description" but built as custom components.</p>
+                    <div class="recommendation"><strong>Recommendation:</strong> Extract a shared <code>RepeatingLineItemEditor</code> base component with configurable columns, add/remove row actions, and total computation.</div>
+                </div>
+            </div>
+
+            <div class="finding-card nice-to-have" onclick="this.classList.toggle('expanded')">
+                <div class="finding-header">
+                    <span class="finding-id">NTH-9</span>
+                    <span class="finding-title">Multiple Auto-Numbering Schemes Need Central Service</span>
+                    <span class="finding-badge badge-nice-to-have">NICE TO HAVE</span>
+                </div>
+                <div class="finding-body">
+                    <p>Six different auto-number prefixes: WO-001, CPO-####, SPO-####, MR-####, VC-####, RCV-###. Each defined independently.</p>
+                    <div class="recommendation"><strong>Recommendation:</strong> Create a shared <code>AutoNumberService</code> with prefix + instance scoping. Handles incrementing, padding, and prevents collisions.</div>
+                </div>
+            </div>
+
+            <div class="finding-card nice-to-have" onclick="this.classList.toggle('expanded')">
+                <div class="finding-header">
+                    <span class="finding-id">NTH-10</span>
+                    <span class="finding-title">Equipment Maintenance Models May Be Over-Scoped for v1</span>
+                    <span class="finding-badge badge-nice-to-have">NICE TO HAVE</span>
+                </div>
+                <div class="finding-body">
+                    <p>5 new models (MaintenanceThreshold, MaintenanceLog, MaintenanceSchedule, MaintenanceScheduleTemplate, DowntimeRecord) plus 3 new enums. Phase 4 is already labeled "lower priority, deferrable."</p>
+                    <div class="recommendation"><strong>Recommendation:</strong> Ship minimal viable (Threshold + Log only) and defer Schedule/Template/Downtime to a future release.</div>
+                </div>
+            </div>
+
+            <div class="finding-card nice-to-have" onclick="this.classList.toggle('expanded')">
+                <div class="finding-header">
+                    <span class="finding-id">NTH-11</span>
+                    <span class="finding-title">Three-Way Match May Be Over-Scoped for v1</span>
+                    <span class="finding-badge badge-nice-to-have">NICE TO HAVE</span>
+                </div>
+                <div class="finding-body">
+                    <p>Full PO qty vs received qty vs invoiced qty matching requires receipt tracking, invoice line item linking, and computed columns.</p>
+                    <div class="recommendation"><strong>Recommendation:</strong> Ship basic receiving (partial/complete) first. Full three-way match can be a v1.1 enhancement.</div>
+                </div>
+            </div>
+
+            <div class="finding-card nice-to-have" onclick="this.classList.toggle('expanded')">
+                <div class="finding-header">
+                    <span class="finding-id">NTH-12</span>
+                    <span class="finding-title">Discount Resolution Cascade Seems Right-Sized</span>
+                    <span class="finding-badge badge-nice-to-have">NICE TO HAVE</span>
+                </div>
+                <div class="finding-body">
+                    <p>Product &gt; Category &gt; Global with date ranges. Standard for B2B distribution pricing.</p>
+                    <div class="recommendation"><strong>Recommendation:</strong> No change needed. Document the cascade clearly in the resolver with inline examples.</div>
+                </div>
+            </div>
+
+            <div class="finding-card nice-to-have" onclick="this.classList.toggle('expanded')">
+                <div class="finding-header">
+                    <span class="finding-id">NTH-13</span>
+                    <span class="finding-title">Inventory Costing Method Left Open</span>
+                    <span class="finding-badge badge-nice-to-have">NICE TO HAVE</span>
+                </div>
+                <div class="finding-body">
+                    <p>Plan flags "FIFO vs weighted average" as an open decision. Both require different movement computation logic.</p>
+                    <div class="recommendation"><strong>Recommendation:</strong> Start with weighted average (simpler to implement). FIFO adds lot tracking complexity that isn't needed for v1.</div>
+                </div>
+            </div>
+
+            <div class="finding-card nice-to-have" onclick="this.classList.toggle('expanded')">
+                <div class="finding-header">
+                    <span class="finding-id">NTH-14</span>
+                    <span class="finding-title">No Consistent "Convert to PO" Pattern</span>
+                    <span class="finding-badge badge-nice-to-have">NICE TO HAVE</span>
+                </div>
+                <div class="finding-body">
+                    <p>MAT-4 mentions "Convert to PO" as a future feature on material requests. WO-7 has "Convert to CO/Invoice" as an explicit feature. No shared conversion mutation pattern.</p>
+                    <div class="recommendation"><strong>Recommendation:</strong> Design a shared conversion mutation pattern: <code>convertEntity(sourceType, sourceId, targetType)</code> with pre-fill logic.</div>
+                </div>
+            </div>
+
+            <div class="finding-card nice-to-have" onclick="this.classList.toggle('expanded')">
+                <div class="finding-header">
+                    <span class="finding-id">NTH-15</span>
+                    <span class="finding-title">No Test Strategy Mentioned in Any Spec</span>
+                    <span class="finding-badge badge-nice-to-have">NICE TO HAVE</span>
+                </div>
+                <div class="finding-body">
+                    <p>61 spec files, 0 mention unit tests, integration tests, or E2E tests.</p>
+                    <div class="recommendation"><strong>Recommendation:</strong> Add test requirements to each spec's acceptance criteria. At minimum: model-level unit tests, resolver integration tests, and critical-path E2E tests.</div>
+                </div>
+            </div>
+
+            <div class="finding-card nice-to-have" onclick="this.classList.toggle('expanded')">
+                <div class="finding-header">
+                    <span class="finding-id">NTH-16</span>
+                    <span class="finding-title">Missing Offline Patterns for Mobile</span>
+                    <span class="finding-badge badge-nice-to-have">NICE TO HAVE</span>
+                </div>
+                <div class="finding-body">
+                    <p>MAT-2b mentions "offline support" for consumption entries. WO-8 mentions "multiple drafts can be open simultaneously." No other mobile features mention offline capability.</p>
+                    <div class="recommendation"><strong>Recommendation:</strong> Define offline-first vs online-only per mobile feature. Document which features queue mutations for sync and which require connectivity.</div>
+                </div>
+            </div>
+
+            <div class="finding-card nice-to-have" onclick="this.classList.toggle('expanded')">
+                <div class="finding-header">
+                    <span class="finding-id">NTH-17</span>
+                    <span class="finding-title">No Pagination Defined for List Queries</span>
+                    <span class="finding-badge badge-nice-to-have">NICE TO HAVE</span>
+                </div>
+                <div class="finding-body">
+                    <p>Many queries return arrays: <code>materialConsumptionEntries</code>, <code>inventoryMovements</code>, <code>vendorCredits</code>. No offset/limit/cursor pagination defined.</p>
+                    <div class="recommendation"><strong>Recommendation:</strong> Use existing <code>GetListOptions</code> pattern with pagination for all list queries. Construction companies can accumulate thousands of records per entity.</div>
+                </div>
+            </div>
+
+        </div>
+    </details>
+
+
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <!-- 8a. STATUS LIFECYCLE COMPARISON                          -->
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <details class="section" id="status-lifecycle">
+        <summary>
+            <span class="chevron">&#9654;</span>
+            Status Lifecycle Comparison
+            <span class="section-badge" style="background:#f1f5f9;color:#475569;">8 Entities</span>
+        </summary>
+        <div class="section-body">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Entity</th>
+                        <th>States</th>
+                        <th>Storage Pattern</th>
+                        <th>Approval</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><code>Job</code></td>
+                        <td>Existing statuses (Active, Closed, etc.)</td>
+                        <td>PropertyValue</td>
+                        <td><span class="cross">No</span></td>
+                    </tr>
+                    <tr>
+                        <td><code>Work Order</code></td>
+                        <td>Draft → Submitted → AwaitingSignature → Signed → Approved → Invoiced → Void</td>
+                        <td>PropertyValue</td>
+                        <td><span class="check">Yes</span> (signature + approval)</td>
+                    </tr>
+                    <tr>
+                        <td><code>EquipmentTimeEntry</code></td>
+                        <td>Pending → Approved / Rejected</td>
+                        <td>Prisma Enum</td>
+                        <td><span class="check">Yes</span></td>
+                    </tr>
+                    <tr>
+                        <td><code>MaterialConsumptionEntry</code></td>
+                        <td>Draft → Submitted → Approved</td>
+                        <td>Const String</td>
+                        <td><span class="check">Yes</span></td>
+                    </tr>
+                    <tr>
+                        <td><code>PurchaseOrder</code></td>
+                        <td>Draft → Issued → PartiallyReceived → FullyReceived → Closed</td>
+                        <td>Const String</td>
+                        <td><span class="cross">No</span> (v1)</td>
+                    </tr>
+                    <tr>
+                        <td><code>MaterialRequest</code></td>
+                        <td>Submitted → Acknowledged → InProgress → Fulfilled / Cancelled</td>
+                        <td>Const String</td>
+                        <td><span class="cross">No</span> (acknowledge workflow)</td>
+                    </tr>
+                    <tr>
+                        <td><code>VendorCredit</code></td>
+                        <td style="color:#dc2626;">Draft → Submitted → Approved → Applied (UIS)<br>Pending → Applied / Void (Plan)</td>
+                        <td>Const String</td>
+                        <td><span class="tbd">TBD</span></td>
+                    </tr>
+                    <tr>
+                        <td><code>PriceBookImport</code></td>
+                        <td>Pending → Processing → Complete / PartialSuccess / Failed</td>
+                        <td>Const String</td>
+                        <td><span class="cross">No</span></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </details>
+
+
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <!-- 8b. MOBILE COVERAGE MATRIX                              -->
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <details class="section" id="mobile-coverage">
+        <summary>
+            <span class="chevron">&#9654;</span>
+            Mobile Coverage Matrix
+            <span class="section-badge" style="background:#fce7f3;color:#be185d;">24 Features</span>
+        </summary>
+        <div class="section-body">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Feature</th>
+                        <th style="text-align:center;">Desktop</th>
+                        <th style="text-align:center;">Mobile</th>
+                        <th>Notes</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr class="phase-group-header"><td colspan="4">1.33 &mdash; LEM Foundation</td></tr>
+                    <tr><td>LEM-1 Labor Rates</td><td style="text-align:center;"><span class="check">&#10003;</span></td><td style="text-align:center;"><span class="cross">&mdash;</span></td><td>Settings &mdash; desktop only appropriate</td></tr>
+                    <tr><td>LEM-2 Equipment Rates</td><td style="text-align:center;"><span class="check">&#10003;</span></td><td style="text-align:center;"><span class="cross">&mdash;</span></td><td>Settings &mdash; desktop only appropriate</td></tr>
+
+                    <tr class="phase-group-header"><td colspan="4">1.33 &mdash; T&amp;M Work Orders</td></tr>
+                    <tr><td>WO-1 Job Classification</td><td style="text-align:center;"><span class="check">&#10003;</span></td><td style="text-align:center;"><span class="partial">Via WO-6</span></td><td>Mobile inherits via Job list</td></tr>
+                    <tr><td>WO-2 Line Items</td><td style="text-align:center;"><span class="check">&#10003;</span></td><td style="text-align:center;"><span class="partial">Via WO-8</span></td><td>Mobile form creates items</td></tr>
+                    <tr><td>WO-3 Create/Edit</td><td style="text-align:center;"><span class="check">&#10003;</span> Flyout</td><td style="text-align:center;"><span class="check">&#10003;</span> WO-8 Wizard</td><td>Different form patterns</td></tr>
+                    <tr><td>WO-4 Detail</td><td style="text-align:center;"><span class="check">&#10003;</span></td><td style="text-align:center;"><span class="check">&#10003;</span> WO-6</td><td>Simplified mobile detail</td></tr>
+                    <tr><td>WO-5 WO Log</td><td style="text-align:center;"><span class="check">&#10003;</span></td><td style="text-align:center;"><span class="check">&#10003;</span> WO-6</td><td>Mobile list view</td></tr>
+                    <tr><td>WO-6 CO Log</td><td style="text-align:center;"><span class="check">&#10003;</span></td><td style="text-align:center;"><span class="cross">&mdash;</span></td><td>GAP &mdash; low priority</td></tr>
+                    <tr><td>WO-7 Conversion</td><td style="text-align:center;"><span class="check">&#10003;</span></td><td style="text-align:center;"><span class="cross">&mdash;</span></td><td>Office workflow &mdash; appropriate</td></tr>
+                    <tr><td>WO-8 Mobile Creation</td><td style="text-align:center;"><span class="cross">&mdash;</span></td><td style="text-align:center;"><span class="check">&#10003;</span></td><td>Mobile-only</td></tr>
+
+                    <tr class="phase-group-header"><td colspan="4">1.33 &mdash; Equipment Module</td></tr>
+                    <tr><td>UIS-15H Equipment Time</td><td style="text-align:center;"><span class="check">&#10003;</span></td><td style="text-align:center;"><span class="check">&#10003;</span></td><td>Timesheet integration</td></tr>
+                    <tr><td>UIS-15E Equipment Search</td><td style="text-align:center;"><span class="check">&#10003;</span></td><td style="text-align:center;"><span class="check">&#10003;</span></td><td>QR scanner</td></tr>
+                    <tr><td>UIS-15F Equipment Checklist</td><td style="text-align:center;"><span class="check">&#10003;</span></td><td style="text-align:center;"><span class="check">&#10003;</span></td><td>Mobile form submission</td></tr>
+
+                    <tr class="phase-group-header"><td colspan="4">1.34 &mdash; Material Management</td></tr>
+                    <tr><td>MAT-0 Supply Chain</td><td style="text-align:center;"><span class="check">&#10003;</span></td><td style="text-align:center;"><span class="cross">&mdash;</span></td><td>Settings &mdash; appropriate</td></tr>
+                    <tr><td>MAT-1 Customer PO</td><td style="text-align:center;"><span class="check">&#10003;</span></td><td style="text-align:center;"><span class="cross">&mdash;</span></td><td>GAP &mdash; consider view-only mobile</td></tr>
+                    <tr><td>MAT-2a Consumption Desktop</td><td style="text-align:center;"><span class="check">&#10003;</span></td><td style="text-align:center;"><span class="cross">&mdash;</span></td><td>See MAT-2b</td></tr>
+                    <tr><td>MAT-2b Consumption Mobile</td><td style="text-align:center;"><span class="cross">&mdash;</span></td><td style="text-align:center;"><span class="check">&#10003;</span></td><td>Mobile-only</td></tr>
+                    <tr><td>MAT-3 Price Book Import</td><td style="text-align:center;"><span class="check">&#10003;</span></td><td style="text-align:center;"><span class="cross">&mdash;</span></td><td>Admin &mdash; appropriate</td></tr>
+                    <tr><td>MAT-4 Material Requests</td><td style="text-align:center;"><span class="check">&#10003;</span> Inbox</td><td style="text-align:center;"><span class="check">&#10003;</span> Form</td><td>Field → Office workflow</td></tr>
+                    <tr><td>MAT-5 Supplier PO</td><td style="text-align:center;"><span class="check">&#10003;</span></td><td style="text-align:center;"><span class="cross">&mdash;</span></td><td>Office workflow &mdash; appropriate</td></tr>
+                    <tr><td>MAT-6 Receiving</td><td style="text-align:center;"><span class="check">&#10003;</span></td><td style="text-align:center;"><span class="cross">&mdash;</span></td><td style="color:#dc2626;">GAP &mdash; mobile receiving would be valuable</td></tr>
+                    <tr><td>MAT-7 Inventory</td><td style="text-align:center;"><span class="check">&#10003;</span></td><td style="text-align:center;"><span class="partial">QR only</span></td><td>Mobile is QR lookup only</td></tr>
+                    <tr><td>MAT-8 Vendor Credits</td><td style="text-align:center;"><span class="check">&#10003;</span></td><td style="text-align:center;"><span class="cross">&mdash;</span></td><td>Office workflow &mdash; appropriate</td></tr>
+                    <tr><td>MAT-9 Discounts</td><td style="text-align:center;"><span class="check">&#10003;</span></td><td style="text-align:center;"><span class="cross">&mdash;</span></td><td>Settings &mdash; appropriate</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </details>
+
+
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <!-- 8c. PERMISSION MODEL MATRIX                             -->
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <details class="section" id="permissions">
+        <summary>
+            <span class="chevron">&#9654;</span>
+            Permission Model Matrix
+            <span class="section-badge" style="background:#f1f5f9;color:#475569;">10 Features</span>
+        </summary>
+        <div class="section-body">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Feature</th>
+                        <th>Permission Group</th>
+                        <th style="text-align:center;">View</th>
+                        <th style="text-align:center;">Create</th>
+                        <th style="text-align:center;">Edit</th>
+                        <th style="text-align:center;">Delete</th>
+                        <th>Special</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Work Orders</td>
+                        <td><code>job</code></td>
+                        <td style="text-align:center;"><span class="check">&#10003;</span></td>
+                        <td style="text-align:center;"><span class="check">&#10003;</span></td>
+                        <td style="text-align:center;"><span class="check">&#10003;</span></td>
+                        <td style="text-align:center;"><span class="check">&#10003;</span></td>
+                        <td><code>viewWageDetails</code></td>
+                    </tr>
+                    <tr>
+                        <td>Equipment Time</td>
+                        <td><code>timesheet</code> (existing)</td>
+                        <td style="text-align:center;"><span class="check">&#10003;</span></td>
+                        <td style="text-align:center;"><span class="check">&#10003;</span></td>
+                        <td style="text-align:center;"><span class="check">&#10003;</span></td>
+                        <td style="text-align:center;"><span class="check">&#10003;</span></td>
+                        <td>&mdash;</td>
+                    </tr>
+                    <tr>
+                        <td>Equipment Rates</td>
+                        <td><code>equipment</code></td>
+                        <td style="text-align:center;"><span class="check">&#10003;</span></td>
+                        <td style="text-align:center;">&mdash;</td>
+                        <td style="text-align:center;"><span class="check">&#10003;</span></td>
+                        <td style="text-align:center;">&mdash;</td>
+                        <td>&mdash;</td>
+                    </tr>
+                    <tr>
+                        <td>Equipment Maintenance</td>
+                        <td><code>equipment</code></td>
+                        <td style="text-align:center;"><span class="check">&#10003;</span></td>
+                        <td style="text-align:center;">&mdash;</td>
+                        <td style="text-align:center;"><span class="check">&#10003;</span></td>
+                        <td style="text-align:center;">&mdash;</td>
+                        <td><code>view_financial</code>, <code>view_maintenance_cost</code></td>
+                    </tr>
+                    <tr>
+                        <td>Material Consumption</td>
+                        <td><code>materialorder</code></td>
+                        <td style="text-align:center;">&mdash;</td>
+                        <td style="text-align:center;"><span class="check">&#10003;</span></td>
+                        <td style="text-align:center;">&mdash;</td>
+                        <td style="text-align:center;">&mdash;</td>
+                        <td>&mdash;</td>
+                    </tr>
+                    <tr>
+                        <td>Material Requests</td>
+                        <td><code>materialorder</code></td>
+                        <td style="text-align:center;">&mdash;</td>
+                        <td style="text-align:center;"><span class="check">&#10003;</span></td>
+                        <td style="text-align:center;">&mdash;</td>
+                        <td style="text-align:center;">&mdash;</td>
+                        <td>&mdash;</td>
+                    </tr>
+                    <tr style="color:#dc2626;">
+                        <td>Purchase Orders</td>
+                        <td><span class="tbd">TBD</span></td>
+                        <td style="text-align:center;"><span class="tbd">TBD</span></td>
+                        <td style="text-align:center;"><span class="tbd">TBD</span></td>
+                        <td style="text-align:center;"><span class="tbd">TBD</span></td>
+                        <td style="text-align:center;"><span class="tbd">TBD</span></td>
+                        <td>&mdash;</td>
+                    </tr>
+                    <tr>
+                        <td>Inventory</td>
+                        <td><code>inventory</code></td>
+                        <td style="text-align:center;"><span class="check">&#10003;</span></td>
+                        <td style="text-align:center;"><span class="check">&#10003;</span></td>
+                        <td style="text-align:center;"><span class="check">&#10003;</span></td>
+                        <td style="text-align:center;"><span class="check">&#10003;</span></td>
+                        <td>&mdash;</td>
+                    </tr>
+                    <tr>
+                        <td>Vendor Credits</td>
+                        <td><code>vendorCredit</code></td>
+                        <td style="text-align:center;"><span class="check">&#10003;</span></td>
+                        <td style="text-align:center;"><span class="check">&#10003;</span></td>
+                        <td style="text-align:center;"><span class="check">&#10003;</span></td>
+                        <td style="text-align:center;"><span class="check">&#10003;</span></td>
+                        <td>&mdash;</td>
+                    </tr>
+                    <tr>
+                        <td>Discounts</td>
+                        <td><code>material</code></td>
+                        <td style="text-align:center;">&mdash;</td>
+                        <td style="text-align:center;">&mdash;</td>
+                        <td style="text-align:center;"><span class="check">&#10003;</span></td>
+                        <td style="text-align:center;">&mdash;</td>
+                        <td>&mdash;</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </details>
+
+
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <!-- 8d. P&L INTEGRATION MATRIX                              -->
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <details class="section" id="pl-integration">
+        <summary>
+            <span class="chevron">&#9654;</span>
+            P&amp;L Integration Matrix
+            <span class="section-badge" style="background:#dcfce7;color:#166534;">5 Cost Sources</span>
+        </summary>
+        <div class="section-body">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Feature</th>
+                        <th>Modifies JobFinancialSummaryService</th>
+                        <th>Cost Type</th>
+                        <th>Computation</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>UIS-15A Equipment P&amp;L</td>
+                        <td><span class="check">&#10003; Yes</span></td>
+                        <td>Equipment costs</td>
+                        <td>SUM(approved entries &times; resolved rate)</td>
+                    </tr>
+                    <tr>
+                        <td>MAT-2a Material Consumption</td>
+                        <td><span class="check">&#10003; Yes</span></td>
+                        <td>Material consumption</td>
+                        <td>SUM(qty &times; resolved price) at query time</td>
+                    </tr>
+                    <tr>
+                        <td>MAT-6 Receiving</td>
+                        <td><span class="check">&#10003; Yes</span></td>
+                        <td>Committed material costs</td>
+                        <td>PO issued amount</td>
+                    </tr>
+                    <tr>
+                        <td>MAT-7 Inventory Checkout</td>
+                        <td><span class="check">&#10003; Yes</span></td>
+                        <td>Material cost actuals</td>
+                        <td>Checkout qty &times; unit cost</td>
+                    </tr>
+                    <tr>
+                        <td>MAT-8 Vendor Credits</td>
+                        <td><span class="check">&#10003; Yes</span></td>
+                        <td>Credit adjustment</td>
+                        <td>Negative material cost</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </details>
+
+
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <!-- 9. RECOMMENDED ACTION PRIORITY                          -->
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <div class="priority-section" id="actions">
+        <h2>Recommended Action Priority</h2>
+
+        <span class="priority-group-label">Before Implementation Starts</span>
+        <ol class="priority-list">
+            <li><span class="priority-num">1</span> Resolve all CRITICAL findings &mdash; ID patterns, enum conflicts, field name discrepancies <span class="ref">(CRITICAL-1 through CRITICAL-9)</span></li>
+            <li><span class="priority-num">2</span> Decide VendorCredit approval workflow: 4-step with approval or 2-step without <span class="ref">(CRITICAL-6)</span></li>
+            <li><span class="priority-num">3</span> Decide inventory movement architecture: location-agnostic ledger or inventoryItemId FK <span class="ref">(CRITICAL-7)</span></li>
+            <li><span class="priority-num">4</span> Publish field name reconciliation document mapping UIS → Plan for every affected model <span class="ref">(CRITICAL-5)</span></li>
+        </ol>
+
+        <span class="priority-group-label">During Phase 1 (1.33)</span>
+        <ol class="priority-list" start="5">
+            <li><span class="priority-num">5</span> Standardize Equipment specs to VarChar(21) nanoid IDs <span class="ref">(CRITICAL-1)</span></li>
+            <li><span class="priority-num">6</span> Reconcile EquipmentRateValue vs EquipmentRate model architecture <span class="ref">(CRITICAL-3)</span></li>
+            <li><span class="priority-num">7</span> Define notification matrix for all status transitions <span class="ref">(SHOULD-FIX-11)</span></li>
+        </ol>
+
+        <span class="priority-group-label">During Phase 1 (1.34)</span>
+        <ol class="priority-list" start="8">
+            <li><span class="priority-num">8</span> Establish shared AutoNumberService for WO, CPO, SPO, MR, VC, RCV prefixes <span class="ref">(NTH-9)</span></li>
+            <li><span class="priority-num">9</span> Create shared RepeatingLineItemEditor base component <span class="ref">(NTH-8)</span></li>
+            <li><span class="priority-num">10</span> Refactor JobFinancialSummaryService with plugin/strategy pattern before 5 features modify it <span class="ref">(NTH-7)</span></li>
+        </ol>
+    </div>
+
+
+    <!-- Footer -->
+    <div class="footer">
+        Cross-Release Continuity Audit &mdash; Generated April 2026 &bull; Releases 1.33 + 1.34<br>
+        <a href="index.html">Back to Roadmap</a> &bull; <a href="release-1.33-timeline.html">1.33 Timeline</a> &bull; <a href="release-1.34-timeline.html">1.34 Timeline</a>
+    </div>
+
+</div>
+
+<script>
+document.querySelectorAll('.finding-card').forEach(card => {
+    card.querySelector('.finding-header').addEventListener('click', (e) => {
+        e.stopPropagation();
+        card.classList.toggle('expanded');
+    });
+    card.removeAttribute('onclick');
+});
+</script>
+</body>
+</html>

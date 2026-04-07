@@ -200,7 +200,7 @@ This component is a **simplified version of `WageRates.tsx`**. Key differences:
 ```
 BillableRates.tsx
 ├── Header: WageRegion selector + Search + Edit button
-├── TabGroup (one tab per rateType where isLineItem=false)
+├── TabGroup (one tab per wage rate multiplier — EmployeeAgreementRateLabel where isLineItem=false, e.g. "1x", "1.5x", "2x")
 │   └── Table per tab
 │       ├── Header row: trade level names as columns
 │       ├── "Cost Rate" row: TradeLevelRate.baseValue (read-only, gray)
@@ -373,7 +373,7 @@ After implementation, verify:
 - [ ] GraphQL playground: `tradeLevelRate(id: "...")` returns `billableValue`
 - [ ] GraphQL playground: `editManyTradeLevelRates` accepts `billableValue` in payload
 - [ ] Billable Rates tab appears after Wage Rates tab on an Employee Agreement Contract
-- [ ] Rate types (Wages, Benefits, etc.) appear as sub-tabs
+- [ ] Rate types (1x, 1.5x, 2x — from EmployeeAgreementRateLabel where isLineItem=false) appear as sub-tabs
 - [ ] Cost Rate row shows read-only values matching Wage Rates tab totals
 - [ ] Billable Rate row is empty (null) for unconfigured rates
 - [ ] Edit mode enables CurrencyInput fields on Billable Rate row
@@ -403,69 +403,7 @@ After implementation, verify:
 | MODIFY | `apps/frontend/src/components/DetailsPage/EmployeeContract/index.tsx` | Register new tab |
 </script>
 
-<script>
-// Render the embedded markdown to HTML
-(function() {
-    const md = document.getElementById('plan-md').textContent;
-    const target = document.getElementById('rendered');
-
-    // Parse markdown to HTML
-    let html = md
-        // Code blocks (fenced) — must come first before inline code
-        .replace(/```(\w*)\n([\s\S]*?)```/g, function(_, lang, code) {
-            return '<pre><code>' + code.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</code></pre>';
-        })
-        // Inline code
-        .replace(/`([^`\n]+)`/g, '<code>$1</code>')
-        // Headers
-        .replace(/^#### (.+)$/gm, '<h4>$1</h4>')
-        .replace(/^### (.+)$/gm, '<h3>$1</h3>')
-        .replace(/^## (.+)$/gm, '<h2>$1</h2>')
-        .replace(/^# (.+)$/gm, '<h1>$1</h1>')
-        // Bold
-        .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-        // Italic
-        .replace(/\*(.+?)\*/g, '<em>$1</em>')
-        // Horizontal rules
-        .replace(/^---$/gm, '<hr>')
-        // Checkboxes
-        .replace(/^- \[ \] (.+)$/gm, '<div class="check-item"><div class="check-box"></div><span>$1</span></div>')
-        .replace(/^- \[x\] (.+)$/gm, '<div class="check-item"><div class="check-box" style="background:#3b82f6;border-color:#3b82f6;"></div><span>$1</span></div>');
-
-    // Tables
-    html = html.replace(/(\|.+\|\n)+/g, function(table) {
-        var rows = table.trim().split('\n');
-        if (rows.length < 2) return table;
-        var headers = rows[0].split('|').filter(function(c) { return c.trim(); });
-        var isSep = /^[\s|:\-]+$/.test(rows[1]);
-        var start = isSep ? 2 : 1;
-        var out = '<table><thead><tr>';
-        headers.forEach(function(h) { out += '<th>' + h.trim() + '</th>'; });
-        out += '</tr></thead><tbody>';
-        for (var i = start; i < rows.length; i++) {
-            var cells = rows[i].split('|').filter(function(c) { return c.trim(); });
-            out += '<tr>';
-            cells.forEach(function(c) { out += '<td>' + c.trim() + '</td>'; });
-            out += '</tr>';
-        }
-        out += '</tbody></table>';
-        return out;
-    });
-
-    // Unordered list items
-    html = html.replace(/^- (.+)$/gm, '<li>$1</li>');
-    html = html.replace(/(<li>[\s\S]*?<\/li>\n?)+/g, function(m) {
-        return '<ul>' + m + '</ul>';
-    });
-
-    // Paragraphs — wrap standalone text lines
-    html = html.replace(/^(?!<[hultdps\/<]|<\/|<code|<pre|<hr|<div|<strong|<em)(.+)$/gm, '<p>$1</p>');
-
-    // Clean up double-wrapped
-    html = html.replace(/<p><(h[1-4]|pre|table|ul|hr|div)/g, '<$1');
-
-    target.innerHTML = html;
-})();
-</script>
+<script src="plan-renderer.js"></script>
+<script>renderPlan();</script>
 </body>
 </html>

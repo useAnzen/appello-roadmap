@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MAT-1: Customer PO Entity — Implementation Plan</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Inter', -apple-system, sans-serif; background: #f8fafc; color: #0f172a; }
+.plan-wrap { max-width: 880px; margin: 0 auto; padding: 40px 24px 80px; }
+h1 { font-size: 24px; font-weight: 800; margin: 0 0 16px; }
+h2 { font-size: 18px; font-weight: 700; margin: 28px 0 12px; padding-bottom: 8px; border-bottom: 2px solid #e2e8f0; }
+h3 { font-size: 15px; font-weight: 700; margin: 20px 0 8px; padding-top: 10px; border-top: 1px solid #f1f5f9; }
+h4 { font-size: 14px; font-weight: 700; margin: 14px 0 6px; }
+p { font-size: 14px; color: #334155; line-height: 1.7; margin: 6px 0; }
+ul, ol { padding-left: 20px; margin: 8px 0; }
+li { font-size: 14px; color: #334155; line-height: 1.7; margin: 3px 0; }
+strong { color: #0f172a; }
+code { font-family: 'SF Mono', monospace; background: #f1f5f9; padding: 1px 6px; border-radius: 4px; font-size: 12px; color: #7c3aed; }
+pre { background: #1e293b; color: #e2e8f0; border-radius: 8px; padding: 16px; overflow-x: auto; font-size: 13px; line-height: 1.6; margin: 12px 0; font-family: 'SF Mono', monospace; }
+pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
+hr { border: none; border-top: 1px solid #e2e8f0; margin: 24px 0; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 12px 0; }
+th { text-align: left; padding: 8px 12px; background: #f1f5f9; border-bottom: 2px solid #e2e8f0; font-weight: 600; }
+td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
+.check-item { display: flex; gap: 8px; align-items: flex-start; padding: 5px 0; }
+.check-box { width: 16px; height: 16px; border: 2px solid #cbd5e1; border-radius: 3px; flex-shrink: 0; margin-top: 2px; }
+.callout { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 14px 18px; margin: 14px 0; font-size: 13px; color: #1e40af; }
+.callout strong { color: #1e3a8a; }
+    </style>
+</head>
+<body>
+<div class="plan-wrap" id="rendered"></div>
+<script type="text/plain" id="plan-md">
+# MAT-1: Customer PO Entity — Implementation Plan
+
+## Overview
+
+Replace the `Job.purchaseOrder` string field with a first-class `PurchaseOrder` model. Supports multiple POs per job, PO-aware invoicing, and a PO detail page with tabs. The PurchaseOrder model is shared between Customer POs (MAT-1) and Supplier POs (MAT-5).
+
+**Estimated effort:** 5-7 days
+**Risk:** Medium — migration of existing string data to new model, FK changes on EstimateChangeOrderRecord and JobBill
+**Deps:** None (ROOT — parallel with MAT-0)
+
+---
+
+## Step 1: Prisma Schema — New Models
+
+### 1a. PurchaseOrder
+
+**File:** `apps/api/prisma/schema.prisma`
+
+```prisma
+model PurchaseOrder {
+  id              String    @id @db.VarChar(21)
+  isDeleted       Boolean   @default(false)
+  isArchived      Boolean   @default(false)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @default(now()) @updatedAt
+
+  type            String    @db.VarChar(50)
+  poNumber        String    @db.VarChar(100)
+  companyId       String?   @db.VarChar(21)
+  Company         Company?  @relation(fields: [companyId], references: [id])
+  jobId           String?   @db.VarChar(21)
+  Job             Job?      @relation(fields: [jobId], references: [id])
+  contactId       String?   @db.VarChar(21)
+  status          String    @db.VarChar(50)
+  issuedDate      DateTime?
+  amount          Decimal?  @db.Decimal(10, 2)
+  description     String?   @db.Text
+  terms           String?   @db.Text
+
+  LineItems       PurchaseOrderLineItem[]
+
+  @@index([jobId, isDeleted])
+  @@index([companyId, isDeleted])
+  @@index([type, isDeleted])
+}
+```
+
+Const-based status types:
+```typescript
+export const PURCHASE_ORDER_TYPES = ["CustomerPO", "SupplierPO"] as const;
+export const PURCHASE_ORDER_STATUSES = ["Draft", "Issued", "Sent", "PartiallyReceived", "FullyReceived", "Closed"] as const;
+```
+
+### 1b. PurchaseOrderLineItem
+
+```prisma
+model PurchaseOrderLineItem {
+  id                String        @id @db.VarChar(21)
+  isDeleted         Boolean       @default(false)
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @default(now()) @updatedAt
+
+  purchaseOrderId   String        @db.VarChar(21)
+  PurchaseOrder     PurchaseOrder @relation(fields: [purchaseOrderId], references: [id])
+
+  description       String?       @db.VarChar(500)
+  quantity          Decimal?      @db.Decimal(10, 2)
+  unitPrice         Decimal?      @db.Decimal(10, 2)
+  accountItemId     String?       @db.VarChar(21)
+  costCodeId        String?       @db.VarChar(21)
+
+  @@index([purchaseOrderId, isDeleted])
+}
+```
+
+**Note:** `total` is computed (quantity x unitPrice) at query time, not stored.
+
+### 1c. Migration + Data Migration
+
+```sql
+-- Create tables
+CREATE TABLE PurchaseOrder (...);
+CREATE TABLE PurchaseOrderLineItem (...);
+
+-- Migrate existing Job.purchaseOrder strings
+INSERT INTO PurchaseOrder (id, type, poNumber, jobId, status, createdAt, updatedAt)
+SELECT nanoid(), 'CustomerPO', purchaseOrder, id, 'Issued', NOW(), NOW()
+FROM Job
+WHERE purchaseOrder IS NOT NULL AND purchaseOrder != '';
+```
+
+---
+
+## Step 2: Model Class
+
+**Create file:** `apps/api/src/models/PurchaseOrder.ts`
+
+Standard BaseModel. Key methods:
+- `getNextPoNumber(type)`: Auto-sequence CPO-#### or SPO-#### per instance
+- `getByJob(jobId)`: Get all POs for a job
+- `getByCompany(companyId)`: Get all POs for a company
+
+---
+
+## Step 3: GraphQL Resolver
+
+**Create file:** `apps/api/src/graphql/models/PurchaseOrder.ts`
+
+Type definition with `total` as computed resolver on `PurchaseOrderLineItem`:
+```typescript
+PurchaseOrderLineItem: {
+    total: (parent) => {
+        if (parent.quantity && parent.unitPrice) {
+            return Number(parent.quantity) * Number(parent.unitPrice);
+        }
+        return null;
+    }
+}
+```
+
+---
+
+## Step 4: Frontend — PO Detail Page
+
+**Create file:** `apps/frontend/src/pages/purchase-orders/[id]/index.tsx`
+
+Tabs: Overview, Line Items, Invoices, Estimates, Files.
+
+### 4a. PO tab on Company detail page
+
+Add PurchaseOrders tab to Company detail showing all POs for that company.
+
+### 4b. PO tab on Job detail page
+
+Add PurchaseOrders section showing all POs linked to that job.
+
+### 4c. Estimate/Invoice PO dropdown
+
+Replace free-text `purchaseOrder` input on estimate and invoice forms with a PO dropdown selector.
+
+---
+
+## Step 5: Route + Navigation
+
+**File:** `apps/frontend/src/lib/routes.ts`
+
+Add route for `/purchase-orders` and `/purchase-orders/[id]`.
+
+---
+
+## Verification Checklist
+
+- [ ] PurchaseOrder and PurchaseOrderLineItem tables created
+- [ ] Existing Job.purchaseOrder strings migrated to PurchaseOrder records
+- [ ] Multiple POs per job supported
+- [ ] PO detail page with Overview, Line Items, Invoices, Estimates, Files tabs
+- [ ] PO tab on Company detail page
+- [ ] PO numbering: CPO-#### auto-sequenced per instance
+- [ ] Estimates and Invoices have PO dropdown selector (replacing free-text)
+- [ ] PurchaseOrderLineItem.total computed at query time
+- [ ] Search Core indexed for PO lookup
+- [ ] No regression on existing estimate/invoice PO references
+
+---
+
+## Files Summary
+
+| Action | File | What to do |
+|--------|------|------------|
+| MODIFY | `apps/api/prisma/schema.prisma` | Add PurchaseOrder + PurchaseOrderLineItem models |
+| CREATE | `apps/api/prisma/migrations/.../migration.sql` | CREATE TABLE x2 + data migration |
+| CREATE | `apps/api/src/models/PurchaseOrder.ts` | Model class with auto-numbering |
+| CREATE | `apps/api/src/graphql/models/PurchaseOrder.ts` | GraphQL resolver with computed total |
+| MODIFY | `apps/api/src/graphql/schema.ts` | Register new resolver |
+| CREATE | `apps/frontend/src/pages/purchase-orders/[id]/index.tsx` | PO detail page |
+| MODIFY | `apps/frontend/.../CompanyDetailsPage/index.tsx` | Add PO tab |
+| MODIFY | `apps/frontend/.../JobDetailsPage/index.tsx` | Add PO section |
+| MODIFY | Estimate/Invoice forms | Replace string input with PO dropdown |
+| MODIFY | `apps/frontend/src/lib/routes.ts` | Add PO routes |
+</script>
+<script>
+(function() {
+    var md = document.getElementById('plan-md').textContent;
+    var target = document.getElementById('rendered');
+    var html = md
+        .replace(/```(\w*)\n([\s\S]*?)```/g, function(_, lang, code) {
+            return '<pre><code>' + code.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</code></pre>';
+        })
+        .replace(/`([^`\n]+)`/g, '<code>$1</code>')
+        .replace(/^#### (.+)$/gm, '<h4>$1</h4>')
+        .replace(/^### (.+)$/gm, '<h3>$1</h3>')
+        .replace(/^## (.+)$/gm, '<h2>$1</h2>')
+        .replace(/^# (.+)$/gm, '<h1>$1</h1>')
+        .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\*(.+?)\*/g, '<em>$1</em>')
+        .replace(/^---$/gm, '<hr>');
+    html = html.replace(/^- \[ \] (.+)$/gm, '<div class="check-item"><div class="check-box"></div><span>$1</span></div>');
+    html = html.replace(/(\|.+\|\n)+/g, function(table) {
+        var rows = table.trim().split('\n');
+        if (rows.length < 2) return table;
+        var headers = rows[0].split('|').filter(function(c) { return c.trim(); });
+        var isSep = /^[\s|:\-]+$/.test(rows[1]);
+        var start = isSep ? 2 : 1;
+        var out = '<table><thead><tr>';
+        headers.forEach(function(h) { out += '<th>' + h.trim() + '</th>'; });
+        out += '</tr></thead><tbody>';
+        for (var i = start; i < rows.length; i++) {
+            var cells = rows[i].split('|').filter(function(c) { return c.trim(); });
+            out += '<tr>'; cells.forEach(function(c) { out += '<td>' + c.trim() + '</td>'; }); out += '</tr>';
+        }
+        out += '</tbody></table>';
+        return out;
+    });
+    html = html.replace(/^- (.+)$/gm, '<li>$1</li>');
+    html = html.replace(/(<li>[\s\S]*?<\/li>\n?)+/g, function(m) { return '<ul>' + m + '</ul>'; });
+    html = html.replace(/^(?!<[hultdps\/<]|<\/|<code|<pre|<hr|<div|<strong|<em)(.+)$/gm, '<p>$1</p>');
+    target.innerHTML = html;
+})();
+</script>
+</body>
+</html>

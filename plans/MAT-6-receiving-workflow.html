@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MAT-6: Receiving Workflow + Three-Way Match — Implementation Plan</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Inter', -apple-system, sans-serif; background: #f8fafc; color: #0f172a; }
+.plan-wrap { max-width: 880px; margin: 0 auto; padding: 40px 24px 80px; }
+h1 { font-size: 24px; font-weight: 800; margin: 0 0 16px; }
+h2 { font-size: 18px; font-weight: 700; margin: 28px 0 12px; padding-bottom: 8px; border-bottom: 2px solid #e2e8f0; }
+h3 { font-size: 15px; font-weight: 700; margin: 20px 0 8px; padding-top: 10px; border-top: 1px solid #f1f5f9; }
+h4 { font-size: 14px; font-weight: 700; margin: 14px 0 6px; }
+p { font-size: 14px; color: #334155; line-height: 1.7; margin: 6px 0; }
+ul, ol { padding-left: 20px; margin: 8px 0; }
+li { font-size: 14px; color: #334155; line-height: 1.7; margin: 3px 0; }
+strong { color: #0f172a; }
+code { font-family: 'SF Mono', monospace; background: #f1f5f9; padding: 1px 6px; border-radius: 4px; font-size: 12px; color: #7c3aed; }
+pre { background: #1e293b; color: #e2e8f0; border-radius: 8px; padding: 16px; overflow-x: auto; font-size: 13px; line-height: 1.6; margin: 12px 0; font-family: 'SF Mono', monospace; }
+pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
+hr { border: none; border-top: 1px solid #e2e8f0; margin: 24px 0; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 12px 0; }
+th { text-align: left; padding: 8px 12px; background: #f1f5f9; border-bottom: 2px solid #e2e8f0; font-weight: 600; }
+td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
+.check-item { display: flex; gap: 8px; align-items: flex-start; padding: 5px 0; }
+.check-box { width: 16px; height: 16px; border: 2px solid #cbd5e1; border-radius: 3px; flex-shrink: 0; margin-top: 2px; }
+.callout { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 14px 18px; margin: 14px 0; font-size: 13px; color: #1e40af; }
+.callout strong { color: #1e3a8a; }
+    </style>
+</head>
+<body>
+<div class="plan-wrap" id="rendered"></div>
+<script type="text/plain" id="plan-md">
+# MAT-6: Receiving Workflow + Three-Way Match — Implementation Plan
+
+## Overview
+
+Receive deliveries against Supplier POs, track partial/complete receipts, and provide three-way match visibility (PO quantity vs. received quantity vs. supplier invoice amount). Two new models: `PurchaseOrderReceipt` and `ReceiptLineItem`.
+
+**Estimated effort:** 4-5 days
+**Risk:** Medium — new models, PO status auto-transitions, three-way match logic
+**Deps:** MAT-5 (Supplier PO must exist)
+
+---
+
+## Step 1: Prisma Schema
+
+### 1a. PurchaseOrderReceipt
+
+```prisma
+model PurchaseOrderReceipt {
+  id                String        @id @db.VarChar(21)
+  isDeleted         Boolean       @default(false)
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @default(now()) @updatedAt
+
+  purchaseOrderId   String        @db.VarChar(21)
+  PurchaseOrder     PurchaseOrder @relation(fields: [purchaseOrderId], references: [id])
+
+  receivedByUserId  String        @db.VarChar(21)
+  receivedDate      DateTime
+  packingSlipNumber String?       @db.VarChar(100)
+  notes             String?       @db.Text
+  status            String        @db.VarChar(50)
+
+  LineItems         ReceiptLineItem[]
+
+  @@index([purchaseOrderId, isDeleted])
+}
+```
+
+Const-based statuses:
+```typescript
+export const RECEIPT_STATUSES = ["Partial", "Complete"] as const;
+```
+
+### 1b. ReceiptLineItem
+
+```prisma
+model ReceiptLineItem {
+  id                        String               @id @db.VarChar(21)
+  isDeleted                 Boolean              @default(false)
+  createdAt                 DateTime             @default(now())
+  updatedAt                 DateTime             @default(now()) @updatedAt
+
+  receiptId                 String               @db.VarChar(21)
+  Receipt                   PurchaseOrderReceipt @relation(fields: [receiptId], references: [id])
+
+  purchaseOrderLineItemId   String               @db.VarChar(21)
+  PurchaseOrderLineItem     PurchaseOrderLineItem @relation(fields: [purchaseOrderLineItemId], references: [id])
+
+  receivedQty               Decimal              @db.Decimal(10, 2)
+  damagedQty                Decimal?             @db.Decimal(10, 2)
+  notes                     String?              @db.Text
+
+  @@index([receiptId, isDeleted])
+}
+```
+
+### 1c. Extend PurchaseOrderLineItem
+
+Add tracking fields:
+- `receivedQty` (Decimal 10,2 — total received across all receipts)
+- `backOrderQty` (Decimal 10,2 — ordered minus received)
+
+---
+
+## Step 2: Model + GraphQL
+
+**Create:** `apps/api/src/models/PurchaseOrderReceipt.ts`, `apps/api/src/graphql/models/PurchaseOrderReceipt.ts`
+
+Key methods:
+- `receiveAgainstPO(purchaseOrderId, lineItems)`: Create receipt, update line item received quantities
+- `calculateReceivedTotals(purchaseOrderId)`: Sum received quantities across all receipts per line item
+- Auto-transition PO status: Sent → PartiallyReceived → FullyReceived based on receipt totals
+
+---
+
+## Step 3: Frontend — Receiving Form
+
+**Create:** `apps/frontend/src/components/Receiving/ReceivingForm.tsx`
+
+Receive against PO:
+- Select PO (or navigate from PO detail)
+- Line items table showing: ordered qty, previously received, receiving now, damaged
+- Packing slip number entry
+- Notes per line item
+- Submit creates PurchaseOrderReceipt + ReceiptLineItems
+
+---
+
+## Step 4: Three-Way Match View
+
+Add to PO detail page — "Receiving" tab:
+- Table: Line Item | Ordered | Received | Back-Ordered | Invoiced (from future AP integration)
+- Visual indicators: green (fully received), yellow (partial), red (back-ordered)
+- Receipt history log with dates, packing slips, receiving user
+
+---
+
+## Step 5: P&L Integration (Cross-Cutting Update #2)
+
+**File:** `apps/api/src/services/JobFinancialSummaryService.ts`
+
+Add Supplier PO committed costs:
+- Open Supplier PO amounts (ordered but not yet received/expensed) as "committed" column
+- Received amounts feed material cost actuals
+
+---
+
+## Verification Checklist
+
+- [ ] Receive against PO: mark line items received (full/partial/damaged)
+- [ ] Three-way match: PO qty vs. received qty vs. supplier invoice amount
+- [ ] Back-order tracking: unfulfilled quantities flagged
+- [ ] Receipt history on PO detail page
+- [ ] PO status auto-transitions: Sent → PartiallyReceived → FullyReceived
+- [ ] PurchaseOrderLineItem.receivedQty and backOrderQty updated on receipt
+- [ ] Committed material costs appear in Job Financial Summary
+- [ ] Packing slip number captured per receipt
+
+---
+
+## Files Summary
+
+| Action | File | What to do |
+|--------|------|------------|
+| MODIFY | `apps/api/prisma/schema.prisma` | Add PurchaseOrderReceipt + ReceiptLineItem, extend PurchaseOrderLineItem |
+| CREATE | `apps/api/prisma/migrations/.../migration.sql` | CREATE TABLE x2 + ALTER PurchaseOrderLineItem |
+| CREATE | `apps/api/src/models/PurchaseOrderReceipt.ts` | Model with receiving + auto-transition logic |
+| CREATE | `apps/api/src/graphql/models/PurchaseOrderReceipt.ts` | GraphQL resolver |
+| MODIFY | `apps/api/src/graphql/schema.ts` | Register resolver |
+| CREATE | `apps/frontend/.../Receiving/ReceivingForm.tsx` | Receiving form component |
+| MODIFY | PO detail page | Add Receiving tab with three-way match |
+| MODIFY | `apps/api/src/services/JobFinancialSummaryService.ts` | Add committed material costs |
+</script>
+<script>
+(function() {
+    var md = document.getElementById('plan-md').textContent;
+    var target = document.getElementById('rendered');
+    var html = md
+        .replace(/```(\w*)\n([\s\S]*?)```/g, function(_, lang, code) {
+            return '<pre><code>' + code.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</code></pre>';
+        })
+        .replace(/`([^`\n]+)`/g, '<code>$1</code>')
+        .replace(/^#### (.+)$/gm, '<h4>$1</h4>')
+        .replace(/^### (.+)$/gm, '<h3>$1</h3>')
+        .replace(/^## (.+)$/gm, '<h2>$1</h2>')
+        .replace(/^# (.+)$/gm, '<h1>$1</h1>')
+        .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\*(.+?)\*/g, '<em>$1</em>')
+        .replace(/^---$/gm, '<hr>');
+    html = html.replace(/^- \[ \] (.+)$/gm, '<div class="check-item"><div class="check-box"></div><span>$1</span></div>');
+    html = html.replace(/(\|.+\|\n)+/g, function(table) {
+        var rows = table.trim().split('\n');
+        if (rows.length < 2) return table;
+        var headers = rows[0].split('|').filter(function(c) { return c.trim(); });
+        var isSep = /^[\s|:\-]+$/.test(rows[1]);
+        var start = isSep ? 2 : 1;
+        var out = '<table><thead><tr>';
+        headers.forEach(function(h) { out += '<th>' + h.trim() + '</th>'; });
+        out += '</tr></thead><tbody>';
+        for (var i = start; i < rows.length; i++) {
+            var cells = rows[i].split('|').filter(function(c) { return c.trim(); });
+            out += '<tr>'; cells.forEach(function(c) { out += '<td>' + c.trim() + '</td>'; }); out += '</tr>';
+        }
+        out += '</tbody></table>';
+        return out;
+    });
+    html = html.replace(/^- (.+)$/gm, '<li>$1</li>');
+    html = html.replace(/(<li>[\s\S]*?<\/li>\n?)+/g, function(m) { return '<ul>' + m + '</ul>'; });
+    html = html.replace(/^(?!<[hultdps\/<]|<\/|<code|<pre|<hr|<div|<strong|<em)(.+)$/gm, '<p>$1</p>');
+    target.innerHTML = html;
+})();
+</script>
+</body>
+</html>

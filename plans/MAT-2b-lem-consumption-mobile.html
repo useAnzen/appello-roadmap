@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MAT-2b: LEM Material Consumption — Mobile Logging — Implementation Plan</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Inter', -apple-system, sans-serif; background: #f8fafc; color: #0f172a; }
+.plan-wrap { max-width: 880px; margin: 0 auto; padding: 40px 24px 80px; }
+h1 { font-size: 24px; font-weight: 800; margin: 0 0 16px; }
+h2 { font-size: 18px; font-weight: 700; margin: 28px 0 12px; padding-bottom: 8px; border-bottom: 2px solid #e2e8f0; }
+h3 { font-size: 15px; font-weight: 700; margin: 20px 0 8px; padding-top: 10px; border-top: 1px solid #f1f5f9; }
+h4 { font-size: 14px; font-weight: 700; margin: 14px 0 6px; }
+p { font-size: 14px; color: #334155; line-height: 1.7; margin: 6px 0; }
+ul, ol { padding-left: 20px; margin: 8px 0; }
+li { font-size: 14px; color: #334155; line-height: 1.7; margin: 3px 0; }
+strong { color: #0f172a; }
+code { font-family: 'SF Mono', monospace; background: #f1f5f9; padding: 1px 6px; border-radius: 4px; font-size: 12px; color: #7c3aed; }
+pre { background: #1e293b; color: #e2e8f0; border-radius: 8px; padding: 16px; overflow-x: auto; font-size: 13px; line-height: 1.6; margin: 12px 0; font-family: 'SF Mono', monospace; }
+pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
+hr { border: none; border-top: 1px solid #e2e8f0; margin: 24px 0; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 12px 0; }
+th { text-align: left; padding: 8px 12px; background: #f1f5f9; border-bottom: 2px solid #e2e8f0; font-weight: 600; }
+td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
+.check-item { display: flex; gap: 8px; align-items: flex-start; padding: 5px 0; }
+.check-box { width: 16px; height: 16px; border: 2px solid #cbd5e1; border-radius: 3px; flex-shrink: 0; margin-top: 2px; }
+.callout { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 14px 18px; margin: 14px 0; font-size: 13px; color: #1e40af; }
+.callout strong { color: #1e3a8a; }
+    </style>
+</head>
+<body>
+<div class="plan-wrap" id="rendered"></div>
+<script type="text/plain" id="plan-md">
+# MAT-2b: LEM Material Consumption — Mobile Logging
+
+## Overview
+
+Mobile interface for field workers to log material consumption per job per day. Uses the `MaterialConsumptionEntry` model from MAT-2a — no new models needed.
+
+**Estimated effort:** 3-4 days
+**Risk:** Low — mobile UI only, reuses existing model
+**Deps:** MAT-2a (MaterialConsumptionEntry model must exist)
+
+---
+
+## Step 1: Mobile Material Consumption Form
+
+**Create file:** `apps/mobile/src/components/MaterialConsumption/MobileMaterialConsumptionForm.tsx`
+
+Stepped form (3 steps):
+1. Select Material — catalog picker (SelectionSlideup from material catalog) or free-text description entry
+2. Enter Quantity — quantity input + unit selector + optional cost code
+3. Review + Submit — summary card, submit button
+
+Key patterns to follow from existing mobile forms:
+- Use `ProgressionBar` for step progress
+- Fixed bottom Next/Submit button
+- Material picker via `SelectionSlideup` modal (60px touch targets)
+- Cost code picker from job's assigned cost codes
+
+---
+
+## Step 2: Mobile Pages
+
+### 2a. Entry Page
+
+**Create file:** `apps/mobile/src/pages/job-sites/[id]/material-consumption/new.tsx`
+
+Entry point from job site detail page. Pre-filled with jobId and current date.
+
+### 2b. List Page
+
+**Create file:** `apps/mobile/src/pages/job-sites/[id]/material-consumption/index.tsx`
+
+List of previous entries for this job. Grouped by date. Shows material name, quantity, unit, status badge.
+
+---
+
+## Step 3: Job Site Action Integration
+
+**File:** `apps/mobile/src/components/JobViews/SimplifiedJobTasks.tsx` (or equivalent job site action list)
+
+Add "Log Material" action button that navigates to the material consumption entry page.
+
+---
+
+## Verification Checklist
+
+- [ ] Field workers can log material consumption per job per day from mobile
+- [ ] Stepped form: select material → enter quantity + unit → assign cost code → submit
+- [ ] Material picker works from catalog (SelectionSlideup) and free-text fallback
+- [ ] Entries created with status "Draft" or "Submitted" based on permission
+- [ ] View previous day's entries for the same job (list page)
+- [ ] Offline support for entry creation (sync when connected)
+- [ ] "Log Material" action appears on job site detail page
+- [ ] No new Prisma models — uses MaterialConsumptionEntry from MAT-2a
+
+---
+
+## Files Summary
+
+| Action | File | What to do |
+|--------|------|------------|
+| CREATE | `apps/mobile/src/components/MaterialConsumption/MobileMaterialConsumptionForm.tsx` | 3-step mobile form |
+| CREATE | `apps/mobile/src/pages/job-sites/[id]/material-consumption/new.tsx` | Entry page |
+| CREATE | `apps/mobile/src/pages/job-sites/[id]/material-consumption/index.tsx` | List page |
+| MODIFY | `apps/mobile/src/components/JobViews/SimplifiedJobTasks.tsx` | Add "Log Material" action |
+</script>
+<script>
+(function() {
+    var md = document.getElementById('plan-md').textContent;
+    var target = document.getElementById('rendered');
+    var html = md
+        .replace(/```(\w*)\n([\s\S]*?)```/g, function(_, lang, code) {
+            return '<pre><code>' + code.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</code></pre>';
+        })
+        .replace(/`([^`\n]+)`/g, '<code>$1</code>')
+        .replace(/^#### (.+)$/gm, '<h4>$1</h4>')
+        .replace(/^### (.+)$/gm, '<h3>$1</h3>')
+        .replace(/^## (.+)$/gm, '<h2>$1</h2>')
+        .replace(/^# (.+)$/gm, '<h1>$1</h1>')
+        .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\*(.+?)\*/g, '<em>$1</em>')
+        .replace(/^---$/gm, '<hr>');
+    html = html.replace(/^- \[ \] (.+)$/gm, '<div class="check-item"><div class="check-box"></div><span>$1</span></div>');
+    html = html.replace(/(\|.+\|\n)+/g, function(table) {
+        var rows = table.trim().split('\n');
+        if (rows.length < 2) return table;
+        var headers = rows[0].split('|').filter(function(c) { return c.trim(); });
+        var isSep = /^[\s|:\-]+$/.test(rows[1]);
+        var start = isSep ? 2 : 1;
+        var out = '<table><thead><tr>';
+        headers.forEach(function(h) { out += '<th>' + h.trim() + '</th>'; });
+        out += '</tr></thead><tbody>';
+        for (var i = start; i < rows.length; i++) {
+            var cells = rows[i].split('|').filter(function(c) { return c.trim(); });
+            out += '<tr>'; cells.forEach(function(c) { out += '<td>' + c.trim() + '</td>'; }); out += '</tr>';
+        }
+        out += '</tbody></table>';
+        return out;
+    });
+    html = html.replace(/^- (.+)$/gm, '<li>$1</li>');
+    html = html.replace(/(<li>[\s\S]*?<\/li>\n?)+/g, function(m) { return '<ul>' + m + '</ul>'; });
+    html = html.replace(/^(?!<[hultdps\/<]|<\/|<code|<pre|<hr|<div|<strong|<em)(.+)$/gm, '<p>$1</p>');
+    target.innerHTML = html;
+})();
+</script>
+</body>
+</html>

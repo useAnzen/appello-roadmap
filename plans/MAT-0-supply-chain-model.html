@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MAT-0: Three-Level Supply Chain Model — Implementation Plan</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Inter', -apple-system, sans-serif; background: #f8fafc; color: #0f172a; }
+.plan-wrap { max-width: 880px; margin: 0 auto; padding: 40px 24px 80px; }
+h1 { font-size: 24px; font-weight: 800; margin: 0 0 16px; }
+h2 { font-size: 18px; font-weight: 700; margin: 28px 0 12px; padding-bottom: 8px; border-bottom: 2px solid #e2e8f0; }
+h3 { font-size: 15px; font-weight: 700; margin: 20px 0 8px; padding-top: 10px; border-top: 1px solid #f1f5f9; }
+h4 { font-size: 14px; font-weight: 700; margin: 14px 0 6px; }
+p { font-size: 14px; color: #334155; line-height: 1.7; margin: 6px 0; }
+ul, ol { padding-left: 20px; margin: 8px 0; }
+li { font-size: 14px; color: #334155; line-height: 1.7; margin: 3px 0; }
+strong { color: #0f172a; }
+code { font-family: 'SF Mono', monospace; background: #f1f5f9; padding: 1px 6px; border-radius: 4px; font-size: 12px; color: #7c3aed; }
+pre { background: #1e293b; color: #e2e8f0; border-radius: 8px; padding: 16px; overflow-x: auto; font-size: 13px; line-height: 1.6; margin: 12px 0; font-family: 'SF Mono', monospace; }
+pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
+hr { border: none; border-top: 1px solid #e2e8f0; margin: 24px 0; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 12px 0; }
+th { text-align: left; padding: 8px 12px; background: #f1f5f9; border-bottom: 2px solid #e2e8f0; font-weight: 600; }
+td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
+.check-item { display: flex; gap: 8px; align-items: flex-start; padding: 5px 0; }
+.check-box { width: 16px; height: 16px; border: 2px solid #cbd5e1; border-radius: 3px; flex-shrink: 0; margin-top: 2px; }
+.callout { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 14px 18px; margin: 14px 0; font-size: 13px; color: #1e40af; }
+.callout strong { color: #1e3a8a; }
+    </style>
+</head>
+<body>
+<div class="plan-wrap" id="rendered"></div>
+<script type="text/plain" id="plan-md">
+# MAT-0: Three-Level Supply Chain Model — Implementation Plan
+
+## Overview
+
+Create the foundational three-level supply chain data model that connects manufacturers and distributors to products. Without this, Price Book Import, Supplier POs, and supplier-aware pricing cannot function.
+
+**Estimated effort:** 5-7 days
+**Risk:** Medium — 2 new models, new Company type seed, frontend tabs on Company + Material detail pages
+**Deps:** None (ROOT — enables everything downstream)
+
+---
+
+## Step 1: Prisma Schema — 2 New Models + Seed
+
+### 1a. ManufacturerProduct
+
+**File:** `apps/api/prisma/schema.prisma`
+
+```prisma
+model ManufacturerProduct {
+  id                String   @id @db.VarChar(21)
+  isDeleted         Boolean  @default(false)
+  isArchived        Boolean  @default(false)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @default(now()) @updatedAt
+
+  materialId        String   @db.VarChar(21)
+  Material          Material @relation(fields: [materialId], references: [id])
+
+  manufacturerId    String   @db.VarChar(21)
+  Manufacturer      Company  @relation("ManufacturerProducts", fields: [manufacturerId], references: [id])
+
+  manufacturerSku   String   @db.VarChar(255)
+  msrp              Decimal? @db.Decimal(10, 2)
+  upc               String?  @db.VarChar(50)
+  description       String?  @db.Text
+  packageQty        Decimal? @db.Decimal(10, 2)
+  packageUnit       String?  @db.VarChar(50)
+  isActive          Boolean  @default(true)
+
+  DistributorPrices DistributorPrice[]
+
+  @@unique([materialId, manufacturerId, manufacturerSku])
+  @@index([materialId, isDeleted])
+  @@index([manufacturerId, isDeleted])
+}
+```
+
+### 1b. DistributorPrice
+
+```prisma
+model DistributorPrice {
+  id                      String              @id @db.VarChar(21)
+  isDeleted               Boolean             @default(false)
+  isArchived              Boolean             @default(false)
+  createdAt               DateTime            @default(now())
+  updatedAt               DateTime            @default(now()) @updatedAt
+
+  manufacturerProductId   String              @db.VarChar(21)
+  ManufacturerProduct     ManufacturerProduct @relation(fields: [manufacturerProductId], references: [id])
+
+  distributorId           String              @db.VarChar(21)
+  Distributor             Company             @relation("DistributorPrices", fields: [distributorId], references: [id])
+
+  distributorSku          String              @db.VarChar(255)
+  unitPrice               Decimal             @db.Decimal(10, 2)
+  listPrice               Decimal?            @db.Decimal(10, 2)
+  discountPercent         Decimal?            @db.Decimal(5, 2)
+  effectiveFrom           DateTime?
+  effectiveTo             DateTime?
+  minQty                  Int?
+  leadTimeDays            Int?
+  isPreferred             Boolean             @default(false)
+  isInStock               Boolean?
+  notes                   String?             @db.Text
+
+  @@unique([manufacturerProductId, distributorId, distributorSku])
+  @@index([distributorId, isDeleted])
+  @@index([manufacturerProductId, isDeleted])
+}
+```
+
+### 1c. Seed: "Manufacturer" Company Type
+
+```sql
+INSERT INTO PropertyValue (id, propertyName, propertyNameLabel, label, slug, orderNo, isDeleted, isArchived, createdAt, updatedAt)
+VALUES (nanoid(), 'company type', 'Company Type', 'Manufacturer', 'company-type-manufacturer', 5, false, false, NOW(), NOW());
+
+INSERT INTO CompanyPayableType (propertyValueId, AccountPayable, AccountReceivable)
+VALUES (<manufacturer_pv_id>, false, false);
+```
+
+### 1d. Relations on existing models
+
+```prisma
+// On Company:
+ManufacturerProducts    ManufacturerProduct[]  @relation("ManufacturerProducts")
+DistributorPrices       DistributorPrice[]     @relation("DistributorPrices")
+
+// On Material:
+ManufacturerProducts    ManufacturerProduct[]
+
+// On MaterialOrder (optional FKs):
+distributorId           String?  @db.VarChar(21)
+Distributor             Company? @relation("MaterialOrderDistributor", fields: [distributorId], references: [id])
+```
+
+### 1e. Migration
+
+Create migration with `pnpm --filter api prisma:migrate` named `add_supply_chain_model`.
+
+---
+
+## Step 2: Model Classes
+
+### 2a. ManufacturerProduct Model
+
+**Create file:** `apps/api/src/models/ManufacturerProduct.ts`
+
+Standard BaseModel with modelFields: `materialId` (required, filterable), `manufacturerId` (required, filterable), `manufacturerSku` (required), `msrp` (float), `upc`, `description`, `packageQty` (float), `packageUnit`, `isActive` (boolean).
+
+### 2b. DistributorPrice Model
+
+**Create file:** `apps/api/src/models/DistributorPrice.ts`
+
+Standard BaseModel with modelFields: `manufacturerProductId` (required, filterable), `distributorId` (required, filterable), `distributorSku` (required), `unitPrice` (float, required), `listPrice` (float), `discountPercent` (float), `effectiveFrom` (date), `effectiveTo` (date), `minQty` (int), `leadTimeDays` (int), `isPreferred` (boolean), `isInStock` (boolean), `notes`.
+
+---
+
+## Step 3: GraphQL Resolvers
+
+### 3a. ManufacturerProduct Resolver
+
+**Create file:** `apps/api/src/graphql/models/ManufacturerProduct.ts`
+
+```graphql
+type ManufacturerProduct {
+    id: ID!
+    materialId: String!
+    Material: Material
+    manufacturerId: String!
+    Manufacturer: Company
+    manufacturerSku: String!
+    msrp: Float
+    upc: String
+    description: String
+    packageQty: Float
+    packageUnit: String
+    isActive: Boolean!
+    DistributorPrices: [DistributorPrice!]
+}
+
+input CreateManufacturerProductInput {
+    materialId: String!
+    manufacturerId: String!
+    manufacturerSku: String!
+    msrp: Float
+    upc: String
+    description: String
+    packageQty: Float
+    packageUnit: String
+}
+
+extend type Query {
+    manufacturerProducts(materialId: String, manufacturerId: String): [ManufacturerProduct!]!
+    manufacturerProduct(id: ID!): ManufacturerProduct
+}
+
+extend type Mutation {
+    createManufacturerProduct(input: CreateManufacturerProductInput!): ManufacturerProduct!
+    editManufacturerProduct(id: ID!, input: CreateManufacturerProductInput!): ManufacturerProduct!
+    deleteManufacturerProduct(id: ID!): Boolean!
+}
+```
+
+### 3b. DistributorPrice Resolver
+
+**Create file:** `apps/api/src/graphql/models/DistributorPrice.ts`
+
+Similar pattern with type, inputs, queries (by manufacturerProductId, by distributorId), and CRUD mutations.
+
+### 3c. Register in schema.ts
+
+**File:** `apps/api/src/graphql/schema.ts`
+
+Add both resolvers: import, type resolvers, Query, Mutation, typeDefs.
+
+---
+
+## Step 4: Frontend — Company Detail Tabs
+
+### 4a. Manufacturer Products Tab
+
+**Create file:** `apps/frontend/src/components/DetailsPage/CompanyDetailsPage/Tabs/ManufacturerProducts.tsx`
+
+Table of ManufacturerProduct rows where `manufacturerId` = this company.
+Columns: Material (link), Manufacturer SKU, MSRP, Package Qty, Active.
+Actions: Link Product (Material catalog picker), Edit, Deactivate.
+
+### 4b. Distributor Pricing Tab
+
+**Create file:** `apps/frontend/src/components/DetailsPage/CompanyDetailsPage/Tabs/DistributorPricing.tsx`
+
+Table of DistributorPrice rows where `distributorId` = this company.
+Columns: Material, Manufacturer, Mfg SKU, Dist SKU, Unit Price, List Price, Discount %, Lead Time, Preferred, Effective Dates.
+Actions: Add Product, Import Price Book, Edit, Remove.
+
+### 4c. Register tabs conditionally
+
+**File:** `apps/frontend/src/components/DetailsPage/CompanyDetailsPage/index.tsx`
+
+Show "Products" tab for Manufacturer-type companies, "Products & Pricing" tab for Supplier-type companies. Use company type from `companyTypeId` PropertyValue lookup.
+
+---
+
+## Step 5: Frontend — Material Detail Enhancement
+
+### 5a. Supply Chain Section
+
+**File:** `apps/frontend/src/pages/materials/[id]/index.tsx` (or Material detail component)
+
+Add a "Supply Chain" section below existing price grid:
+- Manufacturers sub-table: ManufacturerProduct rows for this material
+- Distributor Pricing sub-table: DistributorPrice rows grouped by manufacturer
+- "Best price" highlight across distributors
+- Quick-add flows for linking manufacturers and distributor pricing
+
+---
+
+## Verification Checklist
+
+- [ ] `ManufacturerProduct` and `DistributorPrice` tables created with unique constraints and indexes
+- [ ] "Manufacturer" company type seeded in PropertyValue with CompanyPayableType (AP=false, AR=false)
+- [ ] Company creation form shows "Manufacturer" as a type option
+- [ ] Manufacturer company detail shows "Products" tab with ManufacturerProduct table
+- [ ] Supplier company detail shows "Products & Pricing" tab with DistributorPrice table
+- [ ] Material detail page shows "Supply Chain" section with Manufacturers + Distributor Pricing
+- [ ] Quick-add: link manufacturer to material, link distributor pricing to manufacturer product
+- [ ] "Best price" indicator across distributors for same manufacturer product
+- [ ] MaterialOrder can optionally reference distributor Company
+- [ ] GraphQL queries: `manufacturerProducts(materialId)`, `distributorPrices(distributorId)`
+- [ ] Relations resolve correctly (Material, Manufacturer, Distributor, ManufacturerProduct)
+- [ ] No regression on existing Material catalog, Company pages, or MaterialOrder functionality
+
+---
+
+## Files Summary
+
+| Action | File | What to do |
+|--------|------|------------|
+| MODIFY | `apps/api/prisma/schema.prisma` | Add 2 models + relations on Company, Material, MaterialOrder |
+| CREATE | `apps/api/prisma/migrations/.../migration.sql` | CREATE TABLE x2, seed Manufacturer type, ALTER MaterialOrder |
+| CREATE | `apps/api/src/models/ManufacturerProduct.ts` | Model class with modelFields |
+| CREATE | `apps/api/src/models/DistributorPrice.ts` | Model class with modelFields |
+| CREATE | `apps/api/src/graphql/models/ManufacturerProduct.ts` | GraphQL resolver + type + CRUD |
+| CREATE | `apps/api/src/graphql/models/DistributorPrice.ts` | GraphQL resolver + type + CRUD |
+| MODIFY | `apps/api/src/graphql/schema.ts` | Register 2 new resolvers |
+| CREATE | `apps/frontend/.../Tabs/ManufacturerProducts.tsx` | Products tab for Manufacturer companies |
+| CREATE | `apps/frontend/.../Tabs/DistributorPricing.tsx` | Products & Pricing tab for Supplier companies |
+| MODIFY | `apps/frontend/.../CompanyDetailsPage/index.tsx` | Conditional tab registration by company type |
+| MODIFY | `apps/frontend/src/pages/materials/[id]/index.tsx` | Add Supply Chain section |
+</script>
+<script>
+(function() {
+    var md = document.getElementById('plan-md').textContent;
+    var target = document.getElementById('rendered');
+    var html = md
+        .replace(/```(\w*)\n([\s\S]*?)```/g, function(_, lang, code) {
+            return '<pre><code>' + code.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</code></pre>';
+        })
+        .replace(/`([^`\n]+)`/g, '<code>$1</code>')
+        .replace(/^#### (.+)$/gm, '<h4>$1</h4>')
+        .replace(/^### (.+)$/gm, '<h3>$1</h3>')
+        .replace(/^## (.+)$/gm, '<h2>$1</h2>')
+        .replace(/^# (.+)$/gm, '<h1>$1</h1>')
+        .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\*(.+?)\*/g, '<em>$1</em>')
+        .replace(/^---$/gm, '<hr>');
+    html = html.replace(/^- \[ \] (.+)$/gm, '<div class="check-item"><div class="check-box"></div><span>$1</span></div>');
+    html = html.replace(/(\|.+\|\n)+/g, function(table) {
+        var rows = table.trim().split('\n');
+        if (rows.length < 2) return table;
+        var headers = rows[0].split('|').filter(function(c) { return c.trim(); });
+        var isSep = /^[\s|:\-]+$/.test(rows[1]);
+        var start = isSep ? 2 : 1;
+        var out = '<table><thead><tr>';
+        headers.forEach(function(h) { out += '<th>' + h.trim() + '</th>'; });
+        out += '</tr></thead><tbody>';
+        for (var i = start; i < rows.length; i++) {
+            var cells = rows[i].split('|').filter(function(c) { return c.trim(); });
+            out += '<tr>'; cells.forEach(function(c) { out += '<td>' + c.trim() + '</td>'; }); out += '</tr>';
+        }
+        out += '</tbody></table>';
+        return out;
+    });
+    html = html.replace(/^- (.+)$/gm, '<li>$1</li>');
+    html = html.replace(/(<li>[\s\S]*?<\/li>\n?)+/g, function(m) { return '<ul>' + m + '</ul>'; });
+    html = html.replace(/^(?!<[hultdps\/<]|<\/|<code|<pre|<hr|<div|<strong|<em)(.+)$/gm, '<p>$1</p>');
+    target.innerHTML = html;
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MAT-7: Inventory Management — Implementation Plan</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Inter', -apple-system, sans-serif; background: #f8fafc; color: #0f172a; }
+.plan-wrap { max-width: 880px; margin: 0 auto; padding: 40px 24px 80px; }
+h1 { font-size: 24px; font-weight: 800; margin: 0 0 16px; }
+h2 { font-size: 18px; font-weight: 700; margin: 28px 0 12px; padding-bottom: 8px; border-bottom: 2px solid #e2e8f0; }
+h3 { font-size: 15px; font-weight: 700; margin: 20px 0 8px; padding-top: 10px; border-top: 1px solid #f1f5f9; }
+h4 { font-size: 14px; font-weight: 700; margin: 14px 0 6px; }
+p { font-size: 14px; color: #334155; line-height: 1.7; margin: 6px 0; }
+ul, ol { padding-left: 20px; margin: 8px 0; }
+li { font-size: 14px; color: #334155; line-height: 1.7; margin: 3px 0; }
+strong { color: #0f172a; }
+code { font-family: 'SF Mono', monospace; background: #f1f5f9; padding: 1px 6px; border-radius: 4px; font-size: 12px; color: #7c3aed; }
+pre { background: #1e293b; color: #e2e8f0; border-radius: 8px; padding: 16px; overflow-x: auto; font-size: 13px; line-height: 1.6; margin: 12px 0; font-family: 'SF Mono', monospace; }
+pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
+hr { border: none; border-top: 1px solid #e2e8f0; margin: 24px 0; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 12px 0; }
+th { text-align: left; padding: 8px 12px; background: #f1f5f9; border-bottom: 2px solid #e2e8f0; font-weight: 600; }
+td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
+.check-item { display: flex; gap: 8px; align-items: flex-start; padding: 5px 0; }
+.check-box { width: 16px; height: 16px; border: 2px solid #cbd5e1; border-radius: 3px; flex-shrink: 0; margin-top: 2px; }
+    </style>
+</head>
+<body>
+<div class="plan-wrap" id="rendered"></div>
+<script type="text/plain" id="plan-md">
+# MAT-7: Inventory Management — Implementation Plan
+
+## Overview
+
+Stock tracking by location with receiving intake, job checkout, movement ledger, and min/max alerts. Three new models: `InventoryLocation`, `InventoryItem`, `InventoryMovement`. Spans desktop and mobile.
+
+**Estimated effort:** 8-10 days
+**Risk:** High — 3 new models, desktop + mobile, movement ledger logic, SQL view
+**Deps:** MAT-6 (receiving creates inventory)
+
+---
+
+## Step 1: Prisma Schema
+
+### 1a. InventoryLocation
+
+```prisma
+model InventoryLocation {
+  id            String   @id @db.VarChar(21)
+  isDeleted     Boolean  @default(false)
+  isArchived    Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @default(now()) @updatedAt
+
+  name          String   @db.VarChar(255)
+  locationTypeId String? @db.VarChar(21)
+  address       String?  @db.Text
+  isDefault     Boolean  @default(false)
+
+  Items         InventoryItem[]
+
+  @@index([isDeleted])
+}
+```
+
+PropertyValue seed for location type: Warehouse, Truck, JobSite, Other under `propertyName: "inventory location type"`.
+
+### 1b. InventoryItem
+
+```prisma
+model InventoryItem {
+  id              String            @id @db.VarChar(21)
+  isDeleted       Boolean           @default(false)
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @default(now()) @updatedAt
+
+  materialId      String            @db.VarChar(21)
+  Material        Material          @relation(fields: [materialId], references: [id])
+
+  locationId      String            @db.VarChar(21)
+  Location        InventoryLocation @relation(fields: [locationId], references: [id])
+
+  quantity        Decimal           @db.Decimal(10, 2) @default(0)
+  unitCost        Decimal?          @db.Decimal(10, 2)
+  minQuantity     Decimal?          @db.Decimal(10, 2)
+  maxQuantity     Decimal?          @db.Decimal(10, 2)
+  lastCountDate   DateTime?
+
+  Movements       InventoryMovement[]
+
+  @@unique([materialId, locationId])
+  @@index([locationId, isDeleted])
+}
+```
+
+### 1c. InventoryMovement (Append-Only Ledger)
+
+```prisma
+model InventoryMovement {
+  id                      String         @id @db.VarChar(21)
+  isDeleted               Boolean        @default(false)
+  createdAt               DateTime       @default(now())
+
+  inventoryItemId         String         @db.VarChar(21)
+  InventoryItem           InventoryItem  @relation(fields: [inventoryItemId], references: [id])
+
+  type                    String         @db.VarChar(50)
+  quantity                Decimal        @db.Decimal(10, 2)
+  jobId                   String?        @db.VarChar(21)
+  purchaseOrderReceiptId  String?        @db.VarChar(21)
+  userId                  String         @db.VarChar(21)
+  notes                   String?        @db.Text
+
+  @@index([inventoryItemId])
+  @@index([jobId])
+}
+```
+
+Const-based movement types:
+```typescript
+export const INVENTORY_MOVEMENT_TYPES = ["Receive", "Checkout", "Transfer", "Adjustment", "Return"] as const;
+```
+
+### 1d. SQL View: InventoryStockLevel
+
+Aggregates movements per material per location for real-time stock levels.
+
+---
+
+## Step 2: Model + GraphQL
+
+**Create:** `apps/api/src/models/InventoryMovement.ts`, `apps/api/src/graphql/models/Inventory.ts`
+
+Key methods:
+- `receiveIntoInventory(receiptId)`: Create Receive movements from PO receipt line items
+- `checkoutToJob(materialId, locationId, quantity, jobId, costCodeId)`: Create Checkout movement, deduct stock
+- `transferBetweenLocations(materialId, fromLocationId, toLocationId, quantity)`: Create Transfer pair
+- `adjustStock(materialId, locationId, quantity, reason)`: Physical count adjustment
+- `getStockLevels(locationId?, materialId?)`: Query aggregated stock levels
+
+---
+
+## Step 3: Frontend — Stock Levels Dashboard
+
+**Create:** `apps/frontend/src/pages/inventory/index.tsx`
+
+Stock levels dashboard:
+- Filterable by location, material group, material
+- Table: Material, Location, On Hand, Min, Max, Status (Low/OK/Over)
+- Low stock alerts (quantity below minQuantity)
+- Quick actions: Checkout, Transfer, Adjust
+
+### 3a. Location Detail Page
+
+**Create:** `apps/frontend/src/pages/inventory/[locationId]/index.tsx`
+
+All inventory items at a specific location with movement history.
+
+---
+
+## Step 4: Frontend Components
+
+**Create:** `apps/frontend/src/components/Inventory/`
+- `StockLevelTable.tsx` — main inventory table
+- `CheckoutForm.tsx` — checkout to job with cost code
+- `TransferForm.tsx` — transfer between locations
+- `AdjustmentForm.tsx` — physical count with reason
+
+---
+
+## Step 5: Mobile
+
+**Create:** `apps/mobile/src/pages/inventory/`
+- Quick stock check by scanning QR code (reuse equipment QR pattern from UIS-15E)
+- Checkout to job from mobile
+- View stock at current location
+
+---
+
+## Step 6: P&L Integration (Cross-Cutting Update #3)
+
+Inventory checkout costs replace estimated costs with actual FIFO/weighted-average costs in `JobFinancialSummaryService`.
+
+---
+
+## Verification Checklist
+
+- [ ] Receiving (from MAT-6) auto-creates inventory at delivery location
+- [ ] Checkout to job: deduct from inventory, link to job + cost code
+- [ ] Transfer between locations (warehouse to truck)
+- [ ] Physical count / adjustment with reason codes
+- [ ] Min/max alerts: notification when stock falls below minimum
+- [ ] Stock levels dashboard: filterable by location, material group, material
+- [ ] Mobile: quick stock check by QR code
+- [ ] Movement history (full audit ledger) per material per location
+- [ ] InventoryStockLevel SQL view aggregates correctly
+
+---
+
+## Files Summary
+
+| Action | File | What to do |
+|--------|------|------------|
+| MODIFY | `apps/api/prisma/schema.prisma` | Add 3 models |
+| CREATE | `apps/api/prisma/migrations/.../migration.sql` | CREATE TABLE x3 + PropertyValue seed |
+| CREATE | `apps/api/src/models/InventoryMovement.ts` | Model with movement logic |
+| CREATE | `apps/api/src/graphql/models/Inventory.ts` | GraphQL resolver |
+| CREATE | `apps/api/prisma/views/InventoryStockLevel.sql` | Stock level aggregation view |
+| MODIFY | `apps/api/src/graphql/schema.ts` | Register resolver |
+| CREATE | `apps/frontend/src/pages/inventory/index.tsx` | Stock dashboard |
+| CREATE | `apps/frontend/src/pages/inventory/[locationId]/index.tsx` | Location detail |
+| CREATE | `apps/frontend/src/components/Inventory/` | Table, Checkout, Transfer, Adjustment forms |
+| CREATE | `apps/mobile/src/pages/inventory/` | Mobile stock check + checkout |
+| MODIFY | `apps/api/src/services/JobFinancialSummaryService.ts` | Inventory cost integration |
+</script>
+<script>
+(function() {
+    var md = document.getElementById('plan-md').textContent;
+    var target = document.getElementById('rendered');
+    var html = md
+        .replace(/```(\w*)\n([\s\S]*?)```/g, function(_, lang, code) {
+            return '<pre><code>' + code.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</code></pre>';
+        })
+        .replace(/`([^`\n]+)`/g, '<code>$1</code>')
+        .replace(/^#### (.+)$/gm, '<h4>$1</h4>')
+        .replace(/^### (.+)$/gm, '<h3>$1</h3>')
+        .replace(/^## (.+)$/gm, '<h2>$1</h2>')
+        .replace(/^# (.+)$/gm, '<h1>$1</h1>')
+        .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\*(.+?)\*/g, '<em>$1</em>')
+        .replace(/^---$/gm, '<hr>');
+    html = html.replace(/^- \[ \] (.+)$/gm, '<div class="check-item"><div class="check-box"></div><span>$1</span></div>');
+    html = html.replace(/(\|.+\|\n)+/g, function(table) {
+        var rows = table.trim().split('\n');
+        if (rows.length < 2) return table;
+        var headers = rows[0].split('|').filter(function(c) { return c.trim(); });
+        var isSep = /^[\s|:\-]+$/.test(rows[1]);
+        var start = isSep ? 2 : 1;
+        var out = '<table><thead><tr>';
+        headers.forEach(function(h) { out += '<th>' + h.trim() + '</th>'; });
+        out += '</tr></thead><tbody>';
+        for (var i = start; i < rows.length; i++) {
+            var cells = rows[i].split('|').filter(function(c) { return c.trim(); });
+            out += '<tr>'; cells.forEach(function(c) { out += '<td>' + c.trim() + '</td>'; }); out += '</tr>';
+        }
+        out += '</tbody></table>';
+        return out;
+    });
+    html = html.replace(/^- (.+)$/gm, '<li>$1</li>');
+    html = html.replace(/(<li>[\s\S]*?<\/li>\n?)+/g, function(m) { return '<ul>' + m + '</ul>'; });
+    html = html.replace(/^(?!<[hultdps\/<]|<\/|<code|<pre|<hr|<div|<strong|<em)(.+)$/gm, '<p>$1</p>');
+    target.innerHTML = html;
+})();
+</script>
+</body>
+</html>

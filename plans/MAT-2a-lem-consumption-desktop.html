@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MAT-2a: LEM Material Consumption — Desktop Entry + Report</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Inter', -apple-system, sans-serif; background: #f8fafc; color: #0f172a; }
+.plan-wrap { max-width: 880px; margin: 0 auto; padding: 40px 24px 80px; }
+h1 { font-size: 24px; font-weight: 800; margin: 0 0 16px; }
+h2 { font-size: 18px; font-weight: 700; margin: 28px 0 12px; padding-bottom: 8px; border-bottom: 2px solid #e2e8f0; }
+h3 { font-size: 15px; font-weight: 700; margin: 20px 0 8px; padding-top: 10px; border-top: 1px solid #f1f5f9; }
+h4 { font-size: 14px; font-weight: 700; margin: 14px 0 6px; }
+p { font-size: 14px; color: #334155; line-height: 1.7; margin: 6px 0; }
+ul, ol { padding-left: 20px; margin: 8px 0; }
+li { font-size: 14px; color: #334155; line-height: 1.7; margin: 3px 0; }
+strong { color: #0f172a; }
+code { font-family: 'SF Mono', monospace; background: #f1f5f9; padding: 1px 6px; border-radius: 4px; font-size: 12px; color: #7c3aed; }
+pre { background: #1e293b; color: #e2e8f0; border-radius: 8px; padding: 16px; overflow-x: auto; font-size: 13px; line-height: 1.6; margin: 12px 0; font-family: 'SF Mono', monospace; }
+pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
+hr { border: none; border-top: 1px solid #e2e8f0; margin: 24px 0; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 12px 0; }
+th { text-align: left; padding: 8px 12px; background: #f1f5f9; border-bottom: 2px solid #e2e8f0; font-weight: 600; }
+td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
+.check-item { display: flex; gap: 8px; align-items: flex-start; padding: 5px 0; }
+.check-box { width: 16px; height: 16px; border: 2px solid #cbd5e1; border-radius: 3px; flex-shrink: 0; margin-top: 2px; }
+.callout { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 14px 18px; margin: 14px 0; font-size: 13px; color: #1e40af; }
+.callout strong { color: #1e3a8a; }
+    </style>
+</head>
+<body>
+<div class="plan-wrap" id="rendered"></div>
+<script type="text/plain" id="plan-md">
+# MAT-2a: LEM Material Consumption — Desktop Entry + Report
+
+## Overview
+
+Establish the `MaterialConsumptionEntry` model, desktop entry UI, LEM combined report, and P&L integration for the "M" in LEM. Costs are computed downstream (not stored on entry), mirroring how timesheets capture hours without storing wage rates.
+
+**Estimated effort:** 4-5 days
+**Risk:** Low-Medium — new model + new SQL view + P&L service modification
+**Deps:** LEM-1/LEM-2 (from 1.32 — labor and equipment rate foundations)
+
+---
+
+## Step 1: Prisma Schema
+
+### 1a. MaterialConsumptionEntry
+
+**File:** `apps/api/prisma/schema.prisma`
+
+```prisma
+model MaterialConsumptionEntry {
+  id                      String              @id @db.VarChar(21)
+  isDeleted               Boolean             @default(false)
+  isArchived              Boolean             @default(false)
+  createdAt               DateTime            @default(now())
+  updatedAt               DateTime            @default(now()) @updatedAt
+
+  jobId                   String              @db.VarChar(21)
+  Job                     Job                 @relation(fields: [jobId], references: [id])
+
+  materialId              String?             @db.VarChar(21)
+  Material                Material?           @relation(fields: [materialId], references: [id])
+
+  manufacturerProductId   String?             @db.VarChar(21)
+  ManufacturerProduct     ManufacturerProduct? @relation(fields: [manufacturerProductId], references: [id])
+
+  costCodeId              String?             @db.VarChar(21)
+  CostCode                CostCode?           @relation(fields: [costCodeId], references: [id])
+
+  userId                  String              @db.VarChar(21)
+  User                    User                @relation(fields: [userId], references: [id])
+
+  workDate                DateTime
+  description             String?             @db.Text
+  quantity                Decimal             @db.Decimal(10, 2)
+  unit                    String?             @db.VarChar(50)
+  materialGroupId         String?             @db.VarChar(21)
+
+  status                  String              @db.VarChar(50) @default("Draft")
+  approvedByUserId        String?             @db.VarChar(21)
+  approvedAt              DateTime?
+
+  @@index([jobId, isDeleted])
+  @@index([workDate, jobId])
+  @@index([userId, isDeleted])
+}
+```
+
+Const-based statuses:
+```typescript
+export const MATERIAL_CONSUMPTION_STATUSES = ["Draft", "Submitted", "Approved"] as const;
+```
+
+**No `unitCost` or `total` stored** — cost is computed downstream by `JobFinancialSummaryService` via lookup against `DistributorPrice` (preferred distributor) or `MaterialAttributePrice` (catalog price).
+
+---
+
+## Step 2: Model Class + GraphQL
+
+**Create:** `apps/api/src/models/MaterialConsumptionEntry.ts`
+**Create:** `apps/api/src/graphql/models/MaterialConsumptionEntry.ts`
+
+Key methods: `createEntry`, `submitEntry`, `approveEntry`, `getByJob(jobId, dateRange)`, `getByUser(userId, dateRange)`
+
+Approval workflow mirrors timesheet pattern: Draft → Submitted → Approved.
+
+---
+
+## Step 3: LEMReportView SQL View
+
+**Create file:** `apps/api/prisma/views/LEMReportView.sql`
+
+Joins:
+- `TimeSheetDetailRecord` (labor hours per job per date)
+- `EquipmentTimeEntry` (equipment hours per job per date)
+- `MaterialConsumptionEntry` (material quantities per job per date)
+
+Grouped by `jobId` + `workDate`, producing columns for labor hours, equipment hours, material item count.
+
+Run `pnpm run prisma:updateViews` after creating.
+
+---
+
+## Step 4: Frontend — LEM Report Tab
+
+**Create:** `apps/frontend/src/pages/jobs/[id]/lem-report.tsx` (or as tab on Job detail)
+
+Combined LEM report showing labor + equipment + material per date:
+- Date rows with labor hours, equipment hours, material entries
+- Expandable rows showing detail (individual timesheet records, equipment entries, material consumption entries)
+- PDF export formatted like industry-standard LEM sheet
+- Filters: date range, cost code, user
+
+---
+
+## Step 5: Frontend — Material Consumption Entry
+
+Entry UI for office staff to log material consumption:
+- Job selector, date picker, material picker (from catalog or free-text)
+- Quantity + unit, cost code allocation
+- Bulk entry mode: log multiple materials for a date/job in one screen
+
+---
+
+## Step 6: P&L Integration (Cross-Cutting Update #1)
+
+**File:** `apps/api/src/services/JobFinancialSummaryService.ts`
+
+Add material consumption cost as a distinct source:
+- Query `MaterialConsumptionEntry` for job
+- Compute cost per entry: quantity x resolved price from `DistributorPrice` (preferred) or `MaterialAttributePrice` (catalog)
+- Add to Materials pillar in financial summary
+
+---
+
+## Verification Checklist
+
+- [ ] MaterialConsumptionEntry table created with all fields and indexes
+- [ ] Approval workflow: Draft → Submitted → Approved matching timesheet pattern
+- [ ] LEM Report tab on Job detail shows combined labor + equipment + material per date
+- [ ] LEM Report exportable as PDF
+- [ ] Material consumption costs feed into Job Financial Summary (computed at query time)
+- [ ] Cost code allocation supported
+- [ ] Bulk entry mode for office staff
+- [ ] No cost fields stored on MaterialConsumptionEntry (computed downstream)
+- [ ] LEMReportView SQL view created and accessible
+
+---
+
+## Files Summary
+
+| Action | File | What to do |
+|--------|------|------------|
+| MODIFY | `apps/api/prisma/schema.prisma` | Add MaterialConsumptionEntry model |
+| CREATE | `apps/api/prisma/migrations/.../migration.sql` | CREATE TABLE |
+| CREATE | `apps/api/src/models/MaterialConsumptionEntry.ts` | Model class with approval workflow |
+| CREATE | `apps/api/src/graphql/models/MaterialConsumptionEntry.ts` | GraphQL resolver + CRUD |
+| MODIFY | `apps/api/src/graphql/schema.ts` | Register new resolver |
+| CREATE | `apps/api/prisma/views/LEMReportView.sql` | Combined LEM SQL view |
+| CREATE | `apps/frontend/src/pages/jobs/[id]/lem-report.tsx` | LEM Report tab/page |
+| MODIFY | `apps/api/src/services/JobFinancialSummaryService.ts` | Add material consumption cost source |
+</script>
+<script>
+(function() {
+    var md = document.getElementById('plan-md').textContent;
+    var target = document.getElementById('rendered');
+    var html = md
+        .replace(/```(\w*)\n([\s\S]*?)```/g, function(_, lang, code) {
+            return '<pre><code>' + code.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</code></pre>';
+        })
+        .replace(/`([^`\n]+)`/g, '<code>$1</code>')
+        .replace(/^#### (.+)$/gm, '<h4>$1</h4>')
+        .replace(/^### (.+)$/gm, '<h3>$1</h3>')
+        .replace(/^## (.+)$/gm, '<h2>$1</h2>')
+        .replace(/^# (.+)$/gm, '<h1>$1</h1>')
+        .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\*(.+?)\*/g, '<em>$1</em>')
+        .replace(/^---$/gm, '<hr>');
+    html = html.replace(/^- \[ \] (.+)$/gm, '<div class="check-item"><div class="check-box"></div><span>$1</span></div>');
+    html = html.replace(/(\|.+\|\n)+/g, function(table) {
+        var rows = table.trim().split('\n');
+        if (rows.length < 2) return table;
+        var headers = rows[0].split('|').filter(function(c) { return c.trim(); });
+        var isSep = /^[\s|:\-]+$/.test(rows[1]);
+        var start = isSep ? 2 : 1;
+        var out = '<table><thead><tr>';
+        headers.forEach(function(h) { out += '<th>' + h.trim() + '</th>'; });
+        out += '</tr></thead><tbody>';
+        for (var i = start; i < rows.length; i++) {
+            var cells = rows[i].split('|').filter(function(c) { return c.trim(); });
+            out += '<tr>'; cells.forEach(function(c) { out += '<td>' + c.trim() + '</td>'; }); out += '</tr>';
+        }
+        out += '</tbody></table>';
+        return out;
+    });
+    html = html.replace(/^- (.+)$/gm, '<li>$1</li>');
+    html = html.replace(/(<li>[\s\S]*?<\/li>\n?)+/g, function(m) { return '<ul>' + m + '</ul>'; });
+    html = html.replace(/^(?!<[hultdps\/<]|<\/|<code|<pre|<hr|<div|<strong|<em)(.+)$/gm, '<p>$1</p>');
+    target.innerHTML = html;
+})();
+</script>
+</body>
+</html>

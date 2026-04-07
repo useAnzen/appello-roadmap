@@ -1,0 +1,389 @@
+{
+    "featureId": "MAT-1.34",
+    "featureTitle": "Material Management & Supply Chain",
+    "featureSlug": "material-supply-chain",
+    "release": "1.34",
+    "totalComplexityScore": 72,
+    "estimatedDays": 66,
+    "prerequisite": "Release 1.32 merged (T&M Work Orders + Equipment Financial Layer + LEM Foundation)",
+    "hamburgers": [
+        {
+            "slug": "mat-0-supply-chain-model",
+            "sequenceNumber": 0,
+            "title": "MAT-0: Three-Level Supply Chain Model",
+            "description": "Create ManufacturerProduct and DistributorPrice models linking Materials to Companies. Add Manufacturer company type. Products tabs on Company detail, Supply Chain section on Material detail.",
+            "predecessors": [],
+            "hasUiInterfaces": true,
+            "complexityScore": 7,
+            "estimatedDays": 6,
+            "changeSurface": {
+                "new": [
+                    "apps/api/prisma/migrations/YYYYMMDDHHMMSS_add_supply_chain_model/migration.sql",
+                    "apps/api/src/models/ManufacturerProduct.ts",
+                    "apps/api/src/models/DistributorPrice.ts",
+                    "apps/api/src/graphql/models/ManufacturerProduct.ts",
+                    "apps/api/src/graphql/models/DistributorPrice.ts",
+                    "apps/frontend/src/components/DetailsPage/CompanyDetailsPage/Tabs/ManufacturerProducts.tsx",
+                    "apps/frontend/src/components/DetailsPage/CompanyDetailsPage/Tabs/DistributorPricing.tsx"
+                ],
+                "modified": [
+                    "apps/api/prisma/schema.prisma",
+                    "apps/api/src/graphql/schema.ts",
+                    "apps/frontend/src/components/DetailsPage/CompanyDetailsPage/index.tsx",
+                    "apps/frontend/src/pages/materials/[id]/index.tsx"
+                ],
+                "deleted": []
+            },
+            "acceptanceCriteria": [
+                "ManufacturerProduct and DistributorPrice models created with unique constraints and indexes",
+                "Manufacturer company type seeded in PropertyValue",
+                "Manufacturer company detail shows Products tab",
+                "Supplier company detail shows Products & Pricing tab",
+                "Material detail page shows Supply Chain section",
+                "Best price indicator across distributors"
+            ],
+            "plan": "plans/MAT-0-supply-chain-model.html"
+        },
+        {
+            "slug": "mat-1-customer-po-entity",
+            "sequenceNumber": 1,
+            "title": "MAT-1: Customer PO Entity",
+            "description": "Replace Job.purchaseOrder string with first-class PurchaseOrder model. Multiple POs per job, PO detail page, PO-aware invoicing.",
+            "predecessors": [],
+            "hasUiInterfaces": true,
+            "complexityScore": 8,
+            "estimatedDays": 6,
+            "changeSurface": {
+                "new": [
+                    "apps/api/prisma/migrations/YYYYMMDDHHMMSS_add_purchase_order/migration.sql",
+                    "apps/api/src/models/PurchaseOrder.ts",
+                    "apps/api/src/graphql/models/PurchaseOrder.ts",
+                    "apps/frontend/src/pages/purchase-orders/[id]/index.tsx"
+                ],
+                "modified": [
+                    "apps/api/prisma/schema.prisma",
+                    "apps/api/src/graphql/schema.ts",
+                    "apps/frontend/src/components/DetailsPage/CompanyDetailsPage/index.tsx",
+                    "apps/frontend/src/components/DetailsPage/JobDetailsPage/index.tsx",
+                    "apps/frontend/src/lib/routes.ts"
+                ],
+                "deleted": []
+            },
+            "acceptanceCriteria": [
+                "PurchaseOrder records replace Job.purchaseOrder string",
+                "Multiple POs per job supported",
+                "PO detail page with tabs",
+                "PO tab on Company detail page",
+                "Estimates and Invoices have PO dropdown selector",
+                "CPO-#### auto-sequenced numbering"
+            ],
+            "plan": "plans/MAT-1-customer-po-entity.html"
+        },
+        {
+            "slug": "mat-2a-lem-consumption-desktop",
+            "sequenceNumber": 2,
+            "title": "MAT-2a: LEM Material Consumption — Desktop",
+            "description": "MaterialConsumptionEntry model, desktop entry UI, LEM combined report joining labor + equipment + material, P&L integration.",
+            "predecessors": [],
+            "hasUiInterfaces": true,
+            "complexityScore": 6,
+            "estimatedDays": 5,
+            "changeSurface": {
+                "new": [
+                    "apps/api/prisma/migrations/YYYYMMDDHHMMSS_add_material_consumption/migration.sql",
+                    "apps/api/src/models/MaterialConsumptionEntry.ts",
+                    "apps/api/src/graphql/models/MaterialConsumptionEntry.ts",
+                    "apps/api/prisma/views/LEMReportView.sql",
+                    "apps/frontend/src/pages/jobs/[id]/lem-report.tsx"
+                ],
+                "modified": [
+                    "apps/api/prisma/schema.prisma",
+                    "apps/api/src/graphql/schema.ts",
+                    "apps/api/src/services/JobFinancialSummaryService.ts"
+                ],
+                "deleted": []
+            },
+            "acceptanceCriteria": [
+                "MaterialConsumptionEntry model with Draft/Submitted/Approved workflow",
+                "LEM Report tab on Job detail with combined labor + equipment + material",
+                "LEM Report exportable as PDF",
+                "Material consumption costs feed into Job Financial Summary",
+                "No cost fields stored on entry (computed downstream)"
+            ],
+            "plan": "plans/MAT-2a-lem-consumption-desktop.html"
+        },
+        {
+            "slug": "mat-2b-lem-consumption-mobile",
+            "sequenceNumber": 3,
+            "title": "MAT-2b: LEM Material Consumption — Mobile",
+            "description": "Mobile form for field workers to log material consumption per job per day. Uses MaterialConsumptionEntry from MAT-2a.",
+            "predecessors": ["mat-2a-lem-consumption-desktop"],
+            "hasUiInterfaces": true,
+            "complexityScore": 4,
+            "estimatedDays": 4,
+            "changeSurface": {
+                "new": [
+                    "apps/mobile/src/components/MaterialConsumption/MobileMaterialConsumptionForm.tsx",
+                    "apps/mobile/src/pages/job-sites/[id]/material-consumption/new.tsx",
+                    "apps/mobile/src/pages/job-sites/[id]/material-consumption/index.tsx"
+                ],
+                "modified": [
+                    "apps/mobile/src/components/JobViews/SimplifiedJobTasks.tsx"
+                ],
+                "deleted": []
+            },
+            "acceptanceCriteria": [
+                "Field workers log material consumption per job per day from mobile",
+                "Stepped form: select material, enter quantity, assign cost code, submit",
+                "View previous entries for same job",
+                "Offline support for entry creation"
+            ],
+            "plan": "plans/MAT-2b-lem-consumption-mobile.html"
+        },
+        {
+            "slug": "mat-3-price-book-import",
+            "sequenceNumber": 4,
+            "title": "MAT-3: Price Book Import",
+            "description": "CSV/Excel import wizard for distributor pricing into ManufacturerProduct + DistributorPrice. Column mapping, preview, validation, import history.",
+            "predecessors": ["mat-0-supply-chain-model"],
+            "hasUiInterfaces": true,
+            "complexityScore": 7,
+            "estimatedDays": 6,
+            "changeSurface": {
+                "new": [
+                    "apps/api/prisma/migrations/YYYYMMDDHHMMSS_add_price_book_import/migration.sql",
+                    "apps/api/src/models/PriceBookImport.ts",
+                    "apps/api/src/graphql/models/PriceBookImport.ts",
+                    "apps/frontend/src/components/Materials/PriceBookImportWizard.tsx",
+                    "apps/frontend/src/components/Materials/SupplierPricingTab.tsx"
+                ],
+                "modified": [
+                    "apps/api/prisma/schema.prisma",
+                    "apps/api/src/graphql/schema.ts"
+                ],
+                "deleted": []
+            },
+            "acceptanceCriteria": [
+                "Upload CSV/Excel from Materials settings or Company detail",
+                "Column mapping wizard",
+                "Preview and validation before import",
+                "Multiple suppliers per material",
+                "Price comparison view with effective prices",
+                "Import history with status and error logs"
+            ],
+            "plan": "plans/MAT-3-price-book-import.html"
+        },
+        {
+            "slug": "mat-4-mobile-material-requests",
+            "sequenceNumber": 5,
+            "title": "MAT-4: Mobile Material Requests",
+            "description": "Field-to-office material request workflow. Mobile submission with photo attachments, desktop inbox with triage.",
+            "predecessors": [],
+            "hasUiInterfaces": true,
+            "complexityScore": 7,
+            "estimatedDays": 6,
+            "changeSurface": {
+                "new": [
+                    "apps/api/prisma/migrations/YYYYMMDDHHMMSS_add_material_request/migration.sql",
+                    "apps/api/src/models/MaterialRequest.ts",
+                    "apps/api/src/graphql/models/MaterialRequest.ts",
+                    "apps/mobile/src/pages/job-sites/[id]/material-request/new.tsx",
+                    "apps/mobile/src/components/MaterialRequest/MobileMaterialRequestForm.tsx",
+                    "apps/frontend/src/pages/material-requests/index.tsx",
+                    "apps/frontend/src/components/MaterialRequests/MaterialRequestInbox.tsx"
+                ],
+                "modified": [
+                    "apps/api/prisma/schema.prisma",
+                    "apps/api/src/graphql/schema.ts",
+                    "apps/frontend/src/lib/routes.ts"
+                ],
+                "deleted": []
+            },
+            "acceptanceCriteria": [
+                "Mobile: create request from job site with catalog picker or free-text",
+                "Mobile: attach photo of what's needed",
+                "Desktop: Material Request Inbox with filtering",
+                "Desktop: one-click acknowledge and assign",
+                "Notification on new request",
+                "Request history on Job detail page"
+            ],
+            "plan": "plans/MAT-4-mobile-material-requests.html"
+        },
+        {
+            "slug": "mat-9-discount-management",
+            "sequenceNumber": 6,
+            "title": "MAT-9: Discount Management",
+            "description": "DistributorDiscount model with Global/Category/Product scopes. Cascading resolution for effective pricing. Discounts tab on Supplier company detail.",
+            "predecessors": ["mat-0-supply-chain-model"],
+            "hasUiInterfaces": true,
+            "complexityScore": 5,
+            "estimatedDays": 4,
+            "changeSurface": {
+                "new": [
+                    "apps/api/prisma/migrations/YYYYMMDDHHMMSS_add_distributor_discount/migration.sql",
+                    "apps/api/src/models/DistributorDiscount.ts",
+                    "apps/api/src/graphql/models/DistributorDiscount.ts",
+                    "apps/frontend/src/components/DetailsPage/CompanyDetailsPage/Tabs/DistributorDiscounts.tsx"
+                ],
+                "modified": [
+                    "apps/api/prisma/schema.prisma",
+                    "apps/api/src/graphql/schema.ts",
+                    "apps/api/src/models/DistributorPrice.ts",
+                    "apps/frontend/src/components/DetailsPage/CompanyDetailsPage/index.tsx"
+                ],
+                "deleted": []
+            },
+            "acceptanceCriteria": [
+                "Discounts tab on Supplier Company detail page",
+                "Add global, category, and product-level discounts",
+                "Effective dates with expired status",
+                "Discount resolution: product > category > global",
+                "Effective price shown wherever DistributorPrice appears",
+                "Price Book Import can import discountPercent column"
+            ],
+            "plan": "plans/MAT-9-discount-management.html"
+        },
+        {
+            "slug": "mat-5-supplier-po",
+            "sequenceNumber": 7,
+            "title": "MAT-5: Supplier PO (CRUD + PDF + Email)",
+            "description": "Outbound purchase orders to suppliers. PDF generation, email to vendor. Uses shared PurchaseOrder model with type=SupplierPO.",
+            "predecessors": ["mat-0-supply-chain-model", "mat-1-customer-po-entity", "mat-9-discount-management"],
+            "hasUiInterfaces": true,
+            "complexityScore": 7,
+            "estimatedDays": 6,
+            "changeSurface": {
+                "new": [
+                    "apps/frontend/src/pages/purchase-orders/index.tsx",
+                    "apps/frontend/src/components/Forms/SupplierPOForm/",
+                    "apps/frontend/src/components/DownloadablePDF/PurchaseOrder/SupplierPO.tsx"
+                ],
+                "modified": [
+                    "apps/api/prisma/schema.prisma",
+                    "apps/api/src/models/PurchaseOrder.ts",
+                    "apps/api/src/graphql/models/PurchaseOrder.ts",
+                    "apps/api/src/graphql/schema.ts"
+                ],
+                "deleted": []
+            },
+            "acceptanceCriteria": [
+                "Create Supplier PO with distributor picker and auto-pricing",
+                "PDF generation with company branding",
+                "Email PO to supplier contact",
+                "PO status lifecycle: Draft to Closed",
+                "SPO-#### auto-sequenced numbering",
+                "Supplier PO tab on Company detail page"
+            ],
+            "plan": "plans/MAT-5-supplier-po.html"
+        },
+        {
+            "slug": "mat-6-receiving-workflow",
+            "sequenceNumber": 8,
+            "title": "MAT-6: Receiving + Three-Way Match",
+            "description": "Receive deliveries against Supplier POs. Partial/complete receipts, three-way match (PO vs received vs invoiced), back-order tracking.",
+            "predecessors": ["mat-5-supplier-po"],
+            "hasUiInterfaces": true,
+            "complexityScore": 5,
+            "estimatedDays": 5,
+            "changeSurface": {
+                "new": [
+                    "apps/api/prisma/migrations/YYYYMMDDHHMMSS_add_receiving/migration.sql",
+                    "apps/api/src/models/PurchaseOrderReceipt.ts",
+                    "apps/api/src/graphql/models/PurchaseOrderReceipt.ts",
+                    "apps/frontend/src/components/Receiving/ReceivingForm.tsx"
+                ],
+                "modified": [
+                    "apps/api/prisma/schema.prisma",
+                    "apps/api/src/graphql/schema.ts",
+                    "apps/api/src/services/JobFinancialSummaryService.ts"
+                ],
+                "deleted": []
+            },
+            "acceptanceCriteria": [
+                "Receive against PO: full/partial/damaged",
+                "Three-way match visibility",
+                "Back-order tracking",
+                "Receipt history on PO detail",
+                "PO status auto-transitions",
+                "Committed material costs in Financial Summary"
+            ],
+            "plan": "plans/MAT-6-receiving-workflow.html"
+        },
+        {
+            "slug": "mat-7-inventory-management",
+            "sequenceNumber": 9,
+            "title": "MAT-7: Inventory Management",
+            "description": "Stock tracking by location. Receiving intake, job checkout, transfer, adjustment. Movement ledger, min/max alerts, mobile QR check.",
+            "predecessors": ["mat-6-receiving-workflow"],
+            "hasUiInterfaces": true,
+            "complexityScore": 10,
+            "estimatedDays": 9,
+            "changeSurface": {
+                "new": [
+                    "apps/api/prisma/migrations/YYYYMMDDHHMMSS_add_inventory/migration.sql",
+                    "apps/api/src/models/InventoryMovement.ts",
+                    "apps/api/src/graphql/models/Inventory.ts",
+                    "apps/api/prisma/views/InventoryStockLevel.sql",
+                    "apps/frontend/src/pages/inventory/index.tsx",
+                    "apps/frontend/src/pages/inventory/[locationId]/index.tsx",
+                    "apps/frontend/src/components/Inventory/StockLevelTable.tsx",
+                    "apps/frontend/src/components/Inventory/CheckoutForm.tsx",
+                    "apps/frontend/src/components/Inventory/TransferForm.tsx",
+                    "apps/frontend/src/components/Inventory/AdjustmentForm.tsx",
+                    "apps/mobile/src/pages/inventory/"
+                ],
+                "modified": [
+                    "apps/api/prisma/schema.prisma",
+                    "apps/api/src/graphql/schema.ts",
+                    "apps/api/src/services/JobFinancialSummaryService.ts",
+                    "apps/frontend/src/lib/routes.ts"
+                ],
+                "deleted": []
+            },
+            "acceptanceCriteria": [
+                "Receiving auto-creates inventory",
+                "Checkout to job with cost code",
+                "Transfer between locations",
+                "Physical count adjustment",
+                "Min/max alerts",
+                "Stock levels dashboard",
+                "Mobile QR stock check",
+                "Movement history ledger"
+            ],
+            "plan": "plans/MAT-7-inventory-management.html"
+        },
+        {
+            "slug": "mat-8-vendor-credits",
+            "sequenceNumber": 10,
+            "title": "MAT-8: Vendor Credits & Returns",
+            "description": "Returns workflow with credit memo tracking, job cost adjustment, inventory return movements, AP reconciliation.",
+            "predecessors": ["mat-5-supplier-po", "mat-7-inventory-management"],
+            "hasUiInterfaces": true,
+            "complexityScore": 6,
+            "estimatedDays": 5,
+            "changeSurface": {
+                "new": [
+                    "apps/api/prisma/migrations/YYYYMMDDHHMMSS_add_vendor_credit/migration.sql",
+                    "apps/api/src/models/VendorCredit.ts",
+                    "apps/api/src/graphql/models/VendorCredit.ts",
+                    "apps/frontend/src/components/Forms/VendorCreditForm/"
+                ],
+                "modified": [
+                    "apps/api/prisma/schema.prisma",
+                    "apps/api/src/graphql/schema.ts",
+                    "apps/api/src/services/JobFinancialSummaryService.ts"
+                ],
+                "deleted": []
+            },
+            "acceptanceCriteria": [
+                "Create credit from Supplier PO detail",
+                "Credit line items linked to PO",
+                "Return creates outbound inventory movement",
+                "Credit applied to job costs",
+                "Credit memo PDF generation",
+                "Reason codes as PropertyValue"
+            ],
+            "plan": "plans/MAT-8-vendor-credits.html"
+        }
+    ]
+}

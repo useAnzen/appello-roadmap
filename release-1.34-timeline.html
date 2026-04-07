@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Release 1.34 - Development Timeline</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Inter', -apple-system, sans-serif; background: #f1f5f9; color: #0f172a; }
+.wrap { max-width: 1080px; margin: 0 auto; padding: 40px 24px 80px; }
+h1 { font-size: 30px; font-weight: 800; color: #0f172a; margin: 0 0 8px; letter-spacing: -0.01em; }
+.subtitle { font-size: 15px; color: #64748b; line-height: 1.5; margin: 0 0 32px; }
+
+/* Phase containers */
+.phase { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px 28px; margin-bottom: 16px; position: relative; }
+.phase::before { content: ''; position: absolute; left: 28px; top: 100%; width: 2px; height: 16px; background: #cbd5e1; }
+.phase:last-of-type::before { display: none; }
+.phase h2 { font-size: 17px; font-weight: 700; color: #0f172a; margin: 0 0 4px; display: flex; align-items: center; gap: 10px; }
+.phase-desc { font-size: 14px; color: #64748b; margin: 0 0 16px; }
+.phase-badge { font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 5px; display: inline-flex; align-items: center; }
+.badge-foundation { background: #dbeafe; color: #1d4ed8; }
+.badge-procurement { background: #d1fae5; color: #065f46; }
+.badge-operations { background: #fce7f3; color: #be185d; }
+.badge-parallel { background: #fef3c7; color: #92400e; }
+
+/* Item rows */
+.items { display: grid; grid-template-columns: 1fr; gap: 4px; }
+.item-row { border-radius: 8px; overflow: hidden; }
+.item-header { display: grid; grid-template-columns: 36px 90px 1fr 90px 90px 90px; align-items: center; padding: 10px 14px; font-size: 13px; cursor: pointer; user-select: none; transition: background 0.15s; }
+.item-header:hover { background: #f1f5f9; }
+.item-row:nth-child(odd) .item-header { background: #f8fafc; }
+.item-row:nth-child(odd) .item-header:hover { background: #eef2f7; }
+.item-row.expanded .item-header { background: #eff6ff; border-bottom: 1px solid #bfdbfe; }
+.item-chevron { font-size: 14px; color: #94a3b8; transition: transform 0.2s; display: flex; align-items: center; justify-content: center; }
+.item-row.expanded .item-chevron { transform: rotate(90deg); color: #3b82f6; }
+.item-id { font-family: monospace; font-weight: 700; color: #7c3aed; font-size: 12px; }
+.item-name { font-weight: 500; color: #0f172a; }
+.item-est { color: #64748b; text-align: center; }
+.item-status { text-align: center; }
+.item-dep { font-size: 11px; color: #94a3b8; text-align: center; }
+.item-name .no-spec { font-size: 11px; color: #94a3b8; font-weight: 400; margin-left: 6px; }
+.item-name .pl-tag { font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 3px; background: #ede9fe; color: #7c3aed; margin-left: 6px; vertical-align: middle; }
+
+/* Items without specs - non-clickable */
+.item-row.no-expand .item-header { cursor: default; }
+.item-row.no-expand .item-header:hover { background: inherit; }
+.item-row.no-expand:nth-child(odd) .item-header:hover { background: #f8fafc; }
+.item-row.no-expand .item-chevron { visibility: hidden; }
+
+/* Expandable detail panel */
+.item-detail { display: none; border-top: 1px solid #e2e8f0; background: #f8fafc; }
+.item-row.expanded .item-detail { display: block; }
+.item-detail iframe { width: 100%; border: none; min-height: 600px; background: #fff; }
+.item-detail .detail-toolbar { padding: 8px 24px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #e2e8f0; background: #f1f5f9; }
+.item-detail .detail-toolbar .file-path { font-size: 12px; font-weight: 600; color: #64748b; }
+.item-detail .detail-toolbar code { color: #7c3aed; }
+.item-detail .open-link { display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; background: #fff; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 11px; font-weight: 600; color: #3b82f6; text-decoration: none; }
+.item-detail .open-link:hover { background: #eff6ff; border-color: #bfdbfe; }
+
+/* Detail tabs */
+.detail-tabs { display: flex; gap: 0; background: #f1f5f9; border-bottom: 1px solid #e2e8f0; padding: 0 24px; }
+.detail-tab { padding: 10px 20px; font-size: 13px; font-weight: 600; color: #64748b; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; user-select: none; transition: color 0.15s; }
+.detail-tab:hover { color: #0f172a; }
+.detail-tab.active { color: #3b82f6; border-bottom-color: #3b82f6; background: #fff; }
+.detail-tab.disabled { color: #cbd5e1; cursor: default; font-style: italic; }
+.detail-tab.disabled:hover { color: #cbd5e1; }
+.detail-tab-content { display: none; }
+.detail-tab-content.active { display: block; }
+.detail-tab-content .pending-msg { padding: 40px; text-align: center; color: #94a3b8; font-size: 13px; font-style: italic; }
+
+/* Header row */
+.header-row { display: grid; grid-template-columns: 36px 90px 1fr 90px 90px 90px; padding: 6px 14px; font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; }
+.header-row span:nth-child(4), .header-row span:nth-child(5), .header-row span:nth-child(6) { text-align: center; }
+
+/* Status tags */
+.status-tag { font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 4px; }
+.status-ready { background: #dcfce7; color: #166534; }
+.status-blocked { background: #fee2e2; color: #dc2626; }
+.status-parallel { background: #fef3c7; color: #92400e; }
+
+/* Connectors */
+.connector { text-align: center; padding: 8px; color: #94a3b8; font-size: 20px; }
+
+/* Summary cards */
+.summary-cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 32px; }
+.summary-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 16px; }
+.summary-card .sc-label { font-size: 11px; font-weight: 700; text-transform: uppercase; color: #64748b; letter-spacing: 0.5px; margin-bottom: 4px; }
+.summary-card .sc-value { font-size: 24px; font-weight: 800; color: #0f172a; }
+.summary-card .sc-detail { font-size: 12px; color: #94a3b8; margin-top: 2px; }
+
+/* Legend */
+.legend { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 24px; font-size: 12px; color: #64748b; }
+.legend-item { display: flex; align-items: center; gap: 6px; }
+.legend-dot { width: 10px; height: 10px; border-radius: 3px; }
+
+/* Critical path */
+.critical-path { background: #fff; border: 2px solid #dc2626; border-radius: 12px; padding: 24px 28px; margin-bottom: 24px; }
+.critical-path h2 { font-size: 17px; font-weight: 700; color: #dc2626; margin: 0 0 12px; }
+.cp-flow { display: flex; align-items: center; gap: 0; flex-wrap: wrap; margin: 12px 0; }
+.cp-node { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px 14px; font-size: 12px; font-weight: 600; }
+.cp-node.active { background: #dbeafe; border-color: #3b82f6; color: #1d4ed8; }
+.cp-node.blocker { background: #fee2e2; border-color: #dc2626; color: #dc2626; }
+.cp-arrow { font-size: 16px; color: #cbd5e1; padding: 0 4px; }
+
+/* Notes */
+.notes { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px 28px; margin-bottom: 16px; }
+.notes h2 { font-size: 17px; font-weight: 700; color: #0f172a; margin: 0 0 14px; padding-bottom: 10px; border-bottom: 2px solid #e2e8f0; }
+.notes p, .notes li { font-size: 14px; color: #334155; line-height: 1.65; }
+.notes ul { padding-left: 20px; margin: 8px 0; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+    <h1>Release 1.34 &mdash; Development Timeline</h1>
+    <p class="subtitle">Material Management &amp; Supply Chain &mdash; Three-Level Supply Chain Model &rarr; Procurement Pipeline &rarr; Inventory &amp; Operations.<br>
+    Three phases building on each other. <strong>Click any row to expand its implementation plan inline.</strong></p>
+
+    <!-- Summary Cards -->
+    <div class="summary-cards">
+        <div class="summary-card">
+            <div class="sc-label">Total Features</div>
+            <div class="sc-value">11</div>
+            <div class="sc-detail">4 Foundation + 5 Procurement + 2 Operations</div>
+        </div>
+        <div class="summary-card">
+            <div class="sc-label">Phases</div>
+            <div class="sc-value">3</div>
+            <div class="sc-detail">Foundation &rarr; Procurement &rarr; Operations</div>
+        </div>
+        <div class="summary-card">
+            <div class="sc-label">Est. Duration</div>
+            <div class="sc-value">56-76 days</div>
+            <div class="sc-detail">End-to-end across all phases</div>
+        </div>
+        <div class="summary-card">
+            <div class="sc-label">New Prisma Models</div>
+            <div class="sc-value">12+</div>
+            <div class="sc-detail">ManufacturerProduct, DistributorPrice, PurchaseOrder, PO LineItem, MaterialConsumptionEntry, PriceBookImport, MaterialRequest, MaterialRequestItem, DistributorDiscount, InventoryLocation, InventoryItem, InventoryMovement, PO Receipt, ReceiptLineItem, VendorCredit, VendorCreditLineItem</div>
+        </div>
+    </div>
+
+    <!-- Legend -->
+    <div class="legend">
+        <div class="legend-item"><div class="legend-dot" style="background:#dbeafe;"></div> Phase 1 Foundation</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#d1fae5;"></div> Phase 2 Procurement</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#fce7f3;"></div> Phase 3 Operations</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#fef3c7;"></div> Can parallelize</div>
+        <div class="legend-item"><span class="status-tag status-ready">READY</span> No blockers</div>
+        <div class="legend-item"><span class="status-tag status-blocked">BLOCKED</span> Waiting on dependency</div>
+        <div class="legend-item" style="color:#94a3b8;">&#9654; = has plan (click to expand)</div>
+    </div>
+
+    <!-- Critical Path -->
+    <div class="critical-path">
+        <h2>Critical Path</h2>
+        <p style="font-size:13px; color:#64748b; margin-bottom:12px;">The longest dependency chain that determines minimum timeline:</p>
+        <div class="cp-flow">
+            <div class="cp-node active">MAT-0<br><small>Supply Chain</small></div>
+            <span class="cp-arrow">&rarr;</span>
+            <div class="cp-node">MAT-9<br><small>Discounts</small></div>
+            <span class="cp-arrow">&rarr;</span>
+            <div class="cp-node">MAT-5<br><small>Supplier PO</small></div>
+            <span class="cp-arrow">&rarr;</span>
+            <div class="cp-node">MAT-6<br><small>Receiving</small></div>
+            <span class="cp-arrow">&rarr;</span>
+            <div class="cp-node">MAT-7<br><small>Inventory</small></div>
+            <span class="cp-arrow">&rarr;</span>
+            <div class="cp-node">MAT-8<br><small>Vendor Credits</small></div>
+        </div>
+    </div>
+
+    <!-- Phase 1: Foundation -->
+    <div class="phase">
+        <h2>
+            <span class="phase-badge badge-foundation">Phase 1</span>
+            Foundation &mdash; Core Data Models
+        </h2>
+        <p class="phase-desc">Core data models for supply chain, purchase orders, and daily material consumption. <strong>No blocking dependencies &mdash; can start immediately after 1.32.</strong></p>
+
+        <div class="header-row">
+            <span></span>
+            <span>ID</span>
+            <span>Feature</span>
+            <span>Estimate</span>
+            <span>Status</span>
+            <span>Depends On</span>
+        </div>
+        <div class="items">
+            <div class="item-row" data-plan="plans/MAT-0-supply-chain-model.html">
+                <div class="item-header">
+                    <span class="item-chevron">&#9654;</span>
+                    <span class="item-id">MAT-0</span>
+                    <span class="item-name">Three-Level Supply Chain Model &mdash; ManufacturerProduct + DistributorPrice + Company enhancements (Manufacturer type, Products tabs)</span>
+                    <span class="item-est">5-7 days</span>
+                    <span class="item-status"><span class="status-tag status-ready">READY</span></span>
+                    <span class="item-dep">None</span>
+                </div>
+                <div class="item-detail"></div>
+            </div>
+            <div class="item-row" data-plan="plans/MAT-1-customer-po-entity.html">
+                <div class="item-header">
+                    <span class="item-chevron">&#9654;</span>
+                    <span class="item-id">MAT-1</span>
+                    <span class="item-name">Customer PO Entity &mdash; Replace Job.purchaseOrder string with first-class PurchaseOrder model, multi-PO per job, PO detail page</span>
+                    <span class="item-est">5-7 days</span>
+                    <span class="item-status"><span class="status-tag status-parallel">PARALLEL</span></span>
+                    <span class="item-dep">None (||)</span>
+                </div>
+                <div class="item-detail"></div>
+            </div>
+            <div class="item-row" data-plan="plans/MAT-2a-lem-consumption-desktop.html">
+                <div class="item-header">
+                    <span class="item-chevron">&#9654;</span>
+                    <span class="item-id">MAT-2a</span>
+                    <span class="item-name">LEM Material Consumption &mdash; Desktop &mdash; MaterialConsumptionEntry model, desktop entry UI, LEM combined report, P&amp;L integration <span class="pl-tag">P&amp;L Update #1</span></span>
+                    <span class="item-est">4-5 days</span>
+                    <span class="item-status"><span class="status-tag status-parallel">PARALLEL</span></span>
+                    <span class="item-dep">LEM-1/2</span>
+                </div>
+                <div class="item-detail"></div>
+            </div>
+            <div class="item-row" data-plan="plans/MAT-2b-lem-consumption-mobile.html">
+                <div class="item-header">
+                    <span class="item-chevron">&#9654;</span>
+                    <span class="item-id">MAT-2b</span>
+                    <span class="item-name">LEM Material Consumption &mdash; Mobile &mdash; Mobile form for field workers to log material consumption</span>
+                    <span class="item-est">3-4 days</span>
+                    <span class="item-status"><span class="status-tag status-blocked">BLOCKED</span></span>
+                    <span class="item-dep">MAT-2a</span>
+                </div>
+                <div class="item-detail"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="connector">&darr;</div>
+
+    <!-- Phase 2: Procurement Pipeline -->
+    <div class="phase">
+        <h2>
+            <span class="phase-badge badge-procurement">Phase 2</span>
+            Procurement Pipeline
+        </h2>
+        <p class="phase-desc">Bulk pricing import, field-to-office material requests, discount management, supplier purchase orders, and receiving. <strong>Depends on Phase 1 foundation models.</strong></p>
+
+        <div class="header-row">
+            <span></span>
+            <span>ID</span>
+            <span>Feature</span>
+            <span>Estimate</span>
+            <span>Status</span>
+            <span>Depends On</span>
+        </div>
+        <div class="items">
+            <div class="item-row" data-plan="plans/MAT-3-price-book-import.html">
+                <div class="item-header">
+                    <span class="item-chevron">&#9654;</span>
+                    <span class="item-id">MAT-3</span>
+                    <span class="item-name">Price Book Import &mdash; CSV/Excel import wizard for distributor pricing into ManufacturerProduct + DistributorPrice</span>
+                    <span class="item-est">5-6 days</span>
+                    <span class="item-status"><span class="status-tag status-blocked">BLOCKED</span></span>
+                    <span class="item-dep">MAT-0</span>
+                </div>
+                <div class="item-detail"></div>
+            </div>
+            <div class="item-row" data-plan="plans/MAT-4-mobile-material-requests.html">
+                <div class="item-header">
+                    <span class="item-chevron">&#9654;</span>
+                    <span class="item-id">MAT-4</span>
+                    <span class="item-name">Mobile Material Requests &mdash; Field workers submit material requests from mobile, office inbox and triage</span>
+                    <span class="item-est">5-7 days</span>
+                    <span class="item-status"><span class="status-tag status-parallel">PARALLEL</span></span>
+                    <span class="item-dep">Material catalog</span>
+                </div>
+                <div class="item-detail"></div>
+            </div>
+            <div class="item-row" data-plan="plans/MAT-9-discount-management.html">
+                <div class="item-header">
+                    <span class="item-chevron">&#9654;</span>
+                    <span class="item-id">MAT-9</span>
+                    <span class="item-name">Discount Management &mdash; DistributorDiscount model with Global/Category/Product scopes, cascading resolution</span>
+                    <span class="item-est">3-4 days</span>
+                    <span class="item-status"><span class="status-tag status-blocked">BLOCKED</span></span>
+                    <span class="item-dep">MAT-0</span>
+                </div>
+                <div class="item-detail"></div>
+            </div>
+            <div class="item-row" data-plan="plans/MAT-5-supplier-po.html">
+                <div class="item-header">
+                    <span class="item-chevron">&#9654;</span>
+                    <span class="item-id">MAT-5</span>
+                    <span class="item-name">Supplier PO (CRUD + PDF + Email) &mdash; Create outbound POs to suppliers, PDF generation, email to vendor</span>
+                    <span class="item-est">5-7 days</span>
+                    <span class="item-status"><span class="status-tag status-blocked">BLOCKED</span></span>
+                    <span class="item-dep">MAT-0, MAT-1, MAT-9</span>
+                </div>
+                <div class="item-detail"></div>
+            </div>
+            <div class="item-row" data-plan="plans/MAT-6-receiving-workflow.html">
+                <div class="item-header">
+                    <span class="item-chevron">&#9654;</span>
+                    <span class="item-id">MAT-6</span>
+                    <span class="item-name">Receiving + Three-Way Match &mdash; Receive deliveries against POs, partial/complete receipts, PO vs received vs invoiced matching <span class="pl-tag">P&amp;L Update #2</span></span>
+                    <span class="item-est">4-5 days</span>
+                    <span class="item-status"><span class="status-tag status-blocked">BLOCKED</span></span>
+                    <span class="item-dep">MAT-5</span>
+                </div>
+                <div class="item-detail"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="connector">&darr;</div>
+
+    <!-- Phase 3: Operations -->
+    <div class="phase">
+        <h2>
+            <span class="phase-badge badge-operations">Phase 3</span>
+            Operations &mdash; Inventory &amp; Returns
+        </h2>
+        <p class="phase-desc">Inventory tracking, stock management, vendor credits and returns. <strong>Depends on the procurement pipeline being in place.</strong></p>
+
+        <div class="header-row">
+            <span></span>
+            <span>ID</span>
+            <span>Feature</span>
+            <span>Estimate</span>
+            <span>Status</span>
+            <span>Depends On</span>
+        </div>
+        <div class="items">
+            <div class="item-row" data-plan="plans/MAT-7-inventory-management.html">
+                <div class="item-header">
+                    <span class="item-chevron">&#9654;</span>
+                    <span class="item-id">MAT-7</span>
+                    <span class="item-name">Inventory Management &mdash; Stock tracking by location, receiving intake, job checkout, movement ledger, min/max alerts <span class="pl-tag">P&amp;L Update #3</span></span>
+                    <span class="item-est">8-10 days</span>
+                    <span class="item-status"><span class="status-tag status-blocked">BLOCKED</span></span>
+                    <span class="item-dep">MAT-6</span>
+                </div>
+                <div class="item-detail"></div>
+            </div>
+            <div class="item-row" data-plan="plans/MAT-8-vendor-credits.html">
+                <div class="item-header">
+                    <span class="item-chevron">&#9654;</span>
+                    <span class="item-id">MAT-8</span>
+                    <span class="item-name">Vendor Credits &amp; Returns &mdash; Returns workflow, credit memo tracking, job cost adjustment, AP reconciliation</span>
+                    <span class="item-est">4-5 days</span>
+                    <span class="item-status"><span class="status-tag status-blocked">BLOCKED</span></span>
+                    <span class="item-dep">MAT-5, MAT-7</span>
+                </div>
+                <div class="item-detail"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notes -->
+    <div class="notes">
+        <h2>Sequencing Rationale</h2>
+        <ul>
+            <li><strong>Supply Chain Model first (MAT-0)</strong> because all downstream pricing, PO creation, and receiving depend on the ManufacturerProduct + DistributorPrice data structure.</li>
+            <li><strong>Customer PO (MAT-1) parallel with MAT-0</strong> because Supplier POs (MAT-5) share the PurchaseOrder model.</li>
+            <li><strong>LEM Consumption (MAT-2a/2b) parallel with MAT-0</strong> because it only depends on the existing material catalog + LEM foundation from 1.32.</li>
+            <li><strong>Procurement Pipeline (Phase 2) after foundations</strong> because Price Book Import writes to ManufacturerProduct + DistributorPrice, Supplier POs consume them.</li>
+            <li><strong>Discount Management (MAT-9) must precede Supplier PO (MAT-5)</strong> so PO line items can show effective prices.</li>
+            <li><strong>Operations (Phase 3) last</strong> because Inventory requires receiving (MAT-6) and Vendor Credits require both POs (MAT-5) and Inventory (MAT-7).</li>
+        </ul>
+    </div>
+
+    <div class="notes">
+        <h2>Key Decisions</h2>
+        <ul>
+            <li><strong>Decided:</strong> Three-level supply chain model (Material &rarr; ManufacturerProduct &rarr; DistributorPrice)</li>
+            <li><strong>Decided:</strong> &ldquo;Manufacturer&rdquo; as new Company type (alongside existing Supplier/Customer/Consultant)</li>
+            <li><strong>Decided:</strong> PurchaseOrder as shared model for Customer PO and Supplier PO (differentiated by <code>type</code> const)</li>
+            <li><strong>Decided:</strong> Material consumption costs computed at query time, not stored on entry (mirrors timesheet pattern)</li>
+            <li><strong>Decided:</strong> Discount resolution cascades &mdash; Product-specific overrides Category, Category overrides Global</li>
+            <li><strong>Decided:</strong> Inventory movements as an append-only ledger (no direct stock edits)</li>
+            <li><strong>Decided:</strong> All new enum-like values use const-based TypeScript patterns (not Prisma enums)</li>
+            <li><strong>Open:</strong> Inventory costing method &mdash; FIFO vs. weighted average (flagged for spec authoring)</li>
+        </ul>
+    </div>
+
+    <div class="notes">
+        <h2>Source Documents</h2>
+        <ul>
+            <li><strong>Release 1.34 Plan:</strong> <code>release_1.34_material_supply_chain_24906d55.plan.md</code></li>
+            <li><strong>Material Management Deep Analysis:</strong> <code>plan/MATERIAL_MANAGEMENT_SUPPLY_CHAIN_DEEP_ANALYSIS.md</code></li>
+            <li><strong>Material Supply Chain Story:</strong> <code>plan/MATERIAL_SUPPLY_CHAIN_STORY.md</code></li>
+            <li><strong>Agent Planning Guidelines:</strong> <code>agent-planning-guidelines.md</code></li>
+        </ul>
+    </div>
+
+</div>
+
+<script>
+var REPO_BASES = {};
+
+function resolvePath(path) {
+    if (!path) return path;
+    for (var prefix in REPO_BASES) {
+        if (path.indexOf(prefix) === 0) {
+            return REPO_BASES[prefix] + path.slice(prefix.length);
+        }
+    }
+    return path;
+}
+
+function createDocIframe(src) {
+    var iframe = document.createElement('iframe');
+    iframe.src = src;
+    iframe.style.cssText = 'width:100%;border:none;min-height:600px;background:#fff;';
+    iframe.addEventListener('load', function() {
+        try {
+            iframe.style.height = Math.min(iframe.contentDocument.documentElement.scrollHeight + 40, 2000) + 'px';
+        } catch (e) { iframe.style.height = '800px'; }
+    });
+    return iframe;
+}
+
+function createTabContent(tabName, path, isActive) {
+    var content = document.createElement('div');
+    content.className = 'detail-tab-content' + (isActive ? ' active' : '');
+    content.dataset.tab = tabName;
+
+    if (path) {
+        var toolbar = document.createElement('div');
+        toolbar.className = 'detail-toolbar';
+        toolbar.innerHTML =
+            '<span class="file-path"><code>' + path + '</code></span>' +
+            '<a class="open-link" href="' + path + '" target="_blank">Open in new tab &#8599;</a>';
+        content.appendChild(toolbar);
+        content.dataset.src = path;
+    } else {
+        var label = tabName === 'plan' ? 'Implementation plan' : 'Spec';
+        content.innerHTML = '<div class="pending-msg">' + label + ' not yet created for this feature.</div>';
+    }
+
+    return content;
+}
+
+function ensureIframeLoaded(content) {
+    if (content.dataset.src && !content.querySelector('iframe')) {
+        content.appendChild(createDocIframe(content.dataset.src));
+    }
+}
+
+function buildDetailPanel(detail, specPath, planPath) {
+    var hasSpec = !!specPath;
+    var hasPlan = !!planPath;
+
+    if (!hasSpec && hasPlan) {
+        // Plan only — no tabs needed, show plan directly
+        var planContent = createTabContent('plan', planPath, true);
+        detail.appendChild(planContent);
+        ensureIframeLoaded(planContent);
+        return;
+    }
+
+    var defaultTab = hasSpec ? 'spec' : (hasPlan ? 'plan' : 'spec');
+
+    var tabBar = document.createElement('div');
+    tabBar.className = 'detail-tabs';
+
+    var specTab = document.createElement('div');
+    specTab.className = 'detail-tab' + (hasSpec && defaultTab === 'spec' ? ' active' : '') + (!hasSpec ? ' disabled' : '');
+    specTab.textContent = 'Spec / Analysis';
+    specTab.dataset.tab = 'spec';
+
+    var planTab = document.createElement('div');
+    planTab.className = 'detail-tab' + (defaultTab === 'plan' ? ' active' : '') + (!hasPlan ? ' disabled' : '');
+    planTab.textContent = 'Implementation Plan' + (!hasPlan ? ' (pending)' : '');
+    planTab.dataset.tab = 'plan';
+
+    tabBar.appendChild(specTab);
+    tabBar.appendChild(planTab);
+    detail.appendChild(tabBar);
+
+    var specContent = createTabContent('spec', specPath, defaultTab === 'spec');
+    var planContent = createTabContent('plan', planPath, defaultTab === 'plan');
+    detail.appendChild(specContent);
+    detail.appendChild(planContent);
+
+    var activeContent = defaultTab === 'spec' ? specContent : planContent;
+    ensureIframeLoaded(activeContent);
+
+    tabBar.querySelectorAll('.detail-tab:not(.disabled)').forEach(function(tab) {
+        tab.addEventListener('click', function() {
+            tabBar.querySelectorAll('.detail-tab').forEach(function(t) { t.classList.remove('active'); });
+            detail.querySelectorAll('.detail-tab-content').forEach(function(c) { c.classList.remove('active'); });
+            tab.classList.add('active');
+            var target = detail.querySelector('.detail-tab-content[data-tab="' + tab.dataset.tab + '"]');
+            target.classList.add('active');
+            ensureIframeLoaded(target);
+        });
+    });
+}
+
+document.querySelectorAll('.item-row:not(.no-expand)').forEach(function(row) {
+    var header = row.querySelector('.item-header');
+    var detail = row.querySelector('.item-detail');
+    var specPath = resolvePath(row.dataset.spec);
+    var planPath = resolvePath(row.dataset.plan);
+
+    header.addEventListener('click', function() {
+        var wasExpanded = row.classList.contains('expanded');
+
+        document.querySelectorAll('.item-row.expanded').forEach(function(other) {
+            if (other !== row) other.classList.remove('expanded');
+        });
+
+        if (wasExpanded) {
+            row.classList.remove('expanded');
+        } else {
+            row.classList.add('expanded');
+
+            if (!detail.querySelector('.detail-tabs') && !detail.querySelector('.detail-tab-content')) {
+                buildDetailPanel(detail, specPath, planPath);
+            }
+
+            setTimeout(function() {
+                row.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }, 50);
+        }
+    });
+});
+</script>
+</body>
+</html>

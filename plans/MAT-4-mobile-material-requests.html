@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MAT-4: Mobile Material Requests (Field to Office) — Implementation Plan</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Inter', -apple-system, sans-serif; background: #f8fafc; color: #0f172a; }
+.plan-wrap { max-width: 880px; margin: 0 auto; padding: 40px 24px 80px; }
+h1 { font-size: 24px; font-weight: 800; margin: 0 0 16px; }
+h2 { font-size: 18px; font-weight: 700; margin: 28px 0 12px; padding-bottom: 8px; border-bottom: 2px solid #e2e8f0; }
+h3 { font-size: 15px; font-weight: 700; margin: 20px 0 8px; padding-top: 10px; border-top: 1px solid #f1f5f9; }
+h4 { font-size: 14px; font-weight: 700; margin: 14px 0 6px; }
+p { font-size: 14px; color: #334155; line-height: 1.7; margin: 6px 0; }
+ul, ol { padding-left: 20px; margin: 8px 0; }
+li { font-size: 14px; color: #334155; line-height: 1.7; margin: 3px 0; }
+strong { color: #0f172a; }
+code { font-family: 'SF Mono', monospace; background: #f1f5f9; padding: 1px 6px; border-radius: 4px; font-size: 12px; color: #7c3aed; }
+pre { background: #1e293b; color: #e2e8f0; border-radius: 8px; padding: 16px; overflow-x: auto; font-size: 13px; line-height: 1.6; margin: 12px 0; font-family: 'SF Mono', monospace; }
+pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
+hr { border: none; border-top: 1px solid #e2e8f0; margin: 24px 0; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 12px 0; }
+th { text-align: left; padding: 8px 12px; background: #f1f5f9; border-bottom: 2px solid #e2e8f0; font-weight: 600; }
+td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
+.check-item { display: flex; gap: 8px; align-items: flex-start; padding: 5px 0; }
+.check-box { width: 16px; height: 16px; border: 2px solid #cbd5e1; border-radius: 3px; flex-shrink: 0; margin-top: 2px; }
+.callout { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 14px 18px; margin: 14px 0; font-size: 13px; color: #1e40af; }
+.callout strong { color: #1e3a8a; }
+    </style>
+</head>
+<body>
+<div class="plan-wrap" id="rendered"></div>
+<script type="text/plain" id="plan-md">
+# MAT-4: Mobile Material Requests (Field to Office) — Implementation Plan
+
+## Overview
+
+Field workers submit material requests from mobile. Office receives, triages, and acknowledges. Two new models: `MaterialRequest` and `MaterialRequestItem`.
+
+**Estimated effort:** 5-7 days
+**Risk:** Medium — 2 new models, mobile form, desktop inbox, notification integration
+**Deps:** Material catalog (exists)
+
+---
+
+## Step 1: Prisma Schema
+
+### 1a. MaterialRequest
+
+```prisma
+model MaterialRequest {
+  id                String   @id @db.VarChar(21)
+  isDeleted         Boolean  @default(false)
+  isArchived        Boolean  @default(false)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @default(now()) @updatedAt
+
+  jobId             String   @db.VarChar(21)
+  Job               Job      @relation(fields: [jobId], references: [id])
+
+  requestedByUserId String   @db.VarChar(21)
+  RequestedBy       User     @relation(fields: [requestedByUserId], references: [id])
+
+  status            String   @db.VarChar(50) @default("Submitted")
+  priorityId        String?  @db.VarChar(21)
+  requiredByDate    DateTime?
+  notes             String?  @db.Text
+
+  fulfilledByUserId String?  @db.VarChar(21)
+  fulfilledAt       DateTime?
+  fulfilledMethod   String?  @db.VarChar(50)
+  purchaseOrderId   String?  @db.VarChar(21)
+
+  Items             MaterialRequestItem[]
+
+  @@index([jobId, isDeleted])
+  @@index([status, isDeleted])
+}
+```
+
+Const-based statuses:
+```typescript
+export const MATERIAL_REQUEST_STATUSES = ["Submitted", "Acknowledged", "Fulfilled", "Cancelled"] as const;
+export const MATERIAL_REQUEST_FULFILLMENT_METHODS = ["Inventory", "PurchaseOrder", "Other"] as const;
+```
+
+PropertyValue seed for priority: Urgent, Normal, Low under `propertyName: "material request priority"`.
+
+### 1b. MaterialRequestItem
+
+```prisma
+model MaterialRequestItem {
+  id                  String          @id @db.VarChar(21)
+  isDeleted           Boolean         @default(false)
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @default(now()) @updatedAt
+
+  materialRequestId   String          @db.VarChar(21)
+  MaterialRequest     MaterialRequest @relation(fields: [materialRequestId], references: [id])
+
+  materialId          String?         @db.VarChar(21)
+  Material            Material?       @relation(fields: [materialId], references: [id])
+
+  description         String?         @db.VarChar(500)
+  quantity            Decimal?        @db.Decimal(10, 2)
+  unit                String?         @db.VarChar(50)
+  costCodeId          String?         @db.VarChar(21)
+  status              String          @db.VarChar(50) @default("Pending")
+
+  @@index([materialRequestId, isDeleted])
+}
+```
+
+---
+
+## Step 2: Model + GraphQL
+
+**Create:** `apps/api/src/models/MaterialRequest.ts`, `apps/api/src/graphql/models/MaterialRequest.ts`
+
+Key methods: createRequest, acknowledgeRequest, fulfillRequest, getInbox (filtered by status, job, priority, date).
+
+---
+
+## Step 3: Mobile — Request Form
+
+**Create:** `apps/mobile/src/pages/job-sites/[id]/material-request/new.tsx`
+**Create:** `apps/mobile/src/components/MaterialRequest/MobileMaterialRequestForm.tsx`
+
+Features:
+- Material picker from catalog (SelectionSlideup) or free-text description
+- Photo attachment (camera capture for labels/part numbers)
+- Quantity + unit entry per item
+- Priority selector (Urgent/Normal/Low)
+- Required-by date picker
+- Notes field
+- Multiple items per request
+
+---
+
+## Step 4: Desktop — Material Request Inbox
+
+**Create:** `apps/frontend/src/pages/material-requests/index.tsx`
+**Create:** `apps/frontend/src/components/MaterialRequests/MaterialRequestInbox.tsx`
+
+Inbox view at `/material-requests`:
+- Filterable by job, status, priority, date range
+- Table: Request #, Job, Requested By, Items Count, Priority, Status, Date, Required By
+- One-click acknowledge + assign to user
+- Expand to see items detail
+- Request history visible on Job detail page
+
+---
+
+## Step 5: Notifications
+
+Push notification to office users when new request is submitted. Use existing notification infrastructure.
+
+---
+
+## Verification Checklist
+
+- [ ] Mobile: field worker creates request from job site (catalog picker or free-text)
+- [ ] Mobile: attach photo of what's needed
+- [ ] Desktop: Material Request Inbox at `/material-requests` with filtering
+- [ ] Desktop: one-click acknowledge + assign for manual fulfillment
+- [ ] Notification to office on new request submission
+- [ ] Request history visible on Job detail page
+- [ ] Priority levels seeded as PropertyValue (Urgent/Normal/Low)
+- [ ] Multiple items per request supported
+
+---
+
+## Files Summary
+
+| Action | File | What to do |
+|--------|------|------------|
+| MODIFY | `apps/api/prisma/schema.prisma` | Add MaterialRequest + MaterialRequestItem |
+| CREATE | `apps/api/prisma/migrations/.../migration.sql` | CREATE TABLE x2 + PropertyValue seed |
+| CREATE | `apps/api/src/models/MaterialRequest.ts` | Model class with workflow methods |
+| CREATE | `apps/api/src/graphql/models/MaterialRequest.ts` | GraphQL resolver |
+| MODIFY | `apps/api/src/graphql/schema.ts` | Register resolver |
+| CREATE | `apps/mobile/.../material-request/new.tsx` | Mobile request form page |
+| CREATE | `apps/mobile/.../MobileMaterialRequestForm.tsx` | Mobile form component |
+| CREATE | `apps/frontend/src/pages/material-requests/index.tsx` | Desktop inbox page |
+| CREATE | `apps/frontend/.../MaterialRequestInbox.tsx` | Inbox component |
+| MODIFY | `apps/frontend/src/lib/routes.ts` | Add route |
+</script>
+<script>
+(function() {
+    var md = document.getElementById('plan-md').textContent;
+    var target = document.getElementById('rendered');
+    var html = md
+        .replace(/```(\w*)\n([\s\S]*?)```/g, function(_, lang, code) {
+            return '<pre><code>' + code.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</code></pre>';
+        })
+        .replace(/`([^`\n]+)`/g, '<code>$1</code>')
+        .replace(/^#### (.+)$/gm, '<h4>$1</h4>')
+        .replace(/^### (.+)$/gm, '<h3>$1</h3>')
+        .replace(/^## (.+)$/gm, '<h2>$1</h2>')
+        .replace(/^# (.+)$/gm, '<h1>$1</h1>')
+        .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\*(.+?)\*/g, '<em>$1</em>')
+        .replace(/^---$/gm, '<hr>');
+    html = html.replace(/^- \[ \] (.+)$/gm, '<div class="check-item"><div class="check-box"></div><span>$1</span></div>');
+    html = html.replace(/(\|.+\|\n)+/g, function(table) {
+        var rows = table.trim().split('\n');
+        if (rows.length < 2) return table;
+        var headers = rows[0].split('|').filter(function(c) { return c.trim(); });
+        var isSep = /^[\s|:\-]+$/.test(rows[1]);
+        var start = isSep ? 2 : 1;
+        var out = '<table><thead><tr>';
+        headers.forEach(function(h) { out += '<th>' + h.trim() + '</th>'; });
+        out += '</tr></thead><tbody>';
+        for (var i = start; i < rows.length; i++) {
+            var cells = rows[i].split('|').filter(function(c) { return c.trim(); });
+            out += '<tr>'; cells.forEach(function(c) { out += '<td>' + c.trim() + '</td>'; }); out += '</tr>';
+        }
+        out += '</tbody></table>';
+        return out;
+    });
+    html = html.replace(/^- (.+)$/gm, '<li>$1</li>');
+    html = html.replace(/(<li>[\s\S]*?<\/li>\n?)+/g, function(m) { return '<ul>' + m + '</ul>'; });
+    html = html.replace(/^(?!<[hultdps\/<]|<\/|<code|<pre|<hr|<div|<strong|<em)(.+)$/gm, '<p>$1</p>');
+    target.innerHTML = html;
+})();
+</script>
+</body>
+</html>

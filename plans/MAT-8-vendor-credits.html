@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MAT-8: Vendor Credits & Returns — Implementation Plan</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Inter', -apple-system, sans-serif; background: #f8fafc; color: #0f172a; }
+.plan-wrap { max-width: 880px; margin: 0 auto; padding: 40px 24px 80px; }
+h1 { font-size: 24px; font-weight: 800; margin: 0 0 16px; }
+h2 { font-size: 18px; font-weight: 700; margin: 28px 0 12px; padding-bottom: 8px; border-bottom: 2px solid #e2e8f0; }
+h3 { font-size: 15px; font-weight: 700; margin: 20px 0 8px; padding-top: 10px; border-top: 1px solid #f1f5f9; }
+h4 { font-size: 14px; font-weight: 700; margin: 14px 0 6px; }
+p { font-size: 14px; color: #334155; line-height: 1.7; margin: 6px 0; }
+ul, ol { padding-left: 20px; margin: 8px 0; }
+li { font-size: 14px; color: #334155; line-height: 1.7; margin: 3px 0; }
+strong { color: #0f172a; }
+code { font-family: 'SF Mono', monospace; background: #f1f5f9; padding: 1px 6px; border-radius: 4px; font-size: 12px; color: #7c3aed; }
+pre { background: #1e293b; color: #e2e8f0; border-radius: 8px; padding: 16px; overflow-x: auto; font-size: 13px; line-height: 1.6; margin: 12px 0; font-family: 'SF Mono', monospace; }
+pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
+hr { border: none; border-top: 1px solid #e2e8f0; margin: 24px 0; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 12px 0; }
+th { text-align: left; padding: 8px 12px; background: #f1f5f9; border-bottom: 2px solid #e2e8f0; font-weight: 600; }
+td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
+.check-item { display: flex; gap: 8px; align-items: flex-start; padding: 5px 0; }
+.check-box { width: 16px; height: 16px; border: 2px solid #cbd5e1; border-radius: 3px; flex-shrink: 0; margin-top: 2px; }
+    </style>
+</head>
+<body>
+<div class="plan-wrap" id="rendered"></div>
+<script type="text/plain" id="plan-md">
+# MAT-8: Vendor Credits & Returns — Implementation Plan
+
+## Overview
+
+Returns workflow with credit memo tracking, job cost adjustment, and AP reconciliation. Two new models: `VendorCredit` and `VendorCreditLineItem`.
+
+**Estimated effort:** 4-5 days
+**Risk:** Medium — 2 new models, job cost adjustment, inventory return movements
+**Deps:** MAT-5 (Supplier PO), MAT-7 (Inventory for return movements)
+
+---
+
+## Step 1: Prisma Schema
+
+### 1a. VendorCredit
+
+```prisma
+model VendorCredit {
+  id              String   @id @db.VarChar(21)
+  isDeleted       Boolean  @default(false)
+  isArchived      Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @default(now()) @updatedAt
+
+  supplierId      String   @db.VarChar(21)
+  Supplier        Company  @relation(fields: [supplierId], references: [id])
+
+  purchaseOrderId String?  @db.VarChar(21)
+  creditNumber    String   @db.VarChar(100)
+  amount          Decimal  @db.Decimal(10, 2)
+  reasonId        String?  @db.VarChar(21)
+  status          String   @db.VarChar(50) @default("Pending")
+  jobId           String?  @db.VarChar(21)
+  notes           String?  @db.Text
+
+  LineItems       VendorCreditLineItem[]
+
+  @@index([supplierId, isDeleted])
+  @@index([jobId, isDeleted])
+}
+```
+
+Const-based statuses:
+```typescript
+export const VENDOR_CREDIT_STATUSES = ["Pending", "Applied", "Void"] as const;
+```
+
+PropertyValue seed for reason: Return, Damaged, ShortShipment, PriceAdjustment, Other under `propertyName: "vendor credit reason"`.
+
+### 1b. VendorCreditLineItem
+
+```prisma
+model VendorCreditLineItem {
+  id                  String       @id @db.VarChar(21)
+  isDeleted           Boolean      @default(false)
+  createdAt           DateTime     @default(now())
+  updatedAt           DateTime     @default(now()) @updatedAt
+
+  vendorCreditId      String       @db.VarChar(21)
+  VendorCredit        VendorCredit @relation(fields: [vendorCreditId], references: [id])
+
+  materialId          String?      @db.VarChar(21)
+  quantity            Decimal      @db.Decimal(10, 2)
+  unitPrice           Decimal      @db.Decimal(10, 2)
+  inventoryMovementId String?      @db.VarChar(21)
+
+  @@index([vendorCreditId, isDeleted])
+}
+```
+
+**Note:** `total` is computed (quantity x unitPrice) at query time, not stored.
+
+---
+
+## Step 2: Model + GraphQL
+
+**Create:** `apps/api/src/models/VendorCredit.ts`, `apps/api/src/graphql/models/VendorCredit.ts`
+
+Key methods:
+- `createFromPO(purchaseOrderId, lineItems)`: Pre-populate credit from PO data
+- `applyCredit(id)`: Mark as applied, adjust job costs
+- `createReturnMovement(lineItems)`: Create outbound inventory movements for returned items
+
+---
+
+## Step 3: Frontend — Credit Form + Views
+
+**Create:** `apps/frontend/src/components/Forms/VendorCreditForm/`
+
+Form:
+- Pre-populated from Supplier PO (when created from PO detail)
+- Supplier selector, credit number, reason, amount
+- Line items: material, quantity, unit price, link to original PO line item
+- Notes field
+
+Views:
+- Credits tab on PO detail page
+- Credits section on Company detail page (Supplier type)
+- Credits column in Job Financial Summary
+
+---
+
+## Step 4: Inventory Return Integration
+
+When credit includes physical return:
+- Create outbound InventoryMovement (type=Return) for each returned line item
+- Deduct from inventory stock at the return location
+
+---
+
+## Step 5: Job Cost Adjustment
+
+Applied vendor credits reduce material costs in Job Financial Summary. Credit amount subtracted from material cost total for the linked job.
+
+---
+
+## Verification Checklist
+
+- [ ] Create credit from Supplier PO detail (pre-populated)
+- [ ] Credit line items linked to original PO line items and materials
+- [ ] Return to vendor creates outbound inventory movement
+- [ ] Credit applied to job costs (reduces material cost in Financial Summary)
+- [ ] Credit visible on PO detail, Company detail, and Job financials
+- [ ] Credit memo PDF generation
+- [ ] Reason codes seeded as PropertyValue
+- [ ] VendorCreditLineItem.total computed at query time
+
+---
+
+## Files Summary
+
+| Action | File | What to do |
+|--------|------|------------|
+| MODIFY | `apps/api/prisma/schema.prisma` | Add VendorCredit + VendorCreditLineItem |
+| CREATE | `apps/api/prisma/migrations/.../migration.sql` | CREATE TABLE x2 + PropertyValue seed |
+| CREATE | `apps/api/src/models/VendorCredit.ts` | Model with credit + return logic |
+| CREATE | `apps/api/src/graphql/models/VendorCredit.ts` | GraphQL resolver |
+| MODIFY | `apps/api/src/graphql/schema.ts` | Register resolver |
+| CREATE | `apps/frontend/.../VendorCreditForm/` | Credit form components |
+| MODIFY | PO detail page | Add Credits tab |
+| MODIFY | Company detail page | Add Credits section |
+| MODIFY | `apps/api/src/services/JobFinancialSummaryService.ts` | Subtract credits from material costs |
+</script>
+<script>
+(function() {
+    var md = document.getElementById('plan-md').textContent;
+    var target = document.getElementById('rendered');
+    var html = md
+        .replace(/```(\w*)\n([\s\S]*?)```/g, function(_, lang, code) {
+            return '<pre><code>' + code.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</code></pre>';
+        })
+        .replace(/`([^`\n]+)`/g, '<code>$1</code>')
+        .replace(/^#### (.+)$/gm, '<h4>$1</h4>')
+        .replace(/^### (.+)$/gm, '<h3>$1</h3>')
+        .replace(/^## (.+)$/gm, '<h2>$1</h2>')
+        .replace(/^# (.+)$/gm, '<h1>$1</h1>')
+        .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\*(.+?)\*/g, '<em>$1</em>')
+        .replace(/^---$/gm, '<hr>');
+    html = html.replace(/^- \[ \] (.+)$/gm, '<div class="check-item"><div class="check-box"></div><span>$1</span></div>');
+    html = html.replace(/(\|.+\|\n)+/g, function(table) {
+        var rows = table.trim().split('\n');
+        if (rows.length < 2) return table;
+        var headers = rows[0].split('|').filter(function(c) { return c.trim(); });
+        var isSep = /^[\s|:\-]+$/.test(rows[1]);
+        var start = isSep ? 2 : 1;
+        var out = '<table><thead><tr>';
+        headers.forEach(function(h) { out += '<th>' + h.trim() + '</th>'; });
+        out += '</tr></thead><tbody>';
+        for (var i = start; i < rows.length; i++) {
+            var cells = rows[i].split('|').filter(function(c) { return c.trim(); });
+            out += '<tr>'; cells.forEach(function(c) { out += '<td>' + c.trim() + '</td>'; }); out += '</tr>';
+        }
+        out += '</tbody></table>';
+        return out;
+    });
+    html = html.replace(/^- (.+)$/gm, '<li>$1</li>');
+    html = html.replace(/(<li>[\s\S]*?<\/li>\n?)+/g, function(m) { return '<ul>' + m + '</ul>'; });
+    html = html.replace(/^(?!<[hultdps\/<]|<\/|<code|<pre|<hr|<div|<strong|<em)(.+)$/gm, '<p>$1</p>');
+    target.innerHTML = html;
+})();
+</script>
+</body>
+</html>

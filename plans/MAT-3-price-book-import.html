@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MAT-3: Price Book Import — Implementation Plan</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Inter', -apple-system, sans-serif; background: #f8fafc; color: #0f172a; }
+.plan-wrap { max-width: 880px; margin: 0 auto; padding: 40px 24px 80px; }
+h1 { font-size: 24px; font-weight: 800; margin: 0 0 16px; }
+h2 { font-size: 18px; font-weight: 700; margin: 28px 0 12px; padding-bottom: 8px; border-bottom: 2px solid #e2e8f0; }
+h3 { font-size: 15px; font-weight: 700; margin: 20px 0 8px; padding-top: 10px; border-top: 1px solid #f1f5f9; }
+h4 { font-size: 14px; font-weight: 700; margin: 14px 0 6px; }
+p { font-size: 14px; color: #334155; line-height: 1.7; margin: 6px 0; }
+ul, ol { padding-left: 20px; margin: 8px 0; }
+li { font-size: 14px; color: #334155; line-height: 1.7; margin: 3px 0; }
+strong { color: #0f172a; }
+code { font-family: 'SF Mono', monospace; background: #f1f5f9; padding: 1px 6px; border-radius: 4px; font-size: 12px; color: #7c3aed; }
+pre { background: #1e293b; color: #e2e8f0; border-radius: 8px; padding: 16px; overflow-x: auto; font-size: 13px; line-height: 1.6; margin: 12px 0; font-family: 'SF Mono', monospace; }
+pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
+hr { border: none; border-top: 1px solid #e2e8f0; margin: 24px 0; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 12px 0; }
+th { text-align: left; padding: 8px 12px; background: #f1f5f9; border-bottom: 2px solid #e2e8f0; font-weight: 600; }
+td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
+.check-item { display: flex; gap: 8px; align-items: flex-start; padding: 5px 0; }
+.check-box { width: 16px; height: 16px; border: 2px solid #cbd5e1; border-radius: 3px; flex-shrink: 0; margin-top: 2px; }
+.callout { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 14px 18px; margin: 14px 0; font-size: 13px; color: #1e40af; }
+.callout strong { color: #1e3a8a; }
+    </style>
+</head>
+<body>
+<div class="plan-wrap" id="rendered"></div>
+<script type="text/plain" id="plan-md">
+# MAT-3: Price Book Import — Implementation Plan
+
+## Overview
+
+Bulk ingestion of distributor price books (CSV/Excel) into `ManufacturerProduct` + `DistributorPrice`. Includes column mapping wizard, preview/validation, import history, and price comparison views.
+
+**Estimated effort:** 5-6 days
+**Risk:** Medium — file parsing, fuzzy matching, bulk database writes
+**Deps:** MAT-0 (ManufacturerProduct + DistributorPrice must exist)
+
+---
+
+## Step 1: Prisma Schema
+
+### 1a. PriceBookImport
+
+```prisma
+model PriceBookImport {
+  id              String   @id @db.VarChar(21)
+  isDeleted       Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @default(now()) @updatedAt
+
+  distributorId   String   @db.VarChar(21)
+  Distributor     Company  @relation(fields: [distributorId], references: [id])
+
+  fileName        String   @db.VarChar(255)
+  status          String   @db.VarChar(50) @default("Pending")
+  importedCount   Int      @default(0)
+  skippedCount    Int      @default(0)
+  errorCount      Int      @default(0)
+  errorLog        Json?
+  columnMapping   Json?
+  importedByUserId String  @db.VarChar(21)
+
+  @@index([distributorId, isDeleted])
+}
+```
+
+Const-based statuses:
+```typescript
+export const PRICE_BOOK_IMPORT_STATUSES = ["Pending", "Processing", "Complete", "Failed"] as const;
+```
+
+### 1b. Extend Material
+
+Add optional `sku` field to `Material` model for cross-reference during import matching.
+
+---
+
+## Step 2: Import Engine (Backend)
+
+**Create:** `apps/api/src/models/PriceBookImport.ts`
+
+Key methods:
+- `parseFile(buffer, fileType)`: Parse CSV/Excel into rows
+- `matchMaterials(rows)`: Fuzzy match material names to existing Material records
+- `matchManufacturers(rows)`: Match manufacturer names to Company (type=Manufacturer) records
+- `executeImport(importId, mappedRows)`: Create/update ManufacturerProduct + DistributorPrice rows
+- `preview(rows, mapping)`: Return match statistics (new, update, unmatched, errors)
+
+---
+
+## Step 3: Frontend — Import Wizard
+
+**Create:** `apps/frontend/src/components/Materials/PriceBookImportWizard.tsx`
+
+4-step wizard:
+1. Upload file (drag-and-drop + file picker)
+2. Column mapping (map source columns to: Material Name, Manufacturer, Mfg SKU, Dist SKU, Unit Price, List Price, UoM, etc.)
+3. Preview + validation (show matched, new, errors with inline resolution)
+4. Confirm + import (progress bar, results summary)
+
+Entry points:
+- Materials settings page: "Import Price Book" button → select distributor → upload
+- Company detail page (Supplier type): "Import Price Book" on Products & Pricing tab → pre-filled distributor
+
+---
+
+## Step 4: Frontend — Price Comparison View
+
+**Create:** `apps/frontend/src/components/Materials/SupplierPricingTab.tsx`
+
+Per-material supplier price comparison table:
+- Rows grouped by ManufacturerProduct
+- Columns: Distributor, Dist SKU, Unit Price, List Price, Discount %, Effective Price (after MAT-9 discounts), Lead Time, Preferred, In Stock
+- "Best price" highlight
+- Filter by date range (effective dates)
+
+---
+
+## Verification Checklist
+
+- [ ] Upload CSV/Excel file from Materials settings or Company detail page
+- [ ] Column mapping wizard maps source columns to Material fields
+- [ ] Preview shows matched, new ManufacturerProducts, errors with inline resolution
+- [ ] Import creates/updates ManufacturerProduct + DistributorPrice rows
+- [ ] Multiple suppliers per material with different prices, effective dates, volume breaks
+- [ ] Price comparison view shows all supplier prices side-by-side with effective price after discounts (MAT-9)
+- [ ] Import history with status and error logs
+- [ ] Saved column mappings for re-import from same distributor
+- [ ] Material.sku field available for cross-reference matching
+- [ ] No regression on existing Material catalog
+
+---
+
+## Files Summary
+
+| Action | File | What to do |
+|--------|------|------------|
+| MODIFY | `apps/api/prisma/schema.prisma` | Add PriceBookImport model, add sku to Material |
+| CREATE | `apps/api/prisma/migrations/.../migration.sql` | CREATE TABLE + ALTER Material |
+| CREATE | `apps/api/src/models/PriceBookImport.ts` | Import engine with parsing, matching, execution |
+| CREATE | `apps/api/src/graphql/models/PriceBookImport.ts` | GraphQL resolver |
+| MODIFY | `apps/api/src/graphql/schema.ts` | Register new resolver |
+| CREATE | `apps/frontend/.../PriceBookImportWizard.tsx` | 4-step import wizard component |
+| CREATE | `apps/frontend/.../SupplierPricingTab.tsx` | Price comparison view |
+| MODIFY | Material detail page | Add Supplier Pricing tab |
+</script>
+<script>
+(function() {
+    var md = document.getElementById('plan-md').textContent;
+    var target = document.getElementById('rendered');
+    var html = md
+        .replace(/```(\w*)\n([\s\S]*?)```/g, function(_, lang, code) {
+            return '<pre><code>' + code.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</code></pre>';
+        })
+        .replace(/`([^`\n]+)`/g, '<code>$1</code>')
+        .replace(/^#### (.+)$/gm, '<h4>$1</h4>')
+        .replace(/^### (.+)$/gm, '<h3>$1</h3>')
+        .replace(/^## (.+)$/gm, '<h2>$1</h2>')
+        .replace(/^# (.+)$/gm, '<h1>$1</h1>')
+        .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\*(.+?)\*/g, '<em>$1</em>')
+        .replace(/^---$/gm, '<hr>');
+    html = html.replace(/^- \[ \] (.+)$/gm, '<div class="check-item"><div class="check-box"></div><span>$1</span></div>');
+    html = html.replace(/(\|.+\|\n)+/g, function(table) {
+        var rows = table.trim().split('\n');
+        if (rows.length < 2) return table;
+        var headers = rows[0].split('|').filter(function(c) { return c.trim(); });
+        var isSep = /^[\s|:\-]+$/.test(rows[1]);
+        var start = isSep ? 2 : 1;
+        var out = '<table><thead><tr>';
+        headers.forEach(function(h) { out += '<th>' + h.trim() + '</th>'; });
+        out += '</tr></thead><tbody>';
+        for (var i = start; i < rows.length; i++) {
+            var cells = rows[i].split('|').filter(function(c) { return c.trim(); });
+            out += '<tr>'; cells.forEach(function(c) { out += '<td>' + c.trim() + '</td>'; }); out += '</tr>';
+        }
+        out += '</tbody></table>';
+        return out;
+    });
+    html = html.replace(/^- (.+)$/gm, '<li>$1</li>');
+    html = html.replace(/(<li>[\s\S]*?<\/li>\n?)+/g, function(m) { return '<ul>' + m + '</ul>'; });
+    html = html.replace(/^(?!<[hultdps\/<]|<\/|<code|<pre|<hr|<div|<strong|<em)(.+)$/gm, '<p>$1</p>');
+    target.innerHTML = html;
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MAT-5: Supplier PO (CRUD + PDF + Email) — Implementation Plan</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Inter', -apple-system, sans-serif; background: #f8fafc; color: #0f172a; }
+.plan-wrap { max-width: 880px; margin: 0 auto; padding: 40px 24px 80px; }
+h1 { font-size: 24px; font-weight: 800; margin: 0 0 16px; }
+h2 { font-size: 18px; font-weight: 700; margin: 28px 0 12px; padding-bottom: 8px; border-bottom: 2px solid #e2e8f0; }
+h3 { font-size: 15px; font-weight: 700; margin: 20px 0 8px; padding-top: 10px; border-top: 1px solid #f1f5f9; }
+h4 { font-size: 14px; font-weight: 700; margin: 14px 0 6px; }
+p { font-size: 14px; color: #334155; line-height: 1.7; margin: 6px 0; }
+ul, ol { padding-left: 20px; margin: 8px 0; }
+li { font-size: 14px; color: #334155; line-height: 1.7; margin: 3px 0; }
+strong { color: #0f172a; }
+code { font-family: 'SF Mono', monospace; background: #f1f5f9; padding: 1px 6px; border-radius: 4px; font-size: 12px; color: #7c3aed; }
+pre { background: #1e293b; color: #e2e8f0; border-radius: 8px; padding: 16px; overflow-x: auto; font-size: 13px; line-height: 1.6; margin: 12px 0; font-family: 'SF Mono', monospace; }
+pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
+hr { border: none; border-top: 1px solid #e2e8f0; margin: 24px 0; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 12px 0; }
+th { text-align: left; padding: 8px 12px; background: #f1f5f9; border-bottom: 2px solid #e2e8f0; font-weight: 600; }
+td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
+.check-item { display: flex; gap: 8px; align-items: flex-start; padding: 5px 0; }
+.check-box { width: 16px; height: 16px; border: 2px solid #cbd5e1; border-radius: 3px; flex-shrink: 0; margin-top: 2px; }
+.callout { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 14px 18px; margin: 14px 0; font-size: 13px; color: #1e40af; }
+.callout strong { color: #1e3a8a; }
+    </style>
+</head>
+<body>
+<div class="plan-wrap" id="rendered"></div>
+<script type="text/plain" id="plan-md">
+# MAT-5: Supplier PO (CRUD + PDF + Email) — Implementation Plan
+
+## Overview
+
+Create outbound purchase orders to suppliers, generate PDFs, and email to vendor contacts. Uses the shared `PurchaseOrder` model from MAT-1 with `type: SupplierPO`. Line items auto-price from `DistributorPrice` with effective discounts from MAT-9.
+
+**Estimated effort:** 5-7 days
+**Risk:** Medium — extends shared PurchaseOrder model, PDF generation, email integration
+**Deps:** MAT-0 (supply chain model), MAT-1 (shared PurchaseOrder model), MAT-9 (discount resolution for effective pricing)
+
+---
+
+## Step 1: Extend PurchaseOrder + PurchaseOrderLineItem
+
+### 1a. Supplier PO Fields
+
+Add to PurchaseOrder (or handle via type-specific fields):
+- `supplierId` (FK to Company, type=Supplier) — can reuse `companyId` with type=SupplierPO
+- `deliveryAddress` (Text)
+- `deliveryDate` (DateTime)
+- `shippingMethod` (VarChar 100)
+- `taxRate` (Decimal 5,2)
+
+### 1b. Extend PurchaseOrderLineItem
+
+Add fields for supply chain linking:
+- `manufacturerProductId` (FK to ManufacturerProduct)
+- `materialRequestItemId` (optional FK to MaterialRequestItem — traces back to field request)
+- `distributorSku` (VarChar 255 — auto-populated from DistributorPrice)
+
+### 1c. Numbering
+
+Supplier POs: SPO-#### auto-sequenced per instance (vs. CPO-#### for Customer POs).
+
+---
+
+## Step 2: Supplier PO Form
+
+**Create:** `apps/frontend/src/components/Forms/SupplierPOForm/`
+
+Form flow:
+1. Select distributor (Company type=Supplier)
+2. Add line items — shows ManufacturerProducts carried by that distributor
+3. Auto-pricing from DistributorPrice with effective discounts (MAT-9 resolution)
+4. Auto-populate distributor SKU + manufacturer SKU
+5. Delivery address, date, terms, shipping method
+6. Save as Draft or Issue
+
+---
+
+## Step 3: PO List Page
+
+**Create:** `apps/frontend/src/pages/purchase-orders/index.tsx`
+
+Combined PO list page filtered by type (Customer PO | Supplier PO | All). Reuses ListTableViews pattern.
+
+---
+
+## Step 4: PDF Generation
+
+**Create:** `apps/frontend/src/components/DownloadablePDF/PurchaseOrder/SupplierPO.tsx`
+
+PDF with:
+- Company branding (logo, address)
+- PO number, date, terms
+- Supplier info (name, contact, address)
+- Line items table (material, mfg SKU, dist SKU, qty, unit price, total)
+- Subtotal, tax, grand total
+- Delivery address + date
+
+---
+
+## Step 5: Email PO to Supplier
+
+Use existing email infrastructure to send PO PDF to supplier contact. Entry point: "Send to Supplier" button on PO detail page.
+
+---
+
+## Step 6: Supplier PO Tab on Company Detail
+
+Add Supplier PO list on Company detail page for Supplier-type companies. Shows all Supplier POs issued to this vendor.
+
+---
+
+## Verification Checklist
+
+- [ ] Create Supplier PO from: Material Requests (batch by distributor), manually, or from Material Orders
+- [ ] Pick distributor → line items show ManufacturerProducts → auto-pricing from DistributorPrice with MAT-9 discounts
+- [ ] Auto-populate distributor SKU + manufacturer SKU on line items
+- [ ] Generate PDF with company branding, line items, terms, delivery address
+- [ ] Email PO to supplier contact
+- [ ] PO status lifecycle: Draft → Sent → PartiallyReceived → FullyReceived → Closed
+- [ ] Supplier PO tab on Company detail page
+- [ ] SPO-#### auto-sequenced numbering
+- [ ] PO list page with type filter (Customer PO / Supplier PO / All)
+
+---
+
+## Files Summary
+
+| Action | File | What to do |
+|--------|------|------------|
+| MODIFY | `apps/api/prisma/schema.prisma` | Add supplier-specific fields to PurchaseOrder + PurchaseOrderLineItem |
+| CREATE | `apps/api/prisma/migrations/.../migration.sql` | ALTER TABLE statements |
+| MODIFY | `apps/api/src/models/PurchaseOrder.ts` | Add SPO numbering, supplier-specific methods |
+| MODIFY | `apps/api/src/graphql/models/PurchaseOrder.ts` | Extend type + mutations for Supplier PO |
+| CREATE | `apps/frontend/.../SupplierPOForm/` | Supplier PO form components |
+| CREATE | `apps/frontend/src/pages/purchase-orders/index.tsx` | PO list page |
+| CREATE | `apps/frontend/.../SupplierPO.tsx` | PDF generation |
+| MODIFY | `apps/frontend/.../CompanyDetailsPage/index.tsx` | Add Supplier PO tab |
+</script>
+<script>
+(function() {
+    var md = document.getElementById('plan-md').textContent;
+    var target = document.getElementById('rendered');
+    var html = md
+        .replace(/```(\w*)\n([\s\S]*?)```/g, function(_, lang, code) {
+            return '<pre><code>' + code.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</code></pre>';
+        })
+        .replace(/`([^`\n]+)`/g, '<code>$1</code>')
+        .replace(/^#### (.+)$/gm, '<h4>$1</h4>')
+        .replace(/^### (.+)$/gm, '<h3>$1</h3>')
+        .replace(/^## (.+)$/gm, '<h2>$1</h2>')
+        .replace(/^# (.+)$/gm, '<h1>$1</h1>')
+        .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\*(.+?)\*/g, '<em>$1</em>')
+        .replace(/^---$/gm, '<hr>');
+    html = html.replace(/^- \[ \] (.+)$/gm, '<div class="check-item"><div class="check-box"></div><span>$1</span></div>');
+    html = html.replace(/(\|.+\|\n)+/g, function(table) {
+        var rows = table.trim().split('\n');
+        if (rows.length < 2) return table;
+        var headers = rows[0].split('|').filter(function(c) { return c.trim(); });
+        var isSep = /^[\s|:\-]+$/.test(rows[1]);
+        var start = isSep ? 2 : 1;
+        var out = '<table><thead><tr>';
+        headers.forEach(function(h) { out += '<th>' + h.trim() + '</th>'; });
+        out += '</tr></thead><tbody>';
+        for (var i = start; i < rows.length; i++) {
+            var cells = rows[i].split('|').filter(function(c) { return c.trim(); });
+            out += '<tr>'; cells.forEach(function(c) { out += '<td>' + c.trim() + '</td>'; }); out += '</tr>';
+        }
+        out += '</tbody></table>';
+        return out;
+    });
+    html = html.replace(/^- (.+)$/gm, '<li>$1</li>');
+    html = html.replace(/(<li>[\s\S]*?<\/li>\n?)+/g, function(m) { return '<ul>' + m + '</ul>'; });
+    html = html.replace(/^(?!<[hultdps\/<]|<\/|<code|<pre|<hr|<div|<strong|<em)(.+)$/gm, '<p>$1</p>');
+    target.innerHTML = html;
+})();
+</script>
+</body>
+</html>

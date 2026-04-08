@@ -49,7 +49,7 @@ Add Work Order list and detail pages to the mobile app using existing `TableData
 
 ## Step 1: WO List Page
 
-**Create file:** `apps/mobile/src/pages/admin/work-orders/index.tsx`
+**Create file:** `apps/mobile/src/pages/job-sites/[id]/work-orders/index.tsx`
 
 Follows the exact pattern of `apps/mobile/src/pages/admin/rfis/index.tsx`.
 
@@ -162,7 +162,7 @@ const WOListCard: FC<IWOListCardProps> = ({ className = "", record }) => {
             className={new ClassNames("border rounded-lg p-3.5 mb-2 cursor-pointer")
                 .add(className)
                 .list()}
-            onClick={() => router.push(`/admin/work-orders/${record.id}`)}
+            onClick={() => router.push(`/job-sites/[id]/work-orders/${record.id}`)}
         >
             <div className="flex justify-between items-start mb-1">
                 <span className="text-sm font-semibold">
@@ -186,13 +186,13 @@ const WOListCard: FC<IWOListCardProps> = ({ className = "", record }) => {
 export { WOListCard };
 ```
 
-The card navigates to `/admin/work-orders/[id]` on tap. Status badge uses semantic color classes per the CLAUDE.md guidelines.
+The card navigates to `/job-sites/[id]/work-orders/[id]` on tap. Status badge uses semantic color classes per the CLAUDE.md guidelines.
 
 ---
 
 ## Step 3: WO Detail Page (Route)
 
-**Create file:** `apps/mobile/src/pages/admin/work-orders/[id]/index.tsx`
+**Create file:** `apps/mobile/src/pages/job-sites/[id]/work-orders/[id]/index.tsx`
 
 Follows the pattern of `apps/mobile/src/pages/admin/rfis/[id]/index.tsx`.
 
@@ -566,7 +566,7 @@ Add the Work Orders entry to the admin navigation section, positioned near the e
 {
     icon: <IconDocumentText className={new ClassNames(navIconClasses).list()} />,
     label: "Work Orders",
-    href: "/admin/work-orders",
+    href: "/job-sites/[id]/work-orders",
     permission: hasPermissions({ job: { view: true } }, permissions)
 }
 ```
@@ -578,18 +578,18 @@ Uses `job.view` permission since Work Orders are Job records. If a WO-specific p
 ## Verification Checklist
 
 ### List page
-- [ ] Route `/admin/work-orders` renders the WO list
+- [ ] Route `/job-sites/[id]/work-orders` renders the WO list
 - [ ] `TableDataList` fetches only WORK_ORDER-classified jobs via `defaultWhere`
 - [ ] `WOListCard` shows WO number, name, status badge, date of work, project name
 - [ ] Search filters by name and WO number
 - [ ] Status and project facet filters work
 - [ ] "+" / "New Work Order" button opens DataModelForm in flyout
 - [ ] Create button hidden when user lacks `job.create` permission
-- [ ] Tapping a card navigates to `/admin/work-orders/[id]`
+- [ ] Tapping a card navigates to `/job-sites/[id]/work-orders/[id]`
 - [ ] Infinite scroll pagination works
 
 ### Detail page
-- [ ] Route `/admin/work-orders/[id]` renders the WO detail
+- [ ] Route `/job-sites/[id]/work-orders/[id]` renders the WO detail
 - [ ] Header shows WO number and name
 - [ ] Edit button opens DataModelForm for the existing WO
 - [ ] Edit button hidden when user lacks `job.edit` permission
@@ -606,7 +606,7 @@ Uses `job.view` permission since Work Orders are Job records. If a WO-specific p
 ### Navigation
 - [ ] "Work Orders" item appears in mobile secondary nav
 - [ ] Hidden when user lacks `job.view` permission
-- [ ] Links to `/admin/work-orders`
+- [ ] Links to `/job-sites/[id]/work-orders`
 
 ---
 
@@ -614,8 +614,8 @@ Uses `job.view` permission since Work Orders are Job records. If a WO-specific p
 
 | Action | File | What to do |
 |--------|------|------------|
-| CREATE | `apps/mobile/src/pages/admin/work-orders/index.tsx` | WO list page using `TableDataList` with `defaultWhere={{ subModel: "WORK_ORDER" }}` |
-| CREATE | `apps/mobile/src/pages/admin/work-orders/[id]/index.tsx` | WO detail page routing to `WODetail` component |
+| CREATE | `apps/mobile/src/pages/job-sites/[id]/work-orders/index.tsx` | WO list page using `TableDataList` with `defaultWhere={{ subModel: "WORK_ORDER" }}` |
+| CREATE | `apps/mobile/src/pages/job-sites/[id]/work-orders/[id]/index.tsx` | WO detail page routing to `WODetail` component |
 | CREATE | `apps/mobile/src/components/WorkOrders/WOListCard.tsx` | Card component: WO number, name, status badge, date, project. Navigates to detail on tap. |
 | CREATE | `apps/mobile/src/components/WorkOrders/WODetail.tsx` | `TabGroup` with Overview (`DetailOverview` + customColumnRender), Notes (`JobNotes`), Files (`JobFiles`). Header with WO number, edit button. `GET_WO_HEADER` query at bottom. |
 | CREATE | `apps/mobile/src/components/WorkOrders/LaborItemsDisplay.tsx` | Read-only labor items list. Queries `workOrderLaborItems`. Structured + blank rows. Rate gated by `viewWageDetails`. |

@@ -940,23 +940,15 @@ table.schema-table code { font-family: monospace; background: #f1f5f9; padding: 
                 </tbody>
             </table>
 
-            <h3>New Model: <code>WorkOrderOtherItem</code></h3>
-            <table class="schema-table">
-                <thead>
-                    <tr><th>Field</th><th>Type</th><th>Description</th></tr>
-                </thead>
-                <tbody>
-                    <tr><td><code>id</code></td><td><code>String @id</code></td><td>nanoid primary key</td></tr>
-                    <tr><td><code>jobId</code></td><td><code>String</code></td><td>FK to parent Job (work order)</td></tr>
-                    <tr><td><code>name</code></td><td><code>String</code></td><td>Line item name/description</td></tr>
-                    <tr><td><code>qty</code></td><td><code>Decimal</code></td><td>Quantity</td></tr>
-                    <tr><td><code>unitOfMeasure</code></td><td><code>String</code></td><td>Unit of measure (e.g. &ldquo;Day&rdquo;, &ldquo;Each&rdquo;, &ldquo;LF&rdquo;)</td></tr>
-                    <tr><td><code>qtyOfUnit</code></td><td><code>Decimal</code></td><td>Quantity of unit (multiplier)</td></tr>
-                    <tr><td><code>unitPrice</code></td><td><code>Decimal</code></td><td>Price per unit</td></tr>
-                </tbody>
-            </table>
+            <h3><s>Model: <code>WorkOrderOtherItem</code></s> &mdash; REMOVED (April 8 Meeting)</h3>
+            <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:12px 16px;font-size:13px;color:#92400e;margin-bottom:16px;">
+                <strong>B2 Decision:</strong> Do NOT create <code>WorkOrderOtherItem</code> as a separate model. Each of the 3 existing line item types (<code>WorkOrderLaborItem</code>, <code>WorkOrderMaterialItem</code>, <code>WorkOrderEquipmentItem</code>) can function as an &ldquo;other&rdquo; item when the tied relationship FK is null, using a <code>description</code> + <code>value</code> + <code>quantity</code> instead. <strong>Needs Chris review.</strong>
+            </div>
 
-            <h3>New Model: <code>WorkOrderSigner</code></h3>
+            <h3>New Model: <code>WorkOrderSigner</code> <span style="background:#fffbeb;color:#d97706;font-size:11px;font-weight:700;padding:2px 8px;border-radius:4px;">B1 DEFERRED</span></h3>
+            <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:8px 14px;font-size:12px;color:#92400e;margin-bottom:8px;">
+                <strong>Note:</strong> Consolidation of <code>WorkOrderSigner</code> into <code>SignatureRequest</code> is deferred pending Emma&rsquo;s review of WO-8b plan.
+            </div>
             <table class="schema-table">
                 <thead>
                     <tr><th>Field</th><th>Type</th><th>Description</th></tr>
@@ -981,7 +973,7 @@ table.schema-table code { font-family: monospace; background: #f1f5f9; padding: 
                     <tr><th>Field</th><th>Type</th><th>Description</th></tr>
                 </thead>
                 <tbody>
-                    <tr><td><code>workDates</code></td><td><code>Json</code></td><td>Array of ISO date strings for multi-date &ldquo;Dates of Work Performed&rdquo;</td></tr>
+                    <tr><td><code>workDates</code></td><td><code>Json</code> <span style="background:#fffbeb;color:#d97706;font-size:10px;font-weight:700;padding:1px 6px;border-radius:3px;">A13: NEEDS RESEARCH</span></td><td>Multi-date WOs confirmed needed. JSON rejected (not filterable per Emma). Prefer sub-model (<code>WorkOrderDate</code>) instead. More research needed.</td></tr>
                     <tr><td><code>costCode</code></td><td><code>String?</code></td><td>Optional cost code reference</td></tr>
                     <tr><td><code>descriptionRichText</code></td><td><code>String?</code></td><td>Rich text description (HTML/JSON)</td></tr>
                     <tr><td><code>signingOrderEnabled</code></td><td><code>Boolean</code></td><td>Whether signing order is enforced</td></tr>
@@ -1007,7 +999,7 @@ table.schema-table code { font-family: monospace; background: #f1f5f9; padding: 
                 </thead>
                 <tbody>
                     <tr><td><code>createWorkOrder</code></td><td>WO-3</td><td>Create work order record (extended with new fields: <code>workDates</code>, <code>costCode</code>, <code>descriptionRichText</code>)</td></tr>
-                    <tr><td><code>upsertWorkOrderLineItems</code></td><td>WO-3</td><td>Save labor, material, equipment, and &ldquo;other&rdquo; line items</td></tr>
+                    <tr><td><code>upsertWorkOrderLineItems</code></td><td>WO-3</td><td>Save labor, material, and equipment line items (ad-hoc items use nullable FK + description)</td></tr>
                     <tr><td><code>createAsset</code></td><td>Existing</td><td>Upload photos and documents (up to 50 per WO)</td></tr>
                 </tbody>
             </table>
@@ -1023,7 +1015,7 @@ table.schema-table code { font-family: monospace; background: #f1f5f9; padding: 
                     <tr><td><code>deleteWorkOrderSigner</code></td><td>Remove a signer from a work order</td></tr>
                     <tr><td><code>updateSigningOrder</code></td><td>Bulk update signing order positions and toggle <code>signingOrderEnabled</code></td></tr>
                     <tr><td><code>collectSignatures</code></td><td>Trigger signature collection: sends email invitations to all signers with the PDF attachment</td></tr>
-                    <tr><td><code>upsertWorkOrderOtherItems</code></td><td>Create/update &ldquo;Other&rdquo; line items (name, qty, UoM, qtyOfUnit, unitPrice)</td></tr>
+                    <tr><td><s><code>upsertWorkOrderOtherItems</code></s></td><td><em>REMOVED (B2) &mdash; &ldquo;Other&rdquo; items handled via nullable FK on existing 3 line item types</em></td></tr>
                     <tr><td><code>createProject</code></td><td>Inline project creation from the Project Picker (name, company)</td></tr>
                 </tbody>
             </table>
@@ -1070,7 +1062,7 @@ table.schema-table code { font-family: monospace; background: #f1f5f9; padding: 
 
             <h3>New Files</h3>
             <ul>
-                <li><span class="action-new">NEW</span> <code>apps/mobile/src/pages/work-orders/create.tsx</code> &mdash; Mobile WO creation page</li>
+                <li><span class="action-new">NEW</span> <code>apps/mobile/src/pages/job-sites/[id]/work-orders/create.tsx</code> &mdash; Mobile WO creation page</li>
                 <li><span class="action-new">NEW</span> <code>apps/mobile/src/components/WorkOrders/WorkOrderWizard.tsx</code> &mdash; 5-step wizard container with EXIT/SAVE header</li>
                 <li><span class="action-new">NEW</span> <code>apps/mobile/src/components/WorkOrders/Steps/InfoStep.tsx</code> &mdash; Step 1: Info (project picker, cost code, title, rich text, multi-date, photos/docs)</li>
                 <li><span class="action-new">NEW</span> <code>apps/mobile/src/components/WorkOrders/Steps/LaborStep.tsx</code> &mdash; Step 2: Labor (qty workers, 5 hour columns, per-row date)</li>

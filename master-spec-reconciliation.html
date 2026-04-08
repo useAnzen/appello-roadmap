@@ -134,7 +134,7 @@ h1 { font-size: 30px; font-weight: 800; color: #0f172a; margin: 0 0 4px; letter-
     <p class="subtitle">Every decision, field name, lifecycle, precision rule, and convention that must be resolved in the spec files before a single line of code is written. Derived from the <a href="cross-release-continuity-audit.html">Cross-Release Continuity Audit</a> (42 findings across 61 spec files).</p>
 
     <div class="callout">
-        <strong>How to use this document:</strong> Each item has a decision, rationale, and list of affected files. Emma updates her Plan specs (MAT-*, LEM-*, WO-*). Corey/AI updates UIS specs (UIS-15*, UIS-17, UIS-20*, UIS-25*). Nobody writes code until all 48 items are resolved in the spec files. Items with a green &ldquo;Decision&rdquo; box are final. Items with an amber box need a human decision.
+        <strong>Updated April 8, 2026 &mdash; Post Corey + Emma review meeting.</strong> Each item now reflects the final decision from the meeting. Badge colors: <span style="background:#f0fdf4;border:1px solid #bbf7d0;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700;color:#16a34a;">APPROVED/REVISED</span> = final, proceed. <span style="background:#fffbeb;border:1px solid #fde68a;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700;color:#d97706;">DEFERRED</span> = blocked or needs more info. <span style="background:#f1f5f9;border:1px solid #cbd5e1;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700;color:#64748b;">SKIPPED</span> = explicitly rejected. Items A5/A9 blocked on PO v1 PR merge. Items A10/A11 blocked on Emma MAT-7 review. Item B1 blocked on Emma spec review. Item B2 needs Chris review.
     </div>
 
     <div class="summary-cards">
@@ -265,24 +265,13 @@ h1 { font-size: 30px; font-weight: 800; color: #0f172a; margin: 0 0 4px; letter-
                 <div class="item-header">
                     <span class="item-id">A1</span>
                     <span class="item-title">Fix 33 field name conflicts &mdash; adopt Plan (Emma&rsquo;s) naming as canonical</span>
-                    <span class="item-badge" style="background:#fef2f2;color:#dc2626;">CRITICAL-5</span>
+                    <span class="item-badge" style="background:#f1f5f9;color:#64748b;">SKIPPED</span>
                 </div>
                 <div class="item-body">
-                    <p class="label">Decision</p>
-                    <div class="decision-box"><strong>Plan wins 19/25 scoreable cases.</strong> Adopt Emma&rsquo;s field names as the canonical schema. Update all UIS specs to match. Key renames: <code>supplierCompanyId</code> &rarr; <code>supplierId</code>, <code>dateOfWork</code> &rarr; <code>workDate</code>, <code>expectedDeliveryDate</code> &rarr; <code>deliveryDate</code>, <code>workOrder.lineItems[]</code> &rarr; separate relation queries.</div>
-                    <p class="label">Rationale</p>
-                    <p>Existing Prisma schema uses shorter FK names (<code>companyId</code>, not <code>supplierCompanyId</code>) and noun-date patterns (<code>workDate</code>, not <code>dateOfWork</code>). Plan is consistent with these conventions.</p>
+                    <p class="label">Decision (April 8 Meeting)</p>
+                    <div class="decision-box" style="background:#f1f5f9;border-color:#cbd5e1;color:#475569;"><strong>SKIPPED &mdash; Keep verbose field names.</strong> Emma: <code>supplierCompanyId</code> is clearer than <code>supplierId</code>, <code>expectedDeliveryDate</code> is clearer than <code>deliveryDate</code> (you may need both expected and actual). Do not rename fields for brevity. The spec&rsquo;s more descriptive naming is preferred over shorter Prisma-style conventions.</div>
                     <div class="files-affected">
-                        <div class="fa-label">UIS Files to Update (find &amp; replace field names)</div>
-                        <ul>
-                            <li><code>uis-17-material-management.html</code> &mdash; Product model, consumption fields, inventory fields</li>
-                            <li><code>uis-25-purchase-order-management.html</code> &mdash; PO field names, status enum</li>
-                            <li><code>uis-25a-customer-po-management.html</code> &mdash; Customer PO fields</li>
-                            <li><code>uis-25b-supplier-po-receiving.html</code> &mdash; Supplier PO fields, receiving fields</li>
-                            <li><code>uis-20b-line-item-tables.html</code> &mdash; Line item field names</li>
-                            <li><code>uis-20c-create-edit-form.html</code> &mdash; Form field bindings</li>
-                            <li><code>uis-20h-mobile-creation.html</code> &mdash; Mobile form field bindings</li>
-                        </ul>
+                        <div class="fa-label">No file changes needed</div>
                     </div>
                 </div>
             </div>
@@ -357,17 +346,13 @@ h1 { font-size: 30px; font-weight: 800; color: #0f172a; margin: 0 0 4px; letter-
                 <div class="item-header">
                     <span class="item-id">A5</span>
                     <span class="item-title">Change UIS Prisma enums to const-string pattern for PO and MaterialOrder status</span>
-                    <span class="item-badge" style="background:#fef2f2;color:#dc2626;">CRITICAL-5</span>
+                    <span class="item-badge" style="background:#fffbeb;color:#d97706;">DEFERRED</span>
                 </div>
                 <div class="item-body">
-                    <p class="label">Decision</p>
-                    <div class="decision-box"><strong>Use const-string pattern.</strong> Newer Appello models use <code>String</code> columns with TypeScript const arrays for flexibility &mdash; adding a new status value doesn&rsquo;t require a migration. Prisma enums (<code>enum PurchaseOrderStatus</code>) are used only in the equipment domain as an intentional dual pattern.</div>
+                    <p class="label">Decision (April 8 Meeting)</p>
+                    <div class="decision-box" style="background:#fffbeb;border-color:#fde68a;color:#92400e;"><strong>DEFERRED &mdash; PO v1 model exists in 1.32 PR (not yet merged).</strong> Emma has already built a version 1 Purchase Order model in Release 1.32 that hasn&rsquo;t been merged yet. Do not modify PO status patterns until that PR is merged and plans are updated to reflect the actual implementation. Status storage approach (PropertyValue vs const-string) will be decided after merge &mdash; see A8/A9.</div>
                     <div class="files-affected">
-                        <div class="fa-label">UIS Files to Update</div>
-                        <ul>
-                            <li><code>uis-25-purchase-order-management.html</code> &mdash; Replace <code>enum PurchaseOrderStatus</code> with const-string pattern</li>
-                            <li><code>uis-17-material-management.html</code> &mdash; Replace <code>enum MaterialOrderStatus</code> with const-string pattern</li>
-                        </ul>
+                        <div class="fa-label">Blocked until PO v1 PR merges into main</div>
                     </div>
                 </div>
             </div>
@@ -376,27 +361,13 @@ h1 { font-size: 30px; font-weight: 800; color: #0f172a; margin: 0 0 4px; letter-
                 <div class="item-header">
                     <span class="item-id">A6</span>
                     <span class="item-title">Add <code>instanceId</code> to ALL new models in Plan specs</span>
-                    <span class="item-badge" style="background:#fef2f2;color:#dc2626;">CRITICAL-5</span>
+                    <span class="item-badge" style="background:#f1f5f9;color:#64748b;">SKIPPED</span>
                 </div>
                 <div class="item-body">
-                    <p class="label">Decision</p>
-                    <div class="decision-box"><strong>UIS is correct here &mdash; Plan is missing <code>instanceId</code>.</strong> Every tenant-scoped model in Appello requires <code>instanceId String @db.VarChar(21)</code> for multi-tenancy. This is missing from Emma&rsquo;s Plan specs.</div>
-                    <p class="label">Models Needing instanceId Added</p>
-                    <ul>
-                        <li><code>ManufacturerProduct</code>, <code>DistributorPrice</code>, <code>PurchaseOrder</code>, <code>PurchaseOrderLineItem</code></li>
-                        <li><code>MaterialConsumptionEntry</code>, <code>PriceBookImport</code>, <code>MaterialRequest</code>, <code>MaterialRequestItem</code></li>
-                        <li><code>DistributorDiscount</code>, <code>PurchaseOrderReceipt</code>, <code>ReceiptLineItem</code></li>
-                        <li><code>InventoryLocation</code>, <code>InventoryItem</code>, <code>InventoryMovement</code></li>
-                        <li><code>VendorCredit</code>, <code>VendorCreditLineItem</code></li>
-                        <li><code>WorkOrderLaborItem</code>, <code>WorkOrderMaterialItem</code>, <code>WorkOrderEquipmentItem</code></li>
-                        <li><code>Signature</code>, <code>SignatureRequest</code></li>
-                    </ul>
+                    <p class="label">Decision (April 8 Meeting)</p>
+                    <div class="decision-box" style="background:#f1f5f9;border-color:#cbd5e1;color:#475569;"><strong>SKIPPED &mdash; Appello is single-tenant per deployment.</strong> Emma: &ldquo;We&rsquo;re not multi-tenanted. There&rsquo;s only one instance.&rdquo; Do NOT add <code>instanceId</code> to any new models. Each Appello deployment serves exactly one company. The existing <code>instanceId</code> on legacy models is historical and does not need to be propagated to new models.</div>
                     <div class="files-affected">
-                        <div class="fa-label">Plan Files to Update (Emma)</div>
-                        <ul>
-                            <li><code>plans/MAT-0 through MAT-9</code> &mdash; Add <code>instanceId</code> to every Prisma model definition</li>
-                            <li><code>plans/WO-2, WO-3a, WO-8b</code> &mdash; Add <code>instanceId</code> to WO models</li>
-                        </ul>
+                        <div class="fa-label">No file changes needed</div>
                     </div>
                 </div>
             </div>
@@ -405,23 +376,23 @@ h1 { font-size: 30px; font-weight: 800; color: #0f172a; margin: 0 0 4px; letter-
                 <div class="item-header">
                     <span class="item-id">A7</span>
                     <span class="item-title">Add workflow timestamp fields to Plan specs</span>
-                    <span class="item-badge" style="background:#fef2f2;color:#dc2626;">CRITICAL-5</span>
+                    <span class="item-badge" style="background:#eff6ff;color:#2563eb;">PARTIAL</span>
                 </div>
                 <div class="item-body">
-                    <p class="label">Decision</p>
-                    <div class="decision-box"><strong>UIS is correct here.</strong> Financial entities with approval workflows need timestamp+user audit fields. These are missing from Emma&rsquo;s Plan specs.</div>
+                    <p class="label">Decision (April 8 Meeting)</p>
+                    <div class="decision-box"><strong>Approved for VendorCredit + MaterialConsumption. PO timestamps deferred (see A5).</strong> It makes sense to track submitted and approved times and users for approval workflows. Model after Expenses pattern (submitted, approved, rejected). PO-specific timestamps are deferred until the PO v1 PR merges.</div>
                     <p class="label">Fields to Add Per Entity</p>
                     <ul>
-                        <li><code>PurchaseOrder</code>: <code>submittedAt</code>, <code>submittedByUserId</code>, <code>approvedAt</code>, <code>approvedByUserId</code>, <code>sentAt</code></li>
                         <li><code>MaterialConsumptionEntry</code>: <code>submittedAt</code>, <code>submittedByUserId</code>, <code>approvedAt</code>, <code>approvedByUserId</code></li>
                         <li><code>VendorCredit</code>: <code>approvedAt</code>, <code>approvedByUserId</code>, <code>appliedAt</code>, <code>appliedByUserId</code>, <code>voidedAt</code>, <code>voidedByUserId</code>, <code>creditDate</code></li>
+                        <li><s><code>PurchaseOrder</code>: deferred until PO v1 PR merges (see A5)</s></li>
                     </ul>
                     <div class="files-affected">
                         <div class="fa-label">Plan Files to Update (Emma)</div>
                         <ul>
-                            <li><code>plans/MAT-5-supplier-po.html</code> &mdash; Add PO workflow timestamps</li>
                             <li><code>plans/MAT-2a-lem-consumption-desktop.html</code> &mdash; Add consumption approval timestamps</li>
                             <li><code>plans/MAT-8-vendor-credits.html</code> &mdash; Add credit workflow timestamps</li>
+                            <li><s><code>plans/MAT-5-supplier-po.html</code> &mdash; Deferred (PO v1 PR)</s></li>
                         </ul>
                     </div>
                 </div>
@@ -430,16 +401,16 @@ h1 { font-size: 30px; font-weight: 800; color: #0f172a; margin: 0 0 4px; letter-
             <div class="item-card cat-a-card" onclick="this.classList.toggle('expanded')">
                 <div class="item-header">
                     <span class="item-id">A8</span>
-                    <span class="item-title">Finalize VendorCredit lifecycle: <code>Draft &rarr; InReview &rarr; Approved &rarr; Applied &rarr; Void</code></span>
-                    <span class="item-badge" style="background:#fef2f2;color:#dc2626;">CRITICAL-6</span>
+                    <span class="item-title">Finalize VendorCredit lifecycle: approval workflow via PropertyValue</span>
+                    <span class="item-badge" style="background:#eff6ff;color:#2563eb;">REVISED</span>
                 </div>
                 <div class="item-body">
-                    <p class="label">Decision</p>
-                    <div class="decision-box"><strong>Upgrade from Plan&rsquo;s 3-state (Pending &rarr; Applied &rarr; Void) to 5-state approval workflow.</strong> Every other financial entity in Appello has RBAC-gated approval (Expense, TimeSheetRecord, LeaveRequest, CheckIn). Vendor credits directly affect job profitability and AP reconciliation &mdash; skipping approval creates a control gap. Add <code>vendorCredit.approve</code> RBAC permission. Only <code>Approved</code> credits can be applied. <code>Void</code> reverses the job cost adjustment.</div>
+                    <p class="label">Decision (April 8 Meeting)</p>
+                    <div class="decision-box"><strong>Use PropertyValue storage pattern (not const-string).</strong> Model approval workflow after Expenses: Submitted &rarr; Approved &rarr; Rejected. Status values are user-configurable via PropertyValue settings, enabling Kanban boards. Emma: &ldquo;For most of the status type stuff, we use property values.&rdquo; The implied ordering of property values serves as the expected workflow sequence, but there is no enforced state machine &mdash; users can rename or reorder statuses. Add <code>vendorCredit.approve</code> RBAC permission. Only <code>Approved</code> credits can be applied. <code>Void</code> reverses the job cost adjustment.</div>
                     <div class="files-affected">
                         <div class="fa-label">Files to Update</div>
                         <ul>
-                            <li><code>plans/MAT-8-vendor-credits.html</code> (Emma) &mdash; Upgrade status workflow, add 6 audit fields, add RBAC gate</li>
+                            <li><code>plans/MAT-8-vendor-credits.html</code> (Emma) &mdash; Use PropertyValue for status, add approval workflow, add 6 audit fields, add RBAC gate</li>
                         </ul>
                     </div>
                 </div>
@@ -448,19 +419,14 @@ h1 { font-size: 30px; font-weight: 800; color: #0f172a; margin: 0 0 4px; letter-
             <div class="item-card cat-a-card" onclick="this.classList.toggle('expanded')">
                 <div class="item-header">
                     <span class="item-id">A9</span>
-                    <span class="item-title">Finalize PO lifecycle: <code>Draft &rarr; Submitted &rarr; Approved &rarr; PartiallyReceived &rarr; FullyReceived &rarr; Closed | Cancelled</code></span>
-                    <span class="item-badge" style="background:#fef2f2;color:#dc2626;">CRITICAL-8</span>
+                    <span class="item-title">Finalize PO lifecycle: PropertyValue-based status with user-configurable values</span>
+                    <span class="item-badge" style="background:#fffbeb;color:#d97706;">DEFERRED + REVISED</span>
                 </div>
                 <div class="item-body">
-                    <p class="label">Decision</p>
-                    <div class="decision-box"><strong>Merged lifecycle from both specs.</strong> Drop <code>Issued</code> and <code>Committed</code> entirely &mdash; <code>Approved</code> covers both concepts (matches Procore, Sage). Track sending to supplier as <code>sentAt DateTime?</code> timestamp instead of a status. &ldquo;Send to Supplier&rdquo; button sets this timestamp without changing workflow state. Store as const-string, not Prisma enum.</div>
+                    <p class="label">Decision (April 8 Meeting)</p>
+                    <div class="decision-box" style="background:#fffbeb;border-color:#fde68a;color:#92400e;"><strong>DEFERRED + REVISED &mdash; Use PropertyValue storage (not const-string).</strong> Full lifecycle decisions deferred until PO v1 PR merges (see A5). When ready, status values will be PropertyValue-based for user configurability and Kanban support. Emma: &ldquo;Maybe they don&rsquo;t want to call it draft, submitted, approved. Maybe they don&rsquo;t have partially received.&rdquo; PropertyValue gives customers control over their own status labels and ordering. Default seed values will be provided but are fully editable. Kanban boards are already set up to work with property values.</div>
                     <div class="files-affected">
-                        <div class="fa-label">Files to Update</div>
-                        <ul>
-                            <li><code>plans/MAT-5-supplier-po.html</code> (Emma) &mdash; Change from <code>Draft &rarr; Sent &rarr; PartiallyReceived &rarr; FullyReceived &rarr; Closed</code> to merged lifecycle, add <code>sentAt</code></li>
-                            <li><code>uis-25b-supplier-po-receiving.html</code> &mdash; Change from 8-state to 6-state, remove <code>Issued</code> and <code>Committed</code></li>
-                            <li><code>uis-25-purchase-order-management.html</code> &mdash; Update status references</li>
-                        </ul>
+                        <div class="fa-label">Blocked until PO v1 PR merges into main (see A5)</div>
                     </div>
                 </div>
             </div>
@@ -469,16 +435,13 @@ h1 { font-size: 30px; font-weight: 800; color: #0f172a; margin: 0 0 4px; letter-
                 <div class="item-header">
                     <span class="item-id">A10</span>
                     <span class="item-title">Finalize InventoryMovement architecture: adopt InventoryItem FK (bin card) pattern</span>
-                    <span class="item-badge" style="background:#fef2f2;color:#dc2626;">CRITICAL-7</span>
+                    <span class="item-badge" style="background:#fffbeb;color:#d97706;">DEFERRED</span>
                 </div>
                 <div class="item-body">
-                    <p class="label">Decision</p>
-                    <div class="decision-box"><strong>Adopt Emma&rsquo;s Plan (MAT-7) InventoryItem FK architecture.</strong> Drop UIS ledger approach. O(1) stock reads vs O(n). Aligns with every major ERP (SAP, Oracle, NetSuite, Acumatica, QuickBooks, Fishbowl). <code>InventoryItem</code> is a &ldquo;bin card&rdquo; &mdash; one row per (material, location) pair with denormalized quantity. Movements FK to the bin card. Use SQL View <code>InventoryStockLevel</code> for reconciliation verification only.</div>
+                    <p class="label">Decision (April 8 Meeting)</p>
+                    <div class="decision-box" style="background:#fffbeb;border-color:#fde68a;color:#92400e;"><strong>DEFERRED &mdash; Emma needs to read the full MAT-7 plan before deciding.</strong> InventoryItem FK (bin card) pattern is recommended but needs validation against the actual implementation approach once Emma has reviewed the full inventory management plan. Revisit when inventory management is actively in development.</div>
                     <div class="files-affected">
-                        <div class="fa-label">Files to Update</div>
-                        <ul>
-                            <li><code>uis-17-material-management.html</code> &mdash; Rewrite inventory section to use InventoryItem FK pattern instead of ledger</li>
-                        </ul>
+                        <div class="fa-label">Pending Emma&rsquo;s review of MAT-7 plan</div>
                     </div>
                 </div>
             </div>
@@ -487,17 +450,13 @@ h1 { font-size: 30px; font-weight: 800; color: #0f172a; margin: 0 0 4px; letter-
                 <div class="item-header">
                     <span class="item-id">A11</span>
                     <span class="item-title">Add <code>transferGroupId</code>, <code>costCodeId</code> to InventoryMovement</span>
-                    <span class="item-badge" style="background:#fef2f2;color:#dc2626;">CRITICAL-7</span>
+                    <span class="item-badge" style="background:#fffbeb;color:#d97706;">DEFERRED</span>
                 </div>
                 <div class="item-body">
-                    <p class="label">Decision</p>
-                    <div class="decision-box"><strong>Add to both UIS and Plan.</strong> <code>transferGroupId String? @db.VarChar(21)</code> correlates paired transfer movements (debit + credit). <code>costCodeId String? @db.VarChar(21)</code> was mentioned in MAT-7 checkout logic but missing from the model definition.</div>
+                    <p class="label">Decision (April 8 Meeting)</p>
+                    <div class="decision-box" style="background:#fffbeb;border-color:#fde68a;color:#92400e;"><strong>DEFERRED &mdash; Too detailed for features that haven&rsquo;t been built yet.</strong> These fields make sense conceptually but the inventory management module is not yet in active development. Revisit <code>transferGroupId</code> and <code>costCodeId</code> when inventory management is actively in scope and A10 has been resolved.</div>
                     <div class="files-affected">
-                        <div class="fa-label">Files to Update</div>
-                        <ul>
-                            <li><code>plans/MAT-7-inventory-management.html</code> (Emma) &mdash; Add both fields to InventoryMovement model</li>
-                            <li><code>uis-17-material-management.html</code> &mdash; Add both fields</li>
-                        </ul>
+                        <div class="fa-label">Revisit when inventory management (A10) is resolved</div>
                     </div>
                 </div>
             </div>
@@ -505,14 +464,14 @@ h1 { font-size: 30px; font-weight: 800; color: #0f172a; margin: 0 0 4px; letter-
             <div class="item-card cat-a-card" onclick="this.classList.toggle('expanded')">
                 <div class="item-header">
                     <span class="item-id">A12</span>
-                    <span class="item-title">Document &ldquo;child line items inherit parent archive status&rdquo; convention</span>
-                    <span class="item-badge" style="background:#fffbeb;color:#d97706;">SF-2</span>
+                    <span class="item-title">Line items DO get <code>isArchived</code> + <code>isDeleted</code> &mdash; parent cascades to children</span>
+                    <span class="item-badge" style="background:#f0fdf4;color:#16a34a;">REVISED</span>
                 </div>
                 <div class="item-body">
-                    <p class="label">Decision</p>
-                    <div class="decision-box"><strong>Line items do NOT need their own <code>isArchived</code> field.</strong> They inherit archive status from their parent entity. Document this as a project convention. This applies to: <code>PurchaseOrderLineItem</code>, <code>ReceiptLineItem</code>, <code>VendorCreditLineItem</code>, <code>MaterialRequestItem</code>, <code>WorkOrderLaborItem</code>, <code>WorkOrderMaterialItem</code>, <code>WorkOrderEquipmentItem</code>.</div>
+                    <p class="label">Decision (April 8 Meeting)</p>
+                    <div class="decision-box"><strong>Line items DO get their own <code>isArchived</code> + <code>isDeleted</code> fields.</strong> This is the existing Appello convention per Emma: &ldquo;We generally put isArchived on line items. We do isArchived and isDeleted so that we can&hellip; if you archive the parent, it will archive the children, but we still have them.&rdquo; Parent archive/delete cascades to children via application logic. This applies to: <code>PurchaseOrderLineItem</code>, <code>ReceiptLineItem</code>, <code>VendorCreditLineItem</code>, <code>MaterialRequestItem</code>, <code>WorkOrderLaborItem</code>, <code>WorkOrderMaterialItem</code>, <code>WorkOrderEquipmentItem</code>.</div>
                     <div class="files-affected">
-                        <div class="fa-label">No file changes needed &mdash; document as convention in this document</div>
+                        <div class="fa-label">Convention &mdash; ensure all line item models include <code>isArchived</code> + <code>isDeleted</code> fields</div>
                     </div>
                 </div>
             </div>
@@ -520,17 +479,17 @@ h1 { font-size: 30px; font-weight: 800; color: #0f172a; margin: 0 0 4px; letter-
             <div class="item-card cat-a-card" onclick="this.classList.toggle('expanded')">
                 <div class="item-header">
                     <span class="item-id">A13</span>
-                    <span class="item-title">Decide <code>dateOfWork</code> vs <code>workDates Json</code> for multi-date Work Orders</span>
-                    <span class="item-badge" style="background:#fffbeb;color:#d97706;">SF-16</span>
+                    <span class="item-title">Decide <code>dateOfWork</code> vs multi-date Work Orders &mdash; use sub-model, not JSON</span>
+                    <span class="item-badge" style="background:#fffbeb;color:#d97706;">NEEDS RESEARCH</span>
                 </div>
                 <div class="item-body">
-                    <p class="label">Decision</p>
-                    <div class="decision-box" style="background:#fffbeb;border-color:#fde68a;color:#92400e;"><strong>Needs human decision.</strong> Option 1: Use <code>dateOfWork DateTime? @db.Date</code> only (single-date WOs for v1). Option 2: Use both <code>dateOfWork</code> as primary + <code>workDates Json?</code> for additional dates. Recommendation: Option 1 for v1 &mdash; multi-date WOs add complexity without confirmed customer need.</div>
+                    <p class="label">Decision (April 8 Meeting)</p>
+                    <div class="decision-box" style="background:#fffbeb;border-color:#fde68a;color:#92400e;"><strong>NEEDS RESEARCH &mdash; Multi-date WOs confirmed needed, but JSON rejected.</strong> Corey confirms work orders will span multiple days: &ldquo;I&rsquo;m sure the work order will start on a day and then we&rsquo;re going to have to come back.&rdquo; Emma: &ldquo;JSON is not really filterable. If we just store the 10th, 12th, and 13th, we can&rsquo;t easily filter. We&rsquo;d prefer it as a field or a submodel &mdash; like work order dates.&rdquo; <strong>Direction:</strong> Use a sub-model (e.g., <code>WorkOrderDate</code>) instead of <code>workDates Json</code> for filterability. More research needed on how multi-date WO functionality should work end-to-end.</div>
                     <div class="files-affected">
                         <div class="fa-label">Files Affected by Decision</div>
                         <ul>
                             <li><code>plans/WO-3a-schema-form-foundation.html</code> &mdash; Uses <code>dateOfWork</code></li>
-                            <li><code>uis-20h-mobile-creation.html</code> &mdash; Uses <code>workDates Json</code></li>
+                            <li><code>uis-20h-mobile-creation.html</code> &mdash; Uses <code>workDates Json</code> &mdash; needs to change to sub-model</li>
                         </ul>
                     </div>
                 </div>
@@ -573,17 +532,13 @@ h1 { font-size: 30px; font-weight: 800; color: #0f172a; margin: 0 0 4px; letter-
                 <div class="item-header">
                     <span class="item-id">B1</span>
                     <span class="item-title">Consolidate <code>WorkOrderSigner</code> into <code>SignatureRequest</code></span>
-                    <span class="item-badge" style="background:#fffbeb;color:#d97706;">SF-9</span>
+                    <span class="item-badge" style="background:#fffbeb;color:#d97706;">DEFERRED</span>
                 </div>
                 <div class="item-body">
-                    <p class="label">Decision</p>
-                    <div class="decision-box"><strong>Eliminate <code>WorkOrderSigner</code> as a separate model.</strong> <code>SignatureRequest</code> already tracks: who needs to sign, signing order, and links to the resulting <code>Signature</code>. Add <code>order Int?</code> and <code>signerRole String?</code> to <code>SignatureRequest</code> to absorb <code>WorkOrderSigner</code>&rsquo;s functionality. This reduces from 3 signing models to 2.</div>
+                    <p class="label">Decision (April 8 Meeting)</p>
+                    <div class="decision-box" style="background:#fffbeb;border-color:#fde68a;color:#92400e;"><strong>DEFERRED &mdash; Emma needs to review the specs.</strong> Emma: &ldquo;SignatureRequest is, I think it&rsquo;s a new model that I made for the work order signing, but I don&rsquo;t remember the differences between the two off the top of my head.&rdquo; The consolidation may still make sense but needs Emma to re-read both specs and compare the two models before a final decision.</div>
                     <div class="files-affected">
-                        <div class="fa-label">Files to Update</div>
-                        <ul>
-                            <li><code>uis-20h-mobile-creation.html</code> &mdash; Remove <code>WorkOrderSigner</code> model, use <code>SignatureRequest</code></li>
-                            <li><code>plans/WO-8b-collect-signatures.html</code> &mdash; Add <code>order</code> and <code>signerRole</code> to <code>SignatureRequest</code></li>
-                        </ul>
+                        <div class="fa-label">Pending Emma&rsquo;s review of WO-8b plan</div>
                     </div>
                 </div>
             </div>
@@ -591,18 +546,18 @@ h1 { font-size: 30px; font-weight: 800; color: #0f172a; margin: 0 0 4px; letter-
             <div class="item-card cat-b-card" onclick="this.classList.toggle('expanded')">
                 <div class="item-header">
                     <span class="item-id">B2</span>
-                    <span class="item-title">Consolidate <code>WorkOrderOtherItem</code> into <code>WorkOrderMaterialItem</code></span>
-                    <span class="item-badge" style="background:#fffbeb;color:#d97706;">SF-10</span>
+                    <span class="item-title">Eliminate <code>WorkOrderOtherItem</code> &mdash; use 3 line item types with nullable FK</span>
+                    <span class="item-badge" style="background:#eff6ff;color:#2563eb;">REVISED &bull; NEEDS CHRIS</span>
                 </div>
                 <div class="item-body">
-                    <p class="label">Decision</p>
-                    <div class="decision-box"><strong>Eliminate <code>WorkOrderOtherItem</code>.</strong> Use <code>WorkOrderMaterialItem</code> with <code>materialId = null</code> for ad-hoc/unlisted items. The <code>description String?</code> field on <code>WorkOrderMaterialItem</code> serves the same purpose as <code>WorkOrderOtherItem.name</code>. Reduces from 4 line item types to 3 (Labor, Material, Equipment), simplifying queries, conversion logic, and total calculations.</div>
+                    <p class="label">Decision (April 8 Meeting)</p>
+                    <div class="decision-box"><strong>Do NOT create <code>WorkOrderOtherItem</code> as a separate model.</strong> Each of the 3 existing line item types (<code>WorkOrderLaborItem</code>, <code>WorkOrderMaterialItem</code>, <code>WorkOrderEquipmentItem</code>) can function as an &ldquo;other&rdquo; item when the tied relationship FK is null. Emma: &ldquo;Any of those three should be able to function as a work order other item that has no tied relationship and has a description and a value and a quantity rather than having a separate model.&rdquo; If you give a labor ID or equipment ID, you don&rsquo;t need the description. If you don&rsquo;t pick a linked entity, you describe it freeform. <strong>Needs Chris review before finalizing.</strong></div>
                     <div class="files-affected">
                         <div class="fa-label">Files to Update</div>
                         <ul>
-                            <li><code>uis-20h-mobile-creation.html</code> &mdash; Remove <code>WorkOrderOtherItem</code> model, route &ldquo;Other&rdquo; items through <code>WorkOrderMaterialItem</code></li>
-                            <li><code>plans/WO-2-line-item-tables.html</code> &mdash; Document that null <code>materialId</code> = ad-hoc item</li>
-                            <li><code>plans/WO-8a-stepped-form-wizard.html</code> &mdash; Merge Step 5 (&ldquo;Other&rdquo;) into Step 3 (&ldquo;Material&rdquo;)</li>
+                            <li><code>uis-20h-mobile-creation.html</code> &mdash; Remove <code>WorkOrderOtherItem</code> model</li>
+                            <li><code>plans/WO-2-line-item-tables.html</code> &mdash; Document nullable FK = ad-hoc item pattern</li>
+                            <li><code>plans/WO-8a-stepped-form-wizard.html</code> &mdash; Merge Step 5 (&ldquo;Other&rdquo;) into the 3 existing steps</li>
                         </ul>
                     </div>
                 </div>
@@ -630,19 +585,17 @@ h1 { font-size: 30px; font-weight: 800; color: #0f172a; margin: 0 0 4px; letter-
             <div class="item-card cat-b-card" onclick="this.classList.toggle('expanded')">
                 <div class="item-header">
                     <span class="item-id">B4</span>
-                    <span class="item-title">Scope maintenance models &mdash; defer Schedule/Template/Downtime to v1.1</span>
-                    <span class="item-badge" style="background:#eef2ff;color:#6366f1;">NTH-10</span>
+                    <span class="item-title">Scope maintenance models &mdash; drop only <code>MaintenanceScheduleTemplate</code></span>
+                    <span class="item-badge" style="background:#f0fdf4;color:#16a34a;">REVISED</span>
                 </div>
                 <div class="item-body">
-                    <p class="label">Decision</p>
-                    <div class="decision-box"><strong>Ship minimal viable: <code>MaintenanceThreshold</code> + <code>MaintenanceLog</code> only for v1.</strong> Defer <code>MaintenanceSchedule</code>, <code>MaintenanceScheduleTemplate</code>, and <code>DowntimeRecord</code> to a future release. This removes 3 models + 3 enums from scope, reducing Phase 3 significantly. The equipment maintenance phase was already labeled &ldquo;lower priority, deferrable.&rdquo;</div>
+                    <p class="label">Decision (April 8 Meeting)</p>
+                    <div class="decision-box"><strong>Keep <code>MaintenanceThreshold</code> + <code>MaintenanceLog</code> + <code>MaintenanceSchedule</code> + <code>DowntimeRecord</code> in v1 scope. Drop only <code>MaintenanceScheduleTemplate</code>.</strong> Emma replaced the template concept with form attachments: &ldquo;I got rid of that, and I said you can tie safety forms to it &mdash; like these are the four forms that you do when you do an oil change.&rdquo; <code>DowntimeRecord</code> is important for tracking equipment availability metrics (e.g., VOR &mdash; Vehicles Off Road). This removes 1 model from scope, not 3 as originally proposed.</div>
                     <div class="files-affected">
                         <div class="fa-label">Files to Update</div>
                         <ul>
-                            <li><code>docs/uis-15g-equipment-maintenance-scheduling.html</code> &mdash; Mark Schedule/Template/Downtime as deferred</li>
-                            <li><code>docs/plans/uis-15g-equipment-maintenance-scheduling.html</code> &mdash; Mark as deferred</li>
-                            <li><code>docs/uis-15d-equipment-maintenance-triggers.html</code> &mdash; Keep Threshold + Log only</li>
-                            <li><code>docs/plans/uis-15d-equipment-maintenance-triggers.html</code> &mdash; Keep Threshold + Log only</li>
+                            <li><code>docs/uis-15g-equipment-maintenance-scheduling.html</code> &mdash; Remove <code>MaintenanceScheduleTemplate</code> only, keep Schedule + DowntimeRecord</li>
+                            <li><code>docs/plans/uis-15g-equipment-maintenance-scheduling.html</code> &mdash; Same</li>
                         </ul>
                     </div>
                 </div>
@@ -1098,12 +1051,12 @@ h1 { font-size: 30px; font-weight: 800; color: #0f172a; margin: 0 0 4px; letter-
 <span class="lc-status">Draft</span> <span class="lc-arrow">&rarr;</span> <span class="lc-status">Submitted</span> <span class="lc-arrow">&rarr;</span> <span class="lc-status">AwaitingSignature</span> <span class="lc-arrow">&rarr;</span> <span class="lc-status">Signed</span> <span class="lc-arrow">&rarr;</span> <span class="lc-status">Approved</span> <span class="lc-arrow">&rarr;</span> <span class="lc-status">Invoiced</span>
                                                                                         <span class="lc-arrow">&searr;</span> <span class="lc-terminal">Void</span>
 
-<span class="lc-entity">PurchaseOrder (Supplier)</span> <span class="lc-storage">(const-string)</span>
+<span class="lc-entity">PurchaseOrder (Supplier)</span> <span class="lc-storage">(PropertyValue) [DEFERRED &mdash; awaiting PO v1 PR merge]</span>
 <span class="lc-status">Draft</span> <span class="lc-arrow">&rarr;</span> <span class="lc-status">Submitted</span> <span class="lc-arrow">&rarr;</span> <span class="lc-status">Approved</span> <span class="lc-arrow">&rarr;</span> <span class="lc-status">PartiallyReceived</span> <span class="lc-arrow">&rarr;</span> <span class="lc-status">FullyReceived</span> <span class="lc-arrow">&rarr;</span> <span class="lc-status">Closed</span>
                                                         <span class="lc-arrow">&searr;</span> <span class="lc-terminal">Cancelled</span>
-Note: "Send to Supplier" sets <span class="lc-status">sentAt DateTime?</span> without changing status
+Note: Status values are user-configurable PropertyValues. Default seed values shown above.
 
-<span class="lc-entity">PurchaseOrder (Customer)</span> <span class="lc-storage">(const-string)</span>
+<span class="lc-entity">PurchaseOrder (Customer)</span> <span class="lc-storage">(PropertyValue) [DEFERRED &mdash; awaiting PO v1 PR merge]</span>
 <span class="lc-status">Active</span> <span class="lc-arrow">&rarr;</span> <span class="lc-status">FullyInvoiced</span> <span class="lc-arrow">&rarr;</span> <span class="lc-status">Closed</span>
                 <span class="lc-arrow">&searr;</span> <span class="lc-terminal">Cancelled</span>
 
@@ -1114,7 +1067,7 @@ Note: "Send to Supplier" sets <span class="lc-status">sentAt DateTime?</span> wi
 <span class="lc-status">Submitted</span> <span class="lc-arrow">&rarr;</span> <span class="lc-status">Acknowledged</span> <span class="lc-arrow">&rarr;</span> <span class="lc-status">InProgress</span> <span class="lc-arrow">&rarr;</span> <span class="lc-status">Fulfilled</span>
                                                                 <span class="lc-arrow">&searr;</span> <span class="lc-terminal">Cancelled</span>
 
-<span class="lc-entity">VendorCredit</span> <span class="lc-storage">(const-string)</span>
+<span class="lc-entity">VendorCredit</span> <span class="lc-storage">(PropertyValue)</span>
 <span class="lc-status">Draft</span> <span class="lc-arrow">&rarr;</span> <span class="lc-status">InReview</span> <span class="lc-arrow">&rarr;</span> <span class="lc-status">Approved</span> <span class="lc-arrow">&rarr;</span> <span class="lc-status">Applied</span>
                                                   <span class="lc-arrow">&searr;</span> <span class="lc-terminal">Void</span> (reverses job cost adjustment)
 
@@ -1140,7 +1093,7 @@ Note: "Send to Supplier" sets <span class="lc-status">sentAt DateTime?</span> wi
         </summary>
         <div class="section-body">
 
-            <p style="font-size:13px;color:#475569;line-height:1.6;margin-bottom:16px;">Every implementation phase has been validated. If Phase 0 is completed fully, every model, resolver, page, and mobile screen in Phases 1&ndash;7 has its spec foundation covered.</p>
+            <p style="font-size:13px;color:#475569;line-height:1.6;margin-bottom:16px;">Every implementation phase has been validated. Items marked with <code>*</code> are DEFERRED or SKIPPED per the April 8 meeting. Deferred items do not block the phase &mdash; they will be resolved when their blockers clear (PO v1 PR merge, Emma plan review, Chris review).</p>
 
             <table class="xref-table">
                 <thead><tr><th>Implementation Phase</th><th>Scope</th><th>Phase 0 Items Required</th></tr></thead>
@@ -1153,7 +1106,7 @@ Note: "Send to Supplier" sets <span class="lc-status">sentAt DateTime?</span> wi
                     <tr>
                         <td class="phase-label">Phase 2: T&amp;M Work Orders</td>
                         <td>8+ models, desktop CRUD/log/conversion, mobile wizard, WO PDF</td>
-                        <td class="item-refs">A1, A2, A6, A7, A12, A13, B1, B2, G1, G2, G4, G5, G6, G7, G10, G11, G12, H1, H2</td>
+                        <td class="item-refs">A1*, A2, A6*, A7, A12, A13*, B1*, B2*, G1, G2, G4, G5, G6, G7, G10, G11, G12, H1, H2</td>
                     </tr>
                     <tr>
                         <td class="phase-label">Phase 3: Equipment Module</td>
@@ -1163,17 +1116,17 @@ Note: "Send to Supplier" sets <span class="lc-status">sentAt DateTime?</span> wi
                     <tr>
                         <td class="phase-label">Phase 4: Material Foundation</td>
                         <td>4 models, data migration, supply chain settings, consumption</td>
-                        <td class="item-refs">A1&ndash;A7, A9, B3, C1&ndash;C3, D1, D3, E1, F1, G1, G4, G5, G6, G8, G11, G12, H1, H3</td>
+                        <td class="item-refs">A1*, A2, A3, A4, A5*, A6*, A7, A9*, B3, C1&ndash;C3, D1, D3, E1, F1, G1, G4, G5, G6, G8, G11, G12, H1, H3</td>
                     </tr>
                     <tr>
                         <td class="phase-label">Phase 5: Procurement</td>
                         <td>4 models, price book import, material requests, supplier PO, discounts</td>
-                        <td class="item-refs">A5, C1&ndash;C3, D3, E1, E3, G2, G3, G5, G6, G12, H1, H2</td>
+                        <td class="item-refs">A5*, C1&ndash;C3, D3, E1, E3, G2, G3, G5, G6, G12, H1, H2</td>
                     </tr>
                     <tr>
                         <td class="phase-label">Phase 6: Operations</td>
                         <td>5 models, receiving, inventory, vendor credits, 3 JFS integrations</td>
-                        <td class="item-refs">A8, A10, A11, A14, D1, D2, E2, E4, F1, G4, G5, G6, G7, G8, G9, G12, H2, H3</td>
+                        <td class="item-refs">A8, A10*, A11*, A14, D1, D2, E2, E4, F1, G4, G5, G6, G7, G8, G9, G12, H2, H3</td>
                     </tr>
                     <tr>
                         <td class="phase-label">Phase 7: Cross-Cutting</td>
@@ -1199,27 +1152,43 @@ Note: "Send to Supplier" sets <span class="lc-status">sentAt DateTime?</span> wi
         <div class="section-body">
 
             <table class="data-table">
-                <thead><tr><th>Owner</th><th>Files</th><th>Items</th></tr></thead>
+                <thead><tr><th>Owner</th><th>Files</th><th>Items</th><th>Notes</th></tr></thead>
                 <tbody>
                     <tr>
                         <td><strong>Emma (Plan specs)</strong></td>
                         <td><code>appello-roadmap/plans/MAT-*.html</code>, <code>WO-*.html</code>, <code>LEM-*.html</code></td>
-                        <td>A6, A7, A8, A9, A11, A14, B2, B3, C3, D1, D2, D3, E1&ndash;E4, F1, G3</td>
+                        <td>A7, A8, A14, B2, B3, C3, D1, D2, D3, E1&ndash;E4, F1, G3</td>
+                        <td>A9/A11 deferred, A6 skipped</td>
                     </tr>
                     <tr>
                         <td><strong>Corey/AI (UIS specs)</strong></td>
                         <td><code>appello/.cursor/plans/uis-*.html</code>, <code>appello/plan/clearstory-tm-workorders/uis/*.html</code></td>
-                        <td>A1&ndash;A5, A10, B1, B2, C1, C2, D3, G1, G2</td>
+                        <td>A2, A3, A4, B2, C1, C2, D3, G1, G2</td>
+                        <td>A1/A6 skipped, A5/A10 deferred, B1 deferred</td>
                     </tr>
                     <tr>
                         <td><strong>Emma (Equipment specs)</strong></td>
                         <td><code>appello-sdlc/docs/*.html</code>, <code>appello-sdlc/docs/plans/*.html</code></td>
                         <td>B4, D4</td>
+                        <td>B4 revised: keep Schedule + Downtime, drop Template only</td>
                     </tr>
                     <tr>
                         <td><strong>Conventions (this doc)</strong></td>
                         <td>No file changes &mdash; documented here</td>
                         <td>A12, A13, G4&ndash;G12, H1&ndash;H3</td>
+                        <td>A12 revised (line items DO get isArchived). A13 needs research.</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Blocked / Deferred</strong></td>
+                        <td>Various</td>
+                        <td>A5, A9, A10, A11, B1</td>
+                        <td>A5/A9: PO v1 PR. A10/A11: Emma MAT-7 review. B1: Emma WO-8b review.</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Needs Chris Review</strong></td>
+                        <td>WO line item specs</td>
+                        <td>B2</td>
+                        <td>3 line item types with nullable FK pattern tentatively approved</td>
                     </tr>
                 </tbody>
             </table>
@@ -1230,7 +1199,7 @@ Note: "Send to Supplier" sets <span class="lc-status">sentAt DateTime?</span> wi
 
     <!-- Footer -->
     <div class="footer">
-        Phase 0: Master Spec Reconciliation &mdash; Generated April 8, 2026 &bull; Releases 1.33 + 1.34<br>
+        Phase 0: Master Spec Reconciliation &mdash; Updated April 8, 2026 (post Corey + Emma review) &bull; Releases 1.33 + 1.34<br>
         <a href="index.html">Back to Roadmap</a> &bull; <a href="cross-release-continuity-audit.html">Continuity Audit</a> &bull; <a href="release-1.33-timeline.html">1.33 Timeline</a> &bull; <a href="release-1.34-timeline.html">1.34 Timeline</a>
     </div>
 

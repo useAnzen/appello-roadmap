@@ -113,7 +113,7 @@ const customFormControl = {
         <h3>Key behavior rules</h3>
         <ul>
             <li><strong>Local state only:</strong> Editors maintain their own state via <code>items</code> / <code>setItems</code>. Nothing saves to the database until the parent form's Save Draft or Submit is clicked.</li>
-            <li><strong>Subtotals within editors:</strong> Each editor renders its own subtotal at the bottom. For labor and equipment structured lines, subtotals are only shown if user has <code>viewWageDetails</code> permission. Material subtotals always shown (manually entered costs).</li>
+            <li><strong>Subtotals within editors:</strong> Each editor renders its own subtotal at the bottom. For labor and equipment structured lines, subtotals are only shown if user has <code>viewWageDetails</code> permission. Material subtotals always shown (sell prices auto-populated from LEM-3 cascade). Cost shown alongside sell price if user has <code>viewWageDetails</code>.</li>
             <li><strong>On form save:</strong> The parent form collects all line item state and calls <code>upsertWorkOrderLineItems</code> (from WO-2) in the same transaction as the Job save.</li>
             <li><strong>Structured + blank lines:</strong> Each editor has an "+ Add" dropdown button with "Structured Line" and "Blank Line" options. Both types coexist in the same list.</li>
         </ul>
@@ -256,16 +256,18 @@ interface IMaterialRow {
     materialId?: string;       // set for structured, null for blank
     description?: string;
     quantity?: number;
-    unitCost?: number;
-    total?: number;            // auto-calculated: qty * unitCost
+    unitPrice?: number;        // sell price (auto from LEM-3 cascade, editable)
+    costPrice?: number;        // cost basis (read-only for margin visibility)
+    total?: number;            // auto-calculated: qty * unitPrice
 }
 </pre>
 
         <h3>Structured line behavior</h3>
         <ul>
             <li><strong>Material selector:</strong> <code>CustomCombobox</code> searching the Material catalog (Solr-indexed). Selecting a material auto-populates description (name) and UoM (from MaterialGroup).</li>
-            <li><strong>Unit Cost:</strong> Manually entered &mdash; material prices are volatile (LEM-3 analysis). Not auto-populated from the catalog.</li>
-            <li><strong>Total:</strong> Auto-calculated: <code>quantity &times; unitCost</code>. Updated as the user types.</li>
+            <li><strong>Sell Price (<code>unitPrice</code>):</strong> Auto-populated from <code>resolveMaterialSellPrice()</code> (LEM-3 cascade: Job &gt; Material &gt; Group &gt; cost pass-through). Editable &mdash; user can override the auto-populated value.</li>
+            <li><strong>Cost (<code>costPrice</code>):</strong> Auto-populated from cost basis (DistributorPrice or MaterialAttributePrice). Shown read-only for margin visibility when user has <code>viewWageDetails</code> permission.</li>
+            <li><strong>Total:</strong> Auto-calculated: <code>quantity &times; unitPrice</code>. Updated as the user types.</li>
         </ul>
 
         <h3>Blank line behavior</h3>
@@ -317,7 +319,7 @@ interface IMaterialRow {
                 </div>
             </div>
         </div>
-        <p style="font-size:12px; color:#64748b;">Material costs always shown &mdash; they're manually entered by the user (volatile pricing). Structured lines auto-populate name + UoM from the catalog but unit cost is always manual.</p>
+        <p style="font-size:12px; color:#64748b;">Structured material lines auto-populate name, UoM, sell price (from LEM-3 cascade), and cost (from catalog). Sell price is editable. Cost shown read-only for margin visibility (<code>viewWageDetails</code> gated). Blank lines require manual entry of all fields.</p>
     </div>
 
     <!-- 4. Equipment Item Editor -->
@@ -430,7 +432,7 @@ interface IBlankEquipmentRow {
             <thead><tr><th>Action</th><th>File</th><th>Notes</th></tr></thead>
             <tbody>
                 <tr><td><span class="action-new">NEW</span></td><td><code>apps/frontend/src/components/WorkOrder/LaborItemEditor.tsx</code></td><td>Structured + blank labor lines, rate label columns from EmployeeAgreement, qty of workers</td></tr>
-                <tr><td><span class="action-new">NEW</span></td><td><code>apps/frontend/src/components/WorkOrder/MaterialItemEditor.tsx</code></td><td>Structured (catalog) + blank material lines, manual pricing, auto-calculated totals</td></tr>
+                <tr><td><span class="action-new">NEW</span></td><td><code>apps/frontend/src/components/WorkOrder/MaterialItemEditor.tsx</code></td><td>Structured (catalog + LEM-3 sell price auto-populate) + blank material lines, auto-calculated totals</td></tr>
                 <tr><td><span class="action-new">NEW</span></td><td><code>apps/frontend/src/components/WorkOrder/EquipmentItemEditor.tsx</code></td><td>Structured (equipment catalog + rate labels) + blank equipment lines</td></tr>
                 <tr><td><span class="action-mod">MOD</span></td><td>Job DataModelForm page (from PR #6831)</td><td>Replace placeholder <code>&lt;p&gt;</code> tags in <code>customFormControl</code> with real editor components</td></tr>
             </tbody>

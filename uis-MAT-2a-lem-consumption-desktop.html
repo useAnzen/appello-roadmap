@@ -500,13 +500,15 @@ SELECT
   SUM(laborCost)      AS laborCost,
   SUM(equipmentHours) AS equipmentHours,
   SUM(equipmentCost)  AS equipmentCost,
-  SUM(materialQty)    AS materialQty,
-  SUM(materialCost)   AS materialCost,
-  SUM(laborCost) + SUM(equipmentCost) + SUM(materialCost) AS dailyTotal
+  SUM(materialQty)           AS materialQty,
+  SUM(materialCost)          AS materialCost,
+  SUM(materialBillableValue) AS materialBillableValue,
+  SUM(laborCost) + SUM(equipmentCost) + SUM(materialCost) AS dailyCostTotal,
+  SUM(laborBillable) + SUM(equipmentBillable) + SUM(materialBillableValue) AS dailyBillableTotal
 FROM (
-  -- Labor CTE from timesheets
-  -- Equipment CTE from equipment logs
-  -- Material CTE from MaterialConsumptionEntry + Material.unitCost
+  -- Labor CTE from timesheets + TradeLevelRate.billableValue (LEM-1)
+  -- Equipment CTE from equipment logs + equipment billable rates (LEM-2)
+  -- Material CTE from MaterialConsumptionEntry + resolveMaterialSellPrice (LEM-3)
 ) combined
 GROUP BY jobId, dateOfWork
 ORDER BY dateOfWork DESC;</pre>
@@ -549,7 +551,9 @@ type LEMReportRow {
   equipmentCost: Float!
   materialQty: Float!
   materialCost: Float!
-  dailyTotal: Float!
+  materialBillableValue: Float!
+  dailyCostTotal: Float!
+  dailyBillableTotal: Float!
 }</pre>
 
             <h3>Input Types</h3>
@@ -696,8 +700,9 @@ input LEMReportFilterInput {
                 <li><div class="criteria-check"></div>Draft entries can be edited or deleted by the submitter; Submitted entries can only be edited by approvers</li>
                 <li><div class="criteria-check"></div>The status workflow supports Draft &rarr; Submitted &rarr; Approved transitions; no backward transitions from Approved</li>
                 <li><div class="criteria-check"></div>The bulk <code>approveMaterialConsumptionEntries</code> mutation transitions multiple entries to Approved in one call</li>
-                <li><div class="criteria-check"></div>No <code>unitCost</code> or <code>total</code> fields are stored on <code>MaterialConsumptionEntry</code> &mdash; costs are computed downstream</li>
-                <li><div class="criteria-check"></div>The LEM Report tab displays a combined daily view joining labor (timesheets), equipment (equipment logs), and material consumption</li>
+                <li><div class="criteria-check"></div>No <code>unitCost</code> or <code>total</code> fields are stored on <code>MaterialConsumptionEntry</code> &mdash; costs and billable values are computed downstream</li>
+                <li><div class="criteria-check"></div>The LEM Report tab displays a combined daily view joining labor (timesheets), equipment (equipment logs), and material consumption with both cost and billable values</li>
+                <li><div class="criteria-check"></div>The LEM Report shows <code>materialBillableValue</code> (from LEM-3 cascade) alongside <code>materialCost</code> for materials, matching the cost vs. billable pattern used for labor and equipment</li>
                 <li><div class="criteria-check"></div>The LEM Report supports date range filtering and shows a summary totals row</li>
                 <li><div class="criteria-check"></div>The LEM Report can be exported as a formatted PDF with job header, daily breakdown, and signature line</li>
                 <li><div class="criteria-check"></div>Material consumption costs appear in the Job Financial Summary, computed from Material catalog price or DistributorPrice at query time</li>
@@ -717,6 +722,7 @@ input LEMReportFilterInput {
             <p>
                 <a class="dep-tag dep-requires" href="uis-LEM-1-labor-billable-rates.html">LEM-1: Labor Billable Rates (1.33)</a>
                 <a class="dep-tag dep-requires" href="uis-LEM-2-equipment-billable-rates.html">LEM-2: Equipment Billable Rates (1.33)</a>
+                <a class="dep-tag dep-requires" href="uis-LEM-3-material-billable-rates.html">LEM-3: Material Billable Rates (1.33)</a>
             </p>
 
             <h3>Enables</h3>

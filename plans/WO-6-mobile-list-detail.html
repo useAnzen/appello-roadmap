@@ -1,750 +1,631 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>WO-6: Mobile WO List & Detail — Implementation Plan</title>
-    <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
-      rel="stylesheet"
-    />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
-      * {
-        margin: 0;
-        padding: 0;
-        box-sizing: border-box;
-      }
-      body {
-        font-family:
-          "Inter",
-          -apple-system,
-          sans-serif;
-        background: #f8fafc;
-        color: #0f172a;
-      }
-      .plan-wrap {
-        max-width: 880px;
-        margin: 0 auto;
-        padding: 40px 24px 80px;
-      }
-      h1 {
-        font-size: 24px;
-        font-weight: 800;
-        margin: 0 0 16px;
-      }
-      h2 {
-        font-size: 18px;
-        font-weight: 700;
-        margin: 28px 0 12px;
-        padding-bottom: 8px;
-        border-bottom: 2px solid #e2e8f0;
-      }
-      h3 {
-        font-size: 15px;
-        font-weight: 700;
-        margin: 20px 0 8px;
-        padding-top: 10px;
-        border-top: 1px solid #f1f5f9;
-      }
-      h4 {
-        font-size: 14px;
-        font-weight: 700;
-        margin: 14px 0 6px;
-      }
-      p {
-        font-size: 14px;
-        color: #334155;
-        line-height: 1.7;
-        margin: 6px 0;
-      }
-      ul,
-      ol {
-        padding-left: 20px;
-        margin: 8px 0;
-      }
-      li {
-        font-size: 14px;
-        color: #334155;
-        line-height: 1.7;
-        margin: 3px 0;
-      }
-      strong {
-        color: #0f172a;
-      }
-      code {
-        font-family: "SF Mono", monospace;
-        background: #f1f5f9;
-        padding: 1px 6px;
-        border-radius: 4px;
-        font-size: 12px;
-        color: #7c3aed;
-      }
-      pre {
-        background: #0f172a;
-        color: #f8fafc;
-        border-radius: 8px;
-        padding: 16px;
-        overflow-x: auto;
-        font-size: 13px;
-        line-height: 1.6;
-        margin: 12px 0;
-        font-family: "SF Mono", monospace;
-      }
-      pre code {
-        background: none;
-        padding: 0;
-        color: inherit;
-        font-size: inherit;
-      }
-      hr {
-        border: none;
-        border-top: 1px solid #e2e8f0;
-        margin: 24px 0;
-      }
-      table {
-        width: 100%;
-        border-collapse: collapse;
-        font-size: 13px;
-        margin: 12px 0;
-      }
-      th {
-        text-align: left;
-        padding: 8px 12px;
-        background: #f1f5f9;
-        border-bottom: 2px solid #e2e8f0;
-        font-weight: 600;
-      }
-      td {
-        padding: 8px 12px;
-        border-bottom: 1px solid #f1f5f9;
-        vertical-align: top;
-      }
-      .check-item {
-        display: flex;
-        gap: 8px;
-        align-items: flex-start;
-        padding: 5px 0;
-      }
-      .check-box {
-        width: 16px;
-        height: 16px;
-        border: 2px solid #cbd5e1;
-        border-radius: 3px;
-        flex-shrink: 0;
-        margin-top: 2px;
-      }
-      .callout {
-        background: #eff6ff;
-        border: 1px solid #bfdbfe;
-        border-radius: 8px;
-        padding: 14px 18px;
-        margin: 14px 0;
-        font-size: 13px;
-        color: #1e40af;
-      }
-      .callout strong {
-        color: #1e3a8a;
-      }
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Inter', -apple-system, sans-serif; background: #f8fafc; color: #0f172a; }
+.plan-wrap { max-width: 880px; margin: 0 auto; padding: 40px 24px 80px; }
+h1 { font-size: 24px; font-weight: 800; margin: 0 0 16px; }
+h2 { font-size: 18px; font-weight: 700; margin: 28px 0 12px; padding-bottom: 8px; border-bottom: 2px solid #e2e8f0; }
+h3 { font-size: 15px; font-weight: 700; margin: 20px 0 8px; padding-top: 10px; border-top: 1px solid #f1f5f9; }
+h4 { font-size: 14px; font-weight: 700; margin: 14px 0 6px; }
+p { font-size: 14px; color: #334155; line-height: 1.7; margin: 6px 0; }
+ul, ol { padding-left: 20px; margin: 8px 0; }
+li { font-size: 14px; color: #334155; line-height: 1.7; margin: 3px 0; }
+strong { color: #0f172a; }
+code { font-family: 'SF Mono', monospace; background: #f1f5f9; padding: 1px 6px; border-radius: 4px; font-size: 12px; color: #7c3aed; }
+pre { background: #0f172a; color: #f8fafc; border-radius: 8px; padding: 16px; overflow-x: auto; font-size: 13px; line-height: 1.6; margin: 12px 0; font-family: 'SF Mono', monospace; }
+pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
+hr { border: none; border-top: 1px solid #e2e8f0; margin: 24px 0; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 12px 0; }
+th { text-align: left; padding: 8px 12px; background: #f1f5f9; border-bottom: 2px solid #e2e8f0; font-weight: 600; }
+td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
+.check-item { display: flex; gap: 8px; align-items: flex-start; padding: 5px 0; }
+.check-box { width: 16px; height: 16px; border: 2px solid #cbd5e1; border-radius: 3px; flex-shrink: 0; margin-top: 2px; }
+.callout { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 14px 18px; margin: 14px 0; font-size: 13px; color: #1e40af; }
+.callout strong { color: #1e3a8a; }
     </style>
-  </head>
-  <body>
-    <div class="plan-wrap" id="rendered"></div>
-
-    <script type="text/plain" id="plan-md">
-      # WO-6: Mobile WO List & Detail — Implementation Plan
-
-      ## Overview
-
-      Add Work Order list and detail pages to the mobile app using existing `TableDataList` and `DetailOverview` + `TabGroup` components. Mirrors the RFI list page pattern and the Job detail tab pattern. This is the mobile entry point for viewing, creating, and editing work orders.
-
-      **Estimated effort:** 1-2 days
-      **Risk:** Low — wiring existing components into a new route with WO-specific configuration
-      **Spec:** `tm-work-orders-uis/uis-20h-0-mobile-list-detail.html`
-      **Requires:** WO-1 (JobClassification + sidebar), WO-3d (TableFeed configureColumns for WorkOrder)
-
-      ---
-
-      ## Step 1: WO List Page
-
-      **Create file:** `apps/mobile/src/pages/job-sites/[id]/work-orders/index.tsx`
-
-      Follows the exact pattern of `apps/mobile/src/pages/admin/rfis/index.tsx`.
-
-      ```typescript
-      import type { NextPage } from "next";
-      import { WOListCard } from "~root/components/WorkOrders/WOListCard";
-      import type { IWOTableData } from "~root/components/WorkOrders/WOListCard";
-      import TableDataList from "~root/displays/TableDataList";
-      import { useFlyout, FlyoutVersionEnum } from "@useanzen/ui";
-      import { hasPermissions, PermissionItemsEnum, PermissionActionsEnum } from "@useanzen/shared-utils";
-      import { useAuth } from "~root/context";
-      import { DataModelForm } from "~root/components/Forms/DataModelForm/DataModelForm";
-
-      const WorkOrders: NextPage = () => {
-          const { openFlyout, closeFlyout } = useFlyout();
-          const { permissions } = useAuth();
-
-          const canCreate = hasPermissions(
-              {
-                  [PermissionItemsEnum.Job]: {
-                      [PermissionActionsEnum.Create]: true
-                  }
-              },
-              permissions
-          );
-
-          return (
-              <TableDataList<IWOTableData>
-                  columns={[
-                      "id",
-                      "full-job-number",
-                      "name",
-                      "job-status-id",
-                      "date-of-work",
-                      "project-id"
-                  ]}
-                  orderBy={{ column: "createdAt", direction: "DESC" }}
-                  modelName="Job"
-                  defaultWhere={{ subModel: "WorkOrder" }}
-                  filterableColumns={["job-status-id", "project-id"]}
-                  displayCard={(record) => {
-                      return <WOListCard key={record.id} record={record} />;
-                  }}
-                  onCreateClick={
-                      canCreate
-                          ? () => {
-                                openFlyout(
-                                    <DataModelForm
-                                        formType="CREATE"
-                                        referenceModel="Job"
-                                        subModel="WorkOrder"
-                                        onSaved={() => closeFlyout()}
-                                        steppedForm
-                                    />,
-                                    {
-                                        version: FlyoutVersionEnum.VERTICAL,
-                                        size: "xxl",
-                                        title: <h2>New Work Order</h2>
-                                    }
-                                );
-                            }
-                          : undefined
-                  }
-                  createLabel="New Work Order"
-              />
-          );
-      };
-
-      export default WorkOrders;
-      ```
-
-      ### Key decisions
-
-      - `modelName="Job"` — Work Orders are Job records, filtered by subModel
-      - `defaultWhere={{ subModel: "WorkOrder" }}` — TableFeed uses the subModel filter set up in WO-3d's configureColumns
-      - `columns` use slug-case keys per the TableFeed convention
-      - Permission check uses `Job` permissions (Work Orders are Jobs)
-      - Create button opens `DataModelForm` with `steppedForm` (from WO-8a) — until WO-8a is done, can omit `steppedForm` and it renders the standard form
-
-      ---
-
-      ## Step 2: WOListCard Component
-
-      **Create file:** `apps/mobile/src/components/WorkOrders/WOListCard.tsx`
-
-      ```typescript
-      import { FC } from "react";
-      import { useRouter } from "next/router";
-      import { ClassNames } from "@useanzen/shared-utils";
-
-      export interface IWOTableData {
-          id: string;
-          "full-job-number": string;
-          name: string;
-          "job-status-id": { label: string };
-          "date-of-work": string;
-          "project-id": { label: string } | null;
-      }
-
-      interface IWOListCardProps {
-          className?: string;
-          record: IWOTableData;
-      }
-
-      const WOListCard: FC<IWOListCardProps> = ({ className = "", record }) => {
-          const router = useRouter();
-
-          return (
-              <div
-                  className={new ClassNames("border rounded-lg p-3.5 mb-2 cursor-pointer")
-                      .add(className)
-                      .list()}
-                  onClick={() => router.push(`/job-sites/[id]/work-orders/${record.id}`)}
-              >
-                  <div className="flex justify-between items-start mb-1">
-                      <span className="text-sm font-semibold">
-                          {record["full-job-number"]}
-                      </span>
-                      <span className="text-xs font-bold px-2 py-0.5 rounded bg-info-light text-on-info-light">
-                          {record["job-status-id"]?.label}
-                      </span>
-                  </div>
-                  <p className="text-sm text-gray-700 mb-1 line-clamp-1">
-                      {record.name}
-                  </p>
-                  <p className="text-xs text-gray-500">
-                      {record["project-id"]?.label ?? "No Project"}
-                      {record["date-of-work"] && ` \u2022 ${record["date-of-work"]}`}
-                  </p>
-              </div>
-          );
-      };
-
-      export { WOListCard };
-      ```
-
-      The card navigates to `/job-sites/[id]/work-orders/[id]` on tap. Status badge uses semantic color classes per the CLAUDE.md guidelines.
-
-      ---
-
-      ## Step 3: WO Detail Page (Route)
-
-      **Create file:** `apps/mobile/src/pages/job-sites/[id]/work-orders/[id]/index.tsx`
-
-      Follows the pattern of `apps/mobile/src/pages/admin/rfis/[id]/index.tsx`.
-
-      ```typescript
-      import { NextPage } from "next";
-      import { WODetail } from "~root/components/WorkOrders/WODetail";
-      import { useAuth } from "~root/context";
-
-      const WorkOrderDetailPage: NextPage = () => {
-          const { user } = useAuth();
-          if (!user) {
-              return <div>You are not authorized to view this page</div>;
-          }
-          return <WODetail />;
-      };
-
-      export default WorkOrderDetailPage;
-      ```
-
-      ---
-
-      ## Step 4: WODetail Component
-
-      **Create file:** `apps/mobile/src/components/WorkOrders/WODetail.tsx`
-
-      This is the main detail component with tabs. Follows the `SimplifiedJobTasks` pattern (Job detail) for tab structure, and the `RFIDetail` pattern for header + `DetailOverview` usage.
-
-      ```typescript
-      import { FC } from "react";
-      import { useRouter } from "next/router";
-      import { useQuery, gql } from "@apollo/client";
-      import {
-          Breadcrumbs,
-          useFlyout,
-          FlyoutVersionEnum,
-          TabGroup
-      } from "@useanzen/ui";
-      import { ClassNames, hasPermissions, PermissionItemsEnum, PermissionActionsEnum } from "@useanzen/shared-utils";
-      import { PageHeader, Loader } from "~root/components";
-      import { TableDataName } from "~root/graphql/generated";
-      import { useAuth } from "~root/context";
-      import { DetailOverview } from "../DetailOverview";
-      import { JobNotes } from "../JobViews/JobNotes";
-      import { JobFiles } from "../JobViews/JobFiles";
-      import { FilesProvider } from "~root/context";
-      import { DataModelForm } from "../Forms/DataModelForm/DataModelForm";
-      import { LaborItemsDisplay } from "./LaborItemsDisplay";
-      import { MaterialItemsDisplay } from "./MaterialItemsDisplay";
-      import { EquipmentItemsDisplay } from "./EquipmentItemsDisplay";
-      import { SignaturesDisplay } from "./SignaturesDisplay";
-
-      interface IWOHeaderRecord {
-          fullJobNumber: string;
-          name: string;
-          jobStatus?: { label: string };
-      }
-
-      const activeTabClass = (isActive: boolean) =>
-          new ClassNames("text-sm font-semibold px-4 py-2")
-              .if(isActive, "bg-primary text-white rounded-lg", "text-gray-500")
-              .list();
-
-      const WODetail: FC = () => {
-          const router = useRouter();
-          const jobId = router.query.id as string;
-          const { openFlyout, closeFlyout } = useFlyout();
-          const { permissions } = useAuth();
-
-          const canEdit = hasPermissions(
-              { [PermissionItemsEnum.Job]: { [PermissionActionsEnum.Edit]: true } },
-              permissions
-          );
-
-          const { data, loading, error } = useQuery(GET_WO_HEADER, {
-              variables: { modelName: TableDataName.Job, recordId: jobId },
-              skip: !jobId,
-              fetchPolicy: "no-cache"
-          });
-
-          if (loading) return <Loader />;
-
-          if (error || !data?.dataModel?.record) {
-              return (
-                  <div className="flex flex-col flex-grow h-full">
-                      <PageHeader size="xs">
-                          <div className="text-sm">Work Order Not Found</div>
-                      </PageHeader>
-                      <div className="px-4 py-2">
-                          <Breadcrumbs
-                              backClickFunction={() => router.back()}
-                              breadcrumbs={[]}
-                              onlyBackButton
-                          />
-                      </div>
-                  </div>
-              );
-          }
-
-          const wo: IWOHeaderRecord = data.dataModel.record;
-
-          const handleEdit = () => {
-              openFlyout(
-                  <DataModelForm
-                      formType="EDIT"
-                      referenceModel="Job"
-                      subModel="WorkOrder"
-                      recordId={jobId}
-                      onSaved={() => closeFlyout()}
-                  />,
-                  {
-                      version: FlyoutVersionEnum.VERTICAL,
-                      size: "xxl",
-                      title: <h2>Edit {wo.fullJobNumber}</h2>
-                  }
-              );
-          };
-
-          const tabs = [
-              {
-                  id: "wo-overview",
-                  label: "Overview",
-                  headerClassName: activeTabClass,
-                  permission: true,
-                  content: (
-                      <DetailOverview
-                          modelName={TableDataName.Job}
-                          recordId={jobId}
-                          viewSectionType="Details"
-                          onEdit={canEdit ? handleEdit : undefined}
-                          customColumnRender={{
-                              "wo-labor-items": () => <LaborItemsDisplay jobId={jobId} />,
-                              "wo-material-items": () => <MaterialItemsDisplay jobId={jobId} />,
-                              "wo-equipment-items": () => <EquipmentItemsDisplay jobId={jobId} />,
-                              "wo-signatures": () => <SignaturesDisplay jobId={jobId} />
-                          }}
-                      />
-                  )
-              },
-              {
-                  id: "wo-notes",
-                  label: "Notes",
-                  headerClassName: activeTabClass,
-                  permission: hasPermissions(
-                      { [PermissionItemsEnum.Note]: { [PermissionActionsEnum.View]: true } },
-                      permissions
-                  ),
-                  content: <JobNotes jobId={jobId} />
-              },
-              {
-                  id: "wo-files",
-                  label: "Files",
-                  headerClassName: activeTabClass,
-                  permission: true,
-                  content: (
-                      <FilesProvider referenceModel="Job" referenceId={jobId}>
-                          <JobFiles jobId={jobId} />
-                      </FilesProvider>
-                  )
-              }
-          ];
-
-          return (
-              <div className="flex flex-col flex-grow h-full">
-                  <PageHeader size="xs">
-                      <div className="flex items-center justify-between w-full">
-                          <div className="text-sm">
-                              <p className="font-semibold">{wo.fullJobNumber}</p>
-                              <p className="line-clamp-1">{wo.name}</p>
-                          </div>
-                          {canEdit && (
-                              <button
-                                  className="text-sm text-primary font-semibold"
-                                  onClick={handleEdit}
-                              >
-                                  Edit
-                              </button>
-                          )}
-                      </div>
-                  </PageHeader>
-                  <div className="px-4 py-2">
-                      <Breadcrumbs
-                          backClickFunction={() => router.back()}
-                          breadcrumbs={[]}
-                          onlyBackButton
-                      />
-                  </div>
-                  <TabGroup
-                      tabs={tabs.filter((t) => t.permission)}
-                      tabListClasses="sticky top-8 z-50"
-                  />
-              </div>
-          );
-      };
-
-      export { WODetail };
-      ```
-
-      ### Key decisions
-
-      - `DetailOverview` with `modelName: Job` and `viewSectionType: "Details"` renders the WO DAA fields in sectioned layout — same as the desktop WO-4 detail page
-      - `JobNotes` and `JobFiles` are reused directly — Notes and Files are polymorphic on Job, so they work for Work Orders without modification
-      - Edit opens DataModelForm in standard (non-stepped) mode — editing an existing WO doesn't need the wizard, just the normal form
-      - Tabs filter by permission at render time
-
-      ---
-
-      ## Step 5: Custom Display Components
-
-      The four `customColumnRender` entries handle the complex relationship fields that `DetailOverview` can't render automatically. These are the same components the desktop WO-4 detail page uses — placed in the mobile WorkOrders directory but built to be portable (no desktop/mobile-specific dependencies).
-
-      ### 5a. LaborItemsDisplay
-
-      **Create file:** `apps/mobile/src/components/WorkOrders/LaborItemsDisplay.tsx`
-
-      Queries `workOrderLaborItems(jobId)` and renders a read-only list of labor line items.
-
-      ```typescript
-      interface ILaborItemsDisplayProps {
-          className?: string;
-          jobId: string;
-      }
-      ```
-
-      - **Structured rows** (tradeLevelRateId is set): Show trade level name, qty of workers, submitted hours
-      - **Blank rows** (tradeLevelRateId is null): Show description (italic), qty of workers, submitted hours
-      - Rate/cost columns: Only visible with `viewWageDetails` permission — check `hasPermissions({ user: { viewWageDetails: true } }, permissions)`
-      - Subtotal row at bottom: total hours across all items
-
-      ```graphql
-      query GetWOLaborItems($jobId: ID!) {
-          workOrderLaborItems(where: { jobId: $jobId, isDeleted: false }, orderBy: { orderNo: "asc" }) {
-              id
-              tradeLevelRateId
-              TradeLevelRate { id name billableValue }
-              description
-              qtyOfWorkers
-              submittedDuration
-              rate
-              orderNo
-          }
-      }
-      ```
-
-      ### 5b. MaterialItemsDisplay
-
-      **Create file:** `apps/mobile/src/components/WorkOrders/MaterialItemsDisplay.tsx`
-
-      Queries `workOrderMaterialItems(jobId)` and renders a read-only list.
-
-      ```typescript
-      interface IMaterialItemsDisplayProps {
-          className?: string;
-          jobId: string;
-      }
-      ```
-
-      - **Structured rows** (materialId is set): Show material name from relation, qty, unit cost
-      - **Blank rows** (materialId is null): Show description (italic), qty, unit cost
-      - Subtotal row: total dollar amount
-
-      ```graphql
-      query GetWOMaterialItems($jobId: ID!) {
-          workOrderMaterialItems(where: { jobId: $jobId, isDeleted: false }, orderBy: { orderNo: "asc" }) {
-              id
-              materialId
-              Material { id name unitCost }
-              description
-              quantity
-              unitCost
-              orderNo
-          }
-      }
-      ```
-
-      ### 5c. EquipmentItemsDisplay
-
-      **Create file:** `apps/mobile/src/components/WorkOrders/EquipmentItemsDisplay.tsx`
-
-      Queries `workOrderEquipmentItems(jobId)` and renders a read-only list.
-
-      ```typescript
-      interface IEquipmentItemsDisplayProps {
-          className?: string;
-          jobId: string;
-      }
-      ```
-
-      - **Structured rows** (equipmentId is set): Show equipment name, rate type, duration/qty
-      - **Blank rows** (equipmentId is null): Show description (italic), qty, per, unit rate
-      - Rate/cost info gated by `viewWageDetails` permission
-      - Subtotal grouped by unit type (e.g., "8.0 hrs + 2 days")
-
-      ```graphql
-      query GetWOEquipmentItems($jobId: ID!) {
-          workOrderEquipmentItems(where: { jobId: $jobId, isDeleted: false }, orderBy: { orderNo: "asc" }) {
-              id
-              equipmentId
-              Equipment { id name }
+</head>
+<body>
+<div class="plan-wrap" id="rendered"></div>
+
+<script type="text/plain" id="plan-md">
+# WO-6: Mobile WO List & Detail — Implementation Plan
+
+## Overview
+
+Add Work Order list and detail pages to the mobile app using existing `TableDataList` and `DetailOverview` + `TabGroup` components. Mirrors the RFI list page pattern and the Job detail tab pattern. This is the mobile entry point for viewing, creating, and editing work orders.
+
+**Estimated effort:** 1-2 days
+**Risk:** Low — wiring existing components into a new route with WO-specific configuration
+**Spec:** `tm-work-orders-uis/uis-20h-0-mobile-list-detail.html`
+**Requires:** WO-1 (JobClassification + sidebar), WO-3d (TableFeed configureColumns for WORK_ORDER)
+
+---
+
+## Step 1: WO List Page
+
+**Create file:** `apps/mobile/src/pages/job-sites/[id]/work-orders/index.tsx`
+
+Follows the exact pattern of `apps/mobile/src/pages/admin/rfis/index.tsx`.
+
+```typescript
+import type { NextPage } from "next";
+import { WOListCard } from "~root/components/WorkOrders/WOListCard";
+import type { IWOTableData } from "~root/components/WorkOrders/WOListCard";
+import TableDataList from "~root/displays/TableDataList";
+import { useFlyout, FlyoutVersionEnum } from "@useanzen/ui";
+import { hasPermissions, PermissionItemsEnum, PermissionActionsEnum } from "@useanzen/shared-utils";
+import { useAuth } from "~root/context";
+import { DataModelForm } from "~root/components/Forms/DataModelForm/DataModelForm";
+
+const WorkOrders: NextPage = () => {
+    const { openFlyout, closeFlyout } = useFlyout();
+    const { permissions } = useAuth();
+
+    const canCreate = hasPermissions(
+        {
+            [PermissionItemsEnum.Job]: {
+                [PermissionActionsEnum.Create]: true
+            }
+        },
+        permissions
+    );
+
+    return (
+        <TableDataList<IWOTableData>
+            columns={[
+                "id",
+                "full-job-number",
+                "name",
+                "job-status-id",
+                "date-of-work",
+                "project-id"
+            ]}
+            orderBy={{ column: "createdAt", direction: "DESC" }}
+            modelName="Job"
+            defaultWhere={{ subModel: "WORK_ORDER" }}
+            filterableColumns={["job-status-id", "project-id"]}
+            displayCard={(record) => {
+                return <WOListCard key={record.id} record={record} />;
+            }}
+            onCreateClick={
+                canCreate
+                    ? () => {
+                          openFlyout(
+                              <DataModelForm
+                                  formType="CREATE"
+                                  referenceModel="Job"
+                                  subModel="WORK_ORDER"
+                                  onSaved={() => closeFlyout()}
+                                  steppedForm
+                              />,
+                              {
+                                  version: FlyoutVersionEnum.VERTICAL,
+                                  size: "xxl",
+                                  title: <h2>New Work Order</h2>
+                              }
+                          );
+                      }
+                    : undefined
+            }
+            createLabel="New Work Order"
+        />
+    );
+};
+
+export default WorkOrders;
+```
+
+### Key decisions
+
+- `modelName="Job"` — Work Orders are Job records, filtered by subModel
+- `defaultWhere={{ subModel: "WORK_ORDER" }}` — TableFeed uses the subModel filter set up in WO-3d's configureColumns
+- `columns` use slug-case keys per the TableFeed convention
+- Permission check uses `Job` permissions (Work Orders are Jobs)
+- Create button opens `DataModelForm` with `steppedForm` (from WO-8a) — until WO-8a is done, can omit `steppedForm` and it renders the standard form
+
+---
+
+## Step 2: WOListCard Component
+
+**Create file:** `apps/mobile/src/components/WorkOrders/WOListCard.tsx`
+
+```typescript
+import { FC } from "react";
+import { useRouter } from "next/router";
+import { ClassNames } from "@useanzen/shared-utils";
+
+export interface IWOTableData {
+    id: string;
+    "full-job-number": string;
+    name: string;
+    "job-status-id": { label: string };
+    "date-of-work": string;
+    "project-id": { label: string } | null;
+}
+
+interface IWOListCardProps {
+    className?: string;
+    record: IWOTableData;
+}
+
+const WOListCard: FC<IWOListCardProps> = ({ className = "", record }) => {
+    const router = useRouter();
+
+    return (
+        <div
+            className={new ClassNames("border rounded-lg p-3.5 mb-2 cursor-pointer")
+                .add(className)
+                .list()}
+            onClick={() => router.push(`/job-sites/[id]/work-orders/${record.id}`)}
+        >
+            <div className="flex justify-between items-start mb-1">
+                <span className="text-sm font-semibold">
+                    {record["full-job-number"]}
+                </span>
+                <span className="text-xs font-bold px-2 py-0.5 rounded bg-info-light text-on-info-light">
+                    {record["job-status-id"]?.label}
+                </span>
+            </div>
+            <p className="text-sm text-gray-700 mb-1 line-clamp-1">
+                {record.name}
+            </p>
+            <p className="text-xs text-gray-500">
+                {record["project-id"]?.label ?? "No Project"}
+                {record["date-of-work"] && ` \u2022 ${record["date-of-work"]}`}
+            </p>
+        </div>
+    );
+};
+
+export { WOListCard };
+```
+
+The card navigates to `/job-sites/[id]/work-orders/[id]` on tap. Status badge uses semantic color classes per the CLAUDE.md guidelines.
+
+---
+
+## Step 3: WO Detail Page (Route)
+
+**Create file:** `apps/mobile/src/pages/job-sites/[id]/work-orders/[id]/index.tsx`
+
+Follows the pattern of `apps/mobile/src/pages/admin/rfis/[id]/index.tsx`.
+
+```typescript
+import { NextPage } from "next";
+import { WODetail } from "~root/components/WorkOrders/WODetail";
+import { useAuth } from "~root/context";
+
+const WorkOrderDetailPage: NextPage = () => {
+    const { user } = useAuth();
+    if (!user) {
+        return <div>You are not authorized to view this page</div>;
+    }
+    return <WODetail />;
+};
+
+export default WorkOrderDetailPage;
+```
+
+---
+
+## Step 4: WODetail Component
+
+**Create file:** `apps/mobile/src/components/WorkOrders/WODetail.tsx`
+
+This is the main detail component with tabs. Follows the `SimplifiedJobTasks` pattern (Job detail) for tab structure, and the `RFIDetail` pattern for header + `DetailOverview` usage.
+
+```typescript
+import { FC } from "react";
+import { useRouter } from "next/router";
+import { useQuery, gql } from "@apollo/client";
+import {
+    Breadcrumbs,
+    useFlyout,
+    FlyoutVersionEnum,
+    TabGroup
+} from "@useanzen/ui";
+import { ClassNames, hasPermissions, PermissionItemsEnum, PermissionActionsEnum } from "@useanzen/shared-utils";
+import { PageHeader, Loader } from "~root/components";
+import { TableDataName } from "~root/graphql/generated";
+import { useAuth } from "~root/context";
+import { DetailOverview } from "../DetailOverview";
+import { JobNotes } from "../JobViews/JobNotes";
+import { JobFiles } from "../JobViews/JobFiles";
+import { FilesProvider } from "~root/context";
+import { DataModelForm } from "../Forms/DataModelForm/DataModelForm";
+import { LaborItemsDisplay } from "./LaborItemsDisplay";
+import { MaterialItemsDisplay } from "./MaterialItemsDisplay";
+import { EquipmentItemsDisplay } from "./EquipmentItemsDisplay";
+import { SignaturesDisplay } from "./SignaturesDisplay";
+
+interface IWOHeaderRecord {
+    fullJobNumber: string;
+    name: string;
+    jobStatus?: { label: string };
+}
+
+const activeTabClass = (isActive: boolean) =>
+    new ClassNames("text-sm font-semibold px-4 py-2")
+        .if(isActive, "bg-primary text-white rounded-lg", "text-gray-500")
+        .list();
+
+const WODetail: FC = () => {
+    const router = useRouter();
+    const jobId = router.query.id as string;
+    const { openFlyout, closeFlyout } = useFlyout();
+    const { permissions } = useAuth();
+
+    const canEdit = hasPermissions(
+        { [PermissionItemsEnum.Job]: { [PermissionActionsEnum.Edit]: true } },
+        permissions
+    );
+
+    const { data, loading, error } = useQuery(GET_WO_HEADER, {
+        variables: { modelName: TableDataName.Job, recordId: jobId },
+        skip: !jobId,
+        fetchPolicy: "no-cache"
+    });
+
+    if (loading) return <Loader />;
+
+    if (error || !data?.dataModel?.record) {
+        return (
+            <div className="flex flex-col flex-grow h-full">
+                <PageHeader size="xs">
+                    <div className="text-sm">Work Order Not Found</div>
+                </PageHeader>
+                <div className="px-4 py-2">
+                    <Breadcrumbs
+                        backClickFunction={() => router.back()}
+                        breadcrumbs={[]}
+                        onlyBackButton
+                    />
+                </div>
+            </div>
+        );
+    }
+
+    const wo: IWOHeaderRecord = data.dataModel.record;
+
+    const handleEdit = () => {
+        openFlyout(
+            <DataModelForm
+                formType="EDIT"
+                referenceModel="Job"
+                subModel="WORK_ORDER"
+                recordId={jobId}
+                onSaved={() => closeFlyout()}
+            />,
+            {
+                version: FlyoutVersionEnum.VERTICAL,
+                size: "xxl",
+                title: <h2>Edit {wo.fullJobNumber}</h2>
+            }
+        );
+    };
+
+    const tabs = [
+        {
+            id: "wo-overview",
+            label: "Overview",
+            headerClassName: activeTabClass,
+            permission: true,
+            content: (
+                <DetailOverview
+                    modelName={TableDataName.Job}
+                    recordId={jobId}
+                    viewSectionType="Details"
+                    onEdit={canEdit ? handleEdit : undefined}
+                    customColumnRender={{
+                        "wo-labor-items": () => <LaborItemsDisplay jobId={jobId} />,
+                        "wo-material-items": () => <MaterialItemsDisplay jobId={jobId} />,
+                        "wo-equipment-items": () => <EquipmentItemsDisplay jobId={jobId} />,
+                        "wo-signatures": () => <SignaturesDisplay jobId={jobId} />
+                    }}
+                />
+            )
+        },
+        {
+            id: "wo-notes",
+            label: "Notes",
+            headerClassName: activeTabClass,
+            permission: hasPermissions(
+                { [PermissionItemsEnum.Note]: { [PermissionActionsEnum.View]: true } },
+                permissions
+            ),
+            content: <JobNotes jobId={jobId} />
+        },
+        {
+            id: "wo-files",
+            label: "Files",
+            headerClassName: activeTabClass,
+            permission: true,
+            content: (
+                <FilesProvider referenceModel="Job" referenceId={jobId}>
+                    <JobFiles jobId={jobId} />
+                </FilesProvider>
+            )
+        }
+    ];
+
+    return (
+        <div className="flex flex-col flex-grow h-full">
+            <PageHeader size="xs">
+                <div className="flex items-center justify-between w-full">
+                    <div className="text-sm">
+                        <p className="font-semibold">{wo.fullJobNumber}</p>
+                        <p className="line-clamp-1">{wo.name}</p>
+                    </div>
+                    {canEdit && (
+                        <button
+                            className="text-sm text-primary font-semibold"
+                            onClick={handleEdit}
+                        >
+                            Edit
+                        </button>
+                    )}
+                </div>
+            </PageHeader>
+            <div className="px-4 py-2">
+                <Breadcrumbs
+                    backClickFunction={() => router.back()}
+                    breadcrumbs={[]}
+                    onlyBackButton
+                />
+            </div>
+            <TabGroup
+                tabs={tabs.filter((t) => t.permission)}
+                tabListClasses="sticky top-8 z-50"
+            />
+        </div>
+    );
+};
+
+export { WODetail };
+```
+
+### Key decisions
+
+- `DetailOverview` with `modelName: Job` and `viewSectionType: "Details"` renders the WO DAA fields in sectioned layout — same as the desktop WO-4 detail page
+- `JobNotes` and `JobFiles` are reused directly — Notes and Files are polymorphic on Job, so they work for Work Orders without modification
+- Edit opens DataModelForm in standard (non-stepped) mode — editing an existing WO doesn't need the wizard, just the normal form
+- Tabs filter by permission at render time
+
+---
+
+## Step 5: Custom Display Components
+
+The four `customColumnRender` entries handle the complex relationship fields that `DetailOverview` can't render automatically. These are the same components the desktop WO-4 detail page uses — placed in the mobile WorkOrders directory but built to be portable (no desktop/mobile-specific dependencies).
+
+### 5a. LaborItemsDisplay
+
+**Create file:** `apps/mobile/src/components/WorkOrders/LaborItemsDisplay.tsx`
+
+Queries `workOrderLaborItems(jobId)` and renders a read-only list of labor line items.
+
+```typescript
+interface ILaborItemsDisplayProps {
+    className?: string;
+    jobId: string;
+}
+```
+
+- **Structured rows** (tradeLevelRateId is set): Show trade level name, qty of workers, submitted hours
+- **Blank rows** (tradeLevelRateId is null): Show description (italic), qty of workers, submitted hours
+- Rate/cost columns: Only visible with `viewWageDetails` permission — check `hasPermissions({ user: { viewWageDetails: true } }, permissions)`
+- Subtotal row at bottom: total hours across all items
+
+```graphql
+query GetWOLaborItems($jobId: ID!) {
+    workOrderLaborItems(where: { jobId: $jobId, isDeleted: false }, orderBy: { orderNo: "asc" }) {
+        id
+        tradeLevelRateId
+        TradeLevelRate { id name billableValue }
+        description
+        qtyOfWorkers
+        submittedDuration
+        rate
+        orderNo
+    }
+}
+```
+
+### 5b. MaterialItemsDisplay
+
+**Create file:** `apps/mobile/src/components/WorkOrders/MaterialItemsDisplay.tsx`
+
+Queries `workOrderMaterialItems(jobId)` and renders a read-only list.
+
+```typescript
+interface IMaterialItemsDisplayProps {
+    className?: string;
+    jobId: string;
+}
+```
+
+      - **Structured rows** (materialId is set): Show material name from relation, qty, sell price (unitPrice)
+      - **Blank rows** (materialId is null): Show description (italic), qty, sell price (unitPrice)
+- Subtotal row: total dollar amount
+
+```graphql
+query GetWOMaterialItems($jobId: ID!) {
+    workOrderMaterialItems(where: { jobId: $jobId, isDeleted: false }, orderBy: { orderNo: "asc" }) {
+        id
+        materialId
+              Material { id name }
               description
               quantity
-              per
-              unitRate
-              orderNo
-          }
-      }
-      ```
+              unitPrice
+        orderNo
+    }
+}
+```
 
-      ### 5d. SignaturesDisplay
+### 5c. EquipmentItemsDisplay
 
-      **Create file:** `apps/mobile/src/components/WorkOrders/SignaturesDisplay.tsx`
+**Create file:** `apps/mobile/src/components/WorkOrders/EquipmentItemsDisplay.tsx`
 
-      Queries the Job's polymorphic Signatures and renders a grid of signature images.
+Queries `workOrderEquipmentItems(jobId)` and renders a read-only list.
 
-      ```typescript
-      interface ISignaturesDisplayProps {
-          className?: string;
-          jobId: string;
-      }
-      ```
+```typescript
+interface IEquipmentItemsDisplayProps {
+    className?: string;
+    jobId: string;
+}
+```
 
-      - Each signature: Image thumbnail (from Asset URL), signer name (from `User` relation or `signerName` for external), `signerCompany` if present, signed timestamp, GPS coordinates
-      - Empty state: "No signatures" message
+- **Structured rows** (equipmentId is set): Show equipment name, rate type, duration/qty
+- **Blank rows** (equipmentId is null): Show description (italic), qty, per, unit rate
+- Rate/cost info gated by `viewWageDetails` permission
+- Subtotal grouped by unit type (e.g., "8.0 hrs + 2 days")
 
-      Uses the `Signatures` field-level resolver on Job (set up in WO-3a):
+```graphql
+query GetWOEquipmentItems($jobId: ID!) {
+    workOrderEquipmentItems(where: { jobId: $jobId, isDeleted: false }, orderBy: { orderNo: "asc" }) {
+        id
+        equipmentId
+        Equipment { id name }
+        description
+        quantity
+        per
+        unitRate
+        orderNo
+    }
+}
+```
 
-      ```graphql
-      query GetWOSignatures($jobId: ID!) {
-          job(id: $jobId) {
-              Signatures {
-                  id
-                  Asset { url }
-                  userId
-                  User { firstName lastName }
-                  signerName
-                  signerCompany
-                  signedAt
-                  latitude
-                  longitude
-              }
-          }
-      }
-      ```
+### 5d. SignaturesDisplay
 
-      ---
+**Create file:** `apps/mobile/src/components/WorkOrders/SignaturesDisplay.tsx`
 
-      ## Step 6: GraphQL Query for WO Header
+Queries the Job's polymorphic Signatures and renders a grid of signature images.
 
-      **Add to:** `apps/mobile/src/components/WorkOrders/WODetail.tsx` (bottom of file per code style)
+```typescript
+interface ISignaturesDisplayProps {
+    className?: string;
+    jobId: string;
+}
+```
 
-      ```graphql
-      const GET_WO_HEADER = gql`
-          query GetWOHeader($modelName: TableDataName!, $recordId: ID!) {
-              dataModel(modelName: $modelName, options: { recordId: $recordId }) {
-                  record
-              }
-          }
-      `;
-      ```
+- Each signature: Image thumbnail (from Asset URL), signer name (from `User` relation or `signerName` for external), `signerCompany` if present, signed timestamp, GPS coordinates
+- Empty state: "No signatures" message
 
-      This uses the same generic `dataModel` query pattern as the RFI detail. The `record` field returns the full Job record, and we extract `fullJobNumber`, `name`, and `jobStatus` for the header.
+Uses the `Signatures` field-level resolver on Job (set up in WO-3a):
 
-      ---
+```graphql
+query GetWOSignatures($jobId: ID!) {
+    job(id: $jobId) {
+        Signatures {
+            id
+            Asset { url }
+            userId
+            User { firstName lastName }
+            signerName
+            signerCompany
+            signedAt
+            latitude
+            longitude
+        }
+    }
+}
+```
 
-      ## Step 7: Mobile Navigation Entry
+---
 
-      **Modify file:** `apps/mobile/src/components/SecondaryNavFlyout.tsx`
+## Step 6: GraphQL Query for WO Header
 
-      Add the Work Orders entry to the admin navigation section, positioned near the existing RFI entry:
+**Add to:** `apps/mobile/src/components/WorkOrders/WODetail.tsx` (bottom of file per code style)
 
-      ```typescript
-      {
-          icon: <IconDocumentText className={new ClassNames(navIconClasses).list()} />,
-          label: "Work Orders",
-          href: "/job-sites/[id]/work-orders",
-          permission: hasPermissions({ job: { view: true } }, permissions)
-      }
-      ```
+```graphql
+const GET_WO_HEADER = gql`
+    query GetWOHeader($modelName: TableDataName!, $recordId: ID!) {
+        dataModel(modelName: $modelName, options: { recordId: $recordId }) {
+            record
+        }
+    }
+`;
+```
 
-      Uses `job.view` permission since Work Orders are Job records. If a WO-specific permission is added in WO-1, use that instead.
+This uses the same generic `dataModel` query pattern as the RFI detail. The `record` field returns the full Job record, and we extract `fullJobNumber`, `name`, and `jobStatus` for the header.
 
-      ---
+---
 
-      ## Verification Checklist
+## Step 7: Mobile Navigation Entry
 
-      ### List page
-      - [ ] Route `/admin/work-orders` renders the WO list
-      - [ ] `TableDataList` fetches only WorkOrder-classified jobs via `defaultWhere`
-      - [ ] `WOListCard` shows WO number, name, status badge, date of work, project name
-      - [ ] Search filters by name and WO number
-      - [ ] Status and project facet filters work
-      - [ ] "+" / "New Work Order" button opens DataModelForm in flyout
-      - [ ] Create button hidden when user lacks `job.create` permission
-      - [ ] Tapping a card navigates to `/job-sites/[id]/work-orders/[id]`
-      - [ ] Infinite scroll pagination works
+**Modify file:** `apps/mobile/src/components/SecondaryNavFlyout.tsx`
 
-      ### Detail page
-      - [ ] Route `/job-sites/[id]/work-orders/[id]` renders the WO detail
-      - [ ] Header shows WO number and name
-      - [ ] Edit button opens DataModelForm for the existing WO
-      - [ ] Edit button hidden when user lacks `job.edit` permission
-      - [ ] Back button navigates to previous page
-      - [ ] Loading and error states handled
+Add the Work Orders entry to the admin navigation section, positioned near the existing RFI entry:
 
-      ### Tabs
-      - [ ] Overview tab renders `DetailOverview` with WO DAA fields in sectioned layout
-      - [ ] Notes tab renders `JobNotes` with note count
-      - [ ] Files tab renders `JobFiles` in `FilesProvider` with file count
-      - [ ] Tab state persists in URL query param
-      - [ ] Permission-gated tabs hidden when user lacks permission
+```typescript
+{
+    icon: <IconDocumentText className={new ClassNames(navIconClasses).list()} />,
+    label: "Work Orders",
+    href: "/job-sites/[id]/work-orders",
+    permission: hasPermissions({ job: { view: true } }, permissions)
+}
+```
 
-      ### Navigation
-      - [ ] "Work Orders" item appears in mobile secondary nav
-      - [ ] Hidden when user lacks `job.view` permission
-      - [ ] Links to `/job-sites/[id]/work-orders`
+Uses `job.view` permission since Work Orders are Job records. If a WO-specific permission is added in WO-1, use that instead.
 
-      ---
+---
 
-      ## Files Summary
+## Verification Checklist
 
-      | Action | File | What to do |
-      |--------|------|------------|
-      | CREATE | `apps/mobile/src/pages/admin/work-orders/index.tsx` | WO list page using `TableDataList` with `defaultWhere={{ subModel: "WorkOrder" }}` |
-      | CREATE | `apps/mobile/src/pages/admin/work-orders/[id]/index.tsx` | WO detail page routing to `WODetail` component |
-      | CREATE | `apps/mobile/src/components/WorkOrders/WOListCard.tsx` | Card component: WO number, name, status badge, date, project. Navigates to detail on tap. |
-      | CREATE | `apps/mobile/src/components/WorkOrders/WODetail.tsx` | `TabGroup` with Overview (`DetailOverview` + customColumnRender), Notes (`JobNotes`), Files (`JobFiles`). Header with WO number, edit button. `GET_WO_HEADER` query at bottom. |
-      | CREATE | `apps/mobile/src/components/WorkOrders/LaborItemsDisplay.tsx` | Read-only labor items list. Queries `workOrderLaborItems`. Structured + blank rows. Rate gated by `viewWageDetails`. |
-      | CREATE | `apps/mobile/src/components/WorkOrders/MaterialItemsDisplay.tsx` | Read-only material items list. Queries `workOrderMaterialItems`. Structured + blank rows. Subtotal. |
-      | CREATE | `apps/mobile/src/components/WorkOrders/EquipmentItemsDisplay.tsx` | Read-only equipment items list. Queries `workOrderEquipmentItems`. Rate gated by `viewWageDetails`. |
-      | CREATE | `apps/mobile/src/components/WorkOrders/SignaturesDisplay.tsx` | Read-only signature grid. Queries Job Signatures. Image thumbnail, signer name/company, timestamp, GPS. |
-      | MODIFY | `apps/mobile/src/components/SecondaryNavFlyout.tsx` | Add "Work Orders" entry to admin navigation section |
-    </script>
+### List page
+- [ ] Route `/job-sites/[id]/work-orders` renders the WO list
+- [ ] `TableDataList` fetches only WORK_ORDER-classified jobs via `defaultWhere`
+- [ ] `WOListCard` shows WO number, name, status badge, date of work, project name
+- [ ] Search filters by name and WO number
+- [ ] Status and project facet filters work
+- [ ] "+" / "New Work Order" button opens DataModelForm in flyout
+- [ ] Create button hidden when user lacks `job.create` permission
+- [ ] Tapping a card navigates to `/job-sites/[id]/work-orders/[id]`
+- [ ] Infinite scroll pagination works
 
-    <script src="plan-renderer.js"></script>
-    <script>
-      renderPlan();
-    </script>
-  </body>
+### Detail page
+- [ ] Route `/job-sites/[id]/work-orders/[id]` renders the WO detail
+- [ ] Header shows WO number and name
+- [ ] Edit button opens DataModelForm for the existing WO
+- [ ] Edit button hidden when user lacks `job.edit` permission
+- [ ] Back button navigates to previous page
+- [ ] Loading and error states handled
+
+### Tabs
+- [ ] Overview tab renders `DetailOverview` with WO DAA fields in sectioned layout
+- [ ] Notes tab renders `JobNotes` with note count
+- [ ] Files tab renders `JobFiles` in `FilesProvider` with file count
+- [ ] Tab state persists in URL query param
+- [ ] Permission-gated tabs hidden when user lacks permission
+
+### Navigation
+- [ ] "Work Orders" item appears in mobile secondary nav
+- [ ] Hidden when user lacks `job.view` permission
+- [ ] Links to `/job-sites/[id]/work-orders`
+
+---
+
+## Files Summary
+
+| Action | File | What to do |
+|--------|------|------------|
+| CREATE | `apps/mobile/src/pages/job-sites/[id]/work-orders/index.tsx` | WO list page using `TableDataList` with `defaultWhere={{ subModel: "WORK_ORDER" }}` |
+| CREATE | `apps/mobile/src/pages/job-sites/[id]/work-orders/[id]/index.tsx` | WO detail page routing to `WODetail` component |
+| CREATE | `apps/mobile/src/components/WorkOrders/WOListCard.tsx` | Card component: WO number, name, status badge, date, project. Navigates to detail on tap. |
+| CREATE | `apps/mobile/src/components/WorkOrders/WODetail.tsx` | `TabGroup` with Overview (`DetailOverview` + customColumnRender), Notes (`JobNotes`), Files (`JobFiles`). Header with WO number, edit button. `GET_WO_HEADER` query at bottom. |
+| CREATE | `apps/mobile/src/components/WorkOrders/LaborItemsDisplay.tsx` | Read-only labor items list. Queries `workOrderLaborItems`. Structured + blank rows. Rate gated by `viewWageDetails`. |
+| CREATE | `apps/mobile/src/components/WorkOrders/MaterialItemsDisplay.tsx` | Read-only material items list. Queries `workOrderMaterialItems`. Structured + blank rows. Subtotal. |
+| CREATE | `apps/mobile/src/components/WorkOrders/EquipmentItemsDisplay.tsx` | Read-only equipment items list. Queries `workOrderEquipmentItems`. Rate gated by `viewWageDetails`. |
+| CREATE | `apps/mobile/src/components/WorkOrders/SignaturesDisplay.tsx` | Read-only signature grid. Queries Job Signatures. Image thumbnail, signer name/company, timestamp, GPS. |
+| MODIFY | `apps/mobile/src/components/SecondaryNavFlyout.tsx` | Add "Work Orders" entry to admin navigation section |
+</script>
+
+<script src="plan-renderer.js"></script>
+<script>renderPlan();</script>
+</body>
 </html>

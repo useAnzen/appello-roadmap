@@ -234,7 +234,8 @@ interface IMaterialRow {
     unitOfMeasure?: string;  // from MaterialGroup
     description?: string;
     quantity?: number;
-    unitCost?: number;
+    unitPrice?: number;   // sell price (auto from LEM-3 cascade, editable)
+    costPrice?: number;   // cost basis (read-only for margin visibility)
     total?: number;
 }
 ```
@@ -242,9 +243,10 @@ interface IMaterialRow {
 ### Structured row
 
 - Material selector: `CustomCombobox` with `useSearchCore`, `queryResultLabel="Material"` — same pattern as equipment/job selectors throughout the app
-- On material select: auto-populate `materialName` and `unitOfMeasure` (from the material's MaterialGroup)
-- Unit Cost: `CurrencyInput` — manual entry, not auto-populated (volatile pricing per LEM-3)
-- Total: auto-calculated `quantity * unitCost`, updated on every change
+- On material select: auto-populate `materialName`, `unitOfMeasure` (from MaterialGroup), `unitPrice` (from `resolveMaterialSellPrice()` LEM-3 cascade), and `costPrice` (from cost basis)
+- Sell Price: `CurrencyInput` — auto-populated from LEM-3 cascade, editable for override
+- Cost: shown read-only for margin visibility (requires `viewWageDetails` permission)
+- Total: auto-calculated `quantity * unitPrice`, updated on every change
 
 ### Blank row
 
@@ -485,10 +487,11 @@ Follow CLAUDE.md conventions throughout:
 - [ ] Labor subtotal shows total hours across all rows
 - [ ] MaterialItemEditor component renders in the `wo-material-items` DAA position
 - [ ] Material structured row: CustomCombobox searches Material catalog
-- [ ] Material structured row: Selecting material auto-populates name + UoM
-- [ ] Material structured row: Unit cost is manual (not auto-populated)
-- [ ] Material structured row: Total auto-calculates qty * unitCost
-- [ ] Material blank row: Free-text description + manual qty/cost
+- [ ] Material structured row: Selecting material auto-populates name, UoM, sell price (from LEM-3 cascade), and cost price
+- [ ] Material structured row: Sell price is editable (user can override auto-populated value)
+- [ ] Material structured row: Cost shown read-only for margin visibility (viewWageDetails gated)
+- [ ] Material structured row: Total auto-calculates qty * unitPrice
+- [ ] Material blank row: Free-text description + manual qty/price
 - [ ] Material subtotal shows dollar total
 - [ ] EquipmentItemEditor component renders in the `wo-equipment-items` DAA position
 - [ ] Equipment structured row: CustomCombobox searches Equipment catalog

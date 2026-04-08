@@ -100,15 +100,16 @@ model WorkOrderMaterialItem {
 
   description   String?   @db.VarChar(500)
   quantity      Decimal?  @db.Decimal(10, 2)
-  unitCost      Decimal?  @db.Decimal(10, 2)
-  total         Decimal?  @db.Decimal(10, 2)
+  unitPrice     Decimal?  @db.Decimal(10, 2)   // sell price (auto from LEM-3 cascade, editable)
+  costPrice     Decimal?  @db.Decimal(10, 2)   // cost basis (from DistributorPrice or MaterialAttributePrice)
+  total         Decimal?  @db.Decimal(10, 2)   // quantity * unitPrice
   orderNo       Int       @default(0)
 
   @@index([jobId, isDeleted])
 }
 ```
 
-**Note:** Materials always have `unitCost` and `total` since material prices are manually entered (volatile costs, per LEM-3 analysis). `materialId` is nullable for blank lines (free-text description + manual pricing).
+**Note:** Structured material lines auto-populate `unitPrice` (sell) and `costPrice` (cost) from `resolveMaterialSellPrice()` (LEM-3 cascade). Both are editable — the user can override. Blank lines (`materialId` null) require manual entry. `total = quantity * unitPrice`.
 
 ### 1c. WorkOrderEquipmentItem
 
@@ -200,7 +201,8 @@ CREATE TABLE `WorkOrderMaterialItem` (
   `materialId` VARCHAR(21) NULL,
   `description` VARCHAR(500) NULL,
   `quantity` DECIMAL(10, 2) NULL,
-  `unitCost` DECIMAL(10, 2) NULL,
+  `unitPrice` DECIMAL(10, 2) NULL,
+  `costPrice` DECIMAL(10, 2) NULL,
   `total` DECIMAL(10, 2) NULL,
   `orderNo` INT NOT NULL DEFAULT 0,
   PRIMARY KEY (`id`),
@@ -256,7 +258,8 @@ export interface IWorkOrderMaterialItem {
     materialId?: string;
     description?: string;
     quantity?: number;
-    unitCost?: number;
+    unitPrice?: number;   // sell price (auto from LEM-3 cascade, editable)
+    costPrice?: number;   // cost basis
     total?: number;
     orderNo: number;
 }
@@ -327,9 +330,9 @@ protected modelFields: IField<IWorkOrderLaborItem>[] = [
 
 **Create file:** `apps/api/src/models/WorkOrderMaterialItem.ts`
 
-Standard BaseModel with: `jobId`, `materialId`, `description`, `quantity`, `unitCost`, `total`, `orderNo`.
+Standard BaseModel with: `jobId`, `materialId`, `description`, `quantity`, `unitPrice`, `costPrice`, `total`, `orderNo`.
 
-Add `beforeCreate`/`beforeEdit` hook to auto-calculate `total = quantity * unitCost` when both values are provided.
+Add `beforeCreate`/`beforeEdit` hook to auto-calculate `total = quantity * unitPrice` when both values are provided. For structured lines (materialId is set), auto-populate `unitPrice` and `costPrice` from `resolveMaterialSellPrice()` (LEM-3) if not explicitly provided.
 
 ### 3c. WorkOrderEquipmentItem Model
 
@@ -393,8 +396,9 @@ type WorkOrderMaterialItem {
     Material: Material
     description: String
     quantity: Float
-    unitCost: Float
-    total: Float
+    unitPrice: Float       # sell price (auto from LEM-3 cascade, editable)
+    costPrice: Float       # cost basis (read-only on WO)
+    total: Float           # quantity * unitPrice
     orderNo: Int!
 }
 
@@ -403,7 +407,8 @@ input UpsertWorkOrderMaterialItemInput {
     materialId: String
     description: String
     quantity: Float
-    unitCost: Float
+    unitPrice: Float       # sell price (auto from LEM-3, editable)
+    costPrice: Float       # cost basis
     orderNo: Int
 }
 
@@ -508,8 +513,8 @@ async upsertWorkOrderLineItems(
     if (input.materialItems) {
         for (const item of input.materialItems) {
             // Auto-calculate total
-            const total = item.quantity && item.unitCost
-                ? Number((item.quantity * item.unitCost).toFixed(2))
+            const total = item.quantity && item.unitPrice
+                ? Number((item.quantity * item.unitPrice).toFixed(2))
                 : undefined;
             const data = { ...item, total };
 
@@ -628,7 +633,7 @@ async recalculateWorkOrderTotals(jobId: string, currentUserId: string): Promise<
 
 - [ ] All 3 tables created with correct indexes and FK constraints
 - [ ] WorkOrderLaborItem: `tradeLevelRateId` nullable, `rate` nullable — mutually exclusive usage
-- [ ] WorkOrderMaterialItem: `materialId` nullable for blank lines, `total` auto-calculated from qty * unitCost
+- [ ] WorkOrderMaterialItem: `materialId` nullable for blank lines, `unitPrice` + `costPrice` auto-populated from LEM-3 cascade for structured lines, `total` auto-calculated from qty * unitPrice
 - [ ] WorkOrderEquipmentItem: `equipmentId` nullable for blank lines, `unitRate` nullable for manual entry
 - [ ] GraphQL types expose all fields including nullable FKs and relation resolvers
 - [ ] `workOrderLaborItems(jobId)` query returns items ordered by orderNo
@@ -638,7 +643,7 @@ async recalculateWorkOrderTotals(jobId: string, currentUserId: string): Promise<
 - [ ] Labor structured line: `tradeLevelRateId` set, `rate` null — TradeLevelRate relation resolves
 - [ ] Labor blank line: `tradeLevelRateId` null, `rate` set, `description` set
 - [ ] Material structured line: `materialId` set — Material name + UoM auto-populated on frontend
-- [ ] Material blank line: `materialId` null, `description` + `unitCost` + `quantity` set manually
+- [ ] Material blank line: `materialId` null, `description` + `unitPrice` + `quantity` set manually
 - [ ] Equipment structured line: `equipmentId` set — rate labels load from category
 - [ ] Equipment blank line: `equipmentId` null, `unitRate` + `description` + `quantity` set manually
 - [ ] `recalculateWorkOrderTotals` correctly sums structured lines (from rate tables) and blank lines (from manual rates)

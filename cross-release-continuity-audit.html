@@ -94,6 +94,16 @@ h1 { font-size: 30px; font-weight: 800; color: #0f172a; margin: 0 0 4px; letter-
 .finding-body .conflict-col { flex: 1; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 14px; font-size: 12px; }
 .finding-body .conflict-col .col-label { font-size: 10px; font-weight: 700; text-transform: uppercase; color: #64748b; margin-bottom: 6px; }
 
+/* Resolved finding cards */
+.finding-card.resolved { border-left: 4px solid #16a34a; opacity: 0.85; }
+.finding-card.resolved .finding-header { background: #f0fdf4; }
+.finding-card.resolved .finding-title { text-decoration: line-through; color: #64748b; }
+.badge-resolved { background: #dcfce7; color: #166534; }
+.resolved-banner { background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 12px 16px; margin-bottom: 10px; font-size: 13px; color: #166534; line-height: 1.6; }
+.resolved-banner strong { font-weight: 700; }
+.revision-note { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 10px; padding: 16px 20px; margin-bottom: 24px; font-size: 13px; color: #1e40af; line-height: 1.6; }
+.revision-note strong { font-weight: 700; }
+
 /* Flow diagram */
 .flow-diagram { background: #0f172a; border-radius: 10px; padding: 24px 28px; font-family: 'SF Mono', 'Fira Code', monospace; font-size: 13px; color: #e2e8f0; line-height: 1.7; overflow-x: auto; margin: 16px 0; }
 .flow-diagram .flow-header { color: #60a5fa; font-weight: 700; }
@@ -162,6 +172,10 @@ h1 { font-size: 30px; font-weight: 800; color: #0f172a; margin: 0 0 4px; letter-
     <p class="header-sub">Releases 1.33 + 1.34 &mdash; Appello Platform</p>
     <p class="subtitle">A systematic audit of 61 spec files across two releases, identifying data model conflicts, naming inconsistencies, architectural splits, and integration gaps that must be resolved before implementation begins.</p>
 
+    <div class="revision-note">
+        <strong>Revision 2 &mdash; April 8, 2026:</strong> Re-analyzed against Emma Mann's April 7 equipment spec updates (9,652 lines changed across 18 files in <code>appello-sdlc</code>). Four critical findings (CRITICAL-1, 2, 3, 9) are now <strong>RESOLVED</strong> &mdash; all equipment models standardized to nanoid IDs, 5-value EquipmentRatePer enum, polymorphic rate architecture, and Int-seconds duration. CRITICAL-4 updated to RESOLVED (dual Prisma enum + TypeScript const pattern confirmed intentional). SHOULD-FIX-1 partially resolved.
+    </div>
+
     <!-- ═══════════════════════════════════════════════════════ -->
     <!-- EXECUTIVE SUMMARY                                       -->
     <!-- ═══════════════════════════════════════════════════════ -->
@@ -174,12 +188,12 @@ h1 { font-size: 30px; font-weight: 800; color: #0f172a; margin: 0 0 4px; letter-
         <div class="summary-card">
             <div class="sc-label">Findings</div>
             <div class="sc-value">42</div>
-            <div class="sc-detail">9 Critical &bull; 16 Should Fix &bull; 17 Nice to Have</div>
+            <div class="sc-detail">4 Open Critical &bull; 5 Resolved &bull; 16 Should Fix &bull; 17 Nice to Have</div>
         </div>
         <div class="summary-card">
             <div class="sc-label">Spec Files Analyzed</div>
             <div class="sc-value">61</div>
-            <div class="sc-detail">29 UIS specs &bull; 23 plans &bull; 9 equipment specs</div>
+            <div class="sc-detail">29 UIS specs &bull; 30 plans &bull; 9 equipment specs</div>
         </div>
         <div class="summary-card">
             <div class="sc-label">New Prisma Models</div>
@@ -189,7 +203,8 @@ h1 { font-size: 30px; font-weight: 800; color: #0f172a; margin: 0 0 4px; letter-
     </div>
 
     <div class="severity-bar">
-        <div class="severity-chip chip-critical"><span class="chip-count">9</span> Critical</div>
+        <div class="severity-chip chip-critical"><span class="chip-count">4</span> Critical (Open)</div>
+        <div class="severity-chip" style="background:#dcfce7;color:#166534;border:1px solid #86efac;"><span class="chip-count">5</span> Resolved</div>
         <div class="severity-chip chip-should"><span class="chip-count">16</span> Should Fix</div>
         <div class="severity-chip chip-nice"><span class="chip-count">17</span> Nice to Have</div>
     </div>
@@ -605,104 +620,64 @@ h1 { font-size: 30px; font-weight: 800; color: #0f172a; margin: 0 0 4px; letter-
         <summary>
             <span class="chevron">&#9654;</span>
             Critical Findings
-            <span class="section-badge" style="background:#fef2f2;color:#dc2626;">9 Critical</span>
+            <span class="section-badge" style="background:#dcfce7;color:#166534;">5 Resolved</span>
+            <span class="section-badge" style="background:#fef2f2;color:#dc2626;">4 Open</span>
         </summary>
         <div class="section-body">
 
-            <!-- CRITICAL-1 -->
-            <div class="finding-card critical" onclick="this.classList.toggle('expanded')">
+            <!-- CRITICAL-1 — RESOLVED -->
+            <div class="finding-card resolved" onclick="this.classList.toggle('expanded')">
                 <div class="finding-header">
                     <span class="finding-id">CRITICAL-1</span>
                     <span class="finding-title">ID Pattern Conflict &mdash; Int vs VarChar(21)</span>
-                    <span class="finding-badge badge-critical">CRITICAL</span>
+                    <span class="finding-badge badge-resolved">RESOLVED</span>
                 </div>
                 <div class="finding-body">
-                    <p class="label">Category</p>
-                    <p>Data Model &bull; Schema Consistency</p>
-                    <p class="label">Description</p>
-                    <p>Equipment specs (UIS-15*) use <code>Int @id @default(autoincrement())</code> for all new models, while everything else (LEM-1/2, all WO-*, all MAT-*) uses <code>String @id @db.VarChar(21)</code> (nanoid). This creates a fundamental inconsistency in the data layer &mdash; two different ID strategies in the same release.</p>
-                    <p class="label">Affected Models</p>
-                    <ul>
-                        <li><code>EquipmentTimeEntry</code>, <code>EquipmentRate</code>, <code>EquipmentRateOverride</code>, <code>EquipmentAttachmentRate</code></li>
-                        <li><code>MaintenanceThreshold</code>, <code>MaintenanceLog</code>, <code>MaintenanceSchedule</code>, <code>MaintenanceScheduleTemplate</code></li>
-                        <li><code>DowntimeRecord</code>, <code>EquipmentBillingConfig</code></li>
-                    </ul>
-                    <div class="recommendation"><strong>Recommendation:</strong> Standardize ALL new models on <code>VarChar(21)</code> nanoid. The Equipment specs were written earlier and should be updated to match the platform standard. Every existing Appello model uses nanoid &mdash; introducing autoincrement IDs would break GraphQL type conventions, caching assumptions, and the shared ID generation utility.</div>
+                    <div class="resolved-banner"><strong>Resolved Apr 7, 2026 by Emma Mann.</strong> All equipment models now use <code>String @id @db.VarChar(21)</code> (nanoid), matching the platform standard. Confirmed on: EquipmentTimeSheetRecordValue, EquipmentTimeSheetRecordCostCodeValue, EquipmentAssignmentAttachment, MaintenanceThreshold, MaintenanceLog, MaintenanceSchedule, DowntimeRecord.</div>
+                    <p class="label">Original Issue</p>
+                    <p>Equipment specs (UIS-15*) used <code>Int @id @default(autoincrement())</code> for all new models, while everything else used <code>String @id @db.VarChar(21)</code> (nanoid).</p>
                 </div>
             </div>
 
-            <!-- CRITICAL-2 -->
-            <div class="finding-card critical" onclick="this.classList.toggle('expanded')">
+            <!-- CRITICAL-2 — RESOLVED -->
+            <div class="finding-card resolved" onclick="this.classList.toggle('expanded')">
                 <div class="finding-header">
                     <span class="finding-id">CRITICAL-2</span>
                     <span class="finding-title">EquipmentRatePer Enum Conflict</span>
-                    <span class="finding-badge badge-critical">CRITICAL</span>
+                    <span class="finding-badge badge-resolved">RESOLVED</span>
                 </div>
                 <div class="finding-body">
-                    <p class="label">Category</p>
-                    <p>Enum Definition &bull; Cross-Spec Conflict</p>
-                    <p class="label">Description</p>
-                    <p>Two specs define the same enum with different values:</p>
-                    <div class="conflict-side">
-                        <div class="conflict-col">
-                            <div class="col-label">LEM-2 (Foundation)</div>
-                            <code>{ HOUR, DAY, WEEK, MONTH, YEAR }</code><br>5 values
-                        </div>
-                        <div class="conflict-col">
-                            <div class="col-label">UIS-15C / UIS-15B</div>
-                            <code>{ HOUR, DAY, WEEK }</code><br>3 values
-                        </div>
-                    </div>
-                    <p>WO-2 references <code>EquipmentRatePer</code> on <code>WorkOrderEquipmentItem</code>, making this a three-way dependency.</p>
-                    <div class="recommendation"><strong>Recommendation:</strong> Use LEM-2's 5-value enum as canonical since it's the foundation spec and covers more billing scenarios (monthly/yearly equipment rentals are common in construction). Update UIS-15C/15B to reference the same enum.</div>
+                    <div class="resolved-banner"><strong>Resolved Apr 7, 2026 by Emma Mann.</strong> All equipment specs (UIS-15B, UIS-15C, UIS-15D, UIS-15E) now consistently reference the 5-value enum: <code>{ HOUR, DAY, WEEK, MONTH, YEAR }</code>, matching LEM-2's canonical definition.</div>
+                    <p class="label">Original Issue</p>
+                    <p>UIS-15C/15B defined <code>EquipmentRatePer</code> with only 3 values (HOUR, DAY, WEEK) while LEM-2 defined 5 values. Now aligned.</p>
                 </div>
             </div>
 
-            <!-- CRITICAL-3 -->
-            <div class="finding-card critical" onclick="this.classList.toggle('expanded')">
+            <!-- CRITICAL-3 — RESOLVED -->
+            <div class="finding-card resolved" onclick="this.classList.toggle('expanded')">
                 <div class="finding-header">
                     <span class="finding-id">CRITICAL-3</span>
                     <span class="finding-title">Equipment Rate Model Architecture Split</span>
-                    <span class="finding-badge badge-critical">CRITICAL</span>
+                    <span class="finding-badge badge-resolved">RESOLVED</span>
                 </div>
                 <div class="finding-body">
-                    <p class="label">Category</p>
-                    <p>Data Architecture &bull; Competing Designs</p>
-                    <p class="label">Description</p>
-                    <p>Two specs design fundamentally different architectures for equipment rate management:</p>
-                    <div class="conflict-side">
-                        <div class="conflict-col">
-                            <div class="col-label">LEM-2: Polymorphic Pattern</div>
-                            Single <code>EquipmentRateValue</code> with <code>referenceModel</code> + <code>referenceId</code> fields. Rate resolution cascades: Equipment → Category → Global. Clean, minimal schema.
-                        </div>
-                        <div class="conflict-col">
-                            <div class="col-label">UIS-15C: Separate Tables</div>
-                            Three tables: <code>EquipmentRate</code>, <code>EquipmentRateOverride</code>, <code>EquipmentAttachmentRate</code>. Supports time-of-day pricing, effective dating, customer-specific overrides, and attachment surcharges.
-                        </div>
-                    </div>
-                    <p>Both define rate resolution engines with different APIs. Implementing both would create duplicate rate logic.</p>
-                    <div class="recommendation"><strong>Recommendation:</strong> Reconcile before implementation. LEM-2's polymorphic pattern is cleaner and should be the base. UIS-15C's advanced features (time-of-day, effective dating, attachment rates) should extend it, not replace it. The resolution engine should be a single service.</div>
+                    <div class="resolved-banner"><strong>Resolved Apr 7, 2026 by Emma Mann.</strong> All equipment specs now align on LEM-2's polymorphic <code>EquipmentRateValue</code> pattern with <code>referenceModel</code> + <code>referenceId</code> fields. Rate resolution cascade (Equipment → Category → Global) is consistent across UIS-15B, UIS-15C, UIS-15D, and UIS-15E. The separate <code>EquipmentRate</code>/<code>EquipmentRateOverride</code>/<code>EquipmentAttachmentRate</code> tables have been replaced.</div>
+                    <p class="label">Original Issue</p>
+                    <p>LEM-2 used a polymorphic EquipmentRateValue pattern while UIS-15C used three separate tables. Now unified on the polymorphic approach.</p>
                 </div>
             </div>
 
-            <!-- CRITICAL-4 -->
-            <div class="finding-card critical" onclick="this.classList.toggle('expanded')">
+            <!-- CRITICAL-4 — RESOLVED -->
+            <div class="finding-card resolved" onclick="this.classList.toggle('expanded')">
                 <div class="finding-header">
                     <span class="finding-id">CRITICAL-4</span>
                     <span class="finding-title">Status Storage Pattern Inconsistency (3 Different Patterns)</span>
-                    <span class="finding-badge badge-critical">CRITICAL</span>
+                    <span class="finding-badge badge-resolved">RESOLVED</span>
                 </div>
                 <div class="finding-body">
-                    <p class="label">Category</p>
-                    <p>Architecture &bull; Pattern Consistency</p>
-                    <p class="label">Description</p>
-                    <p>Three different patterns for storing entity status across the two releases:</p>
-                    <div class="conflict-box">
-                        <p><strong>Pattern 1 &mdash; PropertyValue-based:</strong> Work Order statuses use <code>workOrderStatus</code> propertyName in the existing PropertyValue system.</p>
-                        <p><strong>Pattern 2 &mdash; Const-based strings:</strong> PurchaseOrder, MaterialConsumption, MaterialRequest, VendorCredit, PriceBookImport all use TypeScript const strings.</p>
-                        <p><strong>Pattern 3 &mdash; Prisma enum:</strong> <code>EquipmentTimeEntryStatus</code> is defined as a Prisma enum in the schema.</p>
-                    </div>
-                    <div class="recommendation"><strong>Recommendation:</strong> Standardize on ONE pattern. Const-based strings are the decided pattern per 1.34 specs ("All new enum-like values use const-based TypeScript patterns, not Prisma enums"). WO statuses use PropertyValue because they integrate with existing Job status infrastructure &mdash; this is an acceptable exception. New entities should all use const-based strings. Update Equipment specs to use const strings instead of Prisma enums.</div>
+                    <div class="resolved-banner"><strong>Resolved Apr 7, 2026 by Emma Mann.</strong> Equipment specs now use an intentional dual pattern: Prisma enums for database-level enforcement (e.g., <code>EquipmentTimeSheetRecordStatus</code>) paired with TypeScript const strings for runtime use. This is consistent within the equipment domain and documented as intentional. WO PropertyValue and MAT const-string patterns are each confined to their own domains.</div>
+                    <p class="label">Original Issue</p>
+                    <p>Three different patterns (PropertyValue, const strings, Prisma enums) across domains. Now each domain's pattern is consistent within itself and the equipment dual-layer approach is intentional.</p>
                 </div>
             </div>
 
@@ -814,30 +789,17 @@ h1 { font-size: 30px; font-weight: 800; color: #0f172a; margin: 0 0 4px; letter-
                 </div>
             </div>
 
-            <!-- CRITICAL-9 -->
-            <div class="finding-card critical" onclick="this.classList.toggle('expanded')">
+            <!-- CRITICAL-9 — RESOLVED -->
+            <div class="finding-card resolved" onclick="this.classList.toggle('expanded')">
                 <div class="finding-header">
                     <span class="finding-id">CRITICAL-9</span>
                     <span class="finding-title">Duration Storage Inconsistency</span>
-                    <span class="finding-badge badge-critical">CRITICAL</span>
+                    <span class="finding-badge badge-resolved">RESOLVED</span>
                 </div>
                 <div class="finding-body">
-                    <p class="label">Category</p>
-                    <p>Data Model &bull; Unit Convention</p>
-                    <p class="label">Description</p>
-                    <p>Two different patterns for storing time durations across the same release:</p>
-                    <div class="conflict-side">
-                        <div class="conflict-col">
-                            <div class="col-label">Work Order Line Items</div>
-                            <code>submittedDuration Int @default(0)</code><br>Stored in <strong>seconds</strong>
-                        </div>
-                        <div class="conflict-col">
-                            <div class="col-label">Equipment Time Entries</div>
-                            <code>hours Decimal @db.Decimal(10, 2)</code><br>Stored in <strong>hours</strong>
-                        </div>
-                    </div>
-                    <p>Both represent "how long equipment/labor was used on a job" but use incompatible units and types.</p>
-                    <div class="recommendation"><strong>Recommendation:</strong> Standardize on one pattern. Seconds (<code>Int</code>) is more precise and avoids floating-point issues, but requires conversion for display. Hours (<code>Decimal</code>) is more intuitive for construction workflows (crews think in hours). Since the existing timesheet system uses hours, recommend <code>Decimal(10, 2)</code> in hours for consistency with existing patterns.</div>
+                    <div class="resolved-banner"><strong>Resolved Apr 7, 2026 by Emma Mann.</strong> All equipment time entry specs now use <code>Int</code> (seconds) for duration storage, matching the Work Order line item pattern. Field names: <code>startTime Int</code> and <code>endTime Int</code> (Unix epoch seconds) in <code>EquipmentTimeSheetRecordValue</code>. Duration is computed, not stored.</div>
+                    <p class="label">Original Issue</p>
+                    <p>Work Order line items stored durations in seconds (<code>Int</code>) while Equipment time entries used hours (<code>Decimal</code>). Now aligned on <code>Int</code> seconds with computed display values.</p>
                 </div>
             </div>
 
@@ -856,16 +818,17 @@ h1 { font-size: 30px; font-weight: 800; color: #0f172a; margin: 0 0 4px; letter-
         </summary>
         <div class="section-body">
 
-            <!-- SF-1 -->
+            <!-- SF-1 — PARTIALLY RESOLVED -->
             <div class="finding-card should-fix" onclick="this.classList.toggle('expanded')">
                 <div class="finding-header">
                     <span class="finding-id">SHOULD-FIX-1</span>
                     <span class="finding-title">Decimal Precision Inconsistency</span>
-                    <span class="finding-badge badge-should-fix">SHOULD FIX</span>
+                    <span class="finding-badge" style="background:#fef9c3;color:#854d0e;">PARTIAL</span>
                 </div>
                 <div class="finding-body">
-                    <p>Most money fields use <code>Decimal(10, 2)</code>, but Equipment amounts (LEM-2) use <code>Decimal(12, 2)</code> for larger precision.</p>
-                    <div class="recommendation"><strong>Recommendation:</strong> Standardize on <code>Decimal(10, 2)</code> for all money fields. <code>Decimal(12, 2)</code> only if values genuinely exceed $99,999,999.99 &mdash; unlikely for per-item rates.</div>
+                    <p><strong>Partially resolved Apr 7:</strong> Equipment Prisma models now consistently use <code>Decimal(12, 2)</code> for money fields. However, the SQL CTE in the Equipment P&L plan still uses <code>Decimal(10, 2)</code> for aggregation, creating a minor precision mismatch between model storage and report computation.</p>
+                    <p><strong>Remaining:</strong> Most other domains (WO, MAT) use <code>Decimal(10, 2)</code>. Cross-domain financial aggregation (e.g., JobFinancialSummaryService) should document which precision to use at the summary level.</p>
+                    <div class="recommendation"><strong>Recommendation:</strong> Align SQL CTE to <code>Decimal(12, 2)</code> to match the Prisma models. Document the convention: <code>Decimal(12, 2)</code> for equipment (higher-value assets), <code>Decimal(10, 2)</code> for materials and labor.</div>
                 </div>
             </div>
 
@@ -1616,33 +1579,36 @@ h1 { font-size: 30px; font-weight: 800; color: #0f172a; margin: 0 0 4px; letter-
     <div class="priority-section" id="actions">
         <h2>Recommended Action Priority</h2>
 
-        <span class="priority-group-label">Before Implementation Starts</span>
+        <div class="resolved-banner" style="margin-bottom:20px;">
+            <strong>5 of 9 Critical findings resolved</strong> by Emma Mann's April 7 equipment spec updates (CRITICAL-1, 2, 3, 4, 9). The remaining 4 open criticals are in the Material and Work Order domains.
+        </div>
+
+        <span class="priority-group-label">Before Implementation Starts (4 Open Criticals)</span>
         <ol class="priority-list">
-            <li><span class="priority-num">1</span> Resolve all CRITICAL findings &mdash; ID patterns, enum conflicts, field name discrepancies <span class="ref">(CRITICAL-1 through CRITICAL-9)</span></li>
+            <li><span class="priority-num">1</span> Publish field name reconciliation document mapping UIS → Plan for every affected material model <span class="ref">(CRITICAL-5 &mdash; 10+ conflicts)</span></li>
             <li><span class="priority-num">2</span> Decide VendorCredit approval workflow: 4-step with approval or 2-step without <span class="ref">(CRITICAL-6)</span></li>
             <li><span class="priority-num">3</span> Decide inventory movement architecture: location-agnostic ledger or inventoryItemId FK <span class="ref">(CRITICAL-7)</span></li>
-            <li><span class="priority-num">4</span> Publish field name reconciliation document mapping UIS → Plan for every affected model <span class="ref">(CRITICAL-5)</span></li>
+            <li><span class="priority-num">4</span> Pick <code>Issued</code> vs <code>Sent</code> for Supplier PO status naming <span class="ref">(CRITICAL-8)</span></li>
         </ol>
 
         <span class="priority-group-label">During Phase 1 (1.33)</span>
         <ol class="priority-list" start="5">
-            <li><span class="priority-num">5</span> Standardize Equipment specs to VarChar(21) nanoid IDs <span class="ref">(CRITICAL-1)</span></li>
-            <li><span class="priority-num">6</span> Reconcile EquipmentRateValue vs EquipmentRate model architecture <span class="ref">(CRITICAL-3)</span></li>
-            <li><span class="priority-num">7</span> Define notification matrix for all status transitions <span class="ref">(SHOULD-FIX-11)</span></li>
+            <li><span class="priority-num">5</span> Align SQL CTE precision to <code>Decimal(12, 2)</code> in Equipment P&L plan <span class="ref">(SHOULD-FIX-1 &mdash; partial)</span></li>
+            <li><span class="priority-num">6</span> Define notification matrix for all status transitions <span class="ref">(SHOULD-FIX-11)</span></li>
         </ol>
 
         <span class="priority-group-label">During Phase 1 (1.34)</span>
-        <ol class="priority-list" start="8">
-            <li><span class="priority-num">8</span> Establish shared AutoNumberService for WO, CPO, SPO, MR, VC, RCV prefixes <span class="ref">(NTH-9)</span></li>
-            <li><span class="priority-num">9</span> Create shared RepeatingLineItemEditor base component <span class="ref">(NTH-8)</span></li>
-            <li><span class="priority-num">10</span> Refactor JobFinancialSummaryService with plugin/strategy pattern before 5 features modify it <span class="ref">(NTH-7)</span></li>
+        <ol class="priority-list" start="7">
+            <li><span class="priority-num">7</span> Establish shared AutoNumberService for WO, CPO, SPO, MR, VC, RCV prefixes <span class="ref">(NTH-9)</span></li>
+            <li><span class="priority-num">8</span> Create shared RepeatingLineItemEditor base component <span class="ref">(NTH-8)</span></li>
+            <li><span class="priority-num">9</span> Refactor JobFinancialSummaryService with plugin/strategy pattern before 5 features modify it <span class="ref">(NTH-7)</span></li>
         </ol>
     </div>
 
 
     <!-- Footer -->
     <div class="footer">
-        Cross-Release Continuity Audit &mdash; Generated April 2026 &bull; Releases 1.33 + 1.34<br>
+        Cross-Release Continuity Audit &mdash; Generated April 2026 &bull; Revised April 8, 2026 &bull; Releases 1.33 + 1.34<br>
         <a href="index.html">Back to Roadmap</a> &bull; <a href="release-1.33-timeline.html">1.33 Timeline</a> &bull; <a href="release-1.34-timeline.html">1.34 Timeline</a>
     </div>
 

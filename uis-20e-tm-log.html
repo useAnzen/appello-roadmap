@@ -57,7 +57,7 @@ table.schema-table code { font-family: monospace; background: #f1f5f9; padding: 
         <p class="uis-sub">Work Orders list page at <code>/work-orders</code>. Extracts the Jobs list into a shared component (<code>SharedJobListView</code>) and reuses it with <code>subModel = "WorkOrder"</code>. No new SQL views, no new backend — just a frontend refactor to share the existing <code>ListTableViews</code> infrastructure.</p>
         <div class="uis-meta">
             <span><strong>Estimate:</strong> 2-3 days</span>
-            <span><strong>Requires:</strong> WO-1 (JobClassification), WO-3d (TableFeed config)</span>
+            <span><strong>Requires:</strong> WO-1 (JobClassification, WO statuses, Board + tableConfiguration)</span>
         </div>
     </div>
 
@@ -65,17 +65,21 @@ table.schema-table code { font-family: monospace; background: #f1f5f9; padding: 
     <div class="uis-section">
         <h2>1. Approach: Extract &amp; Reuse</h2>
 
+        <p>WO-5 is sequenced immediately after WO-1 as the first frontend work item — it gives Work Orders a visible home in the app.</p>
+
         <p>The existing Jobs list page (<code>pages/jobs/index.tsx</code>) has everything we need: <code>ListTableViews</code> with TableFeed, Kanban, status updates, CRUD actions, search, filters, CSV export. Rather than duplicating, we extract it into a shared component parameterized by <code>subModel</code>.</p>
 
+        <h3>In-Scope Deliverables</h3>
         <ol>
             <li><strong>Extract</strong> shared Job list logic from <code>pages/jobs/index.tsx</code> into <code>SharedListViews/SharedJobListView.tsx</code></li>
             <li><strong>Parameterize</strong> by subModel, status propertyName, labels, routes, create behavior</li>
             <li><strong>Use on Jobs page</strong> with <code>subModel = "ProjectJob"</code> and <code>statusPropertyName = "job status"</code></li>
             <li><strong>Use on Work Orders page</strong> with <code>subModel = "WorkOrder"</code> and <code>statusPropertyName = "workOrderStatus"</code></li>
+            <li><strong>Sidebar navigation</strong> — add a "Work Orders" entry in the sidebar linking to <code>/work-orders</code></li>
         </ol>
 
         <div class="callout">
-            <strong>No backend changes.</strong> TableFeed already supports <code>subModel</code> filtering via <code>configureColumns.ts</code> (set up in WO-3d). The Kanban, status updates, archive/delete/restore all use existing Job mutations — same <code>editJob</code>, <code>archiveManyJob</code>, etc. The only difference is which status PropertyValues load for the Kanban columns.
+            <strong>No backend changes.</strong> TableFeed already supports <code>subModel</code> filtering via <code>configureColumns.ts</code> (set up in WO-1's Board tableConfiguration). The Kanban, status updates, archive/delete/restore all use existing Job mutations — same <code>editJob</code>, <code>archiveManyJob</code>, etc. The only difference is which status PropertyValues load for the Kanban columns.
         </div>
     </div>
 
@@ -142,12 +146,81 @@ interface ISharedJobListViewProps {
         </ul>
     </div>
 
-    <!-- 5. Change Surface -->
+    <!-- 5. UI Mockups -->
     <div class="uis-section">
-        <h2>5. Change Surface</h2>
+        <h2>5. UI Mockups</h2>
+
+        <h3>5.1 Sidebar Navigation</h3>
+        <div class="mockup-container">
+            <div class="mockup-bar">
+                <div class="mockup-dots"><div class="mockup-dot mockup-dot-r"></div><div class="mockup-dot mockup-dot-y"></div><div class="mockup-dot mockup-dot-g"></div></div>
+                Sidebar Navigation
+            </div>
+            <div class="mockup-body" style="max-width:240px; background:#0f172a; color:#94a3b8; border-radius:8px; padding:16px;">
+                <div style="padding:8px 12px; font-size:13px; color:#64748b;">WORK</div>
+                <div style="padding:8px 12px; font-size:13px; color:#e2e8f0;">Projects</div>
+                <div style="padding:8px 12px; font-size:13px; color:#e2e8f0;">Jobs</div>
+                <div style="padding:8px 12px; font-size:13px; color:#e2e8f0; background:rgba(255,255,255,0.1); border-radius:6px; font-weight:600;">
+                    Work Orders <span style="background:#ec4899; color:#fff; font-size:9px; padding:1px 6px; border-radius:10px; margin-left:4px;">NEW</span>
+                </div>
+                <div style="padding:8px 12px; font-size:13px; color:#e2e8f0;">Schedule</div>
+                <div style="padding:8px 12px; font-size:13px; color:#64748b; margin-top:8px;">EQUIPMENT</div>
+                <div style="padding:8px 12px; font-size:13px; color:#e2e8f0;">Equipment</div>
+            </div>
+        </div>
+
+        <h3>5.2 Work Orders List Page</h3>
+        <div class="mockup-container">
+            <div class="mockup-bar">
+                <div class="mockup-dots"><div class="mockup-dot mockup-dot-r"></div><div class="mockup-dot mockup-dot-y"></div><div class="mockup-dot mockup-dot-g"></div></div>
+                <strong>/work-orders</strong>
+            </div>
+            <div class="mockup-body">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+                    <h2 style="font-size:20px; font-weight:700; margin:0;">Work Orders</h2>
+                    <div style="background:#3b82f6; color:#fff; border-radius:6px; padding:8px 16px; font-size:13px; font-weight:600;">+ New Work Order</div>
+                </div>
+                <div style="display:flex; gap:8px; margin-bottom:12px;">
+                    <div style="background:#e2e8f0; border-radius:6px; padding:6px 12px; font-size:11px; color:#64748b;">Search &#128269;</div>
+                    <div style="background:#e2e8f0; border-radius:6px; padding:6px 12px; font-size:11px; color:#64748b;">All Statuses &#9662;</div>
+                    <div style="background:#e2e8f0; border-radius:6px; padding:6px 12px; font-size:11px; color:#64748b;">All Types &#9662;</div>
+                    <div style="background:#e2e8f0; border-radius:6px; padding:6px 12px; font-size:11px; color:#64748b;">Date Range &#9662;</div>
+                </div>
+                <div style="display:grid; grid-template-columns:100px 1fr 120px 120px 100px; font-size:11px; font-weight:600; color:#64748b; padding:8px; border-bottom:2px solid #e2e8f0;">
+                    <div>WO #</div><div>Description</div><div>Company</div><div>Type</div><div>Status</div>
+                </div>
+                <div style="display:grid; grid-template-columns:100px 1fr 120px 120px 100px; font-size:12px; padding:10px 8px; border-bottom:1px solid #f1f5f9; cursor:pointer;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background=''">
+                    <div style="font-weight:600; color:#3b82f6;">WO-001</div>
+                    <div>Pipe insulation &mdash; Level 3 mechanical room</div>
+                    <div style="color:#64748b;">Turner GC</div>
+                    <div><span style="font-size:10px; padding:2px 6px; background:#fce7f3; color:#be185d; border-radius:3px; font-weight:600;">T&amp;M Work Order</span></div>
+                    <div><span style="font-size:10px; padding:2px 6px; background:#fef3c7; color:#92400e; border-radius:3px; font-weight:600;">Submitted</span></div>
+                </div>
+                <div style="display:grid; grid-template-columns:100px 1fr 120px 120px 100px; font-size:12px; padding:10px 8px; border-bottom:1px solid #f1f5f9;">
+                    <div style="font-weight:600; color:#3b82f6;">WO-002</div>
+                    <div>Fireproofing touch-up &mdash; columns A4-A8</div>
+                    <div style="color:#64748b;">PCL</div>
+                    <div><span style="font-size:10px; padding:2px 6px; background:#fce7f3; color:#be185d; border-radius:3px; font-weight:600;">Fireproofing WO</span></div>
+                    <div><span style="font-size:10px; padding:2px 6px; background:#dcfce7; color:#166534; border-radius:3px; font-weight:600;">Approved</span></div>
+                </div>
+                <div style="display:grid; grid-template-columns:100px 1fr 120px 120px 100px; font-size:12px; padding:10px 8px; border-bottom:1px solid #f1f5f9;">
+                    <div style="font-weight:600; color:#3b82f6;">WO-003</div>
+                    <div>Emergency valve replacement</div>
+                    <div style="color:#64748b;">Rival</div>
+                    <div><span style="font-size:10px; padding:2px 6px; background:#fce7f3; color:#be185d; border-radius:3px; font-weight:600;">T&amp;M Work Order</span></div>
+                    <div><span style="font-size:10px; padding:2px 6px; background:#f1f5f9; color:#64748b; border-radius:3px; font-weight:600;">Draft</span></div>
+                </div>
+            </div>
+        </div>
+        <p style="font-size:12px; color:#64748b; margin-top:8px;">Work Orders list uses the existing <code>ListTableViews</code> pattern with the TableFeed filtered by <code>jobClassification = 'WorkOrder'</code>. The "Type" column shows the specific job type (T&amp;M Work Order, Fireproofing WO, etc.) while all share the same Work Order classification.</p>
+    </div>
+
+    <!-- 6. Change Surface -->
+    <div class="uis-section">
+        <h2>6. Change Surface</h2>
         <div class="blast-summary">
             <div class="blast-row"><span class="blast-label">New frontend files</span><span class="blast-value">2 (SharedJobListView + WO list page)</span></div>
-            <div class="blast-row"><span class="blast-label">Modified frontend files</span><span class="blast-value">1 (Jobs list page refactored)</span></div>
+            <div class="blast-row"><span class="blast-label">Modified frontend files</span><span class="blast-value">2 (Jobs list page refactored + sidebar nav data)</span></div>
             <div class="blast-row"><span class="blast-label">Backend changes</span><span class="blast-value">None</span></div>
         </div>
         <table class="schema-table">
@@ -156,13 +229,14 @@ interface ISharedJobListViewProps {
                 <tr><td>NEW</td><td><code>apps/frontend/src/components/SharedListViews/SharedJobListView.tsx</code></td><td>Extracted from <code>pages/jobs/index.tsx</code>. All ListTableViews config, mutations, handlers parameterized by props.</td></tr>
                 <tr><td>NEW</td><td><code>apps/frontend/src/pages/work-orders/index.tsx</code></td><td>Renders <code>SharedJobListView</code> with WorkOrder params.</td></tr>
                 <tr><td>MOD</td><td><code>apps/frontend/src/pages/jobs/index.tsx</code></td><td>Refactored to use <code>SharedJobListView</code> with ProjectJob params. Same behavior, less code.</td></tr>
+                <tr><td>MOD</td><td><code>apps/frontend/src/lib/static-data/staticSideBarData.ts</code></td><td>Add "Work Orders" sidebar entry with route <code>/work-orders</code>, positioned after Jobs.</td></tr>
             </tbody>
         </table>
     </div>
 
-    <!-- 6. Acceptance Criteria -->
+    <!-- 7. Acceptance Criteria -->
     <div class="uis-section">
-        <h2>6. Acceptance Criteria</h2>
+        <h2>7. Acceptance Criteria</h2>
         <ol class="ac-list">
             <li><span><code>SharedJobListView</code> extracted with all list functionality</span></li>
             <li><span>Jobs page uses <code>SharedJobListView</code> with <code>subModel="ProjectJob"</code> — identical to before</span></li>
@@ -174,18 +248,21 @@ interface ISharedJobListViewProps {
             <li><span>WO detail links go to <code>/work-orders/[id]</code></span></li>
             <li><span>Search, filters, archive, delete, restore, CSV export all work</span></li>
             <li><span>Inline status update works with WO statuses</span></li>
+            <li><span>Sidebar shows "Work Orders" navigation entry linking to <code>/work-orders</code></span></li>
             <li><span>No regression on existing Jobs list</span></li>
         </ol>
     </div>
 
-    <!-- 7. Dependencies -->
+    <!-- 8. Dependencies -->
     <div class="uis-section">
-        <h2>7. Dependencies</h2>
+        <h2>8. Dependencies</h2>
         <h3>Requires</h3>
         <p>
-            <span class="dep-tag dep-requires">WO-1</span> JobClassification + sidebar entry + WO status PropertyValues<br>
-            <span class="dep-tag dep-requires">WO-3d</span> TableFeed configureColumns.ts for WorkOrder subModel
+            <span class="dep-tag dep-requires">WO-1</span> JobClassification enum, WO statuses seeded, Board seeded with tableConfiguration, SQL view with jobClassification column
         </p>
+        <div class="callout">
+            <strong>Sequencing note:</strong> WO-5 is the first frontend work item, scheduled immediately after WO-1. It does not depend on WO-3d — the Board tableConfiguration seeded in WO-1 provides the TableFeed column config needed here.
+        </div>
         <h3>Enables</h3>
         <p>
             <span class="dep-tag dep-enables">WO-4</span> List rows link to WO detail page

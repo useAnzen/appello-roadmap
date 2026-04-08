@@ -231,6 +231,16 @@ model Signature {
             <li>This ensures only the correct set of DAAs loads for each form type</li>
         </ul>
 
+        <h4>Job Type Dropdown Filtering by Classification</h4>
+        <p>The <code>jobType</code> dropdown on the Job form must only show types whose <code>jobClassification</code> matches the current context. This prevents a user from accidentally selecting a WorkOrder type on a ProjectJob form or vice versa.</p>
+        <ul>
+            <li><strong>Create from Jobs page:</strong> the <code>jobType</code> dropdown shows only PropertyValues where <code>jobClassification = "ProjectJob"</code></li>
+            <li><strong>Create from Work Orders page:</strong> the <code>jobType</code> dropdown shows only PropertyValues where <code>jobClassification = "WorkOrder"</code></li>
+            <li><strong>Edit:</strong> the <code>jobType</code> dropdown is filtered to types matching the job's current classification (derived from its existing <code>jobTypeId</code>)</li>
+            <li>A job cannot be switched from ProjectJob to WorkOrder (or vice versa) via the form &mdash; the dropdown simply does not include cross-classification options</li>
+        </ul>
+        <p>The backend guard for this constraint lives in WO-1 (Step 5, <code>beforeEdit</code> hook on the Job model), which rejects cross-classification changes at the API level. This frontend filtering is the UX layer that prevents invalid options from appearing.</p>
+
         <h3>Step 2: New WO-only DAAs</h3>
         <table class="schema-table">
             <thead><tr><th>defaultAttribute</th><th>Label</th><th>Type</th><th>subModel</th><th>Notes</th></tr></thead>
@@ -347,6 +357,7 @@ renderChild={(assignment, disabledByPermission) => {
                 <tr><td><span class="action-mod">MOD</span></td><td><code>apps/api/src/models/Job.ts</code></td><td>Add <code>dateOfWork</code> to modelFields; update <code>generateJobNumber()</code> for WO classification</td></tr>
                 <tr><td><span class="action-mod">MOD</span></td><td><code>apps/api/src/graphql/models/Job.ts</code></td><td>Add <code>dateOfWork</code> to type + inputs; add <code>Signatures</code> resolver (polymorphic query)</td></tr>
                 <tr><td><span class="action-mod">MOD</span></td><td><code>apps/api/src/graphql/schema.ts</code></td><td>Register Signature resolver</td></tr>
+                <tr><td><span class="action-mod">MOD</span></td><td><code>Job form (jobType dropdown logic)</code></td><td>Filter jobType PropertyValue options by classification &mdash; ProjectJob types on Jobs page, WorkOrder types on WO page, matching classification on edit</td></tr>
             </tbody>
         </table>
     </div>
@@ -369,6 +380,9 @@ renderChild={(assignment, disabledByPermission) => {
             <li><span>Job number generation uses existing project-based pattern when WO is attached to a project</span></li>
             <li><span>Existing ProjectJob numbering completely unaffected</span></li>
             <li><span>Subtotals are rendered within the line item editor components (WO-3b), not as separate DAA positions</span></li>
+            <li><span>On create from Jobs page, job type dropdown only shows ProjectJob types</span></li>
+            <li><span>On create from Work Orders page, job type dropdown only shows WorkOrder types</span></li>
+            <li><span>On edit, job type dropdown only shows types matching the job's current classification</span></li>
         </ol>
     </div>
 

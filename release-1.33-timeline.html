@@ -219,16 +219,31 @@ h1 { font-size: 30px; font-weight: 800; color: #0f172a; margin: 0 0 8px; letter-
             <div class="item-row" data-spec="uis-LEM-3-material-billable-rates.html" data-plan="plans/LEM-3-material-billable-rates.html">
                 <div class="item-header">
                     <span class="item-chevron">&#9654;</span>
-                    <span class="item-id">LEM-3</span>
-                    <span class="item-name">Material Billable Rates &mdash; Three-tier pricing cascade (MaterialGroup &rarr; Material &rarr; Job) for material charge-out prices. <code>resolveMaterialSellPrice()</code> service, Pricing card on Material detail page, default markup on MaterialGroup, job-level override.</span>
-                    <span class="item-est">2-3 days</span>
-                    <span class="item-status"><span class="status-tag status-parallel">PARALLEL</span></span>
+                    <span class="item-id">LEM-3a</span>
+                    <span class="item-name">Material Billable Rates &mdash; Schema + Service. Migration (4 nullable columns), <code>MaterialPricingService</code> (<code>resolveMaterialSellPrice()</code>, <code>bestAvailableCost()</code>), GraphQL computed resolvers. <strong>Hard prerequisite for WO-2.</strong></span>
+                    <span class="item-est">~1 day</span>
+                    <span class="item-status"><span class="status-tag status-sequence">SEQUENCE</span></span>
                     <span class="item-dep">LEM-1 (pattern)</span>
                 </div>
                 <div class="item-detail">
-                    <p><strong>What changed:</strong> Originally marked DONE/VALIDATED because the existing Material catalog supports WO lookup and manual price entry. However, &ldquo;material rates&rdquo; means <em>charge-out pricing</em> (what the customer pays), not cost pricing. Labor has <code>billableValue</code> (LEM-1), equipment has billable rates (LEM-2), but materials had no equivalent &mdash; they were passed through at cost or manually priced.</p>
-                    <p><strong>Schema:</strong> 4 new nullable fields across 3 existing models (<code>MaterialGroup.defaultMarkupPercent</code>, <code>Material.sellPriceOverride</code>, <code>Material.markupPercentOverride</code>, <code>Job.materialMarkupPercent</code>). New <code>MaterialPricingService</code> with <code>resolveMaterialSellPrice()</code> and <code>bestAvailableCost()</code>. New <code>MaterialPricingCard</code> component.</p>
-                    <p><a href="uis-LEM-3-material-billable-rates.html">UIS Spec &rarr;</a> &nbsp; <a href="plans/LEM-3-material-billable-rates.html">Impl Plan &rarr;</a></p>
+                    <p><strong>Why split:</strong> WO-2 material line items need <code>resolveMaterialSellPrice()</code> to auto-populate sell prices. By landing the schema and service first, WO-2/WO-3 can proceed without waiting for the management UI.</p>
+                    <p><strong>Deliverables:</strong> Migration SQL, Prisma schema fields, <code>MaterialPricingService.ts</code>, Material GraphQL computed resolvers (<code>sellPrice</code>, <code>costBasis</code>, <code>marginPercent</code>, <code>pricingSource</code>), extended input types.</p>
+                    <p><a href="uis-LEM-3-material-billable-rates.html">UIS Spec &rarr;</a> &nbsp; <a href="plans/LEM-3-material-billable-rates.html">Impl Plan (Steps 1-3) &rarr;</a></p>
+                </div>
+            </div>
+            <div class="item-row" data-spec="uis-LEM-3-material-billable-rates.html" data-plan="plans/LEM-3-material-billable-rates.html">
+                <div class="item-header">
+                    <span class="item-chevron">&#9654;</span>
+                    <span class="item-id">LEM-3b</span>
+                    <span class="item-name">Material Billable Rates &mdash; UI. MaterialPricingCard on Material detail page, Default Markup % on MaterialGroup form, Material Markup % on Job settings. <strong>Parallel with WO-2/WO-3.</strong></span>
+                    <span class="item-est">1-2 days</span>
+                    <span class="item-status"><span class="status-tag status-parallel">PARALLEL</span></span>
+                    <span class="item-dep">LEM-3a</span>
+                </div>
+                <div class="item-detail">
+                    <p><strong>Why parallel:</strong> The backend service and fields already exist from LEM-3a. This phase builds the management UI so users can configure markup percentages. WO-2/WO-3 can proceed simultaneously &mdash; they only need the service from 3a.</p>
+                    <p><strong>Deliverables:</strong> <code>MaterialPricingCard.tsx</code> (cost/sell/margin display + pricing mode radio buttons), MaterialGroup form <code>defaultMarkupPercent</code> field, Job financial settings <code>materialMarkupPercent</code> field.</p>
+                    <p><a href="uis-LEM-3-material-billable-rates.html">UIS Spec &rarr;</a> &nbsp; <a href="plans/LEM-3-material-billable-rates.html">Impl Plan (Steps 4-6) &rarr;</a></p>
                 </div>
             </div>
         </div>

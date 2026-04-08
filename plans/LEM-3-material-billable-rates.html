@@ -37,9 +37,19 @@ td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
 
 <h2>Overview</h2>
 <p>Add a three-tier pricing cascade (MaterialGroup &rarr; Material &rarr; Job) that resolves what to charge the customer for materials. Creates <code>MaterialPricingService</code> with <code>resolveMaterialSellPrice()</code>, adds 4 new fields across 3 existing models, and builds a Pricing card component for the Material detail page.</p>
-<p><strong>Estimated effort:</strong> 2&ndash;3 days</p>
+
+<div class="callout" style="background:#f0fdf4; border-color:#bbf7d0; color:#166534;">
+    <strong>LEM-3a &mdash; Schema + Service (~1 day) &mdash; DO FIRST</strong><br>
+    Steps 1&ndash;3 below. Pure backend: migration, service, GraphQL resolvers. No React components. This is a <strong>hard prerequisite for WO-2</strong> &mdash; material line items need <code>resolveMaterialSellPrice()</code> to auto-populate sell prices.
+</div>
+<div class="callout" style="background:#eff6ff; border-color:#bfdbfe; color:#1e40af;">
+    <strong>LEM-3b &mdash; UI (~1-2 days) &mdash; PARALLEL with WO-2/WO-3</strong><br>
+    Steps 4&ndash;6 below. MaterialPricingCard component, MaterialGroup markup form field, Job markup field. Can be developed in parallel with Work Order UI since the backend fields and service already exist from 3a.
+</div>
 
 <hr>
+
+<h2 style="background:#f0fdf4; padding:10px 14px; border-radius:8px; border-left:4px solid #22c55e;">Phase 3a &mdash; Schema + Service</h2>
 
 <h2>Step 1: Database Migration</h2>
 
@@ -219,6 +229,8 @@ pricingSource: async (parent, args) => {
 
 <hr>
 
+<h2 style="background:#eff6ff; padding:10px 14px; border-radius:8px; border-left:4px solid #3b82f6;">Phase 3b &mdash; UI (parallel with WO-2/WO-3)</h2>
+
 <h2>Step 4: Frontend &mdash; MaterialPricingCard</h2>
 
 <p><strong>Create file:</strong> <code>apps/frontend/src/components/Materials/MaterialPricingCard.tsx</code></p>
@@ -283,16 +295,20 @@ pricingSource: async (parent, args) => {
 
 <h2>Acceptance Checklist</h2>
 
+<h3>LEM-3a (Schema + Service) &mdash; Gate for WO-2</h3>
 <div class="check-item"><div class="check-box"></div><span>Migration adds 4 new nullable columns to 3 existing tables</span></div>
 <div class="check-item"><div class="check-box"></div><span><code>MaterialPricingService.resolveMaterialSellPrice()</code> correctly cascades: Job &gt; Material fixed &gt; Material % &gt; Group % &gt; cost</span></div>
 <div class="check-item"><div class="check-box"></div><span><code>bestAvailableCost()</code> returns <code>MaterialAttributePrice.value</code> for existing materials</span></div>
 <div class="check-item"><div class="check-box"></div><span>GraphQL <code>sellPrice</code> field on Material resolves correctly with optional <code>jobId</code> argument</span></div>
+<div class="check-item"><div class="check-box"></div><span>No markup configured = sell price equals cost (no error)</span></div>
+<div class="check-item"><div class="check-box"></div><span>Existing material data is unaffected (all new fields are nullable)</span></div>
+<div class="check-item"><div class="check-box"></div><span><code>EditMaterialGroupInput</code>, <code>EditMaterialInput</code>, <code>EditJobInput</code> accept the new pricing fields</span></div>
+
+<h3>LEM-3b (UI) &mdash; Parallel with WO-2/WO-3</h3>
 <div class="check-item"><div class="check-box"></div><span>MaterialPricingCard renders cost, sell price, margin on Material detail page</span></div>
 <div class="check-item"><div class="check-box"></div><span>Pricing mode radio buttons persist correct fields on save</span></div>
 <div class="check-item"><div class="check-box"></div><span>MaterialGroup form includes Default Markup % field</span></div>
 <div class="check-item"><div class="check-box"></div><span>Job detail includes Material Markup % field</span></div>
-<div class="check-item"><div class="check-box"></div><span>No markup configured = sell price equals cost (no error)</span></div>
-<div class="check-item"><div class="check-box"></div><span>Existing material data is unaffected (all new fields are nullable)</span></div>
 
 </div>
 </body>

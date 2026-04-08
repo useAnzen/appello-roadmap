@@ -106,7 +106,7 @@ pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
         <h1 class="uis-h1">Material Billable Rates</h1>
         <p class="uis-sub">Three-tier pricing cascade (Group &rarr; Material &rarr; Job) that auto-calculates what to charge the customer for materials. Completes the LEM triad alongside labor billable rates (LEM-1) and equipment billable rates (LEM-2).</p>
         <div class="uis-meta">
-            <span><strong>Estimate:</strong> 2-3 days</span>
+            <span><strong>Estimate:</strong> 3a: ~1 day &middot; 3b: ~1-2 days</span>
             <span><strong>Sequence:</strong> 3 of 3 (LEM Foundation)</span>
             <span><strong>Enables:</strong> WO-2 Line Items, WO-7 Conversion, MAT-2a LEM Report</span>
             <span><strong>New files:</strong> ~3</span>
@@ -188,17 +188,30 @@ pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
     <!-- Section 2: Scope -->
     <div class="uis-section" id="scope">
         <h2>2. Scope</h2>
-        <h3>In Scope</h3>
+        <h3>Execution Phasing</h3>
+        <div class="callout" style="background:#f0fdf4; border-color:#bbf7d0; color:#166534;">
+            <strong>LEM-3a &mdash; Schema + Service (~1 day, prerequisite for WO-2):</strong> Migration, <code>MaterialPricingService</code>, GraphQL resolvers. Pure backend &mdash; no React components. Must land before WO-2 starts so <code>resolveMaterialSellPrice()</code> is available for material line item auto-populate.
+        </div>
+        <div class="callout" style="background:#eff6ff; border-color:#bfdbfe; color:#1e40af;">
+            <strong>LEM-3b &mdash; UI (~1-2 days, parallel with WO-2/WO-3):</strong> MaterialPricingCard, MaterialGroup markup form field, Job markup field. The management UI for configuring markup percentages. Can run in parallel with Work Order development since the backend fields and service already exist from 3a.
+        </div>
+
+        <h3>In Scope &mdash; LEM-3a (Schema + Service)</h3>
         <ul>
-            <li><span class="scope-tag scope-in">IN</span> <code>defaultMarkupPercent</code> field on <code>MaterialGroup</code> (Tier 1)</li>
-            <li><span class="scope-tag scope-in">IN</span> <code>sellPriceOverride</code> and <code>markupPercentOverride</code> fields on <code>Material</code> (Tier 2)</li>
-            <li><span class="scope-tag scope-in">IN</span> <code>materialMarkupPercent</code> field on <code>Job</code> (Tier 3)</li>
-            <li><span class="scope-tag scope-in">IN</span> <code>resolveMaterialSellPrice()</code> service function implementing the cascade</li>
-            <li><span class="scope-tag scope-in">IN</span> Pricing card on Material detail page showing cost, sell price, and margin</li>
-            <li><span class="scope-tag scope-in">IN</span> Default Markup % field on MaterialGroup add/edit form</li>
-            <li><span class="scope-tag scope-in">IN</span> Material Markup % field on Job settings or a Job Pricing section</li>
-            <li><span class="scope-tag scope-in">IN</span> GraphQL computed field <code>sellPrice</code> on Material type</li>
-            <li><span class="scope-tag scope-in">IN</span> Migration SQL for new fields</li>
+            <li><span class="scope-tag scope-in">3a</span> Migration SQL for new fields (4 nullable columns on 3 existing tables)</li>
+            <li><span class="scope-tag scope-in">3a</span> <code>defaultMarkupPercent</code> field on <code>MaterialGroup</code> (Tier 1)</li>
+            <li><span class="scope-tag scope-in">3a</span> <code>sellPriceOverride</code> and <code>markupPercentOverride</code> fields on <code>Material</code> (Tier 2)</li>
+            <li><span class="scope-tag scope-in">3a</span> <code>materialMarkupPercent</code> field on <code>Job</code> (Tier 3)</li>
+            <li><span class="scope-tag scope-in">3a</span> <code>MaterialPricingService</code> with <code>resolveMaterialSellPrice()</code> and <code>bestAvailableCost()</code></li>
+            <li><span class="scope-tag scope-in">3a</span> GraphQL computed fields on Material type (<code>sellPrice</code>, <code>costBasis</code>, <code>marginPercent</code>, <code>pricingSource</code>)</li>
+            <li><span class="scope-tag scope-in">3a</span> Extended input types (<code>EditMaterialGroupInput</code>, <code>EditMaterialInput</code>, <code>EditJobInput</code>)</li>
+        </ul>
+
+        <h3>In Scope &mdash; LEM-3b (UI)</h3>
+        <ul>
+            <li><span class="scope-tag scope-in">3b</span> Pricing card on Material detail page showing cost, sell price, and margin</li>
+            <li><span class="scope-tag scope-in">3b</span> Default Markup % field on MaterialGroup add/edit form</li>
+            <li><span class="scope-tag scope-in">3b</span> Material Markup % field on Job settings or a Job Pricing section</li>
         </ul>
         <h3>Out of Scope</h3>
         <ul>
@@ -531,19 +544,19 @@ type MaterialPriceResolution {
         </div>
 
         <table class="schema-table">
-            <thead><tr><th>Action</th><th>File</th><th>Change</th></tr></thead>
+            <thead><tr><th>Phase</th><th>Action</th><th>File</th><th>Change</th></tr></thead>
             <tbody>
-                <tr><td><span class="action-new">NEW</span></td><td><code>apps/api/prisma/migrations/&hellip;_add_material_billable_rates/migration.sql</code></td><td>Add <code>defaultMarkupPercent</code> to MaterialGroup, <code>sellPriceOverride</code> + <code>markupPercentOverride</code> to Material, <code>materialMarkupPercent</code> to Job</td></tr>
-                <tr><td><span class="action-new">NEW</span></td><td><code>apps/api/src/services/MaterialPricingService.ts</code></td><td><code>resolveMaterialSellPrice()</code>, <code>bestAvailableCost()</code>, margin computation</td></tr>
-                <tr><td><span class="action-new">NEW</span></td><td><code>apps/frontend/src/components/Materials/MaterialPricingCard.tsx</code></td><td>Pricing card component for Material detail page (cost, sell, margin, pricing mode radio buttons)</td></tr>
-                <tr><td><span class="action-mod">MOD</span></td><td><code>apps/api/prisma/schema.prisma</code></td><td>Add new fields to MaterialGroup, Material, Job models</td></tr>
-                <tr><td><span class="action-mod">MOD</span></td><td><code>apps/api/src/graphql/models/Material.ts</code></td><td>Add <code>sellPrice</code>, <code>marginPercent</code>, <code>costBasis</code>, <code>pricingSource</code> computed resolvers</td></tr>
-                <tr><td><span class="action-mod">MOD</span></td><td><code>apps/api/src/graphql/models/MaterialGroup.ts</code></td><td>Expose <code>defaultMarkupPercent</code> in type + input</td></tr>
-                <tr><td><span class="action-mod">MOD</span></td><td><code>apps/api/src/graphql/models/Job.ts</code></td><td>Expose <code>materialMarkupPercent</code> in type + input</td></tr>
-                <tr><td><span class="action-mod">MOD</span></td><td><code>apps/api/src/graphql/schema.ts</code></td><td>Register new resolver fields</td></tr>
-                <tr><td><span class="action-mod">MOD</span></td><td><code>apps/frontend/src/pages/materials/[id]/index.tsx</code></td><td>Add <code>MaterialPricingCard</code> to Material detail page</td></tr>
-                <tr><td><span class="action-mod">MOD</span></td><td><code>apps/frontend/src/components/Forms/MaterialGroupAddEditForm/MaterialGroupAddEditForm.tsx</code></td><td>Add Default Markup % field</td></tr>
-                <tr><td><span class="action-mod">MOD</span></td><td><code>apps/frontend/src/components/DetailsPage/JobDetailsPage/</code></td><td>Add Material Markup % field to Job financial settings</td></tr>
+                <tr><td><span class="uis-badge badge-prereq">3a</span></td><td><span class="action-new">NEW</span></td><td><code>apps/api/prisma/migrations/&hellip;_add_material_billable_rates/migration.sql</code></td><td>Add <code>defaultMarkupPercent</code> to MaterialGroup, <code>sellPriceOverride</code> + <code>markupPercentOverride</code> to Material, <code>materialMarkupPercent</code> to Job</td></tr>
+                <tr><td><span class="uis-badge badge-prereq">3a</span></td><td><span class="action-new">NEW</span></td><td><code>apps/api/src/services/MaterialPricingService.ts</code></td><td><code>resolveMaterialSellPrice()</code>, <code>bestAvailableCost()</code>, margin computation</td></tr>
+                <tr><td><span class="uis-badge badge-prereq">3a</span></td><td><span class="action-mod">MOD</span></td><td><code>apps/api/prisma/schema.prisma</code></td><td>Add new fields to MaterialGroup, Material, Job models</td></tr>
+                <tr><td><span class="uis-badge badge-prereq">3a</span></td><td><span class="action-mod">MOD</span></td><td><code>apps/api/src/graphql/models/Material.ts</code></td><td>Add <code>sellPrice</code>, <code>marginPercent</code>, <code>costBasis</code>, <code>pricingSource</code> computed resolvers</td></tr>
+                <tr><td><span class="uis-badge badge-prereq">3a</span></td><td><span class="action-mod">MOD</span></td><td><code>apps/api/src/graphql/models/MaterialGroup.ts</code></td><td>Expose <code>defaultMarkupPercent</code> in type + input</td></tr>
+                <tr><td><span class="uis-badge badge-prereq">3a</span></td><td><span class="action-mod">MOD</span></td><td><code>apps/api/src/graphql/models/Job.ts</code></td><td>Expose <code>materialMarkupPercent</code> in type + input</td></tr>
+                <tr><td><span class="uis-badge badge-prereq">3a</span></td><td><span class="action-mod">MOD</span></td><td><code>apps/api/src/graphql/schema.ts</code></td><td>Register new resolver fields</td></tr>
+                <tr><td><span class="uis-badge badge-lane">3b</span></td><td><span class="action-new">NEW</span></td><td><code>apps/frontend/src/components/Materials/MaterialPricingCard.tsx</code></td><td>Pricing card component for Material detail page (cost, sell, margin, pricing mode radio buttons)</td></tr>
+                <tr><td><span class="uis-badge badge-lane">3b</span></td><td><span class="action-mod">MOD</span></td><td><code>apps/frontend/src/pages/materials/[id]/index.tsx</code></td><td>Add <code>MaterialPricingCard</code> to Material detail page</td></tr>
+                <tr><td><span class="uis-badge badge-lane">3b</span></td><td><span class="action-mod">MOD</span></td><td><code>apps/frontend/src/components/Forms/MaterialGroupAddEditForm/MaterialGroupAddEditForm.tsx</code></td><td>Add Default Markup % field</td></tr>
+                <tr><td><span class="uis-badge badge-lane">3b</span></td><td><span class="action-mod">MOD</span></td><td><code>apps/frontend/src/components/DetailsPage/JobDetailsPage/</code></td><td>Add Material Markup % field to Job financial settings</td></tr>
             </tbody>
         </table>
     </div>
@@ -551,21 +564,30 @@ type MaterialPriceResolution {
     <!-- Section 9: Acceptance Criteria -->
     <div class="uis-section" id="acceptance-criteria">
         <h2>9. Acceptance Criteria</h2>
+        <h3>LEM-3a (Schema + Service)</h3>
         <ul class="criteria-list">
-            <li><div class="criteria-check"></div>Setting <code>defaultMarkupPercent</code> on a MaterialGroup applies that markup to all materials in the group that do not have their own override</li>
-            <li><div class="criteria-check"></div>Setting <code>sellPriceOverride</code> on a Material overrides the group default with a fixed dollar sell price</li>
-            <li><div class="criteria-check"></div>Setting <code>markupPercentOverride</code> on a Material overrides the group default with a custom markup percentage</li>
-            <li><div class="criteria-check"></div>Setting <code>materialMarkupPercent</code> on a Job overrides all material-level and group-level pricing for that job</li>
-            <li><div class="criteria-check"></div>The cascade resolution order is: Job &gt; Material fixed &gt; Material % &gt; Group % &gt; cost pass-through</li>
+            <li><div class="criteria-check"></div>Migration adds 4 nullable columns to MaterialGroup, Material, and Job tables without breaking existing data</li>
+            <li><div class="criteria-check"></div><code>resolveMaterialSellPrice(materialId, jobId?)</code> correctly walks the cascade: Job &gt; Material fixed &gt; Material % &gt; Group % &gt; cost pass-through</li>
+            <li><div class="criteria-check"></div><code>bestAvailableCost(materialId)</code> returns the lowest available cost from distributor prices or attribute prices</li>
+            <li><div class="criteria-check"></div>The <code>sellPrice</code> GraphQL computed field on Material returns the correctly resolved sell price</li>
+            <li><div class="criteria-check"></div><code>costBasis</code>, <code>marginPercent</code>, and <code>pricingSource</code> computed fields return correct values</li>
+            <li><div class="criteria-check"></div>If no markup is configured at any tier, the sell price equals the cost price (zero margin, not an error)</li>
+            <li><div class="criteria-check"></div><code>EditMaterialGroupInput</code>, <code>EditMaterialInput</code>, and <code>EditJobInput</code> accept the new pricing fields</li>
+        </ul>
+
+        <h3>LEM-3b (UI)</h3>
+        <ul class="criteria-list">
             <li><div class="criteria-check"></div>The Material detail page shows a Pricing card with cost, sell price, and margin ($ and %)</li>
             <li><div class="criteria-check"></div>The Material detail page pricing mode radio buttons correctly switch between group default, fixed sell price, and custom markup %</li>
             <li><div class="criteria-check"></div>Changing the pricing mode and saving persists the correct fields (<code>sellPriceOverride</code> or <code>markupPercentOverride</code>)</li>
-            <li><div class="criteria-check"></div>The <code>sellPrice</code> GraphQL computed field on Material returns the correctly resolved sell price</li>
-            <li><div class="criteria-check"></div>When a Material is selected on a WO line item, <code>unitPrice</code> auto-populates from the resolved sell price (downstream, WO-2)</li>
-            <li><div class="criteria-check"></div>The LEM combined report shows <code>materialBillableValue</code> alongside <code>materialCost</code> (downstream, MAT-2a)</li>
-            <li><div class="criteria-check"></div>If no markup is configured at any tier, the sell price equals the cost price (zero margin, not an error)</li>
             <li><div class="criteria-check"></div>The MaterialGroup add/edit form includes a Default Markup % field</li>
             <li><div class="criteria-check"></div>The Job detail page includes a Material Markup % field in the financial/pricing section</li>
+        </ul>
+
+        <h3>Downstream (validated by WO-2 and MAT-2a)</h3>
+        <ul class="criteria-list">
+            <li><div class="criteria-check"></div>When a Material is selected on a WO line item, <code>unitPrice</code> auto-populates from the resolved sell price (WO-2)</li>
+            <li><div class="criteria-check"></div>The LEM combined report shows <code>materialBillableValue</code> alongside <code>materialCost</code> (MAT-2a)</li>
         </ul>
     </div>
 

@@ -8,7 +8,6 @@
     <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body { font-family: 'Inter', -apple-system, sans-serif; background: #f1f5f9; color: #0f172a; }
-.in-iframe .top-nav { display: none !important; }
 .top-nav { position: sticky; top: 0; z-index: 100; background: #0f172a; border-bottom: 1px solid #1e293b; padding: 0 24px; display: flex; align-items: center; gap: 0; }
 .top-nav a { display: inline-flex; align-items: center; padding: 12px 18px; font-size: 13px; font-weight: 600; color: #94a3b8; text-decoration: none; border-bottom: 2px solid transparent; transition: all 0.15s; white-space: nowrap; }
 .top-nav a:hover { color: #f8fafc; background: #1e293b; }
@@ -30,6 +29,7 @@ h1 { font-size: 30px; font-weight: 800; color: #0f172a; margin: 0 0 8px; letter-
 .badge-workorder { background: #fce7f3; color: #be185d; }
 .badge-parallel { background: #fef3c7; color: #92400e; }
 .badge-customer { background: #f3e8ff; color: #7c3aed; }
+.badge-backend { background: #fef3c7; color: #78350f; border: 1px solid #f59e0b40; }
 
 /* Item rows */
 .items { display: grid; grid-template-columns: 1fr; gap: 4px; }
@@ -84,6 +84,7 @@ h1 { font-size: 30px; font-weight: 800; color: #0f172a; margin: 0 0 8px; letter-
 .status-ready { background: #dcfce7; color: #166534; }
 .status-blocked { background: #fee2e2; color: #dc2626; }
 .status-parallel { background: #fef3c7; color: #92400e; }
+.status-backend { background: #fef3c7; color: #78350f; border: 1px solid #f59e0b40; }
 
 /* Connectors */
 .connector { text-align: center; padding: 8px; color: #94a3b8; font-size: 20px; }
@@ -117,7 +118,6 @@ h1 { font-size: 30px; font-weight: 800; color: #0f172a; margin: 0 0 8px; letter-
 </style>
 </head>
 <body>
-<script>if(self!==top)document.documentElement.classList.add("in-iframe")</script>
 <nav class="top-nav">
     <span class="nav-logo">Appello SDLC</span>
     <a href="index.html">Roadmap</a>
@@ -136,13 +136,13 @@ h1 { font-size: 30px; font-weight: 800; color: #0f172a; margin: 0 0 8px; letter-
     <div class="summary-cards">
         <div class="summary-card">
             <div class="sc-label">Total Features</div>
-            <div class="sc-value">23</div>
-            <div class="sc-detail">3 LEM + 8 Equipment + 12 Work Order</div>
+            <div class="sc-value">35</div>
+            <div class="sc-detail">3 LEM + 12 WO + 8 Equip + 12 Backend</div>
         </div>
         <div class="summary-card">
             <div class="sc-label">Phases</div>
-            <div class="sc-value">4</div>
-            <div class="sc-detail">Foundation &rarr; WO &rarr; Equip &rarr; Maintenance</div>
+            <div class="sc-value">5</div>
+            <div class="sc-detail">LEM &rarr; WO &rarr; Backend &rarr; Equip &rarr; Maint</div>
         </div>
         <div class="summary-card">
             <div class="sc-label">Key Prerequisite</div>
@@ -162,8 +162,10 @@ h1 { font-size: 30px; font-weight: 800; color: #0f172a; margin: 0 0 8px; letter-
         <div class="legend-item"><div class="legend-dot" style="background:#d1fae5;"></div> Equipment Module</div>
         <div class="legend-item"><div class="legend-dot" style="background:#fce7f3;"></div> Work Orders</div>
         <div class="legend-item"><div class="legend-dot" style="background:#fef3c7;"></div> Can parallelize</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#fef3c7; border: 1px solid #f59e0b;"></div> Backend Infrastructure</div>
         <div class="legend-item"><span class="status-tag status-ready">READY</span> No blockers</div>
         <div class="legend-item"><span class="status-tag status-blocked">BLOCKED</span> Waiting on dependency</div>
+        <div class="legend-item"><span class="status-tag status-backend">BACKEND</span> Backend only (no UI)</div>
         <div class="legend-item" style="color:#94a3b8;">&#9654; = has spec (click to expand)</div>
     </div>
 
@@ -449,6 +451,158 @@ h1 { font-size: 30px; font-weight: 800; color: #0f172a; margin: 0 0 8px; letter-
                     <span class="item-dep">WO-6, WO-8a</span>
                 </div>
                 <div class="item-detail"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="connector">&darr;</div>
+
+    <!-- Backend Infrastructure Sprint: Material Supply Chain -->
+    <div class="phase">
+        <h2>
+            <span class="phase-badge badge-backend">Backend Sprint</span>
+            Backend Infrastructure &mdash; Material Supply Chain
+        </h2>
+        <p class="phase-desc"><strong>Backend only &mdash; no UI.</strong> Builds all database models, GraphQL resolvers, and services for the entire material supply chain (MAT-0 through MAT-9). Seeded with synthetic data and validated end-to-end via MCP. Runs in parallel with WO development.</p>
+
+        <div class="header-row">
+            <span></span>
+            <span>ID</span>
+            <span>Feature</span>
+            <span>Estimate</span>
+            <span>Status</span>
+            <span>Depends On</span>
+        </div>
+        <div class="items">
+            <div class="item-row" data-spec="uis-LEM-3-material-billable-rates.html" data-plan="plans/LEM-3-material-billable-rates.html">
+                <div class="item-header">
+                    <span class="item-chevron">&#9654;</span>
+                    <span class="item-id">LEM-3a</span>
+                    <span class="item-name">Material Pricing Cascade &mdash; Migration (4 columns), MaterialPricingService, GraphQL computed resolvers (sellPrice, costBasis, marginPercent)</span>
+                    <span class="item-est">0.5 day</span>
+                    <span class="item-status"><span class="status-tag status-backend">BACKEND</span></span>
+                    <span class="item-dep">LEM-1</span>
+                </div>
+                <div class="item-detail"></div>
+            </div>
+            <div class="item-row" data-spec="uis-MAT-0-supply-chain-model.html" data-plan="plans/MAT-0-supply-chain-model.html">
+                <div class="item-header">
+                    <span class="item-chevron">&#9654;</span>
+                    <span class="item-id">MAT-0</span>
+                    <span class="item-name">Supply Chain Foundation &mdash; ManufacturerProduct + DistributorPrice models, manufacturer/distributor company relations</span>
+                    <span class="item-est">1 day</span>
+                    <span class="item-status"><span class="status-tag status-backend">BACKEND</span></span>
+                    <span class="item-dep">LEM-3a</span>
+                </div>
+                <div class="item-detail"></div>
+            </div>
+            <div class="item-row" data-spec="uis-MAT-1-customer-po-entity.html" data-plan="plans/MAT-1-customer-po-entity.html">
+                <div class="item-header">
+                    <span class="item-chevron">&#9654;</span>
+                    <span class="item-id">MAT-1</span>
+                    <span class="item-name">Customer PO Entity &mdash; PurchaseOrder + PurchaseOrderLineItem models with type enum, status, line items</span>
+                    <span class="item-est">1 day</span>
+                    <span class="item-status"><span class="status-tag status-backend">BACKEND</span></span>
+                    <span class="item-dep">MAT-0</span>
+                </div>
+                <div class="item-detail"></div>
+            </div>
+            <div class="item-row" data-spec="uis-MAT-9-discount-management.html" data-plan="plans/MAT-9-discount-management.html">
+                <div class="item-header">
+                    <span class="item-chevron">&#9654;</span>
+                    <span class="item-id">MAT-9</span>
+                    <span class="item-name">Discount Management &mdash; DistributorDiscount model with Global/Category/Product scopes, effective pricing</span>
+                    <span class="item-est">0.5 day</span>
+                    <span class="item-status"><span class="status-tag status-backend">BACKEND</span></span>
+                    <span class="item-dep">MAT-0 (||)</span>
+                </div>
+                <div class="item-detail"></div>
+            </div>
+            <div class="item-row" data-spec="uis-MAT-4-mobile-material-requests.html" data-plan="plans/MAT-4-mobile-material-requests.html">
+                <div class="item-header">
+                    <span class="item-chevron">&#9654;</span>
+                    <span class="item-id">MAT-4</span>
+                    <span class="item-name">Material Requests &mdash; MaterialRequest + MaterialRequestItem models, status workflow mutations</span>
+                    <span class="item-est">0.5 day</span>
+                    <span class="item-status"><span class="status-tag status-backend">BACKEND</span></span>
+                    <span class="item-dep">MAT-0 (||)</span>
+                </div>
+                <div class="item-detail"></div>
+            </div>
+            <div class="item-row" data-spec="uis-MAT-2a-lem-consumption-desktop.html" data-plan="plans/MAT-2a-lem-consumption-desktop.html">
+                <div class="item-header">
+                    <span class="item-chevron">&#9654;</span>
+                    <span class="item-id">MAT-2a</span>
+                    <span class="item-name">Material Consumption &mdash; MaterialConsumptionEntry model, approve mutation, LEMReport query</span>
+                    <span class="item-est">0.5 day</span>
+                    <span class="item-status"><span class="status-tag status-backend">BACKEND</span></span>
+                    <span class="item-dep">LEM-3a (||)</span>
+                </div>
+                <div class="item-detail"></div>
+            </div>
+            <div class="item-row" data-spec="uis-MAT-5-supplier-po.html" data-plan="plans/MAT-5-supplier-po.html">
+                <div class="item-header">
+                    <span class="item-chevron">&#9654;</span>
+                    <span class="item-id">MAT-5</span>
+                    <span class="item-name">Supplier PO &mdash; Extend PurchaseOrder with delivery/shipping fields, supplier-specific mutations</span>
+                    <span class="item-est">0.5 day</span>
+                    <span class="item-status"><span class="status-tag status-backend">BACKEND</span></span>
+                    <span class="item-dep">MAT-1</span>
+                </div>
+                <div class="item-detail"></div>
+            </div>
+            <div class="item-row" data-spec="uis-MAT-6-receiving-workflow.html" data-plan="plans/MAT-6-receiving-workflow.html">
+                <div class="item-header">
+                    <span class="item-chevron">&#9654;</span>
+                    <span class="item-id">MAT-6</span>
+                    <span class="item-name">Receiving &mdash; PurchaseOrderReceipt + ReceiptLineItem, partial/complete receipts, three-way match</span>
+                    <span class="item-est">0.5 day</span>
+                    <span class="item-status"><span class="status-tag status-backend">BACKEND</span></span>
+                    <span class="item-dep">MAT-5</span>
+                </div>
+                <div class="item-detail"></div>
+            </div>
+            <div class="item-row" data-spec="uis-MAT-7-inventory-management.html" data-plan="plans/MAT-7-inventory-management.html">
+                <div class="item-header">
+                    <span class="item-chevron">&#9654;</span>
+                    <span class="item-id">MAT-7</span>
+                    <span class="item-name">Inventory &mdash; InventoryLocation + InventoryItem + InventoryMovement, checkout/transfer/adjust</span>
+                    <span class="item-est">1 day</span>
+                    <span class="item-status"><span class="status-tag status-backend">BACKEND</span></span>
+                    <span class="item-dep">MAT-6</span>
+                </div>
+                <div class="item-detail"></div>
+            </div>
+            <div class="item-row" data-spec="uis-MAT-8-vendor-credits.html" data-plan="plans/MAT-8-vendor-credits.html">
+                <div class="item-header">
+                    <span class="item-chevron">&#9654;</span>
+                    <span class="item-id">MAT-8</span>
+                    <span class="item-name">Vendor Credits &mdash; VendorCredit + VendorCreditLineItem, returns workflow, applyCredit mutation</span>
+                    <span class="item-est">0.5 day</span>
+                    <span class="item-status"><span class="status-tag status-backend">BACKEND</span></span>
+                    <span class="item-dep">MAT-6 (||)</span>
+                </div>
+                <div class="item-detail"></div>
+            </div>
+            <div class="item-row no-expand">
+                <div class="item-header">
+                    <span class="item-chevron">&#9654;</span>
+                    <span class="item-id" style="color:#f59e0b;">SEED</span>
+                    <span class="item-name">Synthetic Data Seeding &mdash; Seed via MCP: manufacturers, distributors, products, prices, POs, consumption, inventory, credits</span>
+                    <span class="item-est">1 day</span>
+                    <span class="item-status"><span class="status-tag status-backend">BACKEND</span></span>
+                    <span class="item-dep">All MAT</span>
+                </div>
+            </div>
+            <div class="item-row no-expand">
+                <div class="item-header">
+                    <span class="item-chevron">&#9654;</span>
+                    <span class="item-id" style="color:#f59e0b;">TEST</span>
+                    <span class="item-name">MCP End-to-End Test &mdash; Full supply chain lifecycle: pricing cascade, procurement, receiving, inventory, credits, LEM report</span>
+                    <span class="item-est">1 day</span>
+                    <span class="item-status"><span class="status-tag status-backend">BACKEND</span></span>
+                    <span class="item-dep">SEED</span>
+                </div>
             </div>
         </div>
     </div>

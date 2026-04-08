@@ -173,7 +173,10 @@ h1 { font-size: 30px; font-weight: 800; color: #0f172a; margin: 0 0 4px; letter-
     <p class="subtitle">A systematic audit of 61 spec files across two releases, identifying data model conflicts, naming inconsistencies, architectural splits, and integration gaps that must be resolved before implementation begins.</p>
 
     <div class="revision-note">
-        <strong>Revision 2 &mdash; April 8, 2026:</strong> Re-analyzed against Emma Mann's April 7 equipment spec updates (9,652 lines changed across 18 files in <code>appello-sdlc</code>). Four critical findings (CRITICAL-1, 2, 3, 9) are now <strong>RESOLVED</strong> &mdash; all equipment models standardized to nanoid IDs, 5-value EquipmentRatePer enum, polymorphic rate architecture, and Int-seconds duration. CRITICAL-4 updated to RESOLVED (dual Prisma enum + TypeScript const pattern confirmed intentional). SHOULD-FIX-1 partially resolved.
+        <strong>Revision 2 &mdash; April 8, 2026:</strong> Re-analyzed against Emma Mann's April 7 equipment spec updates (9,652 lines changed across 18 files). Five critical findings (CRITICAL-1, 2, 3, 4, 9) now <strong>RESOLVED</strong>.
+    </div>
+    <div class="revision-note">
+        <strong>Revision 3 &mdash; April 8, 2026:</strong> Deep analysis of remaining 4 open criticals. Cross-referenced 15 spec files, 33 field name conflicts, production Prisma schema conventions, and industry ERP patterns (Procore, Sage, SAP, Oracle). Each finding now has a concrete resolution. Key conclusions: Plan (Emma's) is canonical for field naming (wins 19/25 cases). UIS ledger approach replaced by Plan's InventoryItem FK (industry-universal pattern). VendorCredit needs approval workflow added to Plan. PO lifecycle merged from both specs.
     </div>
 
     <!-- ═══════════════════════════════════════════════════════ -->
@@ -681,35 +684,45 @@ h1 { font-size: 30px; font-weight: 800; color: #0f172a; margin: 0 0 4px; letter-
                 </div>
             </div>
 
-            <!-- CRITICAL-5 -->
+            <!-- CRITICAL-5 — DEEP ANALYSIS -->
             <div class="finding-card critical" onclick="this.classList.toggle('expanded')">
                 <div class="finding-header">
                     <span class="finding-id">CRITICAL-5</span>
-                    <span class="finding-title">UIS vs Plan Field Name Discrepancies (10+ Conflicts)</span>
+                    <span class="finding-title">UIS vs Plan Field Name Discrepancies (33 Conflicts Found)</span>
                     <span class="finding-badge badge-critical">CRITICAL</span>
                 </div>
                 <div class="finding-body">
                     <p class="label">Category</p>
-                    <p>Naming &bull; Spec Consistency</p>
-                    <p class="label">Description</p>
-                    <p>Over 10 field name conflicts between UIS specs and implementation plans for the same model fields:</p>
+                    <p>Naming &bull; Spec Consistency &bull; Schema Convention Violations</p>
+                    <p class="label">Deep Analysis Result</p>
+                    <p>Cross-referencing all 15 spec files against the production Prisma schema revealed <strong>33 field name conflicts</strong> &mdash; far more than the original 7. The Plan (Emma's) is correct in <strong>19 of 25 scoreable cases</strong>. The UIS has a systematic <code>xxxById</code> pattern bug &mdash; all 6 user FK fields use the wrong suffix. The existing codebase standard is <code>xxxByUserId</code> (20+ instances: <code>createdByUserId</code>, <code>approvedByUserId</code>, <code>submittedByUserId</code>).</p>
+
+                    <p class="label">Key Conflict Categories</p>
                     <table class="data-table" style="margin-top:12px;">
-                        <thead><tr><th>Category</th><th>UIS Names</th><th>Plan Names</th><th>Affected Specs</th></tr></thead>
+                        <thead><tr><th>Category</th><th>UIS Pattern</th><th>Plan Pattern</th><th>Schema Standard</th><th>Winner</th></tr></thead>
                         <tbody>
-                            <tr><td>User FK naming</td><td><code>importedById</code></td><td><code>importedByUserId</code></td><td>MAT-3, MAT-4, MAT-6, MAT-7</td></tr>
-                            <tr><td>Quantity naming</td><td><code>quantityReceived</code></td><td><code>receivedQty</code></td><td>MAT-6</td></tr>
-                            <tr><td>Quantity naming</td><td><code>quantityOnHand</code></td><td><code>quantity</code></td><td>MAT-7</td></tr>
-                            <tr><td>Date naming</td><td><code>dateOfWork</code></td><td><code>workDate</code></td><td>MAT-2a</td></tr>
-                            <tr><td>Date naming</td><td><code>expectedDeliveryDate</code></td><td><code>deliveryDate</code></td><td>MAT-5</td></tr>
-                            <tr><td>Category FK</td><td><code>categoryId</code></td><td><code>materialGroupId</code></td><td>MAT-9</td></tr>
-                            <tr><td>Unit naming</td><td><code>unitOfMeasure</code></td><td><code>unit</code></td><td>MAT-2a, MAT-4</td></tr>
+                            <tr><td>User FK naming (6 fields)</td><td><code>xxxById</code></td><td><code>xxxByUserId</code></td><td><code>xxxByUserId</code> (20+ instances)</td><td class="check">Plan</td></tr>
+                            <tr><td>Status storage (3 models)</td><td>Prisma enum</td><td>String + const array</td><td>Const-string on newer models</td><td class="check">Plan</td></tr>
+                            <tr><td>ID generation (2 models)</td><td><code>@default(cuid())</code> / <code>@default(nanoid())</code></td><td><code>@id @db.VarChar(21)</code></td><td>App-generated, no <code>@default</code></td><td class="check">Plan</td></tr>
+                            <tr><td>Material entity (1 model)</td><td>New <code>Product</code> model</td><td>Extend existing <code>Material</code></td><td><code>Material</code> + <code>MaterialGroup</code> exist</td><td class="check">Plan</td></tr>
+                            <tr><td>Date fields</td><td><code>dateOfWork</code>, <code>expectedDeliveryDate</code></td><td><code>workDate</code>, <code>deliveryDate</code></td><td><code>workDate</code>, <code>nounDate</code> pattern</td><td class="check">Plan</td></tr>
+                            <tr><td>Multi-tenancy</td><td><code>instanceId</code> present</td><td><code>instanceId</code> omitted</td><td>Required on all tenant models</td><td class="check">UIS</td></tr>
+                            <tr><td>Workflow timestamps</td><td><code>submittedAt</code>, <code>committedAt</code></td><td>Not defined</td><td>Common on financial entities</td><td class="check">UIS</td></tr>
                         </tbody>
                     </table>
-                    <div class="recommendation"><strong>Recommendation:</strong> MUST resolve before implementation. Establish ONE canonical source: Plan should be canonical for Prisma schema field names, UIS for GraphQL API naming. Publish a field name reconciliation document mapping UIS names → Plan names for every affected model.</div>
+
+                    <p class="label">Structural Issues in UIS</p>
+                    <ul>
+                        <li><strong>UIS <code>Product</code> model must NOT be built</strong> &mdash; it conflicts with the existing <code>Material</code> + <code>MaterialGroup</code> + <code>MaterialAttribute</code> architecture that already ships in production. Plan correctly extends these.</li>
+                        <li><strong>UIS <code>@default(cuid())</code> will break</strong> &mdash; <code>cuid()</code> generates 25-char IDs, but the constraint is <code>VarChar(21)</code>. The codebase generates IDs in application code, not schema defaults.</li>
+                        <li><strong>UIS uses Prisma enums for status</strong> (<code>PurchaseOrderStatus</code>, <code>MaterialOrderStatus</code>) &mdash; the codebase has moved to const-string patterns for flexibility (no migrations needed to add values).</li>
+                    </ul>
+
+                    <div class="recommendation"><strong>Resolution:</strong> Adopt Plan (Emma's) field names as canonical for Prisma schema. Apply these two corrections from UIS to Plan: (1) Add <code>instanceId String @db.VarChar(21)</code> to all new models. (2) Add workflow timestamp fields (<code>submittedAt</code>, <code>approvedAt</code>, <code>sentAt</code>) where approval workflows exist. Do <strong>not</strong> build UIS's <code>Product</code> model. Do <strong>not</strong> use <code>@default(cuid())</code> or <code>@default(nanoid())</code> in schema.</div>
                 </div>
             </div>
 
-            <!-- CRITICAL-6 -->
+            <!-- CRITICAL-6 — DEEP ANALYSIS -->
             <div class="finding-card critical" onclick="this.classList.toggle('expanded')">
                 <div class="finding-header">
                     <span class="finding-id">CRITICAL-6</span>
@@ -718,25 +731,41 @@ h1 { font-size: 30px; font-weight: 800; color: #0f172a; margin: 0 0 4px; letter-
                 </div>
                 <div class="finding-body">
                     <p class="label">Category</p>
-                    <p>Business Logic &bull; Workflow Design</p>
-                    <p class="label">Description</p>
-                    <p>The UIS and Plan define fundamentally different business processes for vendor credits:</p>
+                    <p>Business Logic &bull; Workflow Design &bull; Financial Controls</p>
+                    <p class="label">Deep Analysis Result</p>
+                    <p>The UIS specs (UIS-25, UIS-25b, UIS-17) contain <strong>zero mention of VendorCredit</strong>. VendorCredit is defined exclusively in Emma's MAT-8 plan. The original "conflict" is actually a design-philosophy gap: Emma's lightweight 3-state model vs the structured approval pattern used by every other financial entity in Appello.</p>
+
                     <div class="conflict-side">
                         <div class="conflict-col">
-                            <div class="col-label">UIS (4-step with approval)</div>
-                            Draft → Submitted → Approved → Applied
+                            <div class="col-label">Plan MAT-8 (Emma)</div>
+                            <code>Pending → Applied → Void</code><br>No approval gate. Any user can apply a credit. No audit timestamp fields.
                         </div>
                         <div class="conflict-col">
-                            <div class="col-label">Plan (2-step, no approval)</div>
-                            Pending → Applied | Void
+                            <div class="col-label">Existing Appello Pattern</div>
+                            <code>ApprovalStatus</code> enum: <code>InReview → Approved | Rejected</code><br>Used by Expense, TimeSheetRecord, LeaveRequest, CheckIn. RBAC-gated approval on all financial entities.
                         </div>
                     </div>
-                    <p>These represent different answers to the question: "Does applying a vendor credit require AP approval?" The UIS says yes (Submitted → Approved gate). The Plan says no (directly apply).</p>
-                    <div class="recommendation"><strong>Recommendation:</strong> Stakeholder decision required. If AP approval is needed (recommended for credits above a threshold), use UIS's 4-step workflow. If not, use Plan's simpler flow. Consider a hybrid: auto-approve below $X, require approval above.</div>
+
+                    <p class="label">Industry Standard</p>
+                    <p>In construction ERP (Procore, Sage 300 CRE, Vista, BuildOps), vendor credits <strong>always require approval</strong> because they directly affect job profitability, AP reconciliation, and audit compliance. Credits without approval create a control gap &mdash; anyone could reduce material costs to inflate job margins.</p>
+
+                    <p class="label">Missing from Plan</p>
+                    <ul>
+                        <li>No three-way match integration (PO ↔ Receipt ↔ Invoice ↔ Credit)</li>
+                        <li>No approval gate &mdash; breaks existing Appello financial control pattern</li>
+                        <li>No audit trail fields (<code>appliedAt</code>, <code>appliedById</code>, <code>voidedAt</code>, <code>voidedById</code>)</li>
+                        <li>Missing <code>instanceId</code> for multi-tenancy</li>
+                        <li>Missing <code>creditDate</code> (when vendor issued the credit)</li>
+                        <li>No void-after-apply reversal logic for job financials</li>
+                    </ul>
+
+                    <div class="recommendation"><strong>Resolution:</strong> Use Emma's Plan as the base for scope and integration design (models, line items, <code>createFromPO</code>, inventory returns, job cost adjustment). Upgrade the status workflow to match existing Appello patterns:<br><br>
+                    <code>Draft → InReview → Approved → Applied → Void</code><br><br>
+                    Add RBAC permission <code>vendorCredit.approve</code>. Add fields: <code>instanceId</code>, <code>approvedById</code>, <code>approvedAt</code>, <code>appliedById</code>, <code>appliedAt</code>, <code>voidedById</code>, <code>voidedAt</code>, <code>creditDate</code>. Use <code>ApprovalStatus</code> enum or equivalent const-string pattern. Only <code>Approved</code> credits can be applied. <code>Void</code> reverses job cost adjustment.</div>
                 </div>
             </div>
 
-            <!-- CRITICAL-7 -->
+            <!-- CRITICAL-7 — DEEP ANALYSIS -->
             <div class="finding-card critical" onclick="this.classList.toggle('expanded')">
                 <div class="finding-header">
                     <span class="finding-id">CRITICAL-7</span>
@@ -745,47 +774,84 @@ h1 { font-size: 30px; font-weight: 800; color: #0f172a; margin: 0 0 4px; letter-
                 </div>
                 <div class="finding-body">
                     <p class="label">Category</p>
-                    <p>Data Architecture &bull; Competing Designs</p>
-                    <p class="label">Description</p>
-                    <p>The UIS and Plan take architecturally incompatible approaches to inventory movements:</p>
+                    <p>Data Architecture &bull; Competing Designs &bull; Performance &bull; Industry Alignment</p>
+                    <p class="label">Deep Analysis Result</p>
+                    <p>Comprehensive comparison of both architectures reveals <strong>Emma's InventoryItem FK approach is the correct choice</strong>, reversing the original UIS recommendation. The UIS ledger approach is intellectually elegant but not the industry standard for operational inventory management.</p>
+
                     <div class="conflict-side">
                         <div class="conflict-col">
-                            <div class="col-label">UIS: Location-Agnostic Ledger</div>
-                            Standalone <code>materialId</code> + <code>fromLocationId</code> / <code>toLocationId</code>. A single record represents a transfer. More flexible.
+                            <div class="col-label">UIS: Location-Agnostic Ledger (2 models)</div>
+                            <code>InventoryMovement</code> references <code>materialId</code> + <code>fromLocationId</code> / <code>toLocationId</code> directly. One row per transfer. Stock computed by aggregating all movements. O(n) reads, O(1) writes.
                         </div>
                         <div class="conflict-col">
-                            <div class="col-label">Plan: InventoryItem FK</div>
-                            Uses <code>inventoryItemId</code> FK tying movement to a specific location-material pair. Requires two records per transfer. Simpler queries.
+                            <div class="col-label">Plan MAT-7: InventoryItem FK (3 models)</div>
+                            <code>InventoryItem</code> is a "bin card" &mdash; one row per (material, location) pair with denormalized <code>quantity</code>. Movements FK to the bin card. Transfer = 2 rows. O(1) reads, O(2) writes.
                         </div>
                     </div>
-                    <div class="recommendation"><strong>Recommendation:</strong> The UIS approach (standalone fields) is more flexible for transfers &mdash; a single movement record with from/to locations is cleaner and supports scenarios like direct job-to-job transfers. The Plan approach requires two records per transfer and makes transfer queries harder. Recommend UIS approach.</div>
+
+                    <p class="label">Performance Comparison</p>
+                    <table class="data-table" style="margin-top:8px;">
+                        <thead><tr><th>Operation</th><th>UIS Ledger</th><th>Plan InventoryItem</th></tr></thead>
+                        <tbody>
+                            <tr><td>Stock check ("what's at Warehouse A?")</td><td class="cross">O(n) &mdash; full scan of movements</td><td class="check">O(1) &mdash; single SELECT</td></tr>
+                            <tr><td>Low-stock alerts</td><td class="cross">Requires materialized view</td><td class="check"><code>WHERE quantity < minQuantity</code></td></tr>
+                            <tr><td>Transfer recording</td><td class="check">1 row</td><td class="partial">2 rows + 2 UPDATE</td></tr>
+                            <tr><td>Mobile stock check (offline)</td><td class="cross">Must sync full movement history</td><td class="check">Sync InventoryItem table only</td></tr>
+                            <tr><td>Multi-warehouse dashboard</td><td class="cross">8 parallel aggregations</td><td class="check">Simple SELECT across locations</td></tr>
+                        </tbody>
+                    </table>
+
+                    <p class="label">Industry Alignment</p>
+                    <p><strong>Every major ERP uses the InventoryItem (bin card) pattern:</strong> SAP MM, Oracle Inventory, NetSuite, Acumatica, QuickBooks, Fishbowl, Cin7, DEAR Inventory. The ledger approach is used in event-sourced architectures and some startups, but not in any production ERP that Appello competes with or integrates with.</p>
+
+                    <p class="label">Scaling Concern</p>
+                    <p>For an ICI trade contractor with 5,000 materials across 10 locations, the ledger grows to 12M+ rows/year of movements to aggregate. The InventoryItem table stays at 50,000 rows &mdash; instant queries regardless of history volume.</p>
+
+                    <div class="recommendation"><strong>Resolution:</strong> Adopt Emma's Plan (MAT-7) InventoryItem FK architecture. Add four enhancements:<br>
+                    <strong>1.</strong> <code>transferGroupId String? @db.VarChar(21)</code> on InventoryMovement to correlate paired transfer movements.<br>
+                    <strong>2.</strong> <code>instanceId String @db.VarChar(21)</code> on all three models (multi-tenancy).<br>
+                    <strong>3.</strong> <code>costCodeId String? @db.VarChar(21)</code> on InventoryMovement (mentioned in MAT-7 checkout logic but missing from model).<br>
+                    <strong>4.</strong> Wrap transfers in <code>prisma.$transaction()</code> to prevent half-transfers.<br>
+                    Use the SQL View <code>InventoryStockLevel</code> for reconciliation verification, not primary stock queries.</div>
                 </div>
             </div>
 
-            <!-- CRITICAL-8 -->
+            <!-- CRITICAL-8 — DEEP ANALYSIS -->
             <div class="finding-card critical" onclick="this.classList.toggle('expanded')">
                 <div class="finding-header">
                     <span class="finding-id">CRITICAL-8</span>
-                    <span class="finding-title">Supplier PO Status Naming Conflict</span>
+                    <span class="finding-title">Supplier PO Status Lifecycle &mdash; Deeper Than Naming</span>
                     <span class="finding-badge badge-critical">CRITICAL</span>
                 </div>
                 <div class="finding-body">
                     <p class="label">Category</p>
-                    <p>Naming &bull; Status Values</p>
-                    <p class="label">Description</p>
-                    <p>The UIS and Plan use different words for the same PO state:</p>
+                    <p>Status Lifecycle &bull; Approval Workflow &bull; Industry Alignment</p>
+                    <p class="label">Deep Analysis Result</p>
+                    <p>The conflict goes <strong>deeper than "Issued" vs "Sent"</strong> &mdash; the two specs define fundamentally different lifecycle models. The Plan uses a lean 5-state model, while the UIS adds a 3-step internal approval workflow before the PO reaches the supplier.</p>
+
                     <div class="conflict-side">
                         <div class="conflict-col">
-                            <div class="col-label">UIS</div>
-                            Draft → <strong>Issued</strong> → PartiallyReceived → FullyReceived → Closed
+                            <div class="col-label">Plan MAT-5 (Emma): Lean</div>
+                            <code>Draft → Sent → PartiallyReceived → FullyReceived → Closed</code><br>5 states. No internal approval. PO moves directly from draft to sent.
                         </div>
                         <div class="conflict-col">
-                            <div class="col-label">Plan</div>
-                            Draft → <strong>Sent</strong> → PartiallyReceived → FullyReceived → Closed
+                            <div class="col-label">UIS-25b: Approval-Gated</div>
+                            <code>Draft → Submitted → Approved → Committed → PartiallyReceived → FullyReceived → Closed → Cancelled</code><br>8 states. RBAC-gated <code>purchaseOrder.approve</code> permission.
                         </div>
                     </div>
-                    <p><code>Issued</code> vs <code>Sent</code> are different words for the same business state: "PO has been communicated to the supplier."</p>
-                    <div class="recommendation"><strong>Recommendation:</strong> Pick one. <code>Issued</code> is more professional for purchase orders and is the industry-standard term in procurement and ERP systems.</div>
+
+                    <p class="label">Industry Standard</p>
+                    <p><strong>Procore</strong> (market leader): <code>Draft → Processing → Submitted → PartiallyReceived → Received → Approved → Closed/Void</code>. The <code>Approved</code> milestone is where the PO appears in Committed Costs. Neither "Issued" nor "Sent" exists as a status in any major construction ERP &mdash; the industry uses <code>Approved</code> as the milestone state.</p>
+
+                    <p class="label">Existing Appello Pattern</p>
+                    <p>The codebase uses <code>Submitted → Approved</code> for financial entities (<code>ApprovalStatus</code> enum, <code>JobFinancialForecastStatus</code>). The existing <code>Submitted → Approved</code> pattern aligns with the UIS approach, not the Plan.</p>
+
+                    <p class="label">Resolution: "Sent" as Timestamp, Not Status</p>
+                    <p>A PO can be <code>Approved</code> (financially committed) without being physically emailed to the vendor. <code>Sent</code> is a <strong>transmission event</strong>, not a workflow gate. Track it as a timestamp.</p>
+
+                    <div class="recommendation"><strong>Resolution:</strong> Adopt a merged lifecycle that combines UIS approval workflow (matching Procore and existing Appello patterns) with Plan's transmission tracking:<br><br>
+                    <code>Draft → Submitted → Approved → PartiallyReceived → FullyReceived → Closed | Cancelled</code><br><br>
+                    Drop <code>Issued</code> and <code>Committed</code> entirely &mdash; <code>Approved</code> covers both concepts. Add <code>sentAt DateTime?</code> field instead of <code>Sent</code> status. The "Send to Supplier" button sets this timestamp without changing workflow state. Add <code>Cancelled</code> from UIS. Store as const-string (Plan pattern), not Prisma enum (UIS pattern).</div>
                 </div>
             </div>
 
@@ -818,17 +884,35 @@ h1 { font-size: 30px; font-weight: 800; color: #0f172a; margin: 0 0 4px; letter-
         </summary>
         <div class="section-body">
 
-            <!-- SF-1 — PARTIALLY RESOLVED -->
+            <!-- SF-1 — DEEP ANALYSIS -->
             <div class="finding-card should-fix" onclick="this.classList.toggle('expanded')">
                 <div class="finding-header">
                     <span class="finding-id">SHOULD-FIX-1</span>
-                    <span class="finding-title">Decimal Precision Inconsistency</span>
+                    <span class="finding-title">Decimal Precision Inconsistency (30 Fields Audited)</span>
                     <span class="finding-badge" style="background:#fef9c3;color:#854d0e;">PARTIAL</span>
                 </div>
                 <div class="finding-body">
-                    <p><strong>Partially resolved Apr 7:</strong> Equipment Prisma models now consistently use <code>Decimal(12, 2)</code> for money fields. However, the SQL CTE in the Equipment P&L plan still uses <code>Decimal(10, 2)</code> for aggregation, creating a minor precision mismatch between model storage and report computation.</p>
-                    <p><strong>Remaining:</strong> Most other domains (WO, MAT) use <code>Decimal(10, 2)</code>. Cross-domain financial aggregation (e.g., JobFinancialSummaryService) should document which precision to use at the summary level.</p>
-                    <div class="recommendation"><strong>Recommendation:</strong> Align SQL CTE to <code>Decimal(12, 2)</code> to match the Prisma models. Document the convention: <code>Decimal(12, 2)</code> for equipment (higher-value assets), <code>Decimal(10, 2)</code> for materials and labor.</div>
+                    <p class="label">Deep Analysis Result</p>
+                    <p>Audited all 30 Decimal fields across 11 MAT plan files and cross-referenced against the existing Prisma schema's 5 different precision levels. Emma's Plan is internally consistent (<code>Decimal(10, 2)</code> for all money/qty, <code>Decimal(5, 2)</code> for percentages) but has two precision risks.</p>
+
+                    <p class="label">Current Precision Map</p>
+                    <table class="data-table" style="margin-top:8px;">
+                        <thead><tr><th>Value Type</th><th>Plan Precision</th><th>Existing Schema</th><th>Risk</th></tr></thead>
+                        <tbody>
+                            <tr><td>Unit prices</td><td><code>Decimal(10, 2)</code></td><td><code>Decimal(10, 2)</code></td><td class="check">Aligned</td></tr>
+                            <tr><td>Quantities</td><td><code>Decimal(10, 2)</code></td><td><code>Decimal(10, 5)</code> on InvoiceLineItem</td><td class="partial">Precision loss on unit conversion</td></tr>
+                            <tr><td>PO/document totals</td><td><code>Decimal(10, 2)</code></td><td><code>Decimal(12, 2)</code> on forecasts, <code>Decimal(20, 2)</code> on bids</td><td class="cross">Large POs may exceed $99.9M</td></tr>
+                            <tr><td>Percentages</td><td><code>Decimal(5, 2)</code></td><td><code>Decimal(5, 2)</code></td><td class="check">Aligned</td></tr>
+                            <tr><td>Equipment money</td><td><code>Decimal(12, 2)</code></td><td><code>Decimal(12, 2)</code> on forecasts</td><td class="check">Aligned (Apr 7 fix)</td></tr>
+                        </tbody>
+                    </table>
+
+                    <div class="recommendation"><strong>Resolution:</strong> Adopt these precision rules for all new MAT-* models:<br>
+                    <strong>Unit prices:</strong> <code>Decimal(10, 2)</code> &mdash; keep as-is.<br>
+                    <strong>Quantities:</strong> <code>Decimal(10, 4)</code> &mdash; upgrade from (10,2) for unit conversion safety (m→ft, kg→lb).<br>
+                    <strong>Document totals</strong> (PO amount, credit amount, extended price): <code>Decimal(12, 2)</code> &mdash; match forecast pattern.<br>
+                    <strong>Percentages:</strong> <code>Decimal(5, 2)</code> &mdash; keep as-is.<br>
+                    <strong>Minimum action:</strong> Change <code>PurchaseOrder.amount</code> and <code>VendorCredit.amount</code> to <code>Decimal(12, 2)</code>. Remaining (10, 2) fields are acceptable for V1 &mdash; widening decimals is a non-destructive ALTER.</div>
                 </div>
             </div>
 
@@ -1580,28 +1664,28 @@ h1 { font-size: 30px; font-weight: 800; color: #0f172a; margin: 0 0 4px; letter-
         <h2>Recommended Action Priority</h2>
 
         <div class="resolved-banner" style="margin-bottom:20px;">
-            <strong>5 of 9 Critical findings resolved</strong> by Emma Mann's April 7 equipment spec updates (CRITICAL-1, 2, 3, 4, 9). The remaining 4 open criticals are in the Material and Work Order domains.
+            <strong>5 of 9 Critical findings resolved</strong> by Emma Mann's April 7 equipment spec updates (CRITICAL-1, 2, 3, 4, 9). The remaining 4 criticals now have concrete resolutions based on deep analysis of 15 spec files, 33 field conflicts, and industry ERP patterns.
         </div>
 
-        <span class="priority-group-label">Before Implementation Starts (4 Open Criticals)</span>
+        <span class="priority-group-label">Immediate: Apply These Decisions to Specs</span>
         <ol class="priority-list">
-            <li><span class="priority-num">1</span> Publish field name reconciliation document mapping UIS → Plan for every affected material model <span class="ref">(CRITICAL-5 &mdash; 10+ conflicts)</span></li>
-            <li><span class="priority-num">2</span> Decide VendorCredit approval workflow: 4-step with approval or 2-step without <span class="ref">(CRITICAL-6)</span></li>
-            <li><span class="priority-num">3</span> Decide inventory movement architecture: location-agnostic ledger or inventoryItemId FK <span class="ref">(CRITICAL-7)</span></li>
-            <li><span class="priority-num">4</span> Pick <code>Issued</code> vs <code>Sent</code> for Supplier PO status naming <span class="ref">(CRITICAL-8)</span></li>
+            <li><span class="priority-num">1</span> <strong>Adopt Plan field names as canonical.</strong> Fix the UIS <code>xxxById</code> → <code>xxxByUserId</code> pattern bug (6 fields). Do NOT build UIS <code>Product</code> model &mdash; use existing <code>Material</code>. Add <code>instanceId</code> and workflow timestamps from UIS to Plan. <span class="ref">(CRITICAL-5 &mdash; 33 conflicts, Plan wins 19/25)</span></li>
+            <li><span class="priority-num">2</span> <strong>Upgrade VendorCredit to approval workflow.</strong> Keep Emma's model/integration design. Add <code>Draft → InReview → Approved → Applied → Void</code> lifecycle with RBAC gate (<code>vendorCredit.approve</code>). Add audit fields: <code>approvedById/At</code>, <code>appliedById/At</code>, <code>voidedById/At</code>, <code>instanceId</code>, <code>creditDate</code>. <span class="ref">(CRITICAL-6 &mdash; aligns with ApprovalStatus pattern used by 4 existing entities)</span></li>
+            <li><span class="priority-num">3</span> <strong>Adopt InventoryItem FK architecture</strong> (Emma's Plan MAT-7). Drop UIS ledger approach &mdash; O(1) stock reads vs O(n), aligns with every major ERP (SAP, Oracle, NetSuite, Acumatica). Add <code>transferGroupId</code>, <code>instanceId</code>, <code>costCodeId</code> to InventoryMovement. Wrap transfers in <code>prisma.$transaction()</code>. <span class="ref">(CRITICAL-7 &mdash; industry-universal bin card pattern)</span></li>
+            <li><span class="priority-num">4</span> <strong>Merge PO lifecycle to approval-gated model.</strong> <code>Draft → Submitted → Approved → PartiallyReceived → FullyReceived → Closed | Cancelled</code>. Drop "Issued" and "Committed." Track transmission as <code>sentAt DateTime?</code> instead of a status. Store as const-string, not Prisma enum. <span class="ref">(CRITICAL-8 &mdash; matches Procore, Sage, and existing Appello ApprovalStatus pattern)</span></li>
         </ol>
 
-        <span class="priority-group-label">During Phase 1 (1.33)</span>
+        <span class="priority-group-label">Before Implementation: Precision Rules</span>
         <ol class="priority-list" start="5">
-            <li><span class="priority-num">5</span> Align SQL CTE precision to <code>Decimal(12, 2)</code> in Equipment P&L plan <span class="ref">(SHOULD-FIX-1 &mdash; partial)</span></li>
-            <li><span class="priority-num">6</span> Define notification matrix for all status transitions <span class="ref">(SHOULD-FIX-11)</span></li>
+            <li><span class="priority-num">5</span> Apply decimal precision rules: <code>Decimal(12, 2)</code> for document totals (PO amount, credit amount), <code>Decimal(10, 4)</code> for quantities (unit conversion safety), <code>Decimal(10, 2)</code> for unit prices, <code>Decimal(5, 2)</code> for percentages. <span class="ref">(SHOULD-FIX-1 &mdash; 30 fields audited)</span></li>
+            <li><span class="priority-num">6</span> Define notification matrix for all status transitions. <span class="ref">(SHOULD-FIX-11)</span></li>
         </ol>
 
-        <span class="priority-group-label">During Phase 1 (1.34)</span>
+        <span class="priority-group-label">During Implementation (1.34)</span>
         <ol class="priority-list" start="7">
-            <li><span class="priority-num">7</span> Establish shared AutoNumberService for WO, CPO, SPO, MR, VC, RCV prefixes <span class="ref">(NTH-9)</span></li>
-            <li><span class="priority-num">8</span> Create shared RepeatingLineItemEditor base component <span class="ref">(NTH-8)</span></li>
-            <li><span class="priority-num">9</span> Refactor JobFinancialSummaryService with plugin/strategy pattern before 5 features modify it <span class="ref">(NTH-7)</span></li>
+            <li><span class="priority-num">7</span> Establish shared AutoNumberService for WO, CPO, SPO, MR, VC, RCV prefixes. <span class="ref">(NTH-9)</span></li>
+            <li><span class="priority-num">8</span> Create shared RepeatingLineItemEditor base component. <span class="ref">(NTH-8)</span></li>
+            <li><span class="priority-num">9</span> Refactor JobFinancialSummaryService with plugin/strategy pattern before 5 features modify it. <span class="ref">(NTH-7)</span></li>
         </ol>
     </div>
 

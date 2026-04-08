@@ -1,0 +1,1249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Phase 0: Master Spec Reconciliation — Appello 1.33 + 1.34</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Inter', -apple-system, sans-serif; background: #f1f5f9; color: #0f172a; -webkit-font-smoothing: antialiased; }
+.wrap { max-width: 1200px; margin: 0 auto; padding: 40px 24px 80px; }
+
+.back-link { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; color: #3b82f6; text-decoration: none; margin-bottom: 24px; transition: color 0.15s; }
+.back-link:hover { color: #1d4ed8; }
+.back-link svg { width: 16px; height: 16px; }
+
+h1 { font-size: 30px; font-weight: 800; color: #0f172a; margin: 0 0 4px; letter-spacing: -0.01em; }
+.header-sub { font-size: 14px; color: #64748b; margin-bottom: 6px; }
+.subtitle { font-size: 15px; color: #64748b; line-height: 1.55; margin: 0 0 32px; max-width: 860px; }
+
+.summary-cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 32px; }
+.summary-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 18px 20px; }
+.summary-card .sc-label { font-size: 11px; font-weight: 700; text-transform: uppercase; color: #64748b; letter-spacing: 0.5px; margin-bottom: 4px; }
+.summary-card .sc-value { font-size: 28px; font-weight: 800; color: #0f172a; }
+.summary-card .sc-detail { font-size: 12px; color: #94a3b8; margin-top: 2px; line-height: 1.4; }
+
+.cat-bar { display: flex; gap: 8px; margin-bottom: 32px; flex-wrap: wrap; }
+.cat-chip { display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; border-radius: 8px; font-size: 12px; font-weight: 600; }
+.cat-chip .chip-count { font-size: 16px; font-weight: 800; }
+.chip-a { background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; }
+.chip-b { background: #fff7ed; color: #ea580c; border: 1px solid #fed7aa; }
+.chip-c { background: #fefce8; color: #ca8a04; border: 1px solid #fde68a; }
+.chip-d { background: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0; }
+.chip-e { background: #eff6ff; color: #2563eb; border: 1px solid #bfdbfe; }
+.chip-f { background: #fdf4ff; color: #a21caf; border: 1px solid #f0abfc; }
+.chip-g { background: #eef2ff; color: #6366f1; border: 1px solid #c7d2fe; }
+.chip-h { background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; }
+
+.section { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; margin-bottom: 16px; overflow: hidden; }
+.section > summary { padding: 20px 28px; font-size: 17px; font-weight: 700; color: #0f172a; cursor: pointer; user-select: none; display: flex; align-items: center; gap: 12px; list-style: none; transition: background 0.15s; }
+.section > summary:hover { background: #f8fafc; }
+.section > summary::-webkit-details-marker { display: none; }
+.section > summary::marker { display: none; content: ""; }
+.section > summary .chevron { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 6px; background: #f1f5f9; color: #94a3b8; font-size: 12px; transition: all 0.2s; flex-shrink: 0; }
+.section[open] > summary .chevron { transform: rotate(90deg); background: #dbeafe; color: #3b82f6; }
+.section > summary .section-badge { font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 5px; margin-left: auto; }
+.section-body { padding: 0 28px 28px; }
+
+.data-table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 16px 0; }
+.data-table thead th { background: #f8fafc; padding: 10px 14px; text-align: left; font-weight: 700; color: #475569; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 2px solid #e2e8f0; }
+.data-table tbody td { padding: 10px 14px; border-bottom: 1px solid #f1f5f9; color: #334155; vertical-align: top; }
+.data-table tbody tr:hover { background: #f8fafc; }
+.data-table code { font-size: 12px; background: #f1f5f9; padding: 2px 6px; border-radius: 4px; color: #7c3aed; font-family: 'SF Mono', 'Fira Code', monospace; }
+.phase-group-header td { background: #f1f5f9 !important; font-weight: 700 !important; font-size: 12px !important; color: #475569 !important; text-transform: uppercase; letter-spacing: 0.5px; padding: 12px 14px !important; border-bottom: 2px solid #e2e8f0 !important; }
+
+.item-card { border: 1px solid #e2e8f0; border-radius: 10px; margin-bottom: 14px; overflow: hidden; transition: box-shadow 0.2s; }
+.item-card:hover { box-shadow: 0 2px 12px rgba(0,0,0,0.04); }
+.item-card.cat-a-card { border-left: 4px solid #dc2626; }
+.item-card.cat-b-card { border-left: 4px solid #ea580c; }
+.item-card.cat-c-card { border-left: 4px solid #ca8a04; }
+.item-card.cat-d-card { border-left: 4px solid #16a34a; }
+.item-card.cat-e-card { border-left: 4px solid #2563eb; }
+.item-card.cat-f-card { border-left: 4px solid #a21caf; }
+.item-card.cat-g-card { border-left: 4px solid #6366f1; }
+.item-card.cat-h-card { border-left: 4px solid #475569; }
+.item-header { padding: 16px 20px; display: flex; align-items: flex-start; gap: 12px; cursor: pointer; user-select: none; }
+.item-header:hover { background: #f8fafc; }
+.item-id { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 12px; font-weight: 700; color: #64748b; white-space: nowrap; min-width: 50px; padding-top: 2px; }
+.item-title { font-size: 14px; font-weight: 600; color: #0f172a; flex: 1; line-height: 1.4; }
+.item-badge { font-size: 10px; font-weight: 700; padding: 3px 10px; border-radius: 5px; white-space: nowrap; flex-shrink: 0; }
+.item-body { padding: 0 20px 20px; padding-left: 82px; display: none; }
+.item-card.expanded .item-body { display: block; }
+.item-card.expanded .item-header { background: #f8fafc; border-bottom: 1px solid #e2e8f0; }
+.item-body p { font-size: 13px; color: #475569; line-height: 1.6; margin-bottom: 10px; }
+.item-body .label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: #64748b; margin-bottom: 4px; margin-top: 14px; }
+.item-body ul { font-size: 13px; color: #475569; padding-left: 20px; margin: 6px 0; line-height: 1.6; }
+.item-body .decision-box { background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 12px 16px; font-size: 13px; color: #166534; line-height: 1.6; margin-top: 12px; }
+.item-body .decision-box strong { font-weight: 700; }
+.item-body .files-affected { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 12px 16px; margin-top: 12px; }
+.item-body .files-affected .fa-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: #1e40af; margin-bottom: 6px; }
+.item-body .files-affected ul { font-size: 12px; color: #1e40af; }
+.item-body .files-affected code { font-size: 11px; background: #dbeafe; color: #1e40af; }
+
+.lifecycle-diagram { background: #0f172a; border-radius: 10px; padding: 20px 24px; font-family: 'SF Mono', 'Fira Code', monospace; font-size: 13px; color: #e2e8f0; line-height: 1.8; overflow-x: auto; margin: 12px 0; }
+.lifecycle-diagram .lc-entity { color: #60a5fa; font-weight: 700; }
+.lifecycle-diagram .lc-status { color: #34d399; }
+.lifecycle-diagram .lc-arrow { color: #94a3b8; }
+.lifecycle-diagram .lc-terminal { color: #f87171; }
+.lifecycle-diagram .lc-storage { color: #fbbf24; font-style: italic; }
+
+.xref-table { width: 100%; border-collapse: collapse; font-size: 12px; margin: 16px 0; }
+.xref-table thead th { background: #0f172a; padding: 10px 12px; text-align: left; font-weight: 700; color: #e2e8f0; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
+.xref-table tbody td { padding: 8px 12px; border-bottom: 1px solid #e2e8f0; color: #334155; vertical-align: top; }
+.xref-table tbody tr:hover { background: #f8fafc; }
+.xref-table .phase-label { font-weight: 700; color: #0f172a; white-space: nowrap; }
+.xref-table .item-refs { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 11px; color: #7c3aed; }
+
+.callout { background: #fffbeb; border: 1px solid #fde68a; border-radius: 10px; padding: 16px 20px; margin-bottom: 24px; font-size: 13px; color: #92400e; line-height: 1.6; }
+.callout strong { font-weight: 700; }
+
+.footer { text-align: center; padding: 32px 0; font-size: 12px; color: #94a3b8; border-top: 1px solid #e2e8f0; margin-top: 24px; }
+.footer a { color: #3b82f6; text-decoration: none; }
+.footer a:hover { text-decoration: underline; }
+
+.check { color: #16a34a; font-weight: 700; }
+.cross { color: #dc2626; font-weight: 700; }
+
+@media print {
+    body { background: #fff; }
+    .section { break-inside: avoid; }
+    .item-card { break-inside: avoid; }
+    .item-body { display: block !important; }
+    .back-link { display: none; }
+}
+@media (max-width: 768px) {
+    .summary-cards { grid-template-columns: repeat(2, 1fr); }
+    .cat-bar { gap: 6px; }
+    .item-body { padding-left: 20px; }
+    .item-id { min-width: 40px; font-size: 11px; }
+}
+    </style>
+</head>
+<body>
+<div class="wrap">
+
+    <a class="back-link" href="index.html">
+        <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M17 10a.75.75 0 01-.75.75H5.612l4.158 3.96a.75.75 0 11-1.04 1.08l-5.5-5.25a.75.75 0 010-1.08l5.5-5.25a.75.75 0 111.04 1.08L5.612 9.25H16.25A.75.75 0 0117 10z" clip-rule="evenodd"/></svg>
+        Back to Roadmap
+    </a>
+
+    <h1>Phase 0: Master Spec Reconciliation</h1>
+    <p class="header-sub">Releases 1.33 + 1.34 &mdash; Pre-Implementation Decision Document</p>
+    <p class="subtitle">Every decision, field name, lifecycle, precision rule, and convention that must be resolved in the spec files before a single line of code is written. Derived from the <a href="cross-release-continuity-audit.html">Cross-Release Continuity Audit</a> (42 findings across 61 spec files).</p>
+
+    <div class="callout">
+        <strong>How to use this document:</strong> Each item has a decision, rationale, and list of affected files. Emma updates her Plan specs (MAT-*, LEM-*, WO-*). Corey/AI updates UIS specs (UIS-15*, UIS-17, UIS-20*, UIS-25*). Nobody writes code until all 48 items are resolved in the spec files. Items with a green &ldquo;Decision&rdquo; box are final. Items with an amber box need a human decision.
+    </div>
+
+    <div class="summary-cards">
+        <div class="summary-card">
+            <div class="sc-label">Total Items</div>
+            <div class="sc-value">48</div>
+            <div class="sc-detail">Across 8 categories</div>
+        </div>
+        <div class="summary-card">
+            <div class="sc-label">Spec Files Affected</div>
+            <div class="sc-value">55</div>
+            <div class="sc-detail">16 appello-sdlc &bull; 25 appello-roadmap &bull; 14 appello</div>
+        </div>
+        <div class="summary-card">
+            <div class="sc-label">Audit Findings Mapped</div>
+            <div class="sc-value">42</div>
+            <div class="sc-detail">4 Critical &bull; 16 Should Fix &bull; 17 Nice to Have &bull; 5 Resolved</div>
+        </div>
+        <div class="summary-card">
+            <div class="sc-label">Implementation Phases</div>
+            <div class="sc-value">7</div>
+            <div class="sc-detail">Every phase depends on Phase 0</div>
+        </div>
+    </div>
+
+    <div class="cat-bar">
+        <div class="cat-chip chip-a"><span class="chip-count">14</span> A: Spec Reconciliation</div>
+        <div class="cat-chip chip-b"><span class="chip-count">4</span> B: Model Consolidation</div>
+        <div class="cat-chip chip-c"><span class="chip-count">3</span> C: PriceBookImport</div>
+        <div class="cat-chip chip-d"><span class="chip-count">4</span> D: Decimal Precision</div>
+        <div class="cat-chip chip-e"><span class="chip-count">4</span> E: Permissions</div>
+        <div class="cat-chip chip-f"><span class="chip-count">1</span> F: Notifications</div>
+        <div class="cat-chip chip-g"><span class="chip-count">12</span> G: Conventions</div>
+        <div class="cat-chip chip-h"><span class="chip-count">3</span> H: Shared Services</div>
+    </div>
+
+
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <!-- FILE INVENTORY                                          -->
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <details class="section" id="file-inventory">
+        <summary>
+            <span class="chevron">&#9654;</span>
+            File Inventory (55 files across 3 repos)
+            <span class="section-badge" style="background:#f1f5f9;color:#475569;">Reference</span>
+        </summary>
+        <div class="section-body">
+            <table class="data-table">
+                <thead><tr><th>Repo</th><th>Path</th><th>Type</th><th>Domain</th></tr></thead>
+                <tbody>
+                    <tr class="phase-group-header"><td colspan="4">appello-sdlc (16 files)</td></tr>
+                    <tr><td>appello-sdlc</td><td><code>docs/uis-15-equipment-module.html</code></td><td>UIS</td><td>Equipment</td></tr>
+                    <tr><td>appello-sdlc</td><td><code>docs/uis-15a-equipment-job-pl.html</code></td><td>UIS</td><td>Equipment P&amp;L</td></tr>
+                    <tr><td>appello-sdlc</td><td><code>docs/uis-15b-equipment-invoicing.html</code></td><td>UIS</td><td>Equipment Invoicing</td></tr>
+                    <tr><td>appello-sdlc</td><td><code>docs/uis-15c-equipment-variable-rates.html</code></td><td>UIS</td><td>Equipment Rates</td></tr>
+                    <tr><td>appello-sdlc</td><td><code>docs/uis-15d-equipment-maintenance-triggers.html</code></td><td>UIS</td><td>Maintenance</td></tr>
+                    <tr><td>appello-sdlc</td><td><code>docs/uis-15e-equipment-search-mobile.html</code></td><td>UIS</td><td>Equipment Mobile</td></tr>
+                    <tr><td>appello-sdlc</td><td><code>docs/uis-15f-daily-equipment-checklist.html</code></td><td>UIS</td><td>Equipment Checklist</td></tr>
+                    <tr><td>appello-sdlc</td><td><code>docs/uis-15g-equipment-maintenance-scheduling.html</code></td><td>UIS</td><td>Maintenance</td></tr>
+                    <tr><td>appello-sdlc</td><td><code>docs/uis-15h-equipment-timesheet-capture.html</code></td><td>UIS</td><td>Equipment Time</td></tr>
+                    <tr><td>appello-sdlc</td><td><code>docs/plans/uis-15a-equipment-job-pl.html</code></td><td>Plan</td><td>Equipment P&amp;L</td></tr>
+                    <tr><td>appello-sdlc</td><td><code>docs/plans/uis-15b-equipment-invoicing.html</code></td><td>Plan</td><td>Equipment Invoicing</td></tr>
+                    <tr><td>appello-sdlc</td><td><code>docs/plans/uis-15c-equipment-variable-rates.html</code></td><td>Plan</td><td>Equipment Rates</td></tr>
+                    <tr><td>appello-sdlc</td><td><code>docs/plans/uis-15d-equipment-maintenance-triggers.html</code></td><td>Plan</td><td>Maintenance</td></tr>
+                    <tr><td>appello-sdlc</td><td><code>docs/plans/uis-15e-equipment-search-mobile.html</code></td><td>Plan</td><td>Equipment Mobile</td></tr>
+                    <tr><td>appello-sdlc</td><td><code>docs/plans/uis-15g-equipment-maintenance-scheduling.html</code></td><td>Plan</td><td>Maintenance</td></tr>
+                    <tr><td>appello-sdlc</td><td><code>docs/plans/uis-15h-equipment-timesheet-capture.html</code></td><td>Plan</td><td>Equipment Time</td></tr>
+
+                    <tr class="phase-group-header"><td colspan="4">appello-roadmap (25 files)</td></tr>
+                    <tr><td>appello-roadmap</td><td><code>plans/LEM-1-labor-billable-rates.html</code></td><td>Plan</td><td>LEM</td></tr>
+                    <tr><td>appello-roadmap</td><td><code>plans/LEM-2-equipment-billable-rates.html</code></td><td>Plan</td><td>LEM</td></tr>
+                    <tr><td>appello-roadmap</td><td><code>plans/WO-2-line-item-tables.html</code></td><td>Plan</td><td>Work Orders</td></tr>
+                    <tr><td>appello-roadmap</td><td><code>plans/WO-3a-schema-form-foundation.html</code></td><td>Plan</td><td>Work Orders</td></tr>
+                    <tr><td>appello-roadmap</td><td><code>plans/WO-3b-line-item-editors.html</code></td><td>Plan</td><td>Work Orders</td></tr>
+                    <tr><td>appello-roadmap</td><td><code>plans/WO-3d-wo-property-settings.html</code></td><td>Plan</td><td>Work Orders</td></tr>
+                    <tr><td>appello-roadmap</td><td><code>plans/WO-4-detail-page.html</code></td><td>Plan</td><td>Work Orders</td></tr>
+                    <tr><td>appello-roadmap</td><td><code>plans/WO-5-tm-log.html</code></td><td>Plan</td><td>Work Orders</td></tr>
+                    <tr><td>appello-roadmap</td><td><code>plans/WO-6-mobile-list-detail.html</code></td><td>Plan</td><td>Work Orders</td></tr>
+                    <tr><td>appello-roadmap</td><td><code>plans/WO-7-conversion.html</code></td><td>Plan</td><td>Work Orders</td></tr>
+                    <tr><td>appello-roadmap</td><td><code>plans/WO-8a-stepped-form-wizard.html</code></td><td>Plan</td><td>Work Orders</td></tr>
+                    <tr><td>appello-roadmap</td><td><code>plans/WO-8b-collect-signatures.html</code></td><td>Plan</td><td>Work Orders</td></tr>
+                    <tr><td>appello-roadmap</td><td><code>plans/MAT-0-supply-chain-model.html</code></td><td>Plan</td><td>Material</td></tr>
+                    <tr><td>appello-roadmap</td><td><code>plans/MAT-1-customer-po-entity.html</code></td><td>Plan</td><td>PO</td></tr>
+                    <tr><td>appello-roadmap</td><td><code>plans/MAT-2a-lem-consumption-desktop.html</code></td><td>Plan</td><td>Material</td></tr>
+                    <tr><td>appello-roadmap</td><td><code>plans/MAT-2b-lem-consumption-mobile.html</code></td><td>Plan</td><td>Material</td></tr>
+                    <tr><td>appello-roadmap</td><td><code>plans/MAT-3-price-book-import.html</code></td><td>Plan</td><td>Procurement</td></tr>
+                    <tr><td>appello-roadmap</td><td><code>plans/MAT-4-mobile-material-requests.html</code></td><td>Plan</td><td>Procurement</td></tr>
+                    <tr><td>appello-roadmap</td><td><code>plans/MAT-5-supplier-po.html</code></td><td>Plan</td><td>Procurement</td></tr>
+                    <tr><td>appello-roadmap</td><td><code>plans/MAT-6-receiving-workflow.html</code></td><td>Plan</td><td>Operations</td></tr>
+                    <tr><td>appello-roadmap</td><td><code>plans/MAT-7-inventory-management.html</code></td><td>Plan</td><td>Operations</td></tr>
+                    <tr><td>appello-roadmap</td><td><code>plans/MAT-8-vendor-credits.html</code></td><td>Plan</td><td>Operations</td></tr>
+                    <tr><td>appello-roadmap</td><td><code>plans/MAT-9-discount-management.html</code></td><td>Plan</td><td>Procurement</td></tr>
+                    <tr><td>appello-roadmap</td><td><code>release-1.33-timeline.html</code></td><td>Timeline</td><td>Release 1.33</td></tr>
+                    <tr><td>appello-roadmap</td><td><code>release-1.34-timeline.html</code></td><td>Timeline</td><td>Release 1.34</td></tr>
+
+                    <tr class="phase-group-header"><td colspan="4">appello (14 files)</td></tr>
+                    <tr><td>appello</td><td><code>.cursor/plans/uis-17-material-management.html</code></td><td>UIS</td><td>Material</td></tr>
+                    <tr><td>appello</td><td><code>.cursor/plans/uis-25-purchase-order-management.html</code></td><td>UIS</td><td>PO</td></tr>
+                    <tr><td>appello</td><td><code>.cursor/plans/uis-25a-customer-po-management.html</code></td><td>UIS</td><td>Customer PO</td></tr>
+                    <tr><td>appello</td><td><code>.cursor/plans/uis-25b-supplier-po-receiving.html</code></td><td>UIS</td><td>Supplier PO</td></tr>
+                    <tr><td>appello</td><td><code>plan/clearstory-tm-workorders/uis/uis-20-tm-work-orders.html</code></td><td>UIS</td><td>Work Orders</td></tr>
+                    <tr><td>appello</td><td><code>plan/clearstory-tm-workorders/uis/uis-20a-job-type-config.html</code></td><td>UIS</td><td>Job Config</td></tr>
+                    <tr><td>appello</td><td><code>plan/clearstory-tm-workorders/uis/uis-20b-line-item-tables.html</code></td><td>UIS</td><td>Line Items</td></tr>
+                    <tr><td>appello</td><td><code>plan/clearstory-tm-workorders/uis/uis-20c-create-edit-form.html</code></td><td>UIS</td><td>WO Form</td></tr>
+                    <tr><td>appello</td><td><code>plan/clearstory-tm-workorders/uis/uis-20d-detail-page.html</code></td><td>UIS</td><td>WO Detail</td></tr>
+                    <tr><td>appello</td><td><code>plan/clearstory-tm-workorders/uis/uis-20e-tm-log.html</code></td><td>UIS</td><td>WO Log</td></tr>
+                    <tr><td>appello</td><td><code>plan/clearstory-tm-workorders/uis/uis-20f-co-log.html</code></td><td>UIS</td><td>CO Log</td></tr>
+                    <tr><td>appello</td><td><code>plan/clearstory-tm-workorders/uis/uis-20g-conversion.html</code></td><td>UIS</td><td>Conversion</td></tr>
+                    <tr><td>appello</td><td><code>plan/clearstory-tm-workorders/uis/uis-20h-mobile-creation.html</code></td><td>UIS</td><td>Mobile WO</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </details>
+
+
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <!-- CATEGORY A: SPEC RECONCILIATION (14 items)              -->
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <details class="section" open id="cat-a">
+        <summary>
+            <span class="chevron">&#9654;</span>
+            Category A: Spec Reconciliation
+            <span class="section-badge" style="background:#fef2f2;color:#dc2626;">14 Items &bull; CRITICAL-5, 6, 7, 8</span>
+        </summary>
+        <div class="section-body">
+
+            <div class="item-card cat-a-card" onclick="this.classList.toggle('expanded')">
+                <div class="item-header">
+                    <span class="item-id">A1</span>
+                    <span class="item-title">Fix 33 field name conflicts &mdash; adopt Plan (Emma&rsquo;s) naming as canonical</span>
+                    <span class="item-badge" style="background:#fef2f2;color:#dc2626;">CRITICAL-5</span>
+                </div>
+                <div class="item-body">
+                    <p class="label">Decision</p>
+                    <div class="decision-box"><strong>Plan wins 19/25 scoreable cases.</strong> Adopt Emma&rsquo;s field names as the canonical schema. Update all UIS specs to match. Key renames: <code>supplierCompanyId</code> &rarr; <code>supplierId</code>, <code>dateOfWork</code> &rarr; <code>workDate</code>, <code>expectedDeliveryDate</code> &rarr; <code>deliveryDate</code>, <code>workOrder.lineItems[]</code> &rarr; separate relation queries.</div>
+                    <p class="label">Rationale</p>
+                    <p>Existing Prisma schema uses shorter FK names (<code>companyId</code>, not <code>supplierCompanyId</code>) and noun-date patterns (<code>workDate</code>, not <code>dateOfWork</code>). Plan is consistent with these conventions.</p>
+                    <div class="files-affected">
+                        <div class="fa-label">UIS Files to Update (find &amp; replace field names)</div>
+                        <ul>
+                            <li><code>uis-17-material-management.html</code> &mdash; Product model, consumption fields, inventory fields</li>
+                            <li><code>uis-25-purchase-order-management.html</code> &mdash; PO field names, status enum</li>
+                            <li><code>uis-25a-customer-po-management.html</code> &mdash; Customer PO fields</li>
+                            <li><code>uis-25b-supplier-po-receiving.html</code> &mdash; Supplier PO fields, receiving fields</li>
+                            <li><code>uis-20b-line-item-tables.html</code> &mdash; Line item field names</li>
+                            <li><code>uis-20c-create-edit-form.html</code> &mdash; Form field bindings</li>
+                            <li><code>uis-20h-mobile-creation.html</code> &mdash; Mobile form field bindings</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <div class="item-card cat-a-card" onclick="this.classList.toggle('expanded')">
+                <div class="item-header">
+                    <span class="item-id">A2</span>
+                    <span class="item-title">Fix 6 UIS <code>xxxById</code> fields to <code>xxxByUserId</code></span>
+                    <span class="item-badge" style="background:#fef2f2;color:#dc2626;">CRITICAL-5</span>
+                </div>
+                <div class="item-body">
+                    <p class="label">Decision</p>
+                    <div class="decision-box"><strong>Systematic UIS bug.</strong> The codebase has 20+ instances of the <code>xxxByUserId</code> pattern (<code>createdByUserId</code>, <code>approvedByUserId</code>, <code>submittedByUserId</code>). UIS uses <code>xxxById</code> which is ambiguous &mdash; &ldquo;by&rdquo; what? Always suffix with <code>UserId</code>.</div>
+                    <p class="label">Fields to Rename</p>
+                    <ul>
+                        <li><code>createdById</code> &rarr; <code>createdByUserId</code></li>
+                        <li><code>updatedById</code> &rarr; <code>updatedByUserId</code></li>
+                        <li><code>approvedById</code> &rarr; <code>approvedByUserId</code></li>
+                        <li><code>submittedById</code> &rarr; <code>submittedByUserId</code></li>
+                        <li><code>receivedById</code> &rarr; <code>receivedByUserId</code></li>
+                        <li><code>requestedById</code> &rarr; <code>requestedByUserId</code></li>
+                    </ul>
+                    <div class="files-affected">
+                        <div class="fa-label">UIS Files to Update</div>
+                        <ul>
+                            <li><code>uis-17-material-management.html</code></li>
+                            <li><code>uis-25-purchase-order-management.html</code></li>
+                            <li><code>uis-25b-supplier-po-receiving.html</code></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <div class="item-card cat-a-card" onclick="this.classList.toggle('expanded')">
+                <div class="item-header">
+                    <span class="item-id">A3</span>
+                    <span class="item-title">Remove UIS <code>Product</code> model &mdash; use existing <code>Material</code> + <code>MaterialGroup</code></span>
+                    <span class="item-badge" style="background:#fef2f2;color:#dc2626;">CRITICAL-5</span>
+                </div>
+                <div class="item-body">
+                    <p class="label">Decision</p>
+                    <div class="decision-box"><strong>Do NOT build a Product model.</strong> It conflicts with the existing <code>Material</code> + <code>MaterialGroup</code> + <code>MaterialAttribute</code> architecture in production. Plan correctly extends these with <code>ManufacturerProduct</code> (manufacturer part numbers) and <code>DistributorPrice</code> (supplier pricing).</div>
+                    <div class="files-affected">
+                        <div class="fa-label">Files to Update</div>
+                        <ul>
+                            <li><code>uis-17-material-management.html</code> &mdash; Remove/rewrite all <code>Product</code> model references to use <code>Material</code> and <code>ManufacturerProduct</code></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <div class="item-card cat-a-card" onclick="this.classList.toggle('expanded')">
+                <div class="item-header">
+                    <span class="item-id">A4</span>
+                    <span class="item-title">Remove <code>@default(cuid())</code> and <code>@default(nanoid())</code> from UIS specs</span>
+                    <span class="item-badge" style="background:#fef2f2;color:#dc2626;">CRITICAL-5</span>
+                </div>
+                <div class="item-body">
+                    <p class="label">Decision</p>
+                    <div class="decision-box"><strong>IDs are app-generated, not schema defaults.</strong> <code>cuid()</code> generates 25-char IDs but the column is <code>VarChar(21)</code>. The codebase generates IDs in application code using nanoid. Remove all <code>@default()</code> from ID fields in UIS specs.</div>
+                    <div class="files-affected">
+                        <div class="fa-label">UIS Files to Update</div>
+                        <ul>
+                            <li><code>uis-17-material-management.html</code> &mdash; Remove <code>@default(cuid())</code> from model definitions</li>
+                            <li><code>uis-25-purchase-order-management.html</code> &mdash; Remove <code>@default(nanoid())</code></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <div class="item-card cat-a-card" onclick="this.classList.toggle('expanded')">
+                <div class="item-header">
+                    <span class="item-id">A5</span>
+                    <span class="item-title">Change UIS Prisma enums to const-string pattern for PO and MaterialOrder status</span>
+                    <span class="item-badge" style="background:#fef2f2;color:#dc2626;">CRITICAL-5</span>
+                </div>
+                <div class="item-body">
+                    <p class="label">Decision</p>
+                    <div class="decision-box"><strong>Use const-string pattern.</strong> Newer Appello models use <code>String</code> columns with TypeScript const arrays for flexibility &mdash; adding a new status value doesn&rsquo;t require a migration. Prisma enums (<code>enum PurchaseOrderStatus</code>) are used only in the equipment domain as an intentional dual pattern.</div>
+                    <div class="files-affected">
+                        <div class="fa-label">UIS Files to Update</div>
+                        <ul>
+                            <li><code>uis-25-purchase-order-management.html</code> &mdash; Replace <code>enum PurchaseOrderStatus</code> with const-string pattern</li>
+                            <li><code>uis-17-material-management.html</code> &mdash; Replace <code>enum MaterialOrderStatus</code> with const-string pattern</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <div class="item-card cat-a-card" onclick="this.classList.toggle('expanded')">
+                <div class="item-header">
+                    <span class="item-id">A6</span>
+                    <span class="item-title">Add <code>instanceId</code> to ALL new models in Plan specs</span>
+                    <span class="item-badge" style="background:#fef2f2;color:#dc2626;">CRITICAL-5</span>
+                </div>
+                <div class="item-body">
+                    <p class="label">Decision</p>
+                    <div class="decision-box"><strong>UIS is correct here &mdash; Plan is missing <code>instanceId</code>.</strong> Every tenant-scoped model in Appello requires <code>instanceId String @db.VarChar(21)</code> for multi-tenancy. This is missing from Emma&rsquo;s Plan specs.</div>
+                    <p class="label">Models Needing instanceId Added</p>
+                    <ul>
+                        <li><code>ManufacturerProduct</code>, <code>DistributorPrice</code>, <code>PurchaseOrder</code>, <code>PurchaseOrderLineItem</code></li>
+                        <li><code>MaterialConsumptionEntry</code>, <code>PriceBookImport</code>, <code>MaterialRequest</code>, <code>MaterialRequestItem</code></li>
+                        <li><code>DistributorDiscount</code>, <code>PurchaseOrderReceipt</code>, <code>ReceiptLineItem</code></li>
+                        <li><code>InventoryLocation</code>, <code>InventoryItem</code>, <code>InventoryMovement</code></li>
+                        <li><code>VendorCredit</code>, <code>VendorCreditLineItem</code></li>
+                        <li><code>WorkOrderLaborItem</code>, <code>WorkOrderMaterialItem</code>, <code>WorkOrderEquipmentItem</code></li>
+                        <li><code>Signature</code>, <code>SignatureRequest</code></li>
+                    </ul>
+                    <div class="files-affected">
+                        <div class="fa-label">Plan Files to Update (Emma)</div>
+                        <ul>
+                            <li><code>plans/MAT-0 through MAT-9</code> &mdash; Add <code>instanceId</code> to every Prisma model definition</li>
+                            <li><code>plans/WO-2, WO-3a, WO-8b</code> &mdash; Add <code>instanceId</code> to WO models</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <div class="item-card cat-a-card" onclick="this.classList.toggle('expanded')">
+                <div class="item-header">
+                    <span class="item-id">A7</span>
+                    <span class="item-title">Add workflow timestamp fields to Plan specs</span>
+                    <span class="item-badge" style="background:#fef2f2;color:#dc2626;">CRITICAL-5</span>
+                </div>
+                <div class="item-body">
+                    <p class="label">Decision</p>
+                    <div class="decision-box"><strong>UIS is correct here.</strong> Financial entities with approval workflows need timestamp+user audit fields. These are missing from Emma&rsquo;s Plan specs.</div>
+                    <p class="label">Fields to Add Per Entity</p>
+                    <ul>
+                        <li><code>PurchaseOrder</code>: <code>submittedAt</code>, <code>submittedByUserId</code>, <code>approvedAt</code>, <code>approvedByUserId</code>, <code>sentAt</code></li>
+                        <li><code>MaterialConsumptionEntry</code>: <code>submittedAt</code>, <code>submittedByUserId</code>, <code>approvedAt</code>, <code>approvedByUserId</code></li>
+                        <li><code>VendorCredit</code>: <code>approvedAt</code>, <code>approvedByUserId</code>, <code>appliedAt</code>, <code>appliedByUserId</code>, <code>voidedAt</code>, <code>voidedByUserId</code>, <code>creditDate</code></li>
+                    </ul>
+                    <div class="files-affected">
+                        <div class="fa-label">Plan Files to Update (Emma)</div>
+                        <ul>
+                            <li><code>plans/MAT-5-supplier-po.html</code> &mdash; Add PO workflow timestamps</li>
+                            <li><code>plans/MAT-2a-lem-consumption-desktop.html</code> &mdash; Add consumption approval timestamps</li>
+                            <li><code>plans/MAT-8-vendor-credits.html</code> &mdash; Add credit workflow timestamps</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <div class="item-card cat-a-card" onclick="this.classList.toggle('expanded')">
+                <div class="item-header">
+                    <span class="item-id">A8</span>
+                    <span class="item-title">Finalize VendorCredit lifecycle: <code>Draft &rarr; InReview &rarr; Approved &rarr; Applied &rarr; Void</code></span>
+                    <span class="item-badge" style="background:#fef2f2;color:#dc2626;">CRITICAL-6</span>
+                </div>
+                <div class="item-body">
+                    <p class="label">Decision</p>
+                    <div class="decision-box"><strong>Upgrade from Plan&rsquo;s 3-state (Pending &rarr; Applied &rarr; Void) to 5-state approval workflow.</strong> Every other financial entity in Appello has RBAC-gated approval (Expense, TimeSheetRecord, LeaveRequest, CheckIn). Vendor credits directly affect job profitability and AP reconciliation &mdash; skipping approval creates a control gap. Add <code>vendorCredit.approve</code> RBAC permission. Only <code>Approved</code> credits can be applied. <code>Void</code> reverses the job cost adjustment.</div>
+                    <div class="files-affected">
+                        <div class="fa-label">Files to Update</div>
+                        <ul>
+                            <li><code>plans/MAT-8-vendor-credits.html</code> (Emma) &mdash; Upgrade status workflow, add 6 audit fields, add RBAC gate</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <div class="item-card cat-a-card" onclick="this.classList.toggle('expanded')">
+                <div class="item-header">
+                    <span class="item-id">A9</span>
+                    <span class="item-title">Finalize PO lifecycle: <code>Draft &rarr; Submitted &rarr; Approved &rarr; PartiallyReceived &rarr; FullyReceived &rarr; Closed | Cancelled</code></span>
+                    <span class="item-badge" style="background:#fef2f2;color:#dc2626;">CRITICAL-8</span>
+                </div>
+                <div class="item-body">
+                    <p class="label">Decision</p>
+                    <div class="decision-box"><strong>Merged lifecycle from both specs.</strong> Drop <code>Issued</code> and <code>Committed</code> entirely &mdash; <code>Approved</code> covers both concepts (matches Procore, Sage). Track sending to supplier as <code>sentAt DateTime?</code> timestamp instead of a status. &ldquo;Send to Supplier&rdquo; button sets this timestamp without changing workflow state. Store as const-string, not Prisma enum.</div>
+                    <div class="files-affected">
+                        <div class="fa-label">Files to Update</div>
+                        <ul>
+                            <li><code>plans/MAT-5-supplier-po.html</code> (Emma) &mdash; Change from <code>Draft &rarr; Sent &rarr; PartiallyReceived &rarr; FullyReceived &rarr; Closed</code> to merged lifecycle, add <code>sentAt</code></li>
+                            <li><code>uis-25b-supplier-po-receiving.html</code> &mdash; Change from 8-state to 6-state, remove <code>Issued</code> and <code>Committed</code></li>
+                            <li><code>uis-25-purchase-order-management.html</code> &mdash; Update status references</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <div class="item-card cat-a-card" onclick="this.classList.toggle('expanded')">
+                <div class="item-header">
+                    <span class="item-id">A10</span>
+                    <span class="item-title">Finalize InventoryMovement architecture: adopt InventoryItem FK (bin card) pattern</span>
+                    <span class="item-badge" style="background:#fef2f2;color:#dc2626;">CRITICAL-7</span>
+                </div>
+                <div class="item-body">
+                    <p class="label">Decision</p>
+                    <div class="decision-box"><strong>Adopt Emma&rsquo;s Plan (MAT-7) InventoryItem FK architecture.</strong> Drop UIS ledger approach. O(1) stock reads vs O(n). Aligns with every major ERP (SAP, Oracle, NetSuite, Acumatica, QuickBooks, Fishbowl). <code>InventoryItem</code> is a &ldquo;bin card&rdquo; &mdash; one row per (material, location) pair with denormalized quantity. Movements FK to the bin card. Use SQL View <code>InventoryStockLevel</code> for reconciliation verification only.</div>
+                    <div class="files-affected">
+                        <div class="fa-label">Files to Update</div>
+                        <ul>
+                            <li><code>uis-17-material-management.html</code> &mdash; Rewrite inventory section to use InventoryItem FK pattern instead of ledger</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <div class="item-card cat-a-card" onclick="this.classList.toggle('expanded')">
+                <div class="item-header">
+                    <span class="item-id">A11</span>
+                    <span class="item-title">Add <code>transferGroupId</code>, <code>costCodeId</code> to InventoryMovement</span>
+                    <span class="item-badge" style="background:#fef2f2;color:#dc2626;">CRITICAL-7</span>
+                </div>
+                <div class="item-body">
+                    <p class="label">Decision</p>
+                    <div class="decision-box"><strong>Add to both UIS and Plan.</strong> <code>transferGroupId String? @db.VarChar(21)</code> correlates paired transfer movements (debit + credit). <code>costCodeId String? @db.VarChar(21)</code> was mentioned in MAT-7 checkout logic but missing from the model definition.</div>
+                    <div class="files-affected">
+                        <div class="fa-label">Files to Update</div>
+                        <ul>
+                            <li><code>plans/MAT-7-inventory-management.html</code> (Emma) &mdash; Add both fields to InventoryMovement model</li>
+                            <li><code>uis-17-material-management.html</code> &mdash; Add both fields</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <div class="item-card cat-a-card" onclick="this.classList.toggle('expanded')">
+                <div class="item-header">
+                    <span class="item-id">A12</span>
+                    <span class="item-title">Document &ldquo;child line items inherit parent archive status&rdquo; convention</span>
+                    <span class="item-badge" style="background:#fffbeb;color:#d97706;">SF-2</span>
+                </div>
+                <div class="item-body">
+                    <p class="label">Decision</p>
+                    <div class="decision-box"><strong>Line items do NOT need their own <code>isArchived</code> field.</strong> They inherit archive status from their parent entity. Document this as a project convention. This applies to: <code>PurchaseOrderLineItem</code>, <code>ReceiptLineItem</code>, <code>VendorCreditLineItem</code>, <code>MaterialRequestItem</code>, <code>WorkOrderLaborItem</code>, <code>WorkOrderMaterialItem</code>, <code>WorkOrderEquipmentItem</code>.</div>
+                    <div class="files-affected">
+                        <div class="fa-label">No file changes needed &mdash; document as convention in this document</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="item-card cat-a-card" onclick="this.classList.toggle('expanded')">
+                <div class="item-header">
+                    <span class="item-id">A13</span>
+                    <span class="item-title">Decide <code>dateOfWork</code> vs <code>workDates Json</code> for multi-date Work Orders</span>
+                    <span class="item-badge" style="background:#fffbeb;color:#d97706;">SF-16</span>
+                </div>
+                <div class="item-body">
+                    <p class="label">Decision</p>
+                    <div class="decision-box" style="background:#fffbeb;border-color:#fde68a;color:#92400e;"><strong>Needs human decision.</strong> Option 1: Use <code>dateOfWork DateTime? @db.Date</code> only (single-date WOs for v1). Option 2: Use both <code>dateOfWork</code> as primary + <code>workDates Json?</code> for additional dates. Recommendation: Option 1 for v1 &mdash; multi-date WOs add complexity without confirmed customer need.</div>
+                    <div class="files-affected">
+                        <div class="fa-label">Files Affected by Decision</div>
+                        <ul>
+                            <li><code>plans/WO-3a-schema-form-foundation.html</code> &mdash; Uses <code>dateOfWork</code></li>
+                            <li><code>uis-20h-mobile-creation.html</code> &mdash; Uses <code>workDates Json</code></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <div class="item-card cat-a-card" onclick="this.classList.toggle('expanded')">
+                <div class="item-header">
+                    <span class="item-id">A14</span>
+                    <span class="item-title">Decide inventory costing method: weighted average for V1</span>
+                    <span class="item-badge" style="background:#eef2ff;color:#6366f1;">NTH-13</span>
+                </div>
+                <div class="item-body">
+                    <p class="label">Decision</p>
+                    <div class="decision-box"><strong>Weighted average for V1.</strong> FIFO adds lot tracking complexity not needed for construction trade contractors. Weighted average: unit cost on <code>InventoryItem</code> is recalculated on each receipt as <code>(existing qty &times; existing cost + received qty &times; receipt cost) / total qty</code>.</div>
+                    <div class="files-affected">
+                        <div class="fa-label">Files to Update</div>
+                        <ul>
+                            <li><code>plans/MAT-7-inventory-management.html</code> (Emma) &mdash; Document costing method explicitly</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </details>
+
+
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <!-- CATEGORY B: MODEL CONSOLIDATION (4 items)               -->
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <details class="section" id="cat-b">
+        <summary>
+            <span class="chevron">&#9654;</span>
+            Category B: Model Consolidation Decisions
+            <span class="section-badge" style="background:#fff7ed;color:#ea580c;">4 Items &bull; SF-9, 10, 13, NTH-10</span>
+        </summary>
+        <div class="section-body">
+
+            <div class="item-card cat-b-card" onclick="this.classList.toggle('expanded')">
+                <div class="item-header">
+                    <span class="item-id">B1</span>
+                    <span class="item-title">Consolidate <code>WorkOrderSigner</code> into <code>SignatureRequest</code></span>
+                    <span class="item-badge" style="background:#fffbeb;color:#d97706;">SF-9</span>
+                </div>
+                <div class="item-body">
+                    <p class="label">Decision</p>
+                    <div class="decision-box"><strong>Eliminate <code>WorkOrderSigner</code> as a separate model.</strong> <code>SignatureRequest</code> already tracks: who needs to sign, signing order, and links to the resulting <code>Signature</code>. Add <code>order Int?</code> and <code>signerRole String?</code> to <code>SignatureRequest</code> to absorb <code>WorkOrderSigner</code>&rsquo;s functionality. This reduces from 3 signing models to 2.</div>
+                    <div class="files-affected">
+                        <div class="fa-label">Files to Update</div>
+                        <ul>
+                            <li><code>uis-20h-mobile-creation.html</code> &mdash; Remove <code>WorkOrderSigner</code> model, use <code>SignatureRequest</code></li>
+                            <li><code>plans/WO-8b-collect-signatures.html</code> &mdash; Add <code>order</code> and <code>signerRole</code> to <code>SignatureRequest</code></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <div class="item-card cat-b-card" onclick="this.classList.toggle('expanded')">
+                <div class="item-header">
+                    <span class="item-id">B2</span>
+                    <span class="item-title">Consolidate <code>WorkOrderOtherItem</code> into <code>WorkOrderMaterialItem</code></span>
+                    <span class="item-badge" style="background:#fffbeb;color:#d97706;">SF-10</span>
+                </div>
+                <div class="item-body">
+                    <p class="label">Decision</p>
+                    <div class="decision-box"><strong>Eliminate <code>WorkOrderOtherItem</code>.</strong> Use <code>WorkOrderMaterialItem</code> with <code>materialId = null</code> for ad-hoc/unlisted items. The <code>description String?</code> field on <code>WorkOrderMaterialItem</code> serves the same purpose as <code>WorkOrderOtherItem.name</code>. Reduces from 4 line item types to 3 (Labor, Material, Equipment), simplifying queries, conversion logic, and total calculations.</div>
+                    <div class="files-affected">
+                        <div class="fa-label">Files to Update</div>
+                        <ul>
+                            <li><code>uis-20h-mobile-creation.html</code> &mdash; Remove <code>WorkOrderOtherItem</code> model, route &ldquo;Other&rdquo; items through <code>WorkOrderMaterialItem</code></li>
+                            <li><code>plans/WO-2-line-item-tables.html</code> &mdash; Document that null <code>materialId</code> = ad-hoc item</li>
+                            <li><code>plans/WO-8a-stepped-form-wizard.html</code> &mdash; Merge Step 5 (&ldquo;Other&rdquo;) into Step 3 (&ldquo;Material&rdquo;)</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <div class="item-card cat-b-card" onclick="this.classList.toggle('expanded')">
+                <div class="item-header">
+                    <span class="item-id">B3</span>
+                    <span class="item-title">Add <code>manufacturerProductId</code> to <code>MaterialConsumptionEntry</code> GraphQL type</span>
+                    <span class="item-badge" style="background:#fffbeb;color:#d97706;">SF-13</span>
+                </div>
+                <div class="item-body">
+                    <p class="label">Decision</p>
+                    <div class="decision-box"><strong>Add to GraphQL type and creation input.</strong> Without it, consumption entries can&rsquo;t resolve to a specific supplier price, making cost computation ambiguous when a material has multiple manufacturer products at different prices.</div>
+                    <div class="files-affected">
+                        <div class="fa-label">Files to Update</div>
+                        <ul>
+                            <li><code>uis-17-material-management.html</code> &mdash; Add <code>manufacturerProductId</code> to GraphQL consumption type</li>
+                            <li><code>plans/MAT-2a-lem-consumption-desktop.html</code> &mdash; Already has it in Prisma, confirm in GraphQL</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <div class="item-card cat-b-card" onclick="this.classList.toggle('expanded')">
+                <div class="item-header">
+                    <span class="item-id">B4</span>
+                    <span class="item-title">Scope maintenance models &mdash; defer Schedule/Template/Downtime to v1.1</span>
+                    <span class="item-badge" style="background:#eef2ff;color:#6366f1;">NTH-10</span>
+                </div>
+                <div class="item-body">
+                    <p class="label">Decision</p>
+                    <div class="decision-box"><strong>Ship minimal viable: <code>MaintenanceThreshold</code> + <code>MaintenanceLog</code> only for v1.</strong> Defer <code>MaintenanceSchedule</code>, <code>MaintenanceScheduleTemplate</code>, and <code>DowntimeRecord</code> to a future release. This removes 3 models + 3 enums from scope, reducing Phase 3 significantly. The equipment maintenance phase was already labeled &ldquo;lower priority, deferrable.&rdquo;</div>
+                    <div class="files-affected">
+                        <div class="fa-label">Files to Update</div>
+                        <ul>
+                            <li><code>docs/uis-15g-equipment-maintenance-scheduling.html</code> &mdash; Mark Schedule/Template/Downtime as deferred</li>
+                            <li><code>docs/plans/uis-15g-equipment-maintenance-scheduling.html</code> &mdash; Mark as deferred</li>
+                            <li><code>docs/uis-15d-equipment-maintenance-triggers.html</code> &mdash; Keep Threshold + Log only</li>
+                            <li><code>docs/plans/uis-15d-equipment-maintenance-triggers.html</code> &mdash; Keep Threshold + Log only</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </details>
+
+
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <!-- CATEGORY C: PRICEBOOKIMPORT FIXES (3 items)             -->
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <details class="section" id="cat-c">
+        <summary>
+            <span class="chevron">&#9654;</span>
+            Category C: PriceBookImport Fixes
+            <span class="section-badge" style="background:#fefce8;color:#ca8a04;">3 Items &bull; SF-3, 4, 5</span>
+        </summary>
+        <div class="section-body">
+
+            <div class="item-card cat-c-card" onclick="this.classList.toggle('expanded')">
+                <div class="item-header">
+                    <span class="item-id">C1</span>
+                    <span class="item-title">PriceBookImport default status = <code>&quot;Pending&quot;</code></span>
+                    <span class="item-badge" style="background:#fffbeb;color:#d97706;">SF-3</span>
+                </div>
+                <div class="item-body">
+                    <div class="decision-box"><strong>&ldquo;Pending&rdquo; is correct.</strong> The file has been uploaded but background processing hasn&rsquo;t started yet. UIS defaults to &ldquo;Processing&rdquo; which skips the queued state.</div>
+                    <div class="files-affected">
+                        <div class="fa-label">Files to Update</div>
+                        <ul><li><code>uis-17-material-management.html</code> &mdash; Change default status from <code>&quot;Processing&quot;</code> to <code>&quot;Pending&quot;</code></li></ul>
+                    </div>
+                </div>
+            </div>
+
+            <div class="item-card cat-c-card" onclick="this.classList.toggle('expanded')">
+                <div class="item-header">
+                    <span class="item-id">C2</span>
+                    <span class="item-title">PriceBookImport <code>errorLog</code> uses <code>Json?</code> not <code>String? @db.Text</code></span>
+                    <span class="item-badge" style="background:#fffbeb;color:#d97706;">SF-4</span>
+                </div>
+                <div class="item-body">
+                    <div class="decision-box"><strong>Use <code>Json?</code>.</strong> Structured error data (row number, column, error message per row) is more useful for displaying error tables in the UI than a raw text string.</div>
+                    <div class="files-affected">
+                        <div class="fa-label">Files to Update</div>
+                        <ul><li><code>uis-17-material-management.html</code> &mdash; Change <code>errorLog String? @db.Text</code> to <code>errorLog Json?</code></li></ul>
+                    </div>
+                </div>
+            </div>
+
+            <div class="item-card cat-c-card" onclick="this.classList.toggle('expanded')">
+                <div class="item-header">
+                    <span class="item-id">C3</span>
+                    <span class="item-title">PriceBookImport status set includes <code>PartialSuccess</code></span>
+                    <span class="item-badge" style="background:#fffbeb;color:#d97706;">SF-5</span>
+                </div>
+                <div class="item-body">
+                    <div class="decision-box"><strong>Full status set: <code>Pending</code>, <code>Processing</code>, <code>Complete</code>, <code>PartialSuccess</code>, <code>Failed</code>.</strong> UIS has <code>PartialSuccess</code> but omits <code>Pending</code>. Plan has <code>Pending</code> but omits <code>PartialSuccess</code>. Both are needed &mdash; <code>PartialSuccess</code> is essential for imports where some rows succeed and others fail.</div>
+                    <div class="files-affected">
+                        <div class="fa-label">Files to Update</div>
+                        <ul>
+                            <li><code>uis-17-material-management.html</code> &mdash; Add <code>Pending</code> to status set</li>
+                            <li><code>plans/MAT-3-price-book-import.html</code> &mdash; Add <code>PartialSuccess</code> to status set</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </details>
+
+
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <!-- CATEGORY D: DECIMAL PRECISION (4 items)                 -->
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <details class="section" id="cat-d">
+        <summary>
+            <span class="chevron">&#9654;</span>
+            Category D: Decimal Precision Standardization
+            <span class="section-badge" style="background:#f0fdf4;color:#16a34a;">4 Items &bull; SF-1, SF-15</span>
+        </summary>
+        <div class="section-body">
+
+            <p style="font-size:13px;color:#475569;line-height:1.6;margin-bottom:16px;">Canonical precision rules for all new models. These match the existing Prisma schema conventions (forecasts use <code>Decimal(12,2)</code>, InvoiceLineItem uses <code>Decimal(10,5)</code> for quantity).</p>
+
+            <table class="data-table">
+                <thead><tr><th>Value Type</th><th>Precision</th><th>Rationale</th><th>Example Fields</th></tr></thead>
+                <tbody>
+                    <tr><td>Unit prices</td><td><code>Decimal(10, 2)</code></td><td>Standard money precision</td><td><code>unitPrice</code>, <code>unitCost</code>, <code>listPrice</code>, <code>rate</code></td></tr>
+                    <tr><td>Quantities</td><td><code>Decimal(10, 4)</code></td><td>Unit conversion safety (m&rarr;ft, kg&rarr;lb, 2.5 rolls)</td><td><code>quantity</code>, <code>quantityReceived</code>, <code>quantityOnHand</code></td></tr>
+                    <tr><td>Document totals</td><td><code>Decimal(12, 2)</code></td><td>Match forecast pattern, supports $99B</td><td><code>amount</code>, <code>totalAmount</code>, <code>extendedPrice</code></td></tr>
+                    <tr><td>Percentages</td><td><code>Decimal(5, 2)</code></td><td>Standard percent precision</td><td><code>discountPercent</code>, <code>taxRate</code></td></tr>
+                </tbody>
+            </table>
+
+            <div class="item-card cat-d-card" onclick="this.classList.toggle('expanded')">
+                <div class="item-header">
+                    <span class="item-id">D1</span>
+                    <span class="item-title">Change <code>PurchaseOrder.amount</code> from <code>Decimal(10, 2)</code> to <code>Decimal(12, 2)</code></span>
+                    <span class="item-badge" style="background:#fffbeb;color:#d97706;">SF-1</span>
+                </div>
+                <div class="item-body">
+                    <div class="files-affected">
+                        <div class="fa-label">Files to Update</div>
+                        <ul>
+                            <li><code>plans/MAT-1-customer-po-entity.html</code> &mdash; Change amount precision</li>
+                            <li><code>plans/MAT-5-supplier-po.html</code> &mdash; Change amount precision</li>
+                            <li><code>uis-25-purchase-order-management.html</code> &mdash; Change amount precision</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <div class="item-card cat-d-card" onclick="this.classList.toggle('expanded')">
+                <div class="item-header">
+                    <span class="item-id">D2</span>
+                    <span class="item-title">Change <code>VendorCredit.amount</code> from <code>Decimal(10, 2)</code> to <code>Decimal(12, 2)</code></span>
+                    <span class="item-badge" style="background:#fffbeb;color:#d97706;">SF-1</span>
+                </div>
+                <div class="item-body">
+                    <div class="files-affected">
+                        <div class="fa-label">Files to Update</div>
+                        <ul><li><code>plans/MAT-8-vendor-credits.html</code> &mdash; Change <code>totalAmount</code> precision</li></ul>
+                    </div>
+                </div>
+            </div>
+
+            <div class="item-card cat-d-card" onclick="this.classList.toggle('expanded')">
+                <div class="item-header">
+                    <span class="item-id">D3</span>
+                    <span class="item-title">Change all quantity fields from <code>Decimal(10, 2)</code> to <code>Decimal(10, 4)</code></span>
+                    <span class="item-badge" style="background:#fffbeb;color:#d97706;">SF-15</span>
+                </div>
+                <div class="item-body">
+                    <p class="label">Affected Models</p>
+                    <ul>
+                        <li><code>PurchaseOrderLineItem.quantity</code></li>
+                        <li><code>MaterialConsumptionEntry.quantity</code></li>
+                        <li><code>MaterialRequestItem.quantity</code></li>
+                        <li><code>ReceiptLineItem.quantityReceived</code></li>
+                        <li><code>InventoryItem.quantityOnHand</code>, <code>minQuantity</code>, <code>maxQuantity</code></li>
+                        <li><code>InventoryMovement.quantity</code></li>
+                        <li><code>VendorCreditLineItem.quantity</code></li>
+                    </ul>
+                    <div class="files-affected">
+                        <div class="fa-label">Files to Update</div>
+                        <ul>
+                            <li>All <code>plans/MAT-*.html</code> files with quantity fields</li>
+                            <li><code>uis-17-material-management.html</code>, <code>uis-25b-supplier-po-receiving.html</code></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <div class="item-card cat-d-card" onclick="this.classList.toggle('expanded')">
+                <div class="item-header">
+                    <span class="item-id">D4</span>
+                    <span class="item-title">Align SQL CTE in Equipment P&amp;L plan to <code>Decimal(12, 2)</code></span>
+                    <span class="item-badge" style="background:#fffbeb;color:#d97706;">SF-1</span>
+                </div>
+                <div class="item-body">
+                    <div class="decision-box">Equipment Prisma models already use <code>Decimal(12, 2)</code> (Emma&rsquo;s Apr 7 fix), but the SQL CTE for P&amp;L computation may still reference <code>Decimal(10, 2)</code> casts.</div>
+                    <div class="files-affected">
+                        <div class="fa-label">Files to Update</div>
+                        <ul><li><code>docs/plans/uis-15a-equipment-job-pl.html</code> &mdash; Check SQL CTE casts</li></ul>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </details>
+
+
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <!-- CATEGORY E: PERMISSION GROUPS (4 items)                 -->
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <details class="section" id="cat-e">
+        <summary>
+            <span class="chevron">&#9654;</span>
+            Category E: Permission Groups to Define
+            <span class="section-badge" style="background:#eff6ff;color:#2563eb;">4 Items &bull; SF-6, SF-12</span>
+        </summary>
+        <div class="section-body">
+
+            <table class="data-table">
+                <thead><tr><th>Permission Group</th><th>view</th><th>create</th><th>edit</th><th>delete</th><th>approve</th><th>Source</th></tr></thead>
+                <tbody>
+                    <tr><td><code>purchaseOrder</code></td><td class="check">&#10003;</td><td class="check">&#10003;</td><td class="check">&#10003;</td><td class="check">&#10003;</td><td class="check">&#10003;</td><td>SF-6</td></tr>
+                    <tr><td><code>vendorCredit</code></td><td class="check">&#10003;</td><td class="check">&#10003;</td><td class="check">&#10003;</td><td class="check">&#10003;</td><td class="check">&#10003;</td><td>SF-6</td></tr>
+                    <tr><td><code>pricing</code></td><td class="check">&#10003;</td><td>&mdash;</td><td class="check">&#10003;</td><td>&mdash;</td><td>&mdash;</td><td>SF-12</td></tr>
+                    <tr><td><code>inventory</code></td><td class="check">&#10003;</td><td class="check">&#10003;</td><td class="check">&#10003;</td><td class="check">&#10003;</td><td>&mdash;</td><td>SF-6</td></tr>
+                </tbody>
+            </table>
+
+            <div class="item-card cat-e-card" onclick="this.classList.toggle('expanded')">
+                <div class="item-header"><span class="item-id">E1</span><span class="item-title"><code>purchaseOrder</code> permission group</span><span class="item-badge" style="background:#fffbeb;color:#d97706;">SF-6</span></div>
+                <div class="item-body">
+                    <div class="decision-box">POs involve financial commitments. <code>approve</code> permission gates the <code>Submitted &rarr; Approved</code> transition. <code>view</code> supports <code>ALL</code>/<code>OWN</code>/<code>DEPARTMENT</code> scoping.</div>
+                    <div class="files-affected"><div class="fa-label">Files to Update</div><ul>
+                        <li><code>plans/MAT-1-customer-po-entity.html</code>, <code>plans/MAT-5-supplier-po.html</code>, <code>uis-25-purchase-order-management.html</code>, <code>uis-25a-customer-po-management.html</code>, <code>uis-25b-supplier-po-receiving.html</code></li>
+                    </ul></div>
+                </div>
+            </div>
+
+            <div class="item-card cat-e-card" onclick="this.classList.toggle('expanded')">
+                <div class="item-header"><span class="item-id">E2</span><span class="item-title"><code>vendorCredit</code> permission group</span><span class="item-badge" style="background:#fffbeb;color:#d97706;">SF-6</span></div>
+                <div class="item-body">
+                    <div class="decision-box"><code>approve</code> gates <code>InReview &rarr; Approved</code>. Credits directly affect job profitability.</div>
+                    <div class="files-affected"><div class="fa-label">Files to Update</div><ul><li><code>plans/MAT-8-vendor-credits.html</code></li></ul></div>
+                </div>
+            </div>
+
+            <div class="item-card cat-e-card" onclick="this.classList.toggle('expanded')">
+                <div class="item-header"><span class="item-id">E3</span><span class="item-title"><code>pricing</code> permission group (separate from material)</span><span class="item-badge" style="background:#fffbeb;color:#d97706;">SF-12</span></div>
+                <div class="item-body">
+                    <div class="decision-box">Discounts affect pricing across POs and P&amp;L. A user who can edit materials shouldn&rsquo;t necessarily be able to change discount percentages. Separate <code>pricing: { view, edit }</code> from <code>material: { view, edit }</code>.</div>
+                    <div class="files-affected"><div class="fa-label">Files to Update</div><ul><li><code>plans/MAT-9-discount-management.html</code> &mdash; Replace <code>material.edit</code> with <code>pricing.edit</code></li></ul></div>
+                </div>
+            </div>
+
+            <div class="item-card cat-e-card" onclick="this.classList.toggle('expanded')">
+                <div class="item-header"><span class="item-id">E4</span><span class="item-title"><code>inventory</code> permission group</span><span class="item-badge" style="background:#fffbeb;color:#d97706;">SF-6</span></div>
+                <div class="item-body">
+                    <div class="decision-box">Inventory operations (receive, checkout, transfer, adjust) need dedicated access control separate from general material catalog management.</div>
+                    <div class="files-affected"><div class="fa-label">Files to Update</div><ul><li><code>plans/MAT-7-inventory-management.html</code>, <code>uis-17-material-management.html</code></li></ul></div>
+                </div>
+            </div>
+
+        </div>
+    </details>
+
+
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <!-- CATEGORY F: NOTIFICATION MATRIX (1 item)                -->
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <details class="section" id="cat-f">
+        <summary>
+            <span class="chevron">&#9654;</span>
+            Category F: Notification Matrix
+            <span class="section-badge" style="background:#fdf4ff;color:#a21caf;">1 Item &bull; SF-11</span>
+        </summary>
+        <div class="section-body">
+
+            <div class="item-card cat-f-card" onclick="this.classList.toggle('expanded')">
+                <div class="item-header"><span class="item-id">F1</span><span class="item-title">Define notifications for all new status transitions</span><span class="item-badge" style="background:#fffbeb;color:#d97706;">SF-11</span></div>
+                <div class="item-body">
+                    <table class="data-table">
+                        <thead><tr><th>Event</th><th>Notify Who</th><th>Channel</th><th>Currently Defined?</th></tr></thead>
+                        <tbody>
+                            <tr><td>PO submitted for approval</td><td>Approvers (PO permission group)</td><td>In-app + email</td><td class="cross">No</td></tr>
+                            <tr><td>PO approved</td><td>Creator</td><td>In-app</td><td class="cross">No</td></tr>
+                            <tr><td>PO sent to supplier</td><td>Creator + job PM</td><td>In-app</td><td class="cross">No</td></tr>
+                            <tr><td>Receiving completed</td><td>PO creator</td><td>In-app</td><td class="cross">No</td></tr>
+                            <tr><td>Low stock alert</td><td>Inventory managers</td><td>In-app + email</td><td class="cross">No</td></tr>
+                            <tr><td>Consumption submitted</td><td>Approvers</td><td>In-app</td><td class="cross">No</td></tr>
+                            <tr><td>Credit submitted for review</td><td>Approvers</td><td>In-app + email</td><td class="cross">No</td></tr>
+                            <tr><td>Credit approved</td><td>Creator</td><td>In-app</td><td class="cross">No</td></tr>
+                            <tr><td>Material request submitted</td><td>Office material managers</td><td>In-app + email</td><td class="check">MAT-4</td></tr>
+                            <tr><td>Material request fulfilled</td><td>Requester</td><td>In-app</td><td class="cross">No</td></tr>
+                            <tr><td>Signature requested</td><td>Signer</td><td>Email</td><td class="check">WO-8b</td></tr>
+                            <tr><td>Maintenance threshold reached</td><td>Equipment managers</td><td>In-app + email</td><td class="check">UIS-15D</td></tr>
+                        </tbody>
+                    </table>
+                    <div class="files-affected">
+                        <div class="fa-label">Files to Update</div>
+                        <ul>
+                            <li>All Plan files for the 9 undefined notifications above need notification trigger definitions added</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </details>
+
+
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <!-- CATEGORY G: CROSS-CUTTING CONVENTIONS (12 items)        -->
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <details class="section" id="cat-g">
+        <summary>
+            <span class="chevron">&#9654;</span>
+            Category G: Cross-Cutting Conventions
+            <span class="section-badge" style="background:#eef2ff;color:#6366f1;">12 Items &bull; SF-7,8,14 + NTH-1 through 17</span>
+        </summary>
+        <div class="section-body">
+
+            <p style="font-size:13px;color:#475569;line-height:1.6;margin-bottom:16px;">These are patterns/conventions that must be decided once and documented so every spec and every developer applies them consistently. They don&rsquo;t require spec-level file changes &mdash; they&rsquo;re documented here as the authoritative reference.</p>
+
+            <div class="item-card cat-g-card" onclick="this.classList.toggle('expanded')">
+                <div class="item-header"><span class="item-id">G1</span><span class="item-title">Mobile routes use <code>job-sites/[id]/...</code> pattern</span><span class="item-badge" style="background:#fffbeb;color:#d97706;">SF-7</span></div>
+                <div class="item-body">
+                    <div class="decision-box"><strong>All mobile routes nest under <code>/job-sites/[id]/</code>.</strong> This matches the existing mobile app structure. Affects: material consumption (<code>/job-sites/[id]/material-consumption/new</code>), material requests (<code>/job-sites/[id]/material-request/new</code>), WO creation, equipment time. Fix inconsistent patterns like <code>/material-requests/new</code> and <code>/jobs/[jobId]/...</code>.</div>
+                    <div class="files-affected"><div class="fa-label">Files to Update</div><ul>
+                        <li><code>uis-20h-mobile-creation.html</code>, <code>plans/WO-6-mobile-list-detail.html</code>, <code>plans/MAT-2b-lem-consumption-mobile.html</code>, <code>plans/MAT-4-mobile-material-requests.html</code></li>
+                    </ul></div>
+                </div>
+            </div>
+
+            <div class="item-card cat-g-card" onclick="this.classList.toggle('expanded')">
+                <div class="item-header"><span class="item-id">G2</span><span class="item-title">PDF templates go in Frontend <code>DownloadablePDF/</code></span><span class="item-badge" style="background:#fffbeb;color:#d97706;">SF-8</span></div>
+                <div class="item-body">
+                    <div class="decision-box"><strong>Frontend <code>DownloadablePDF</code> pattern.</strong> This matches existing Invoice, Estimate, and Work Order PDF patterns. UIS incorrectly placed PO PDF in the API (<code>apps/api/src/templates/</code>). Correct path: <code>apps/frontend/src/components/DownloadablePDF/PurchaseOrder/SupplierPO.tsx</code>.</div>
+                    <div class="files-affected"><div class="fa-label">Files to Update</div><ul>
+                        <li><code>uis-25b-supplier-po-receiving.html</code> &mdash; Fix PDF template location</li>
+                    </ul></div>
+                </div>
+            </div>
+
+            <div class="item-card cat-g-card" onclick="this.classList.toggle('expanded')">
+                <div class="item-header"><span class="item-id">G3</span><span class="item-title">Discount precedence: <code>DistributorDiscount</code> &gt; <code>DistributorPrice.discountPercent</code></span><span class="item-badge" style="background:#fffbeb;color:#d97706;">SF-14</span></div>
+                <div class="item-body">
+                    <div class="decision-box"><strong>Documented cascade:</strong> <code>DistributorDiscount</code> (managed entity with date ranges and scope) takes precedence when present. <code>DistributorPrice.discountPercent</code> (per-row import value from CSV) is the fallback. Discount resolution: Product-specific &gt; Category &gt; Global.</div>
+                    <div class="files-affected"><div class="fa-label">Files to Update</div><ul><li><code>plans/MAT-9-discount-management.html</code> &mdash; Document precedence cascade explicitly</li></ul></div>
+                </div>
+            </div>
+
+            <div class="item-card cat-g-card" onclick="this.classList.toggle('expanded')">
+                <div class="item-header"><span class="item-id">G4</span><span class="item-title">Computed field pattern: resolver-computed for display, stored for aggregation</span><span class="item-badge" style="background:#eef2ff;color:#6366f1;">NTH-1</span></div>
+                <div class="item-body">
+                    <div class="decision-box"><strong>Convention:</strong> Use resolver-computed fields for display-only values (<code>effectivePrice</code>, <code>extendedTotal</code>). Use stored fields for values that need to be queried, sorted, or aggregated (<code>PurchaseOrder.amount</code>, <code>VendorCredit.totalAmount</code>). Stored values are set on create/update by the resolver.</div>
+                </div>
+            </div>
+
+            <div class="item-card cat-g-card" onclick="this.classList.toggle('expanded')">
+                <div class="item-header"><span class="item-id">G5</span><span class="item-title">All list views support CSV + PDF export</span><span class="item-badge" style="background:#eef2ff;color:#6366f1;">NTH-2</span></div>
+                <div class="item-body">
+                    <div class="decision-box"><strong>Convention:</strong> Every new <code>ListTableView</code> includes an export action with CSV and PDF options. Use the existing export button pattern from Job List. Add to acceptance criteria for: WO Log, CO Log, PO List, Material Request Inbox, Inventory Stock Levels, Vendor Credit List.</div>
+                </div>
+            </div>
+
+            <div class="item-card cat-g-card" onclick="this.classList.toggle('expanded')">
+                <div class="item-header"><span class="item-id">G6</span><span class="item-title">Standardize <code>EmptyState</code> component</span><span class="item-badge" style="background:#eef2ff;color:#6366f1;">NTH-3</span></div>
+                <div class="item-body">
+                    <div class="decision-box"><strong>Convention:</strong> All new list views and detail sections use a reusable <code>EmptyState</code> component from <code>@useanzen/ui</code> with: icon (contextual), message, and action button (e.g., &ldquo;Create First PO&rdquo;). Check if <code>EmptyState</code> already exists in the UI library before building.</div>
+                </div>
+            </div>
+
+            <div class="item-card cat-g-card" onclick="this.classList.toggle('expanded')">
+                <div class="item-header"><span class="item-id">G7</span><span class="item-title">Batch operations return <code>{ success: [...], failed: [...] }</code></span><span class="item-badge" style="background:#eef2ff;color:#6366f1;">NTH-4</span></div>
+                <div class="item-body">
+                    <div class="decision-box"><strong>Convention:</strong> All batch mutations (<code>approveEquipmentTimeEntries</code>, <code>approveMaterialConsumptionEntries</code>, <code>upsertWorkOrderLineItems</code>) return <code>{ success: [ids], failed: [{ id, error }] }</code> with per-item error messages. Use <code>prisma.$transaction()</code> for all-or-nothing when appropriate.</div>
+                </div>
+            </div>
+
+            <div class="item-card cat-g-card" onclick="this.classList.toggle('expanded')">
+                <div class="item-header"><span class="item-id">G8</span><span class="item-title">Audit trail fields for financial entities</span><span class="item-badge" style="background:#eef2ff;color:#6366f1;">NTH-5</span></div>
+                <div class="item-body">
+                    <div class="decision-box"><strong>Convention:</strong> All financial entities (PO, VendorCredit, MaterialConsumptionEntry) include: <code>createdAt</code>, <code>updatedAt</code>, <code>createdByUserId</code>, <code>updatedByUserId</code>. Entities with approval add: <code>submittedAt</code>, <code>submittedByUserId</code>, <code>approvedAt</code>, <code>approvedByUserId</code>. Use the existing <code>AuditEntry</code> pattern for change history on entities where it matters (v1.1).</div>
+                </div>
+            </div>
+
+            <div class="item-card cat-g-card" onclick="this.classList.toggle('expanded')">
+                <div class="item-header"><span class="item-id">G9</span><span class="item-title">Three-way match: defer to v1.1</span><span class="item-badge" style="background:#eef2ff;color:#6366f1;">NTH-11</span></div>
+                <div class="item-body">
+                    <div class="decision-box"><strong>Decision:</strong> Ship basic receiving (partial/complete receipt tracking) for v1. Full three-way match (PO qty vs received qty vs invoiced qty) is deferred to v1.1. Do not design match UI or computed columns for v1.</div>
+                </div>
+            </div>
+
+            <div class="item-card cat-g-card" onclick="this.classList.toggle('expanded')">
+                <div class="item-header"><span class="item-id">G10</span><span class="item-title">Shared conversion mutation pattern</span><span class="item-badge" style="background:#eef2ff;color:#6366f1;">NTH-14</span></div>
+                <div class="item-body">
+                    <div class="decision-box"><strong>Convention:</strong> Entity conversion mutations follow the pattern: <code>convert[Source]To[Target](sourceId: ID!): [Target]!</code>. Pre-fills target from source line items. Used by: WO &rarr; Invoice (<code>convertWorkOrderToInvoice</code>), WO &rarr; Change Order (<code>convertWorkOrderToChangeOrder</code>). Future: Material Request &rarr; PO.</div>
+                </div>
+            </div>
+
+            <div class="item-card cat-g-card" onclick="this.classList.toggle('expanded')">
+                <div class="item-header"><span class="item-id">G11</span><span class="item-title">Offline strategy per mobile feature</span><span class="item-badge" style="background:#eef2ff;color:#6366f1;">NTH-16</span></div>
+                <div class="item-body">
+                    <div class="decision-box"><strong>Decision:</strong> Offline-first: Material consumption (MAT-2b), WO creation (WO-8). Online-only: Material requests (MAT-4), Equipment time (UIS-15H), Equipment search (UIS-15E), Mobile receiving (MAT-6). Offline features queue mutations for sync when connectivity returns.</div>
+                </div>
+            </div>
+
+            <div class="item-card cat-g-card" onclick="this.classList.toggle('expanded')">
+                <div class="item-header"><span class="item-id">G12</span><span class="item-title">All new list queries use <code>GetListOptions</code> with pagination</span><span class="item-badge" style="background:#eef2ff;color:#6366f1;">NTH-17</span></div>
+                <div class="item-body">
+                    <div class="decision-box"><strong>Convention:</strong> All new list queries accept <code>GetListOptions</code> input type with pagination, sorting, and filtering. Construction companies accumulate thousands of records per entity. No unbounded arrays. Applies to: <code>purchaseOrders</code>, <code>materialConsumptionEntries</code>, <code>inventoryMovements</code>, <code>vendorCredits</code>, <code>materialRequests</code>, <code>workOrders</code>.</div>
+                </div>
+            </div>
+
+        </div>
+    </details>
+
+
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <!-- CATEGORY H: SHARED SERVICES (3 items)                   -->
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <details class="section" id="cat-h">
+        <summary>
+            <span class="chevron">&#9654;</span>
+            Category H: Shared Services to Spec Before Implementation
+            <span class="section-badge" style="background:#f1f5f9;color:#475569;">3 Items &bull; NTH-7, 8, 9</span>
+        </summary>
+        <div class="section-body">
+
+            <div class="item-card cat-h-card" onclick="this.classList.toggle('expanded')">
+                <div class="item-header"><span class="item-id">H1</span><span class="item-title"><code>AutoNumberService</code> for WO, CPO, SPO, MR, VC, RCV prefixes</span><span class="item-badge" style="background:#eef2ff;color:#6366f1;">NTH-9</span></div>
+                <div class="item-body">
+                    <div class="decision-box"><strong>Spec:</strong> Centralized auto-numbering service at <code>apps/api/src/models/AutoNumberService.ts</code>. Input: <code>{ prefix: string, instanceId: string }</code>. Output: next number string (e.g., <code>WO-001</code>, <code>SPO-0042</code>). Uses a counter table (<code>AutoNumberCounter</code> model) with <code>@@unique([instanceId, prefix])</code>. Handles padding, collision prevention via <code>prisma.$transaction()</code>. Configurable pad width per prefix.</div>
+                    <p class="label">Prefixes</p>
+                    <ul>
+                        <li><code>WO</code> &mdash; Work Orders</li>
+                        <li><code>CPO</code> &mdash; Customer Purchase Orders</li>
+                        <li><code>SPO</code> &mdash; Supplier Purchase Orders</li>
+                        <li><code>MR</code> &mdash; Material Requests</li>
+                        <li><code>VC</code> &mdash; Vendor Credits</li>
+                        <li><code>RCV</code> &mdash; Receiving Receipts</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="item-card cat-h-card" onclick="this.classList.toggle('expanded')">
+                <div class="item-header"><span class="item-id">H2</span><span class="item-title"><code>RepeatingLineItemEditor</code> base component</span><span class="item-badge" style="background:#eef2ff;color:#6366f1;">NTH-8</span></div>
+                <div class="item-body">
+                    <div class="decision-box"><strong>Spec:</strong> Shared React component at <code>packages/ui/src/components/RepeatingLineItemEditor/</code>. Props: <code>columns</code> (array of column defs with render, width, label), <code>rows</code> (data), <code>onAdd</code>, <code>onRemove</code>, <code>onUpdate</code>, <code>showTotals</code>, <code>totalColumns</code>. Used by: WO Labor Editor, WO Material Editor, WO Equipment Editor, PO Line Item Editor, VendorCredit Line Item Editor. Build <em>before</em> any feature-specific editors.</div>
+                </div>
+            </div>
+
+            <div class="item-card cat-h-card" onclick="this.classList.toggle('expanded')">
+                <div class="item-header"><span class="item-id">H3</span><span class="item-title"><code>JobFinancialSummaryService</code> plugin/strategy refactor</span><span class="item-badge" style="background:#eef2ff;color:#6366f1;">NTH-7</span></div>
+                <div class="item-body">
+                    <div class="decision-box"><strong>Spec:</strong> Refactor <code>JobFinancialSummaryService</code> from a monolithic computation to a plugin/strategy pattern. Each cost source registers a &ldquo;cost provider&rdquo; function with signature: <code>(jobId: string) =&gt; Promise&lt;{ label: string, revenue: Decimal, cost: Decimal }&gt;</code>. The service aggregates all registered providers. Prevents merge conflicts when 5 features modify it in parallel.</div>
+                    <p class="label">Cost Providers to Register</p>
+                    <ul>
+                        <li>Equipment time costs (UIS-15A)</li>
+                        <li>Material consumption costs (MAT-2a)</li>
+                        <li>PO committed costs (MAT-6)</li>
+                        <li>Inventory checkout costs (MAT-7)</li>
+                        <li>Vendor credit adjustments (MAT-8, negative)</li>
+                    </ul>
+                </div>
+            </div>
+
+        </div>
+    </details>
+
+
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <!-- STATUS LIFECYCLE FINAL STATE MACHINES                   -->
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <details class="section" id="lifecycles">
+        <summary>
+            <span class="chevron">&#9654;</span>
+            Status Lifecycle Final State Machines
+            <span class="section-badge" style="background:#f1f5f9;color:#475569;">8 Entities</span>
+        </summary>
+        <div class="section-body">
+
+            <p style="font-size:13px;color:#475569;line-height:1.6;margin-bottom:16px;">These are the canonical, final status lifecycles for every entity with a workflow. Each spec file must match these exactly.</p>
+
+            <div class="lifecycle-diagram">
+<span class="lc-entity">Work Order</span> <span class="lc-storage">(PropertyValue)</span>
+<span class="lc-status">Draft</span> <span class="lc-arrow">&rarr;</span> <span class="lc-status">Submitted</span> <span class="lc-arrow">&rarr;</span> <span class="lc-status">AwaitingSignature</span> <span class="lc-arrow">&rarr;</span> <span class="lc-status">Signed</span> <span class="lc-arrow">&rarr;</span> <span class="lc-status">Approved</span> <span class="lc-arrow">&rarr;</span> <span class="lc-status">Invoiced</span>
+                                                                                        <span class="lc-arrow">&searr;</span> <span class="lc-terminal">Void</span>
+
+<span class="lc-entity">PurchaseOrder (Supplier)</span> <span class="lc-storage">(const-string)</span>
+<span class="lc-status">Draft</span> <span class="lc-arrow">&rarr;</span> <span class="lc-status">Submitted</span> <span class="lc-arrow">&rarr;</span> <span class="lc-status">Approved</span> <span class="lc-arrow">&rarr;</span> <span class="lc-status">PartiallyReceived</span> <span class="lc-arrow">&rarr;</span> <span class="lc-status">FullyReceived</span> <span class="lc-arrow">&rarr;</span> <span class="lc-status">Closed</span>
+                                                        <span class="lc-arrow">&searr;</span> <span class="lc-terminal">Cancelled</span>
+Note: "Send to Supplier" sets <span class="lc-status">sentAt DateTime?</span> without changing status
+
+<span class="lc-entity">PurchaseOrder (Customer)</span> <span class="lc-storage">(const-string)</span>
+<span class="lc-status">Active</span> <span class="lc-arrow">&rarr;</span> <span class="lc-status">FullyInvoiced</span> <span class="lc-arrow">&rarr;</span> <span class="lc-status">Closed</span>
+                <span class="lc-arrow">&searr;</span> <span class="lc-terminal">Cancelled</span>
+
+<span class="lc-entity">MaterialConsumptionEntry</span> <span class="lc-storage">(const-string)</span>
+<span class="lc-status">Draft</span> <span class="lc-arrow">&rarr;</span> <span class="lc-status">Submitted</span> <span class="lc-arrow">&rarr;</span> <span class="lc-status">Approved</span>
+
+<span class="lc-entity">MaterialRequest</span> <span class="lc-storage">(const-string)</span>
+<span class="lc-status">Submitted</span> <span class="lc-arrow">&rarr;</span> <span class="lc-status">Acknowledged</span> <span class="lc-arrow">&rarr;</span> <span class="lc-status">InProgress</span> <span class="lc-arrow">&rarr;</span> <span class="lc-status">Fulfilled</span>
+                                                                <span class="lc-arrow">&searr;</span> <span class="lc-terminal">Cancelled</span>
+
+<span class="lc-entity">VendorCredit</span> <span class="lc-storage">(const-string)</span>
+<span class="lc-status">Draft</span> <span class="lc-arrow">&rarr;</span> <span class="lc-status">InReview</span> <span class="lc-arrow">&rarr;</span> <span class="lc-status">Approved</span> <span class="lc-arrow">&rarr;</span> <span class="lc-status">Applied</span>
+                                                  <span class="lc-arrow">&searr;</span> <span class="lc-terminal">Void</span> (reverses job cost adjustment)
+
+<span class="lc-entity">PriceBookImport</span> <span class="lc-storage">(const-string)</span>
+<span class="lc-status">Pending</span> <span class="lc-arrow">&rarr;</span> <span class="lc-status">Processing</span> <span class="lc-arrow">&rarr;</span> <span class="lc-status">Complete</span> | <span class="lc-status">PartialSuccess</span> | <span class="lc-terminal">Failed</span>
+
+<span class="lc-entity">EquipmentTimeEntry</span> <span class="lc-storage">(Prisma enum + TypeScript const)</span>
+<span class="lc-status">Pending</span> <span class="lc-arrow">&rarr;</span> <span class="lc-status">Approved</span> | <span class="lc-terminal">Rejected</span>
+            </div>
+
+        </div>
+    </details>
+
+
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <!-- CROSS-REFERENCE: PHASE 0 → IMPLEMENTATION PHASES       -->
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <details class="section" open id="xref">
+        <summary>
+            <span class="chevron">&#9654;</span>
+            Cross-Reference: Phase 0 Items &rarr; Implementation Phase They Unblock
+            <span class="section-badge" style="background:#f1f5f9;color:#475569;">Validation</span>
+        </summary>
+        <div class="section-body">
+
+            <p style="font-size:13px;color:#475569;line-height:1.6;margin-bottom:16px;">Every implementation phase has been validated. If Phase 0 is completed fully, every model, resolver, page, and mobile screen in Phases 1&ndash;7 has its spec foundation covered.</p>
+
+            <table class="xref-table">
+                <thead><tr><th>Implementation Phase</th><th>Scope</th><th>Phase 0 Items Required</th></tr></thead>
+                <tbody>
+                    <tr>
+                        <td class="phase-label">Phase 1: LEM Foundation</td>
+                        <td>TradeLevelRate mod, 3 equipment rate models, desktop rate UI</td>
+                        <td class="item-refs">D4</td>
+                    </tr>
+                    <tr>
+                        <td class="phase-label">Phase 2: T&amp;M Work Orders</td>
+                        <td>8+ models, desktop CRUD/log/conversion, mobile wizard, WO PDF</td>
+                        <td class="item-refs">A1, A2, A6, A7, A12, A13, B1, B2, G1, G2, G4, G5, G6, G7, G10, G11, G12, H1, H2</td>
+                    </tr>
+                    <tr>
+                        <td class="phase-label">Phase 3: Equipment Module</td>
+                        <td>8 models, P&amp;L, invoicing, maintenance, mobile QR/inspection</td>
+                        <td class="item-refs">B4, D4, G1, G4, G5, G6, G12</td>
+                    </tr>
+                    <tr>
+                        <td class="phase-label">Phase 4: Material Foundation</td>
+                        <td>4 models, data migration, supply chain settings, consumption</td>
+                        <td class="item-refs">A1&ndash;A7, A9, B3, C1&ndash;C3, D1, D3, E1, F1, G1, G4, G5, G6, G8, G11, G12, H1, H3</td>
+                    </tr>
+                    <tr>
+                        <td class="phase-label">Phase 5: Procurement</td>
+                        <td>4 models, price book import, material requests, supplier PO, discounts</td>
+                        <td class="item-refs">A5, C1&ndash;C3, D3, E1, E3, G2, G3, G5, G6, G12, H1, H2</td>
+                    </tr>
+                    <tr>
+                        <td class="phase-label">Phase 6: Operations</td>
+                        <td>5 models, receiving, inventory, vendor credits, 3 JFS integrations</td>
+                        <td class="item-refs">A8, A10, A11, A14, D1, D2, E2, E4, F1, G4, G5, G6, G7, G8, G9, G12, H2, H3</td>
+                    </tr>
+                    <tr>
+                        <td class="phase-label">Phase 7: Cross-Cutting</td>
+                        <td>Shared components, services, mobile routes, pagination, testing</td>
+                        <td class="item-refs">G1, G5, G6, G7, G10, G12, H1, H2, H3</td>
+                    </tr>
+                </tbody>
+            </table>
+
+        </div>
+    </details>
+
+
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <!-- WHO DOES WHAT                                           -->
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <details class="section" id="ownership">
+        <summary>
+            <span class="chevron">&#9654;</span>
+            Who Does What
+            <span class="section-badge" style="background:#f1f5f9;color:#475569;">Ownership</span>
+        </summary>
+        <div class="section-body">
+
+            <table class="data-table">
+                <thead><tr><th>Owner</th><th>Files</th><th>Items</th></tr></thead>
+                <tbody>
+                    <tr>
+                        <td><strong>Emma (Plan specs)</strong></td>
+                        <td><code>appello-roadmap/plans/MAT-*.html</code>, <code>WO-*.html</code>, <code>LEM-*.html</code></td>
+                        <td>A6, A7, A8, A9, A11, A14, B2, B3, C3, D1, D2, D3, E1&ndash;E4, F1, G3</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Corey/AI (UIS specs)</strong></td>
+                        <td><code>appello/.cursor/plans/uis-*.html</code>, <code>appello/plan/clearstory-tm-workorders/uis/*.html</code></td>
+                        <td>A1&ndash;A5, A10, B1, B2, C1, C2, D3, G1, G2</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Emma (Equipment specs)</strong></td>
+                        <td><code>appello-sdlc/docs/*.html</code>, <code>appello-sdlc/docs/plans/*.html</code></td>
+                        <td>B4, D4</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Conventions (this doc)</strong></td>
+                        <td>No file changes &mdash; documented here</td>
+                        <td>A12, A13, G4&ndash;G12, H1&ndash;H3</td>
+                    </tr>
+                </tbody>
+            </table>
+
+        </div>
+    </details>
+
+
+    <!-- Footer -->
+    <div class="footer">
+        Phase 0: Master Spec Reconciliation &mdash; Generated April 8, 2026 &bull; Releases 1.33 + 1.34<br>
+        <a href="index.html">Back to Roadmap</a> &bull; <a href="cross-release-continuity-audit.html">Continuity Audit</a> &bull; <a href="release-1.33-timeline.html">1.33 Timeline</a> &bull; <a href="release-1.34-timeline.html">1.34 Timeline</a>
+    </div>
+
+</div>
+
+<script>
+document.querySelectorAll('.item-card').forEach(card => {
+    card.querySelector('.item-header').addEventListener('click', (e) => {
+        e.stopPropagation();
+        card.classList.toggle('expanded');
+    });
+    card.removeAttribute('onclick');
+});
+</script>
+</body>
+</html>

@@ -67,7 +67,7 @@ table.schema-table code { font-family: monospace; background: #f1f5f9; padding: 
         <div class="uis-meta">
             <span><strong>Sequence:</strong> WO-3d</span>
             <span><strong>Estimate:</strong> 2-3 days</span>
-            <span><strong>Requires:</strong> WO-1 (JobClassification), WO-3a (DAA setup with WORK_ORDER subModel)</span>
+            <span><strong>Requires:</strong> WO-1 (JobClassification), WO-3a (DAA setup with WorkOrder subModel)</span>
         </div>
     </div>
 
@@ -80,7 +80,7 @@ table.schema-table code { font-family: monospace; background: #f1f5f9; padding: 
         <p><strong>Same database field, different PropertyValue sets:</strong></p>
 
         <table class="schema-table">
-            <thead><tr><th></th><th>PROJECT_JOB</th><th>WORK_ORDER</th></tr></thead>
+            <thead><tr><th></th><th>ProjectJob</th><th>WorkOrder</th></tr></thead>
             <tbody>
                 <tr><td><strong>DB field</strong></td><td colspan="2"><code>Job.jobStatusId</code> (String, FK to PropertyValue)</td></tr>
                 <tr><td><strong>PropertyValue propertyName</strong></td><td><code>"jobStatus"</code></td><td><code>"workOrderStatus"</code></td></tr>
@@ -91,7 +91,7 @@ table.schema-table code { font-family: monospace; background: #f1f5f9; padding: 
         </table>
 
         <div class="callout">
-            <strong>This is the same pattern as having different status sets for different entity types sharing a model.</strong> The resolution is classification-aware: when the form/detail page knows the job is a WORK_ORDER, it queries <code>workOrderStatus</code> PropertyValues for the status dropdown. When it's a PROJECT_JOB, it queries <code>jobStatus</code>.
+            <strong>This is the same pattern as having different status sets for different entity types sharing a model.</strong> The resolution is classification-aware: when the form/detail page knows the job is a WorkOrder, it queries <code>workOrderStatus</code> PropertyValues for the status dropdown. When it's a ProjectJob, it queries <code>jobStatus</code>.
         </div>
     </div>
 
@@ -102,14 +102,14 @@ table.schema-table code { font-family: monospace; background: #f1f5f9; padding: 
         <p>Add a new top-level tab in <code>PropertySettings.tsx</code> alongside the existing "Jobs" tab. This gives admins a dedicated place to configure WO-specific layouts, properties, and statuses.</p>
 
         <h3>What the tab contains</h3>
-        <p>Uses the same <code>DataModelSettingsTabs</code> component as Companies, Contacts, etc. — but with <code>subModel</code> passed to scope everything to WORK_ORDER DAAs and sections.</p>
+        <p>Uses the same <code>DataModelSettingsTabs</code> component as Companies, Contacts, etc. — but with <code>subModel</code> passed to scope everything to WorkOrder DAAs and sections.</p>
 
         <table class="schema-table">
             <thead><tr><th>Sub-tab</th><th>Component</th><th>What it configures</th></tr></thead>
             <tbody>
-                <tr><td>Detail View Layout</td><td><code>DocumentSectionLayoutBuilder</code></td><td>WO detail page layout — which fields show, in what order, in which sections. Scoped to <code>subModel = "WORK_ORDER"</code>.</td></tr>
+                <tr><td>Detail View Layout</td><td><code>DocumentSectionLayoutBuilder</code></td><td>WO detail page layout — which fields show, in what order, in which sections. Scoped to <code>subModel = "WorkOrder"</code>.</td></tr>
                 <tr><td>Settings View Layout</td><td><code>DocumentSectionLayoutBuilder</code></td><td>WO settings panel layout.</td></tr>
-                <tr><td>Manage Forms</td><td><code>DataModelFormBuilderWrapper</code></td><td>WO create/edit form layout. Scoped to <code>subModel = "WORK_ORDER"</code>.</td></tr>
+                <tr><td>Manage Forms</td><td><code>DataModelFormBuilderWrapper</code></td><td>WO create/edit form layout. Scoped to <code>subModel = "WorkOrder"</code>.</td></tr>
                 <tr><td>Custom Properties</td><td><code>DocumentAttributes</code></td><td>Custom user-defined fields for WOs.</td></tr>
                 <tr><td>Default Properties</td><td><code>PropertyValues</code> + <code>DefaultDocumentAttributesTable</code></td><td><strong>Key:</strong> Shows <code>workOrderStatus</code> PropertyValues (not <code>jobStatus</code>). Also shows other WO-specific default attributes.</td></tr>
             </tbody>
@@ -162,17 +162,17 @@ table.schema-table code { font-family: monospace; background: #f1f5f9; padding: 
 
         <h3>How it works</h3>
         <ul>
-            <li>The <code>job-status</code> DAA exists in both the <code>PROJECT_JOB</code> and <code>WORK_ORDER</code> DAA sets (duplicated in WO-3a)</li>
+            <li>The <code>job-status</code> DAA exists in both the <code>ProjectJob</code> and <code>WorkOrder</code> DAA sets (duplicated in WO-3a)</li>
             <li>The form component for the status field checks the job's classification (from the selected <code>jobTypeId</code>) to determine which <code>propertyName</code> to query for options</li>
-            <li>PROJECT_JOB: queries PropertyValues where <code>propertyName = "jobStatus"</code></li>
-            <li>WORK_ORDER: queries PropertyValues where <code>propertyName = "workOrderStatus"</code></li>
+            <li>ProjectJob: queries PropertyValues where <code>propertyName = "jobStatus"</code></li>
+            <li>WorkOrder: queries PropertyValues where <code>propertyName = "workOrderStatus"</code></li>
             <li>The <code>customFormControl</code> for the status DAA slug implements this branching</li>
         </ul>
 
 <pre>
 // In the Job form's customFormControl or renderChild:
 case "job-status":
-    const statusPropertyName = jobClassification === "WORK_ORDER"
+    const statusPropertyName = jobClassification === "WorkOrder"
         ? "workOrderStatus"
         : "jobStatus";
 
@@ -202,7 +202,7 @@ case "job-status":
     <div class="uis-section">
         <h2>4. Scoping Layout Builders by subModel</h2>
 
-        <p>The <code>DocumentSectionLayoutBuilder</code> and <code>DataModelFormBuilderWrapper</code> in the WO settings tab need to only show/edit WORK_ORDER sections and DAAs, not PROJECT_JOB ones.</p>
+        <p>The <code>DocumentSectionLayoutBuilder</code> and <code>DataModelFormBuilderWrapper</code> in the WO settings tab need to only show/edit WorkOrder sections and DAAs, not ProjectJob ones.</p>
 
         <h3>Current state</h3>
         <p>The existing <code>JobSettingsTabs</code> passes <code>initialReferenceModel="Job"</code> to <code>DocumentSectionLayoutBuilder</code> without a <code>subModel</code>. After WO-3a's backfill, all Job DAAs have a <code>subModel</code> set, so the layout builder needs to be told which set to show.</p>
@@ -211,14 +211,14 @@ case "job-status":
         <ul>
             <li><strong>DocumentSectionLayoutBuilder:</strong> Accept an optional <code>subModel</code> prop. When provided, only show sections and DAAs matching that subModel. When not provided, show all (backward compat for models without subModel like Company, Contact, etc.)</li>
             <li><strong>DataModelFormBuilderWrapper:</strong> Same — accept optional <code>subModel</code> prop for scoping.</li>
-            <li><strong>JobSettingsTabs:</strong> Update to pass <code>subModel="PROJECT_JOB"</code> to its layout builders</li>
-            <li><strong>WorkOrderSettingsTabs (new):</strong> Pass <code>subModel="WORK_ORDER"</code> to its layout builders</li>
+            <li><strong>JobSettingsTabs:</strong> Update to pass <code>subModel="ProjectJob"</code> to its layout builders</li>
+            <li><strong>WorkOrderSettingsTabs (new):</strong> Pass <code>subModel="WorkOrder"</code> to its layout builders</li>
         </ul>
 
         <h3>PropertyValues filtering</h3>
         <p>The Default Properties sub-tab uses <code>PropertyValues</code> with <code>referencedOn={["Job"]}</code>. For the WO tab, we need to either:</p>
         <ul>
-            <li><strong>Option A:</strong> Pass a filter for <code>propertyName</code> to only show WO-related PropertyValues (e.g., <code>workOrderStatus</code>, <code>jobType</code> where classification = WORK_ORDER)</li>
+            <li><strong>Option A:</strong> Pass a filter for <code>propertyName</code> to only show WO-related PropertyValues (e.g., <code>workOrderStatus</code>, <code>jobType</code> where classification = WorkOrder)</li>
             <li><strong>Option B:</strong> Use a different <code>referencedOn</code> value (e.g., <code>["WorkOrder"]</code>) and update the WO status PropertyValues to have <code>referencedOn = "WorkOrder"</code></li>
         </ul>
         <p><strong>Recommendation:</strong> Option A — filter by <code>propertyName</code>. The PropertyValues component already supports query filters. This avoids changing the PropertyValue model.</p>
@@ -263,8 +263,8 @@ case "job-status":
             <thead><tr><th>Action</th><th>File</th><th>Notes</th></tr></thead>
             <tbody>
                 <tr><td>MOD</td><td><code>DataModelSettingsTabs.tsx</code></td><td>Add optional <code>subModel</code> + <code>propertyNameFilter</code> props, propagate to all child components</td></tr>
-                <tr><td>MOD</td><td><code>PropertySettings.tsx</code></td><td>Add "Work Orders" tab using <code>DataModelSettingsTabs</code> with <code>subModel="WORK_ORDER"</code></td></tr>
-                <tr><td>MOD</td><td><code>JobSettingsTabs.tsx</code></td><td>Pass <code>subModel="PROJECT_JOB"</code> and <code>propertyNameFilter={["jobStatus"]}</code></td></tr>
+                <tr><td>MOD</td><td><code>PropertySettings.tsx</code></td><td>Add "Work Orders" tab using <code>DataModelSettingsTabs</code> with <code>subModel="WorkOrder"</code></td></tr>
+                <tr><td>MOD</td><td><code>JobSettingsTabs.tsx</code></td><td>Pass <code>subModel="ProjectJob"</code> and <code>propertyNameFilter={["jobStatus"]}</code></td></tr>
                 <tr><td>MOD</td><td><code>DocumentSectionLayoutBuilder</code></td><td>Accept optional <code>subModel</code> prop, pass to section query</td></tr>
                 <tr><td>MOD</td><td><code>DataModelFormBuilderWrapper</code></td><td>Accept optional <code>subModel</code> prop, pass through</td></tr>
                 <tr><td>MOD</td><td><code>DefaultDocumentAttributesTable</code></td><td>Accept optional <code>subModel</code> prop, pass to DAA query</td></tr>
@@ -280,8 +280,8 @@ case "job-status":
         <ol class="ac-list">
             <li><span>"Work Orders" tab visible in Property Settings dropdown (after "Jobs")</span></li>
             <li><span>Work Orders settings tab shows: Detail View Layout, Settings View Layout, Manage Forms, Custom Properties, Default Properties</span></li>
-            <li><span>Layout builders in WO settings only show WORK_ORDER sections and DAAs (not PROJECT_JOB)</span></li>
-            <li><span>Layout builders in Jobs settings only show PROJECT_JOB sections and DAAs (not WORK_ORDER)</span></li>
+            <li><span>Layout builders in WO settings only show WorkOrder sections and DAAs (not ProjectJob)</span></li>
+            <li><span>Layout builders in Jobs settings only show ProjectJob sections and DAAs (not WorkOrder)</span></li>
             <li><span>Default Properties in WO settings shows <code>workOrderStatus</code> PropertyValues</span></li>
             <li><span>Default Properties in Jobs settings continues to show <code>jobStatus</code> PropertyValues</span></li>
             <li><span>WO form status dropdown shows WO statuses (Draft, Submitted, etc.)</span></li>
@@ -300,7 +300,7 @@ case "job-status":
         <h3>Requires</h3>
         <p>
             <span class="dep-tag dep-requires">WO-1</span> JobClassification enum + <code>workOrderStatus</code> PropertyValues seeded<br>
-            <span class="dep-tag dep-requires">WO-3a</span> DAA setup with separate <code>PROJECT_JOB</code> and <code>WORK_ORDER</code> subModel sets
+            <span class="dep-tag dep-requires">WO-3a</span> DAA setup with separate <code>ProjectJob</code> and <code>WorkOrder</code> subModel sets
         </p>
         <h3>Enables</h3>
         <p>

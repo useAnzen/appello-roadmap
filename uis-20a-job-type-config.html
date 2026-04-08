@@ -122,7 +122,7 @@ table.schema-table code { font-family: monospace; background: #f1f5f9; padding: 
                     <td><strong>jobClassification</strong><br><code>enum on PropertyValue</code></td>
                     <td>PropertyValue (jobType records)</td>
                     <td>Drives <strong>system behavior</strong>: which list, which route, which features enabled</td>
-                    <td><code>PROJECT_JOB</code> vs <code>WORK_ORDER</code></td>
+                    <td><code>ProjectJob</code> vs <code>WorkOrder</code></td>
                 </tr>
                 <tr>
                     <td><strong>jobTypeId</strong><br><code>FK on Job</code></td>
@@ -147,24 +147,24 @@ table.schema-table code { font-family: monospace; background: #f1f5f9; padding: 
         <h3>How it flows</h3>
 <pre>
 Admin configures in Settings &rarr; Job Types:
-  "T&M Work Order"         → jobClassification: WORK_ORDER
-  "Fireproofing WO"        → jobClassification: WORK_ORDER
-  "Commercial Construction" → jobClassification: PROJECT_JOB
-  "Residential"            → jobClassification: PROJECT_JOB
+  "T&M Work Order"         → jobClassification: WorkOrder
+  "Fireproofing WO"        → jobClassification: WorkOrder
+  "Commercial Construction" → jobClassification: ProjectJob
+  "Residential"            → jobClassification: ProjectJob
 
 User creates a Job:
   Selects jobType = "T&M Work Order"
-  → System reads jobType.jobClassification = WORK_ORDER
+  → System reads jobType.jobClassification = WorkOrder
   → Job appears on Work Orders list (not Jobs list)
   → WO-specific features enabled (WO statuses, line items, signatures)
   → DocumentAttribute fields for "T&M Work Order" subModel render on the form
 
 GraphQL resolver:
-  Job.jobClassification → job.jobType?.jobClassification ?? "PROJECT_JOB"
+  Job.jobClassification → job.jobType?.jobClassification ?? "ProjectJob"
 
 TableFeed / SQL View:
   JOIN PropertyValue pv ON pv.id = j.jobTypeId
-  WHERE pv.jobClassification = 'WORK_ORDER'  -- for WO list feed
+  WHERE pv.jobClassification = 'WorkOrder'  -- for WO list feed
 </pre>
 
         <div class="callout">
@@ -178,13 +178,13 @@ TableFeed / SQL View:
 
         <h3>In Scope (WO-1)</h3>
         <ul>
-            <li><span class="scope-tag scope-in">IN</span> <code>JobClassification</code> enum: <code>PROJECT_JOB</code>, <code>WORK_ORDER</code></li>
+            <li><span class="scope-tag scope-in">IN</span> <code>JobClassification</code> enum: <code>ProjectJob</code>, <code>WorkOrder</code></li>
             <li><span class="scope-tag scope-in">IN</span> <code>jobClassification</code> nullable field on PropertyValue (only relevant for jobType PropertyValues)</li>
             <li><span class="scope-tag scope-in">IN</span> Field-level GraphQL resolver: <code>Job.jobClassification</code> derived from <code>jobType.jobClassification</code></li>
             <li><span class="scope-tag scope-in">IN</span> Computed column in JobListFeed SQL view for TableFeed filtering</li>
             <li><span class="scope-tag scope-in">IN</span> Admin UI: classification dropdown on Job Type settings (map each type to a classification)</li>
-            <li><span class="scope-tag scope-in">IN</span> Work Orders list page &mdash; new route, filters by <code>jobClassification = WORK_ORDER</code></li>
-            <li><span class="scope-tag scope-in">IN</span> Jobs list filters to <code>jobClassification = PROJECT_JOB</code> (existing page, updated filter)</li>
+            <li><span class="scope-tag scope-in">IN</span> Work Orders list page &mdash; new route, filters by <code>jobClassification = WorkOrder</code></li>
+            <li><span class="scope-tag scope-in">IN</span> Jobs list filters to <code>jobClassification = ProjectJob</code> (existing page, updated filter)</li>
             <li><span class="scope-tag scope-in">IN</span> Work Order-specific statuses seeded as PropertyValues (Draft, Submitted, Awaiting Signature, Signed, Approved, Invoiced, Void)</li>
             <li><span class="scope-tag scope-in">IN</span> Sidebar navigation: add "Work Orders" entry</li>
         </ul>
@@ -199,7 +199,7 @@ TableFeed / SQL View:
         <h3>Out of Scope (v1) — Designed For</h3>
         <ul>
             <li><span class="scope-tag scope-future">FUTURE</span> Per-type form customization UI &mdash; admin configuring which DocumentAttributes appear for which jobType. Infrastructure exists, UI deferred.</li>
-            <li><span class="scope-tag scope-future">FUTURE</span> Additional classifications beyond PROJECT_JOB and WORK_ORDER (e.g., TASK, SERVICE_CALL). Enum is extensible.</li>
+            <li><span class="scope-tag scope-future">FUTURE</span> Additional classifications beyond ProjectJob and WorkOrder (e.g., TASK, SERVICE_CALL). Enum is extensible.</li>
             <li><span class="scope-tag scope-future">FUTURE</span> Classification-specific form rendering &mdash; different base form layouts per classification. For v1, the standard Job form handles both with WO-specific fields gated by classification.</li>
         </ul>
     </div>
@@ -211,8 +211,8 @@ TableFeed / SQL View:
         <h3>3.1 JobClassification Enum</h3>
 <pre>
 enum JobClassification {
-  PROJECT_JOB
-  WORK_ORDER
+  ProjectJob
+  WorkOrder
 }
 </pre>
         <p>Extensible &mdash; future values (TASK, SERVICE_CALL, etc.) can be added without schema migration by using <code>ALTER TYPE</code> or by switching to a string field with validation.</p>
@@ -223,7 +223,7 @@ enum JobClassification {
 jobClassification    JobClassification?    // nullable — only relevant for jobType PropertyValues
 </pre>
 
-        <p>When <code>propertyName = "jobType"</code>, this field determines how the system treats jobs of this type. When null or on non-jobType PropertyValues, it's ignored. Default behavior for unclassified types: <code>PROJECT_JOB</code>.</p>
+        <p>When <code>propertyName = "jobType"</code>, this field determines how the system treats jobs of this type. When null or on non-jobType PropertyValues, it's ignored. Default behavior for unclassified types: <code>ProjectJob</code>.</p>
 
         <h3>3.3 No Changes to Job Model</h3>
         <p>The Job model is <strong>not modified</strong>. Classification is always derived from the relation:</p>
@@ -236,7 +236,7 @@ Job.jobTypeId → PropertyValue.jobClassification
 <pre>
 -- Add enum
 -- Note: If using Prisma with MySQL, this is an ENUM column on PropertyValue
-ALTER TABLE `PropertyValue` ADD COLUMN `jobClassification` ENUM('PROJECT_JOB', 'WORK_ORDER') NULL;
+ALTER TABLE `PropertyValue` ADD COLUMN `jobClassification` ENUM('ProjectJob', 'WorkOrder') NULL;
 
 -- Seed WO statuses (PropertyValue records for the workOrder status workflow)
 INSERT IGNORE INTO `PropertyValue` (`id`, `propertyName`, `propertyNameLabel`, `label`, `slug`, `orderNo`, `workflowState`)
@@ -257,7 +257,7 @@ VALUES
 
         <h3>How classification drives the UI</h3>
         <table class="schema-table">
-            <thead><tr><th></th><th>PROJECT_JOB</th><th>WORK_ORDER</th></tr></thead>
+            <thead><tr><th></th><th>ProjectJob</th><th>WorkOrder</th></tr></thead>
             <tbody>
                 <tr><td><strong>List page</strong></td><td>Existing Jobs list (<code>/jobs</code>)</td><td>New Work Orders list (<code>/work-orders</code>)</td></tr>
                 <tr><td><strong>Status set</strong></td><td>Existing job statuses (PropertyValue)</td><td>WO statuses: Draft &rarr; Submitted &rarr; Awaiting Signature &rarr; Signed &rarr; Approved &rarr; Invoiced &rarr; Void</td></tr>
@@ -272,12 +272,12 @@ VALUES
 <pre>
 // In Job GraphQL type resolvers:
 jobClassification: async (parent) => {
-    if (!parent.jobTypeId) return "PROJECT_JOB";
+    if (!parent.jobTypeId) return "ProjectJob";
     const jobType = await prisma.propertyValue.findUnique({
         where: { id: parent.jobTypeId },
         select: { jobClassification: true }
     });
-    return jobType?.jobClassification ?? "PROJECT_JOB";
+    return jobType?.jobClassification ?? "ProjectJob";
 }
 </pre>
 
@@ -286,12 +286,12 @@ jobClassification: async (parent) => {
 -- Add to JobListFeed.sql (or create WorkOrderListFeed.sql):
 SELECT
     j.*,
-    COALESCE(pv_type.jobClassification, 'PROJECT_JOB') as jobClassification
+    COALESCE(pv_type.jobClassification, 'ProjectJob') as jobClassification
 FROM Job j
 LEFT JOIN PropertyValue pv_type ON pv_type.id = j.jobTypeId
 WHERE ...
 </pre>
-        <p>The existing Jobs list feed adds <code>WHERE jobClassification = 'PROJECT_JOB'</code>. The new Work Orders list feed adds <code>WHERE jobClassification = 'WORK_ORDER'</code>. Both use the same base query pattern via TableFeed.</p>
+        <p>The existing Jobs list feed adds <code>WHERE jobClassification = 'ProjectJob'</code>. The new Work Orders list feed adds <code>WHERE jobClassification = 'WorkOrder'</code>. Both use the same base query pattern via TableFeed.</p>
     </div>
 
     <!-- 5. Admin UI -->
@@ -304,7 +304,7 @@ WHERE ...
             <li>Dropdown options: "Project Job" (default), "Work Order"</li>
             <li>Displayed as a column in the job types list or as a field in the job type edit form</li>
             <li>Saves to <code>PropertyValue.jobClassification</code></li>
-            <li>Job types with no classification set default to <code>PROJECT_JOB</code></li>
+            <li>Job types with no classification set default to <code>ProjectJob</code></li>
         </ul>
 
         <div class="future">
@@ -332,7 +332,7 @@ WHERE ...
         </table>
 
         <div class="callout">
-            <strong>Status set is determined by classification:</strong> When a Job's <code>jobClassification = WORK_ORDER</code>, the UI renders WO statuses. When <code>PROJECT_JOB</code>, the existing job statuses render. The status dropdown queries PropertyValues filtered by the appropriate <code>propertyName</code> (<code>"workOrderStatus"</code> vs <code>"jobStatus"</code>).
+            <strong>Status set is determined by classification:</strong> When a Job's <code>jobClassification = WorkOrder</code>, the UI renders WO statuses. When <code>ProjectJob</code>, the existing job statuses render. The status dropdown queries PropertyValues filtered by the appropriate <code>propertyName</code> (<code>"workOrderStatus"</code> vs <code>"jobStatus"</code>).
         </div>
     </div>
 
@@ -464,7 +464,7 @@ WHERE ...
                 </div>
             </div>
         </div>
-        <p style="font-size:12px; color:#64748b; margin-top:8px;">Work Orders list uses the existing <code>ListTableViews</code> pattern with the TableFeed filtered by <code>jobClassification = 'WORK_ORDER'</code>. The "Type" column shows the specific job type (T&amp;M Work Order, Fireproofing WO, etc.) while all share the same Work Order classification.</p>
+        <p style="font-size:12px; color:#64748b; margin-top:8px;">Work Orders list uses the existing <code>ListTableViews</code> pattern with the TableFeed filtered by <code>jobClassification = 'WorkOrder'</code>. The "Type" column shows the specific job type (T&amp;M Work Order, Fireproofing WO, etc.) while all share the same Work Order classification.</p>
     </div>
 
     <!-- 8. Change Surface -->
@@ -488,7 +488,7 @@ WHERE ...
                 <tr><td><span class="action-mod">MOD</span></td><td><code>apps/api/src/graphql/models/PropertyValue.ts</code></td><td>Add <code>jobClassification</code> to PropertyValue type + inputs</td></tr>
                 <tr><td><span class="action-mod">MOD</span></td><td><code>apps/api/prisma/views/JobListFeed.sql</code> (or create WorkOrderListFeed.sql)</td><td>Add computed <code>jobClassification</code> column via PropertyValue join</td></tr>
                 <tr><td><span class="action-new">NEW</span></td><td><code>apps/frontend/src/pages/work-orders/index.tsx</code></td><td>Work Orders list page using ListTableViews with classification filter</td></tr>
-                <tr><td><span class="action-mod">MOD</span></td><td><code>apps/frontend/src/pages/jobs/index.tsx</code></td><td>Add <code>jobClassification = 'PROJECT_JOB'</code> filter to existing Jobs list</td></tr>
+                <tr><td><span class="action-mod">MOD</span></td><td><code>apps/frontend/src/pages/jobs/index.tsx</code></td><td>Add <code>jobClassification = 'ProjectJob'</code> filter to existing Jobs list</td></tr>
                 <tr><td><span class="action-mod">MOD</span></td><td>Sidebar navigation data</td><td>Add "Work Orders" entry with route <code>/work-orders</code></td></tr>
                 <tr><td><span class="action-mod">MOD</span></td><td>Settings &rarr; Job Types component</td><td>Add Classification dropdown column</td></tr>
             </tbody>
@@ -499,15 +499,15 @@ WHERE ...
     <div class="uis-section" id="acceptance-criteria">
         <h2>9. Acceptance Criteria</h2>
         <ol class="ac-list">
-            <li><span><code>JobClassification</code> enum exists with <code>PROJECT_JOB</code> and <code>WORK_ORDER</code> values</span></li>
+            <li><span><code>JobClassification</code> enum exists with <code>ProjectJob</code> and <code>WorkOrder</code> values</span></li>
             <li><span><code>jobClassification</code> nullable field on PropertyValue &mdash; only relevant for jobType PropertyValues</span></li>
             <li><span>Admin can set classification per job type in Settings &rarr; Job Types via dropdown</span></li>
-            <li><span>Job types without a classification default to <code>PROJECT_JOB</code></span></li>
+            <li><span>Job types without a classification default to <code>ProjectJob</code></span></li>
             <li><span><code>Job.jobClassification</code> GraphQL field resolves from <code>jobType.jobClassification</code></span></li>
-            <li><span>Work Orders list page at <code>/work-orders</code> shows only jobs where <code>jobClassification = WORK_ORDER</code></span></li>
-            <li><span>Jobs list at <code>/jobs</code> shows only jobs where <code>jobClassification = PROJECT_JOB</code> (or null/unset)</span></li>
+            <li><span>Work Orders list page at <code>/work-orders</code> shows only jobs where <code>jobClassification = WorkOrder</code></span></li>
+            <li><span>Jobs list at <code>/jobs</code> shows only jobs where <code>jobClassification = ProjectJob</code> (or null/unset)</span></li>
             <li><span>Sidebar shows "Work Orders" navigation entry</span></li>
-            <li><span>"+ New Work Order" button creates a job pre-set with a WORK_ORDER job type</span></li>
+            <li><span>"+ New Work Order" button creates a job pre-set with a WorkOrder job type</span></li>
             <li><span>WO statuses seeded: Draft, Submitted, Awaiting Signature, Signed, Approved, Invoiced, Void</span></li>
             <li><span>Work Order jobs use WO statuses; Project Jobs use existing job statuses</span></li>
             <li><span>Changing a job type's classification re-routes all jobs of that type (no data migration needed)</span></li>
@@ -526,7 +526,7 @@ WHERE ...
             <span class="dep-tag dep-enables">WO-3</span> Create/Edit Form &mdash; classification determines which form sections render<br>
             <span class="dep-tag dep-enables">WO-4</span> Detail Page &mdash; classification determines WO-specific tabs and actions<br>
             <span class="dep-tag dep-enables">WO-5</span> T&amp;M Work Order Log &mdash; the Work Orders list page this spec creates<br>
-            <span class="dep-tag dep-enables">WO-7</span> Conversion &mdash; WO &rarr; CO/Invoice only available on WORK_ORDER jobs<br>
+            <span class="dep-tag dep-enables">WO-7</span> Conversion &mdash; WO &rarr; CO/Invoice only available on WorkOrder jobs<br>
             <span class="dep-tag dep-enables">WO-8</span> Mobile Creation &mdash; mobile WO creation uses classification for routing
         </p>
     </div>

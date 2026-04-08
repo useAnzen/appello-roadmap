@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WO-1: Job Classification & WO Routing — Implementation Plan</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Inter', -apple-system, sans-serif; background: #f8fafc; color: #0f172a; }
+.plan-wrap { max-width: 880px; margin: 0 auto; padding: 40px 24px 80px; }
+h1 { font-size: 24px; font-weight: 800; margin: 0 0 16px; }
+h2 { font-size: 18px; font-weight: 700; margin: 28px 0 12px; padding-bottom: 8px; border-bottom: 2px solid #e2e8f0; }
+h3 { font-size: 15px; font-weight: 700; margin: 20px 0 8px; padding-top: 10px; border-top: 1px solid #f1f5f9; }
+h4 { font-size: 14px; font-weight: 700; margin: 14px 0 6px; }
+p { font-size: 14px; color: #334155; line-height: 1.7; margin: 6px 0; }
+ul, ol { padding-left: 20px; margin: 8px 0; }
+li { font-size: 14px; color: #334155; line-height: 1.7; margin: 3px 0; }
+strong { color: #0f172a; }
+code { font-family: 'SF Mono', monospace; background: #f1f5f9; padding: 1px 6px; border-radius: 4px; font-size: 12px; color: #7c3aed; }
+pre { background: #0f172a; color: #f8fafc; border-radius: 8px; padding: 16px; overflow-x: auto; font-size: 13px; line-height: 1.6; margin: 12px 0; font-family: 'SF Mono', monospace; }
+pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
+hr { border: none; border-top: 1px solid #e2e8f0; margin: 24px 0; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 12px 0; }
+th { text-align: left; padding: 8px 12px; background: #f1f5f9; border-bottom: 2px solid #e2e8f0; font-weight: 600; }
+td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
+.check-item { display: flex; gap: 8px; align-items: flex-start; padding: 5px 0; }
+.check-box { width: 16px; height: 16px; border: 2px solid #cbd5e1; border-radius: 3px; flex-shrink: 0; margin-top: 2px; }
+.callout { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 14px 18px; margin: 14px 0; font-size: 13px; color: #1e40af; }
+.callout strong { color: #1e3a8a; }
+    </style>
+</head>
+<body>
+<div class="plan-wrap" id="rendered"></div>
+
+<script type="text/plain" id="plan-md">
+# WO-1: Job Classification & WO Routing — Implementation Plan
+
+## Overview
+
+Add a `JobClassification` enum to PropertyValue so the system can route jobs to the correct list (Jobs vs Work Orders), render classification-appropriate features, and seed WO-specific statuses. No changes to the Job model itself — classification is derived from the job type relation.
+
+This spec is **backend + data only** — schema, GraphQL, SQL views, PropertyValue seeds, Board seeds, and the Job model guard. The frontend list pages, sidebar navigation, and form filtering are handled by WO-5 (list tables) and WO-3a (form foundation).
+
+**Estimated effort:** 2-3 days
+**Risk:** Low-Medium — additive enum + nullable field on existing model, migration seeds
+**Spec:** `tm-work-orders-uis/uis-20a-job-type-config.html`
+**Requires:** Job DataModel Refactor (PR #6831) — `projectId` optional, `jobTypeId` on Job
+
+---
+
+## Step 1: Prisma Schema — JobClassification Enum + PropertyValue Field
+
+**File:** `apps/api/prisma/schema.prisma`
+
+### 1a. New Enum
+
+```prisma
+enum JobClassification {
+  ProjectJob
+  WorkOrder
+}
+```
+
+### 1b. Add field to PropertyValue
+
+```prisma
+// Add to existing PropertyValue model:
+jobClassification    JobClassification?    // nullable — only relevant for jobType PropertyValues
+```
+
+When `propertyName = "jobType"`, this field determines how the system treats jobs of that type. When null or on non-jobType PropertyValues, it's ignored. Default behavior for unclassified types: `ProjectJob`.
+
+### 1c. Migration
+
+```sql
+-- Add enum column to PropertyValue
+-- Note: Prisma with MySQL uses an ENUM column type
+ALTER TABLE `PropertyValue` ADD COLUMN `jobClassification` ENUM('ProjectJob', 'WorkOrder') NULL;
+
+-- Seed WO statuses as PropertyValue records
+INSERT IGNORE INTO `PropertyValue` (`id`, `propertyName`, `propertyNameLabel`, `label`, `slug`, `orderNo`, `workflowState`)
+VALUES
+    (SUBSTRING(MD5(UUID()), 1, 21), 'workOrderStatus', 'Work Order Status', 'Draft', 'draft', 0, 'todo'),
+    (SUBSTRING(MD5(UUID()), 1, 21), 'workOrderStatus', 'Work Order Status', 'Submitted', 'submitted', 1, 'inprogress'),
+    (SUBSTRING(MD5(UUID()), 1, 21), 'workOrderStatus', 'Work Order Status', 'Awaiting Signature', 'awaiting-signature', 2, 'inprogress'),
+    (SUBSTRING(MD5(UUID()), 1, 21), 'workOrderStatus', 'Work Order Status', 'Signed', 'signed', 3, 'inprogress'),
+    (SUBSTRING(MD5(UUID()), 1, 21), 'workOrderStatus', 'Work Order Status', 'Approved', 'approved', 4, 'done'),
+    (SUBSTRING(MD5(UUID()), 1, 21), 'workOrderStatus', 'Work Order Status', 'Invoiced', 'invoiced', 5, 'done'),
+    (SUBSTRING(MD5(UUID()), 1, 21), 'workOrderStatus', 'Work Order Status', 'Void', 'void', 6, 'default');
+
+-- Make jobType required on the job-type DAA
+-- Reverses migration 20240905133952 which set it to optional.
+-- jobType now drives classification routing so it must always be set.
+UPDATE DocumentAttributeAssignment
+SET defaultAttributeIsRequired = true
+WHERE defaultAttribute = 'job-type';
+
+-- Backfill existing Job Boards: subModel 'Job' → 'ProjectJob'
+-- Migration 20250417194800 set all Job boards to subModel = 'Job'.
+-- Now that Job is split by classification, existing boards become ProjectJob.
+UPDATE Board
+SET subModel = 'ProjectJob'
+WHERE referenceModel = 'Job' AND (subModel = 'Job' OR subModel IS NULL);
+
+-- Seed a default Work Order Board with tableConfiguration
+-- Columns match the non-custom DAA fields from WO-3a: number, name, type, company, status, date of work
+INSERT IGNORE INTO Board (id, isSystemBoard, name, defaultState, referenceModel, subModel, tableConfiguration, isPrivateBoard, orderNo)
+VALUES (
+    SUBSTRING(MD5(UUID()), 1, 21),
+    1,
+    'Work Orders',
+    'table',
+    'Job',
+    'WorkOrder',
+    '[{"id": "fullJobNumber", "key": ["fullJobNumber"], "label": "WO Number", "position": 0, "template": "link", "attributeKey": "job-number"}, {"id": "name", "key": ["name"], "label": "Name", "position": 1, "template": "link", "attributeKey": "job-name"}, {"id": "jobType", "key": ["jobType"], "label": "Type", "position": 2, "attributeKey": "job-type"}, {"id": "companyName", "key": ["companyName", "companyId"], "label": "Company", "position": 3, "template": "link", "attributeKey": "job-customer"}, {"id": "jobWageRegion", "key": ["jobWageRegion"], "label": "Wage Region", "position": 4, "attributeKey": "job-wage-region"}, {"id": "dateOfWork", "key": ["dateOfWork"], "label": "Date of Work", "position": 5, "template": "date", "attributeKey": "wo-date-of-work"}, {"id": "jobStatus", "key": ["jobStatusId"], "label": "Status", "position": 6, "template": "statusDropdown", "attributeKey": "job-status"}]',
+    0,
+    0
+);
+```
+
+---
+
+## Step 2: GraphQL — PropertyValue + Job Resolver Updates
+
+### 2a. Types File — Const Array + Derived Type
+
+**File:** `apps/api/src/types/Job.types.ts` (or create `apps/api/src/types/JobClassification.types.ts`)
+
+Follow the same pattern as `ApprovalStatus` in `Timesheet.types.ts`:
+
+```typescript
+export const jobClassifications = ["ProjectJob", "WorkOrder"] as const;
+export type JobClassification = (typeof jobClassifications)[number];
+```
+
+### 2b. PropertyValue Type & Input
+
+**File:** `apps/api/src/graphql/models/PropertyValue.ts`
+
+Import the const array and build the GraphQL enum dynamically, same as `ApprovalStatus`:
+
+```typescript
+import { jobClassifications } from "../../types/Job.types";
+```
+
+```graphql
+enum JobClassification {
+    ${jobClassifications.join("\n")}
+}
+```
+
+Add `jobClassification` to the PropertyValue GraphQL type and relevant input types:
+
+```graphql
+// Add to PropertyValue type:
+jobClassification: JobClassification
+
+// Add to PropertyValue create/edit inputs:
+jobClassification: JobClassification
+```
+
+Update the PropertyValue model class to include `jobClassification` in `modelFields`:
+
+```typescript
+{
+    name: "jobClassification",
+    type: "string",
+    options: { isFilterable: true }
+}
+```
+
+### 2c. Job.jobClassification Derived Resolver
+
+**File:** `apps/api/src/graphql/models/Job.ts`
+
+Add a field-level resolver on the Job type that derives classification from the job type relation:
+
+```graphql
+// Add to Job type definition:
+jobClassification: JobClassification
+```
+
+```typescript
+// Add to Job field resolvers:
+jobClassification: async (parent) => {
+    if (!parent.jobTypeId) return "ProjectJob";
+    const jobType = await prisma.propertyValue.findUnique({
+        where: { id: parent.jobTypeId },
+        select: { jobClassification: true }
+    });
+    return jobType?.jobClassification ?? "ProjectJob";
+}
+```
+
+**Key design:** No field on Job model. Classification is always derived from `job.jobType.jobClassification` at query time. Changing a job type's classification automatically re-routes all jobs of that type.
+
+---
+
+## Step 3: SQL View — Computed Column for TableFeed
+
+**File:** `apps/api/prisma/views/JobListFeed.sql` (or create `WorkOrderListFeed.sql`)
+
+Add a computed `jobClassification` column via the PropertyValue join so TableFeed can filter on it:
+
+```sql
+SELECT
+    j.*,
+    COALESCE(pv_type.jobClassification, 'ProjectJob') as jobClassification
+FROM Job j
+LEFT JOIN PropertyValue pv_type ON pv_type.id = j.jobTypeId
+WHERE j.isDeleted = false
+```
+
+The existing Jobs list feed adds `WHERE jobClassification = 'ProjectJob'`. The new Work Orders list feed adds `WHERE jobClassification = 'WorkOrder'`. Both use the same base query pattern via TableFeed.
+
+---
+
+## Step 4: Admin UI — Classification Dropdown on Job Types
+
+**File:** Settings > Job Types component (PropertyValue management for `propertyName = "jobType"`)
+
+Add a "Classification" dropdown column to the job types list/edit interface:
+
+- Options: "Project Job" (default), "Work Order"
+- Saves to `PropertyValue.jobClassification`
+- Job types without a classification default to `ProjectJob`
+- Uses the existing PropertyValue edit mutation — just adds the `jobClassification` field to the save payload
+
+---
+
+## Step 5: Backend Guard — Prevent Cross-Classification Type Changes
+
+**File:** `apps/api/src/models/Job.ts`
+
+Add a `beforeEdit` check that prevents changing a job's classification by switching its jobType to one with a different classification:
+
+```typescript
+// In Job model beforeEdit hook:
+if (data.jobTypeId && data.jobTypeId !== existingJob.jobTypeId) {
+    const existingClassification = existingJob.jobTypeId
+        ? (await prisma.propertyValue.findUnique({
+              where: { id: existingJob.jobTypeId },
+              select: { jobClassification: true }
+          }))?.jobClassification ?? "ProjectJob"
+        : "ProjectJob";
+
+    const newClassification = (await prisma.propertyValue.findUnique({
+        where: { id: data.jobTypeId },
+        select: { jobClassification: true }
+    }))?.jobClassification ?? "ProjectJob";
+
+    if (existingClassification !== newClassification) {
+        throw new Error(
+            "Cannot change a job's classification. A ProjectJob cannot become a WorkOrder and vice versa."
+        );
+    }
+}
+```
+
+This is the hard backend guard. The frontend form filtering (jobType dropdown scoped to current classification) is handled in WO-3a.
+
+---
+
+## What's handled elsewhere
+
+- **WO-5: T&M Work Order Log** — Work Orders list page, Jobs list refactor to SharedJobListView, sidebar navigation, subModel-based list filtering. Comes immediately after WO-1.
+- **WO-3a: Schema & Form Foundation** — JobType dropdown filtering by classification on create/edit (frontend form concern), DAA seeding for WorkOrder fields.
+
+---
+
+## Verification Checklist
+
+- [ ] `JobClassification` enum exists in Prisma schema with `ProjectJob` and `WorkOrder`
+- [ ] `jobClassification` nullable field added to PropertyValue model
+- [ ] PropertyValue GraphQL type exposes `jobClassification`
+- [ ] PropertyValue create/edit inputs accept `jobClassification`
+- [ ] `Job.jobClassification` field-level resolver derives from `jobType.jobClassification`
+- [ ] `Job.jobClassification` defaults to `ProjectJob` when jobTypeId is null or type has no classification
+- [ ] SQL view includes computed `jobClassification` column via PropertyValue join
+- [ ] Admin can set classification per job type in Settings via dropdown
+- [ ] WO statuses seeded: Draft, Submitted, Awaiting Signature, Signed, Approved, Invoiced, Void
+- [ ] Changing a job type's classification re-routes all jobs of that type without data migration
+- [ ] `job-type` DAA `defaultAttributeIsRequired` set back to `true` (required field)
+- [ ] Existing Job Boards backfilled from `subModel = 'Job'` to `subModel = 'ProjectJob'`
+- [ ] New system Board seeded with `referenceModel = 'Job'`, `subModel = 'WorkOrder'`, with tableConfiguration
+- [ ] WorkOrder Board tableConfiguration includes: WO Number, Name, Type, Company, Wage Region, Date of Work, Status
+- [ ] Backend `beforeEdit` hook on Job rejects jobTypeId changes that would cross classifications
+- [ ] No regression on existing Jobs list, job creation, or job detail pages
+
+---
+
+## Files Summary
+
+| Action | File | What to do |
+|--------|------|------------|
+| MODIFY | `apps/api/prisma/schema.prisma` | Add `JobClassification` enum + `jobClassification` nullable field on PropertyValue |
+| CREATE | `apps/api/prisma/migrations/.../migration.sql` | ALTER TABLE PropertyValue add enum column + seed WO statuses + set job-type DAA to required + backfill Job Boards to ProjectJob + seed WorkOrder Board with tableConfiguration |
+| CREATE or MODIFY | `apps/api/src/types/Job.types.ts` | Add `jobClassifications` const array + `JobClassification` type |
+| MODIFY | `apps/api/src/models/Job.ts` | Add `beforeEdit` hook to reject cross-classification jobType changes |
+| MODIFY | `apps/api/src/graphql/models/Job.ts` | Add `jobClassification` field-level resolver on Job type |
+| MODIFY | `apps/api/src/graphql/models/PropertyValue.ts` | Add `JobClassification` enum from const array, add to type + inputs, add to modelFields |
+| MODIFY | `apps/api/prisma/views/JobListFeed.sql` | Add computed `jobClassification` column via PropertyValue join |
+| MODIFY | Settings Job Types component | Add Classification dropdown column to job type management |
+</script>
+
+<script src="plan-renderer.js"></script>
+<script>renderPlan();</script>
+</body>
+</html>

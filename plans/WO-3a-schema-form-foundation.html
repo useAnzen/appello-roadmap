@@ -351,53 +351,53 @@ Signatures: [Signature]
 
 **Create file:** `apps/api/prisma/migrations/[timestamp]_wo_3a_daa_setup/migration.sql`
 
-**Pattern:** Follows the Expense separation migration (`20241209145000_expense_document_attribute_complete_separation`) exactly. NO comma-delimited subModel values — single values only. Shared fields are DUPLICATED into both `PROJECT_JOB` and `WORK_ORDER` sets.
+**Pattern:** Follows the Expense separation migration (`20241209145000_expense_document_attribute_complete_separation`) exactly. NO comma-delimited subModel values — single values only. Shared fields are DUPLICATED into both `ProjectJob` and `WorkOrder` sets.
 
 This migration does four things:
-1. Backfills all existing Job DAAs to `subModel = "PROJECT_JOB"`
-2. Backfills all existing Job DocumentSections to `subModel = "PROJECT_JOB"`
-3. Creates WO DocumentSections with `subModel = "WORK_ORDER"`
+1. Backfills all existing Job DAAs to `subModel = "ProjectJob"`
+2. Backfills all existing Job DocumentSections to `subModel = "ProjectJob"`
+3. Creates WO DocumentSections with `subModel = "WorkOrder"`
 4. Duplicates shared Job DAAs into the WO sections + creates WO-only DAAs
 
-### 8a. Backfill existing Job DAAs and sections to PROJECT_JOB
+### 8a. Backfill existing Job DAAs and sections to ProjectJob
 
 ```sql
--- All existing Job DAAs become PROJECT_JOB
+-- All existing Job DAAs become ProjectJob
 UPDATE `DocumentAttributeAssignment`
-SET `subModel` = 'PROJECT_JOB'
+SET `subModel` = 'ProjectJob'
 WHERE `referenceModel` = 'Job'
 AND (`subModel` IS NULL OR `subModel` = '');
 
--- All existing Job sections become PROJECT_JOB
+-- All existing Job sections become ProjectJob
 UPDATE `DocumentSection`
-SET `subModel` = 'PROJECT_JOB'
+SET `subModel` = 'ProjectJob'
 WHERE `referenceModel` = 'Job'
 AND (`subModel` IS NULL OR `subModel` = '');
 ```
 
-After this, existing PROJECT_JOB forms work exactly as before — the form passes `subModel = "PROJECT_JOB"` and gets the same DAAs it always did.
+After this, existing ProjectJob forms work exactly as before — the form passes `subModel = "ProjectJob"` and gets the same DAAs it always did.
 
 ### 8b. Create WO DocumentSections
 
 ```sql
 INSERT INTO `DocumentSection` (`id`, `createdAt`, `updatedAt`, `referenceModel`, `subModel`, `name`, `orderNo`)
 VALUES
-    ('GENERATE_ID_SEC_WO_1', NOW(), NOW(), 'Job', 'WORK_ORDER', 'Work Order Info', 0),
-    ('GENERATE_ID_SEC_WO_2', NOW(), NOW(), 'Job', 'WORK_ORDER', 'Labor', 1),
-    ('GENERATE_ID_SEC_WO_3', NOW(), NOW(), 'Job', 'WORK_ORDER', 'Materials', 2),
-    ('GENERATE_ID_SEC_WO_4', NOW(), NOW(), 'Job', 'WORK_ORDER', 'Equipment', 3),
-    ('GENERATE_ID_SEC_WO_5', NOW(), NOW(), 'Job', 'WORK_ORDER', 'Signatures', 4);
+    ('GENERATE_ID_SEC_WO_1', NOW(), NOW(), 'Job', 'WorkOrder', 'Work Order Info', 0),
+    ('GENERATE_ID_SEC_WO_2', NOW(), NOW(), 'Job', 'WorkOrder', 'Labor', 1),
+    ('GENERATE_ID_SEC_WO_3', NOW(), NOW(), 'Job', 'WorkOrder', 'Materials', 2),
+    ('GENERATE_ID_SEC_WO_4', NOW(), NOW(), 'Job', 'WorkOrder', 'Equipment', 3),
+    ('GENERATE_ID_SEC_WO_5', NOW(), NOW(), 'Job', 'WorkOrder', 'Signatures', 4);
 ```
 
 ### 8c. Duplicate shared Job DAAs into the WO "Work Order Info" section
 
-For each shared field that needs to appear on WO forms, INSERT a new DAA record that copies the `defaultAttribute`, `defaultAttributeLabel`, `defaultAttributeType`, and config from the existing PROJECT_JOB DAA, but with `subModel = "WORK_ORDER"` and `sectionId` pointing to the WO "Work Order Info" section.
+For each shared field that needs to appear on WO forms, INSERT a new DAA record that copies the `defaultAttribute`, `defaultAttributeLabel`, `defaultAttributeType`, and config from the existing ProjectJob DAA, but with `subModel = "WorkOrder"` and `sectionId` pointing to the WO "Work Order Info" section.
 
 This follows the exact pattern from the Expense separation migration (`20241209145000`).
 
 ```sql
--- Duplicate shared Job DAAs for WORK_ORDER
--- Each gets a new ID, subModel = 'WORK_ORDER', and sectionId = WO Info section
+-- Duplicate shared Job DAAs for WorkOrder
+-- Each gets a new ID, subModel = 'WorkOrder', and sectionId = WO Info section
 INSERT INTO `DocumentAttributeAssignment` (
     `id`, `createdAt`, `updatedAt`, `referenceModel`, `subModel`,
     `orderNo`, `sectionId`, `defaultAttribute`, `defaultAttributeLabel`,
@@ -408,7 +408,7 @@ SELECT
     -- Generate new IDs using CONCAT + existing ID suffix for traceability
     CONCAT('wo_', SUBSTRING(daa.id, 1, 18)),
     NOW(), NOW(),
-    'Job', 'WORK_ORDER',
+    'Job', 'WorkOrder',
     daa.orderNo,
     'GENERATE_ID_SEC_WO_1',  -- Work Order Info section
     daa.defaultAttribute,
@@ -419,7 +419,7 @@ SELECT
     daa.slug
 FROM `DocumentAttributeAssignment` daa
 WHERE daa.referenceModel = 'Job'
-AND daa.subModel = 'PROJECT_JOB'
+AND daa.subModel = 'ProjectJob'
 AND daa.defaultAttribute IN (
     'job-number',
     'job-name',
@@ -445,27 +445,27 @@ INSERT INTO `DocumentAttributeAssignment` (
 )
 VALUES
     -- Work Order Info section (dateOfWork is WO-only)
-    ('GENERATE_ID_DAA_1', NOW(), NOW(), 'Job', 'WORK_ORDER',
+    ('GENERATE_ID_DAA_1', NOW(), NOW(), 'Job', 'WorkOrder',
      10, 'GENERATE_ID_SEC_WO_1', 'wo-date-of-work', 'Date of Work',
      'date', false, false, 'wo-date-of-work'),
 
     -- Labor section
-    ('GENERATE_ID_DAA_2', NOW(), NOW(), 'Job', 'WORK_ORDER',
+    ('GENERATE_ID_DAA_2', NOW(), NOW(), 'Job', 'WorkOrder',
      0, 'GENERATE_ID_SEC_WO_2', 'wo-labor-items', 'Labor',
      'custom', false, false, 'wo-labor-items'),
 
     -- Materials section
-    ('GENERATE_ID_DAA_3', NOW(), NOW(), 'Job', 'WORK_ORDER',
+    ('GENERATE_ID_DAA_3', NOW(), NOW(), 'Job', 'WorkOrder',
      0, 'GENERATE_ID_SEC_WO_3', 'wo-material-items', 'Materials',
      'custom', false, false, 'wo-material-items'),
 
     -- Equipment section
-    ('GENERATE_ID_DAA_4', NOW(), NOW(), 'Job', 'WORK_ORDER',
+    ('GENERATE_ID_DAA_4', NOW(), NOW(), 'Job', 'WorkOrder',
      0, 'GENERATE_ID_SEC_WO_4', 'wo-equipment-items', 'Equipment',
      'custom', false, false, 'wo-equipment-items'),
 
     -- Signatures section
-    ('GENERATE_ID_DAA_5', NOW(), NOW(), 'Job', 'WORK_ORDER',
+    ('GENERATE_ID_DAA_5', NOW(), NOW(), 'Job', 'WorkOrder',
      0, 'GENERATE_ID_SEC_WO_5', 'wo-signatures', 'Signatures',
      'custom', false, false, 'wo-signatures');
 ```
@@ -488,14 +488,14 @@ InnerWorkOrder: {
 }
 ```
 
-This ensures the Work Orders list page (from WO-1) loads column configuration from `subModel = "WorkOrder"` DAAs, not from the PROJECT_JOB set.
+This ensures the Work Orders list page (from WO-1) loads column configuration from `subModel = "WorkOrder"` DAAs, not from the ProjectJob set.
 
 ### Summary of DAA records after migration
 
 | subModel | Source | Content |
 |---|---|---|
-| `PROJECT_JOB` | Backfilled from existing NULL | All original Job DAAs — project-specific + shared fields. PROJECT_JOB forms unchanged. |
-| `WORK_ORDER` | Duplicated from shared + new WO-only | Shared fields (name, number, status, etc.) duplicated into WO sections + WO-only fields (dateOfWork, labor, material, equipment, signatures) |
+| `ProjectJob` | Backfilled from existing NULL | All original Job DAAs — project-specific + shared fields. ProjectJob forms unchanged. |
+| `WorkOrder` | Duplicated from shared + new WO-only | Shared fields (name, number, status, etc.) duplicated into WO sections + WO-only fields (dateOfWork, labor, material, equipment, signatures) |
 
 **Key design:** Each subModel value is a complete, self-contained set of DAAs for that form type. No field references the other set. The form passes `subModel` and gets exactly one set.
 
@@ -516,12 +516,12 @@ Add a helper or inline lookup that derives the classification. This is needed be
 ```typescript
 // Helper — can be a private method on the Job model:
 private async getJobClassification(jobTypeId?: string): Promise<string> {
-    if (!jobTypeId) return "PROJECT_JOB";
+    if (!jobTypeId) return "ProjectJob";
     const jobType = await prisma.propertyValue.findUnique({
         where: { id: jobTypeId },
         select: { jobClassification: true }
     });
-    return jobType?.jobClassification ?? "PROJECT_JOB";
+    return jobType?.jobClassification ?? "ProjectJob";
 }
 ```
 
@@ -531,15 +531,15 @@ The method signature from PR #6831 already accepts whatever params it needs for 
 
 ```typescript
 // Classification-aware numbering:
-if (jobClassification === "WORK_ORDER") {
-    // WO-specific numbering: auto-increment across all WORK_ORDER jobs
+if (jobClassification === "WorkOrder") {
+    // WO-specific numbering: auto-increment across all WorkOrder jobs
     const instance = await prisma.instance.findFirst();
     const pad = instance?.jobNumbering ?? 3;
 
     const existingWOs = await prisma.job.findMany({
         where: {
             isDeleted: false,
-            jobType: { jobClassification: "WORK_ORDER" }
+            jobType: { jobClassification: "WorkOrder" }
         },
         select: { number: true },
         orderBy: { createdAt: "desc" }
@@ -553,7 +553,7 @@ if (jobClassification === "WORK_ORDER") {
     return (largest + 1).toString().padStart(pad, "0");
 }
 
-// PROJECT_JOB numbering (existing logic from PR #6831)
+// ProjectJob numbering (existing logic from PR #6831)
 // ... handles both with-project and without-project cases ...
 ```
 
@@ -565,7 +565,7 @@ Also classification-based, not project-based:
 // In customCreateItem — after number is generated:
 const classification = await this.getJobClassification(data.jobTypeId);
 
-if (classification === "WORK_ORDER") {
+if (classification === "WorkOrder") {
     const woPrefix = "WO"; // Could be instance setting for v1
     fullJobNumber = `${woPrefix}-${data.number}`;
     // If WO is under a project, optionally include project prefix:
@@ -573,7 +573,7 @@ if (classification === "WORK_ORDER") {
     //     ? `${project.number}-WO-${data.number}`
     //     : `WO-${data.number}`;
 } else {
-    // Existing PROJECT_JOB logic from PR #6831
+    // Existing ProjectJob logic from PR #6831
     // Handles both with-project and without-project cases
 }
 ```
@@ -605,6 +605,29 @@ const customFormControl: Record<string, (formData, setFormData, error?) => React
 
 ---
 
+## Step 11: Filter Job Type Options by Classification
+
+When editing an existing job, the job type dropdown must only show types that match the job's current classification. A ProjectJob cannot be changed to a WorkOrder type (or vice versa) — the user must create a new job of the correct classification instead.
+
+**Where:** The job type PropertyValue dropdown in the Job form (DataModelForm / JobAddEditForm)
+
+**Logic:**
+
+1. On **create**, the form knows which classification context it's in (opened from Jobs page = ProjectJob types, opened from Work Orders page = WorkOrder types). Filter the jobType PropertyValue options by `jobClassification`.
+2. On **edit**, read the current job's `jobClassification` (derived from its current jobType). Filter the jobType dropdown to only show PropertyValues where `jobClassification` matches.
+
+```typescript
+// When fetching jobType options for the dropdown:
+const jobTypeOptions = propertyValues.filter(pv =>
+    pv.propertyName === "jobType" &&
+    (pv.jobClassification ?? "ProjectJob") === currentClassification
+);
+```
+
+The backend guard (WO-1, Step 5) rejects cross-classification changes at the API level. This frontend filtering is the UX layer that prevents the user from seeing invalid options.
+
+---
+
 ## Verification Checklist
 
 - [ ] `dateOfWork` column exists on Job (nullable DATE)
@@ -615,27 +638,31 @@ const customFormControl: Record<string, (formData, setFormData, error?) => React
 - [ ] `createSignature` and `deleteSignature` mutations work
 - [ ] `Job.Signatures` field-level resolver returns signatures where `referenceModel = "Job"`
 - [ ] Signature resolver registered in schema.ts (5 places)
-- [ ] 5 DocumentSections created with `subModel = "WORK_ORDER"`
+- [ ] 5 DocumentSections created with `subModel = "WorkOrder"`
 - [ ] 8 DocumentAttributeAssignments created with correct section assignments
-- [ ] DAAs only appear on WO forms (not PROJECT_JOB) — verified by creating both job types
+- [ ] DAAs only appear on WO forms (not ProjectJob) — verified by creating both job types
 - [ ] Subtotal DAAs marked as `defaultAttributeIsDerived = true`
 - [ ] Job number generation branches on `jobClassification` (derived from `jobTypeId`), NOT on `projectId`
-- [ ] WORK_ORDER classification: auto-increments across all WORK_ORDER jobs, produces "WO-001" format
-- [ ] PROJECT_JOB classification: uses existing logic from PR #6831 (handles both with-project and without-project)
+- [ ] WorkOrder classification: auto-increments across all WorkOrder jobs, produces "WO-001" format
+- [ ] ProjectJob classification: uses existing logic from PR #6831 (handles both with-project and without-project)
 - [ ] `fullJobNumber` formatted based on classification: "WO-001" for work orders, existing format for project jobs
-- [ ] A WORK_ORDER under a project still gets WO-prefixed numbering (not project-prefixed)
-- [ ] All existing Job DAAs backfilled to `subModel = "PROJECT_JOB"` (no NULL values remain)
-- [ ] All existing Job DocumentSections backfilled to `subModel = "PROJECT_JOB"`
-- [ ] Shared fields (name, number, description, rateType, wageRegion, purchaseOrder, status, type) DUPLICATED with `subModel = "WORK_ORDER"` in WO sections
+- [ ] A WorkOrder under a project still gets WO-prefixed numbering (not project-prefixed)
+- [ ] All existing Job DAAs backfilled to `subModel = "ProjectJob"` (no NULL values remain)
+- [ ] All existing Job DocumentSections backfilled to `subModel = "ProjectJob"`
+- [ ] Shared fields (name, number, description, rateType, wageRegion, purchaseOrder, status, type) DUPLICATED with `subModel = "WorkOrder"` in WO sections
 - [ ] NO comma-delimited subModel values anywhere — single values only
-- [ ] Existing PROJECT_JOB forms render identically to before (no regression from backfill)
+- [ ] Existing ProjectJob forms render identically to before (no regression from backfill)
 - [ ] WO form shows shared fields (from duplicated DAAs) + WO-only fields (dateOfWork, labor, material, equipment, signatures)
-- [ ] PROJECT_JOB form does NOT show WO-only fields (dateOfWork, labor items, etc.)
-- [ ] WO form does NOT show PROJECT_JOB-only fields
+- [ ] ProjectJob form does NOT show WO-only fields (dateOfWork, labor items, etc.)
+- [ ] WO form does NOT show ProjectJob-only fields
 - [ ] wageRegion visible on WO form for TradeLevelRate resolution
 - [ ] TableFeed configureColumns.ts has WorkOrder + InnerWorkOrder entries with correct subModel
 - [ ] `customFormControl` entries added for 4 WO DAA slugs with `<p>` tag placeholders
 - [ ] `dateOfWork` renders automatically via DataModelForm as standard date input
+- [ ] On create from Jobs page, job type dropdown only shows ProjectJob types
+- [ ] On create from Work Orders page, job type dropdown only shows WorkOrder types
+- [ ] On edit, job type dropdown only shows types matching the job's current classification
+- [ ] Cannot switch a job from ProjectJob to WorkOrder (or vice versa) via the form
 
 ---
 
@@ -645,7 +672,7 @@ const customFormControl: Record<string, (formData, setFormData, error?) => React
 |--------|------|------------|
 | MODIFY | `apps/api/prisma/schema.prisma` | Add `dateOfWork` to Job; add `Signature` model; add relations on Asset + User |
 | CREATE | `apps/api/prisma/migrations/.../migration.sql` | ALTER TABLE Job; CREATE TABLE Signature |
-| CREATE | `apps/api/prisma/migrations/.../migration.sql` | Backfill existing Job DAAs/sections to PROJECT_JOB; duplicate shared DAAs into WORK_ORDER set; create 5 WO sections + 5 WO-only DAAs |
+| CREATE | `apps/api/prisma/migrations/.../migration.sql` | Backfill existing Job DAAs/sections to ProjectJob; duplicate shared DAAs into WorkOrder set; create 5 WO sections + 5 WO-only DAAs |
 | MODIFY | `apps/api/src/graphql/models/TableFeed/configureColumns.ts` | Add WorkOrder + InnerWorkOrder table feed configuration with `subModel: "WorkOrder"` |
 | CREATE | `apps/api/src/types/Signature.types.ts` | ISignature interface |
 | CREATE | `apps/api/src/models/Signature.ts` | Model class — standard CRUD with polymorphic reference fields |
@@ -654,7 +681,8 @@ const customFormControl: Record<string, (formData, setFormData, error?) => React
 | MODIFY | `apps/api/src/graphql/models/index.ts` | Export Signature resolver |
 | MODIFY | `apps/api/src/models/Job.ts` | Add `dateOfWork` to modelFields; update `generateJobNumber()` for WO classification; update `customCreateItem()` for WO fullJobNumber format |
 | MODIFY | `apps/api/src/graphql/models/Job.ts` | Add `dateOfWork` to type + inputs; add `Signatures` resolver |
-| MODIFY | Job DataModelForm page (from PR #6831) | Add `customFormControl` entries for 8 WO DAA slugs (dateOfWork real, rest as placeholders). Based on PR #6831's DataModelForm pattern, NOT the pre-refactor JobAddEditForm. |
+| MODIFY | Job DataModelForm page (from PR #6831) | Add `customFormControl` entries for 4 WO DAA slugs (rest as placeholders). Based on PR #6831's DataModelForm pattern, NOT the pre-refactor JobAddEditForm. |
+| MODIFY | Job form (jobType dropdown logic) | Filter jobType PropertyValue options by classification — ProjectJob types on Jobs page, WorkOrder types on WO page, matching classification on edit |
 </script>
 
 <script src="plan-renderer.js"></script>

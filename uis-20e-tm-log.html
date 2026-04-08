@@ -54,7 +54,7 @@ table.schema-table code { font-family: monospace; background: #f1f5f9; padding: 
             <span class="uis-badge badge-status">Draft</span>
         </div>
         <h1 class="uis-h1">T&amp;M Work Order Log</h1>
-        <p class="uis-sub">Work Orders list page at <code>/work-orders</code>. Extracts the Jobs list into a shared component (<code>SharedJobListView</code>) and reuses it with <code>subModel = "WORK_ORDER"</code>. No new SQL views, no new backend — just a frontend refactor to share the existing <code>ListTableViews</code> infrastructure.</p>
+        <p class="uis-sub">Work Orders list page at <code>/work-orders</code>. Extracts the Jobs list into a shared component (<code>SharedJobListView</code>) and reuses it with <code>subModel = "WorkOrder"</code>. No new SQL views, no new backend — just a frontend refactor to share the existing <code>ListTableViews</code> infrastructure.</p>
         <div class="uis-meta">
             <span><strong>Estimate:</strong> 2-3 days</span>
             <span><strong>Requires:</strong> WO-1 (JobClassification), WO-3d (TableFeed config)</span>
@@ -70,8 +70,8 @@ table.schema-table code { font-family: monospace; background: #f1f5f9; padding: 
         <ol>
             <li><strong>Extract</strong> shared Job list logic from <code>pages/jobs/index.tsx</code> into <code>SharedListViews/SharedJobListView.tsx</code></li>
             <li><strong>Parameterize</strong> by subModel, status propertyName, labels, routes, create behavior</li>
-            <li><strong>Use on Jobs page</strong> with <code>subModel = "PROJECT_JOB"</code> and <code>statusPropertyName = "job status"</code></li>
-            <li><strong>Use on Work Orders page</strong> with <code>subModel = "WORK_ORDER"</code> and <code>statusPropertyName = "workOrderStatus"</code></li>
+            <li><strong>Use on Jobs page</strong> with <code>subModel = "ProjectJob"</code> and <code>statusPropertyName = "job status"</code></li>
+            <li><strong>Use on Work Orders page</strong> with <code>subModel = "WorkOrder"</code> and <code>statusPropertyName = "workOrderStatus"</code></li>
         </ol>
 
         <div class="callout">
@@ -86,7 +86,7 @@ table.schema-table code { font-family: monospace; background: #f1f5f9; padding: 
         <h3>Props</h3>
 <pre>
 interface ISharedJobListViewProps {
-    subModel: string;               // "PROJECT_JOB" | "WORK_ORDER"
+    subModel: string;               // "ProjectJob" | "WorkOrder"
     statusPropertyName: string;     // "job status" | "workOrderStatus"
     tableName: string;              // "Jobs" | "Work Orders"
     label: string;                  // "Jobs" | "Work Orders"
@@ -114,7 +114,7 @@ interface ISharedJobListViewProps {
         <table class="schema-table">
             <thead><tr><th>Prop</th><th>Jobs Page</th><th>Work Orders Page</th></tr></thead>
             <tbody>
-                <tr><td><code>subModel</code></td><td><code>"PROJECT_JOB"</code></td><td><code>"WORK_ORDER"</code></td></tr>
+                <tr><td><code>subModel</code></td><td><code>"ProjectJob"</code></td><td><code>"WorkOrder"</code></td></tr>
                 <tr><td><code>statusPropertyName</code></td><td><code>"job status"</code></td><td><code>"workOrderStatus"</code></td></tr>
                 <tr><td><code>tableName</code></td><td><code>"Jobs"</code></td><td><code>"Work Orders"</code></td></tr>
                 <tr><td><code>createButtonText</code></td><td><code>"Create Job"</code></td><td><code>"Create Work Order"</code></td></tr>
@@ -136,8 +136,8 @@ interface ISharedJobListViewProps {
         <h2>4. Create Work Order Button</h2>
         <ul>
             <li>Opens DataModelForm flyout with <code>formType = "CREATE"</code></li>
-            <li>Pre-selects a WORK_ORDER-classified jobType (auto-select if only one exists)</li>
-            <li>The <code>subModel = "WORK_ORDER"</code> loads the correct DAAs (dateOfWork, labor, material, equipment, signatures)</li>
+            <li>Pre-selects a WorkOrder-classified jobType (auto-select if only one exists)</li>
+            <li>The <code>subModel = "WorkOrder"</code> loads the correct DAAs (dateOfWork, labor, material, equipment, signatures)</li>
             <li>On save, navigates to <code>/work-orders/[id]</code></li>
         </ul>
     </div>
@@ -154,8 +154,8 @@ interface ISharedJobListViewProps {
             <thead><tr><th>Action</th><th>File</th><th>Notes</th></tr></thead>
             <tbody>
                 <tr><td>NEW</td><td><code>apps/frontend/src/components/SharedListViews/SharedJobListView.tsx</code></td><td>Extracted from <code>pages/jobs/index.tsx</code>. All ListTableViews config, mutations, handlers parameterized by props.</td></tr>
-                <tr><td>NEW</td><td><code>apps/frontend/src/pages/work-orders/index.tsx</code></td><td>Renders <code>SharedJobListView</code> with WORK_ORDER params.</td></tr>
-                <tr><td>MOD</td><td><code>apps/frontend/src/pages/jobs/index.tsx</code></td><td>Refactored to use <code>SharedJobListView</code> with PROJECT_JOB params. Same behavior, less code.</td></tr>
+                <tr><td>NEW</td><td><code>apps/frontend/src/pages/work-orders/index.tsx</code></td><td>Renders <code>SharedJobListView</code> with WorkOrder params.</td></tr>
+                <tr><td>MOD</td><td><code>apps/frontend/src/pages/jobs/index.tsx</code></td><td>Refactored to use <code>SharedJobListView</code> with ProjectJob params. Same behavior, less code.</td></tr>
             </tbody>
         </table>
     </div>
@@ -165,12 +165,12 @@ interface ISharedJobListViewProps {
         <h2>6. Acceptance Criteria</h2>
         <ol class="ac-list">
             <li><span><code>SharedJobListView</code> extracted with all list functionality</span></li>
-            <li><span>Jobs page uses <code>SharedJobListView</code> with <code>subModel="PROJECT_JOB"</code> — identical to before</span></li>
-            <li><span>Work Orders page at <code>/work-orders</code> uses <code>SharedJobListView</code> with <code>subModel="WORK_ORDER"</code></span></li>
-            <li><span>WO list shows only WORK_ORDER-classified jobs</span></li>
-            <li><span>Jobs list shows only PROJECT_JOB-classified jobs</span></li>
+            <li><span>Jobs page uses <code>SharedJobListView</code> with <code>subModel="ProjectJob"</code> — identical to before</span></li>
+            <li><span>Work Orders page at <code>/work-orders</code> uses <code>SharedJobListView</code> with <code>subModel="WorkOrder"</code></span></li>
+            <li><span>WO list shows only WorkOrder-classified jobs</span></li>
+            <li><span>Jobs list shows only ProjectJob-classified jobs</span></li>
             <li><span>WO Kanban columns from <code>workOrderStatus</code> PropertyValues</span></li>
-            <li><span>"+ Create Work Order" opens DataModelForm with WORK_ORDER subModel</span></li>
+            <li><span>"+ Create Work Order" opens DataModelForm with WorkOrder subModel</span></li>
             <li><span>WO detail links go to <code>/work-orders/[id]</code></span></li>
             <li><span>Search, filters, archive, delete, restore, CSV export all work</span></li>
             <li><span>Inline status update works with WO statuses</span></li>

@@ -50,7 +50,7 @@ WO detail page with Overview (summary cards + DataModelDetails with custom rende
 
 **Create file:** `apps/frontend/src/components/DetailsPage/WorkOrderDetailPage/index.tsx`
 
-Uses `DetailsPageTabs` with 4 tabs. The page loads the Job record and checks `jobClassification` — if not WORK_ORDER, redirects to the standard Job detail page.
+Uses `DetailsPageTabs` with 4 tabs. The page loads the Job record and checks `jobClassification` — if not WorkOrder, redirects to the standard Job detail page.
 
 ```typescript
 const WorkOrderDetailPage: FC = () => {
@@ -79,7 +79,7 @@ const WorkOrderDetailPage: FC = () => {
         },
         {
             label: "Settings",
-            component: <DataModelSettings modelName="Job" subModel="WORK_ORDER" />,
+            component: <DataModelSettings modelName="Job" subModel="WorkOrder" />,
             param: "settings",
             permission: hasPermissions({ job: { edit: true } }, permissions)
         }
@@ -105,7 +105,7 @@ const WorkOrderDetailPage: FC = () => {
         fileName={`${activeInstance.companyName}_WO_${fullJobNumber}_${dayjs().format("YYYY-MM-DD_HHmmss")}.pdf`}
         fileType="pdf"
         referenceModel="Job"
-        subModel="WORK_ORDER"    // filters to WO templates only
+        subModel="WorkOrder"    // filters to WO templates only
     />
 )}>
     Print PDF
@@ -115,7 +115,7 @@ const WorkOrderDetailPage: FC = () => {
 // Placeholder for now
 ```
 
-**Note:** `TemplateSelectionModal` needs to be updated to accept an optional `subModel` prop and pass it to the template query filter (see Step 5c). The template uses `referenceModel = "Job"` + `subModel = "WORK_ORDER"` to keep WO templates separate from PROJECT_JOB templates without breaking the DAA referenceModel connection.
+**Note:** `TemplateSelectionModal` needs to be updated to accept an optional `subModel` prop and pass it to the template query filter (see Step 5c). The template uses `referenceModel = "Job"` + `subModel = "WorkOrder"` to keep WO templates separate from ProjectJob templates without breaking the DAA referenceModel connection.
 
 ---
 
@@ -160,7 +160,7 @@ Render 2x3 grid using existing card styling patterns.
 />
 ```
 
-DataModelDetails handles the standard fields (name, date of work, status, job type, wage region, PO, etc.) automatically from the WORK_ORDER DAA sections. The custom renderers handle the 4 LEM sections.
+DataModelDetails handles the standard fields (name, date of work, status, job type, wage region, PO, etc.) automatically from the WorkOrder DAA sections. The custom renderers handle the 4 LEM sections.
 
 ---
 
@@ -295,9 +295,9 @@ Migration:
 ```sql
 ALTER TABLE `ObjectDownloadTemplate` ADD COLUMN `subModel` VARCHAR(191) NULL;
 
--- Backfill existing Job templates to PROJECT_JOB
+-- Backfill existing Job templates to ProjectJob
 UPDATE `ObjectDownloadTemplate`
-SET `subModel` = 'PROJECT_JOB'
+SET `subModel` = 'ProjectJob'
 WHERE `referenceModel` = 'Job'
 AND (`subModel` IS NULL OR `subModel` = '');
 ```
@@ -353,7 +353,7 @@ When querying templates, filter by both `referenceModel` and `subModel`. When cr
 
 **File:** `apps/frontend/src/pages/jobs/[id]/index.tsx`
 
-The existing Job detail page TemplateSelectionModal (~line 310) should pass `subModel="PROJECT_JOB"` so it only loads PROJECT_JOB templates:
+The existing Job detail page TemplateSelectionModal (~line 310) should pass `subModel="ProjectJob"` so it only loads ProjectJob templates:
 
 ```typescript
 <TemplateSelectionModal
@@ -362,7 +362,7 @@ The existing Job detail page TemplateSelectionModal (~line 310) should pass `sub
     fileName={...}
     fileType="pdf"
     referenceModel="Job"
-    subModel="PROJECT_JOB"        // <-- ADD
+    subModel="ProjectJob"        // <-- ADD
 />
 ```
 
@@ -377,9 +377,9 @@ Seed a "Default Work Order Template" with ALL WO DAA fields turned on.
 ```sql
 -- Create the ObjectDownloadTemplate with subModel
 INSERT INTO `ObjectDownloadTemplate` (`id`, `createdAt`, `updatedAt`, `referenceModel`, `subModel`, `templateName`)
-VALUES ('GENERATE_ID_TMPL', NOW(), NOW(), 'Job', 'WORK_ORDER', 'Default Work Order Template');
+VALUES ('GENERATE_ID_TMPL', NOW(), NOW(), 'Job', 'WorkOrder', 'Default Work Order Template');
 
--- Link ALL WORK_ORDER DAAs to the template
+-- Link ALL WorkOrder DAAs to the template
 INSERT INTO `_DocumentAttributeAssignmentToObjectDownloadTemplate`
     (`A`, `B`)
 SELECT
@@ -387,11 +387,11 @@ SELECT
     'GENERATE_ID_TMPL'
 FROM `DocumentAttributeAssignment` daa
 WHERE daa.referenceModel = 'Job'
-AND daa.subModel = 'WORK_ORDER'
+AND daa.subModel = 'WorkOrder'
 AND daa.isDeleted = false;
 ```
 
-**Key:** `referenceModel = "Job"` + `subModel = "WORK_ORDER"` — consistent with how DAAs are stored. The `TemplateSelectionModal` with `subModel="WORK_ORDER"` finds this template. Job templates have `subModel = "PROJECT_JOB"` from the backfill.
+**Key:** `referenceModel = "Job"` + `subModel = "WorkOrder"` — consistent with how DAAs are stored. The `TemplateSelectionModal` with `subModel="WorkOrder"` finds this template. Job templates have `subModel = "ProjectJob"` from the backfill.
 
 ---
 
@@ -399,7 +399,7 @@ AND daa.isDeleted = false;
 
 **File:** `apps/frontend/src/components/Settings/DownloadTemplates/ObjectDownloadTabs.tsx`
 
-Add a new tab after "Jobs" (~line 47). Also update the existing Jobs tab to pass `subModel="PROJECT_JOB"`.
+Add a new tab after "Jobs" (~line 47). Also update the existing Jobs tab to pass `subModel="ProjectJob"`.
 
 ```typescript
 // Update existing Jobs tab (~line 38):
@@ -410,7 +410,7 @@ Add a new tab after "Jobs" (~line 47). Also update the existing Jobs tab to pass
         <ObjectDownloadTemplates
             allowEdit={allowEdit}
             referenceModel="Job"
-            subModel="PROJECT_JOB"      // <-- ADD
+            subModel="ProjectJob"      // <-- ADD
         />
     ),
     // ... existing permission
@@ -424,7 +424,7 @@ Add a new tab after "Jobs" (~line 47). Also update the existing Jobs tab to pass
         <ObjectDownloadTemplates
             allowEdit={allowEdit}
             referenceModel="Job"
-            subModel="WORK_ORDER"
+            subModel="WorkOrder"
         />
     ),
     permission: hasPermissions(
@@ -437,7 +437,7 @@ Add a new tab after "Jobs" (~line 47). Also update the existing Jobs tab to pass
 
 No `defaultIncludedFields` — all fields are fully toggleable by the admin. The seeded "Default Work Order Template" has everything turned on, but admins can turn off any LEM section (labor, material, equipment, signatures). The PDF renderer simply skips sections not included in the selected template.
 
-The `ObjectDownloadTemplates` component already has `referenceModel` — now with `subModel` added in Step 6c, it queries both `referenceModel = "Job"` and `subModel = "WORK_ORDER"` to load the correct DAAs for field toggles and the correct templates for the list. The existing Jobs tab gets `subModel="PROJECT_JOB"` to avoid showing WO templates.
+The `ObjectDownloadTemplates` component already has `referenceModel` — now with `subModel` added in Step 6c, it queries both `referenceModel = "Job"` and `subModel = "WorkOrder"` to load the correct DAAs for field toggles and the correct templates for the list. The existing Jobs tab gets `subModel="ProjectJob"` to avoid showing WO templates.
 
 ---
 
@@ -463,7 +463,7 @@ The Work Orders list (WO-1/WO-5) links to `/work-orders/[id]` which renders this
 - [ ] WO detail page renders with 4 tabs: Overview, Invoices, Files, Settings
 - [ ] Overview tab shows 2x3 summary card grid with correct values
 - [ ] Total Value card gated by `viewWageDetails` permission
-- [ ] DataModelDetails renders standard WORK_ORDER DAA fields
+- [ ] DataModelDetails renders standard WorkOrder DAA fields
 - [ ] LaborItemsDisplay shows read-only table grouped by orderNo with structured + blank rows
 - [ ] MaterialItemsDisplay shows read-only table with costs and subtotal
 - [ ] EquipmentItemsDisplay shows read-only table with structured + blank rows
@@ -472,19 +472,19 @@ The Work Orders list (WO-1/WO-5) links to `/work-orders/[id]` which renders this
 - [ ] Invoices tab shows read-only invoice list (no create button)
 - [ ] Invoices tab reuses JobBillList component
 - [ ] Files tab uses existing Job file system
-- [ ] Settings tab uses DataModelSettings with `subModel="WORK_ORDER"`
-- [ ] `subModel` column added to ObjectDownloadTemplate; existing Job templates backfilled to PROJECT_JOB
+- [ ] Settings tab uses DataModelSettings with `subModel="WorkOrder"`
+- [ ] `subModel` column added to ObjectDownloadTemplate; existing Job templates backfilled to ProjectJob
 - [ ] TemplateSelectionModal accepts optional `subModel` prop — filters templates by both referenceModel + subModel
-- [ ] Print PDF button passes `referenceModel="Job"` + `subModel="WORK_ORDER"` to TemplateSelectionModal
-- [ ] WO TemplateSelectionModal loads only WORK_ORDER templates (not PROJECT_JOB)
-- [ ] Existing Job detail Print PDF passes `subModel="PROJECT_JOB"` — no regression
+- [ ] Print PDF button passes `referenceModel="Job"` + `subModel="WorkOrder"` to TemplateSelectionModal
+- [ ] WO TemplateSelectionModal loads only WorkOrder templates (not ProjectJob)
+- [ ] Existing Job detail Print PDF passes `subModel="ProjectJob"` — no regression
 - [ ] PDF renders standard fields as key-value pairs + custom LEM tables + signatures
 - [ ] Each LEM section toggleable in download template configuration
 - [ ] "Default Work Order Template" seeded with all fields enabled
 - [ ] "Work Orders" tab added to Download Template settings page
 - [ ] Admins can create/edit WO download templates and toggle fields
 - [ ] WO detail page accessible at `/work-orders/[id]`
-- [ ] Non-WORK_ORDER jobs redirect to standard Job detail page
+- [ ] Non-WorkOrder jobs redirect to standard Job detail page
 
 ---
 
@@ -503,11 +503,11 @@ The Work Orders list (WO-1/WO-5) links to `/work-orders/[id]` which renders this
 | CREATE | `apps/frontend/src/pages/work-orders/[id]/index.tsx` | Route page |
 | MODIFY | `apps/frontend/src/pages/api/pdf-export.ts` | Add `workOrderDetail` case |
 | MODIFY | `apps/api/prisma/schema.prisma` | Add `subModel` to ObjectDownloadTemplate model |
-| CREATE | `apps/api/prisma/migrations/.../migration.sql` | Add subModel column to ObjectDownloadTemplate; backfill existing Job templates to PROJECT_JOB; seed "Default Work Order Template" with WORK_ORDER subModel + all WO DAAs linked |
+| CREATE | `apps/api/prisma/migrations/.../migration.sql` | Add subModel column to ObjectDownloadTemplate; backfill existing Job templates to ProjectJob; seed "Default Work Order Template" with WorkOrder subModel + all WO DAAs linked |
 | MODIFY | `apps/frontend/.../ConfirmTemplate/TemplateSelectionModal.tsx` | Add optional `subModel` prop, pass to template query filter |
 | MODIFY | `apps/frontend/.../Settings/DownloadTemplates/ObjectDownloadTemplates.tsx` | Add optional `subModel` prop, pass to template query + creation |
-| MODIFY | `apps/frontend/.../Settings/DownloadTemplates/ObjectDownloadTabs.tsx` | Add "Work Orders" tab with `subModel="WORK_ORDER"`; update Jobs tab with `subModel="PROJECT_JOB"` |
-| MODIFY | `apps/frontend/src/pages/jobs/[id]/index.tsx` | Add `subModel="PROJECT_JOB"` to existing TemplateSelectionModal usage |
+| MODIFY | `apps/frontend/.../Settings/DownloadTemplates/ObjectDownloadTabs.tsx` | Add "Work Orders" tab with `subModel="WorkOrder"`; update Jobs tab with `subModel="ProjectJob"` |
+| MODIFY | `apps/frontend/src/pages/jobs/[id]/index.tsx` | Add `subModel="ProjectJob"` to existing TemplateSelectionModal usage |
 | MODIFY | `apps/frontend/.../DetailsPage/JobDetailsPage/Tabs/Billing/JobBillList.tsx` | Add optional `hideCreateButton` prop (if not already present) |
 </script>
 

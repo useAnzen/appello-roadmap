@@ -37,12 +37,14 @@ td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
 
 ## Overview
 
-Extract the existing Jobs list page into a shared component, then reuse it for the Work Orders list with different subModel and status configuration. Pure frontend refactor — no backend changes.
+Extract the existing Jobs list page into a shared component, then reuse it for the Work Orders list with different subModel and status configuration. Also adds the Work Orders sidebar navigation entry. Pure frontend refactor — no backend changes (WO-1 handles all schema, seeds, and Board setup).
+
+**Sequence:** Immediately after WO-1. This is the first frontend work item — it gives Work Orders a visible home in the app.
 
 **Estimated effort:** 2-3 days
 **Risk:** Low — refactoring existing working code into a shared component
 **Spec:** `tm-work-orders-uis/uis-20e-tm-log.html`
-**Requires:** WO-1 (JobClassification + sidebar), WO-3d (TableFeed configureColumns for WorkOrder)
+**Requires:** WO-1 (JobClassification enum, WO statuses seeded, Board seeded with tableConfiguration, SQL view with jobClassification column)
 
 ---
 
@@ -146,7 +148,7 @@ const JobListTable: FC<JobListProps> = ({ className = "" }) => {
     return (
         <SharedJobListView
             className={className}
-            subModel="PROJECT_JOB"
+            subModel="ProjectJob"
             statusPropertyName="job status"
             tableName="Jobs"
             label="Jobs"
@@ -184,7 +186,7 @@ const WorkOrderListPage: FC = () => {
         <>
             <PageTitle title="Work Orders" />
             <SharedJobListView
-                subModel="WORK_ORDER"
+                subModel="WorkOrder"
                 statusPropertyName="workOrderStatus"
                 tableName="Work Orders"
                 label="Work Orders"
@@ -204,13 +206,13 @@ const WorkOrderListPage: FC = () => {
 export default WorkOrderListPage;
 ```
 
-That's it. The `SharedJobListView` handles everything — table, kanban, CRUD, search, filters, CSV, status updates — all scoped to WORK_ORDER via the subModel prop.
+That's it. The `SharedJobListView` handles everything — table, kanban, CRUD, search, filters, CSV, status updates — all scoped to WorkOrder via the subModel prop.
 
 ---
 
 ## Step 4: JobAddEditForm subModel Prop
 
-The create button in `SharedJobListView` opens `JobAddEditForm`. This form needs to know the subModel so it loads the correct DAAs (WORK_ORDER vs PROJECT_JOB).
+The create button in `SharedJobListView` opens `JobAddEditForm`. This form needs to know the subModel so it loads the correct DAAs (WorkOrder vs ProjectJob).
 
 **Check:** If `JobAddEditForm` (from PR #6831) already accepts a `subModel` prop and passes it to the DataModelForm, no change needed. If not, add it:
 
@@ -223,30 +225,44 @@ interface IJobAddEditFormProps {
 ```
 
 For the Work Orders create flow, the form should also:
-- Pre-select a WORK_ORDER-classified jobType if only one exists
-- Load WORK_ORDER DAAs (dateOfWork, labor items, etc.)
+- Pre-select a WorkOrder-classified jobType if only one exists
+- Load WorkOrder DAAs (dateOfWork, labor items, etc.)
+
+---
+
+## Step 5: Sidebar Navigation
+
+**File:** `apps/frontend/src/lib/static-data/staticSideBarData.ts` (or equivalent)
+
+Add "Work Orders" entry to the sidebar navigation under the "WORK" section:
+
+- Position: after "Jobs"
+- Route: `/work-orders`
+- Icon: matching the WO concept (clipboard, document, etc.)
+- Permission: same as Jobs (or a new `viewWorkOrders` permission if needed)
 
 ---
 
 ## Verification Checklist
 
 - [ ] `SharedJobListView` component extracted with all list functionality
-- [ ] Jobs page refactored to use `SharedJobListView` with `subModel="PROJECT_JOB"`
+- [ ] Jobs page refactored to use `SharedJobListView` with `subModel="ProjectJob"`
 - [ ] Jobs page: table view works identically to before
 - [ ] Jobs page: kanban view works with existing job statuses
 - [ ] Jobs page: search, filters, archive, delete, restore all work
-- [ ] Jobs page: create opens DataModelForm for PROJECT_JOB
+- [ ] Jobs page: create opens DataModelForm for ProjectJob
 - [ ] Jobs page: CSV export works
 - [ ] Jobs page: inline status update works
 - [ ] Jobs page: kanban drag reorder works
-- [ ] Work Orders page at `/work-orders` renders with `subModel="WORK_ORDER"`
-- [ ] WO list shows only WORK_ORDER-classified jobs
+- [ ] Work Orders page at `/work-orders` renders with `subModel="WorkOrder"`
+- [ ] WO list shows only WorkOrder-classified jobs
 - [ ] WO Kanban columns from `workOrderStatus` PropertyValues (Draft, Submitted, etc.)
-- [ ] WO create button opens DataModelForm with WORK_ORDER subModel
+- [ ] WO create button opens DataModelForm with WorkOrder subModel
 - [ ] WO detail links navigate to `/work-orders/[id]`
 - [ ] WO search, filters, archive, delete, restore all work
 - [ ] WO CSV export works
 - [ ] WO inline status update uses WO statuses
+- [ ] Sidebar shows "Work Orders" navigation entry linking to `/work-orders`
 - [ ] No regression on Jobs list functionality
 
 ---
@@ -256,9 +272,10 @@ For the Work Orders create flow, the form should also:
 | Action | File | What to do |
 |--------|------|------------|
 | CREATE | `apps/frontend/src/components/SharedListViews/SharedJobListView.tsx` | Extracted from `pages/jobs/index.tsx`. All ListTableViews config, mutations, handlers parameterized by props. |
-| CREATE | `apps/frontend/src/pages/work-orders/index.tsx` | Renders `SharedJobListView` with WORK_ORDER params. |
-| MODIFY | `apps/frontend/src/pages/jobs/index.tsx` | Refactored to use `SharedJobListView` with PROJECT_JOB params. |
+| CREATE | `apps/frontend/src/pages/work-orders/index.tsx` | Renders `SharedJobListView` with WorkOrder params. |
+| MODIFY | `apps/frontend/src/pages/jobs/index.tsx` | Refactored to use `SharedJobListView` with ProjectJob params. |
 | MODIFY (if needed) | `JobAddEditForm` | Add optional `subModel` prop if not already present from PR #6831 |
+| MODIFY | Sidebar navigation data | Add "Work Orders" entry with route `/work-orders` |
 </script>
 
 <script src="plan-renderer.js"></script>

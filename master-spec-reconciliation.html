@@ -64,8 +64,37 @@ h1 { font-size: 30px; font-weight: 800; color: #0f172a; margin: 0 0 4px; letter-
 .item-card.cat-f-card { border-left: 4px solid #a21caf; }
 .item-card.cat-g-card { border-left: 4px solid #6366f1; }
 .item-card.cat-h-card { border-left: 4px solid #475569; }
+
+.item-card.status-resolved { background: #f0fdf4; border-color: #bbf7d0; }
+.item-card.status-resolved .item-header::before { content: "✓"; display: flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 50%; background: #16a34a; color: #fff; font-size: 12px; font-weight: 700; flex-shrink: 0; }
+.item-card.status-deferred { background: #fffbeb; border-color: #fde68a; }
+.item-card.status-deferred .item-header::before { content: "⏳"; display: flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 50%; background: #fde68a; font-size: 12px; flex-shrink: 0; }
+.item-card.status-skipped { background: #f8fafc; border-color: #e2e8f0; opacity: 0.65; }
+.item-card.status-skipped .item-header::before { content: "—"; display: flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 50%; background: #e2e8f0; color: #64748b; font-size: 14px; font-weight: 700; flex-shrink: 0; }
+.item-card.status-skipped .item-title { text-decoration: line-through; color: #94a3b8; }
+.item-card.status-research { background: #fdf4ff; border-color: #f0abfc; }
+.item-card.status-research .item-header::before { content: "?"; display: flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 50%; background: #e879f9; color: #fff; font-size: 13px; font-weight: 700; flex-shrink: 0; }
+
+.status-dashboard { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 24px; }
+.sd-card { border-radius: 10px; padding: 16px 20px; text-align: center; cursor: pointer; transition: all 0.2s; border: 2px solid transparent; }
+.sd-card:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+.sd-card.active { border-color: #0f172a; }
+.sd-resolved { background: #f0fdf4; }
+.sd-deferred { background: #fffbeb; }
+.sd-skipped { background: #f1f5f9; }
+.sd-research { background: #fdf4ff; }
+.sd-card .sd-count { font-size: 32px; font-weight: 800; }
+.sd-card .sd-label { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 2px; }
+.sd-card .sd-desc { font-size: 11px; margin-top: 4px; opacity: 0.7; }
+.sd-resolved .sd-count, .sd-resolved .sd-label { color: #16a34a; }
+.sd-deferred .sd-count, .sd-deferred .sd-label { color: #d97706; }
+.sd-skipped .sd-count, .sd-skipped .sd-label { color: #64748b; }
+.sd-research .sd-count, .sd-research .sd-label { color: #a21caf; }
+
+.item-card.filter-hidden { display: none; }
+
 .item-header { padding: 16px 20px; display: flex; align-items: flex-start; gap: 12px; cursor: pointer; user-select: none; }
-.item-header:hover { background: #f8fafc; }
+.item-header:hover { background: rgba(0,0,0,0.02); }
 .item-id { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 12px; font-weight: 700; color: #64748b; white-space: nowrap; min-width: 50px; padding-top: 2px; }
 .item-title { font-size: 14px; font-weight: 600; color: #0f172a; flex: 1; line-height: 1.4; }
 .item-badge { font-size: 10px; font-weight: 700; padding: 3px 10px; border-radius: 5px; white-space: nowrap; flex-shrink: 0; }
@@ -135,6 +164,29 @@ h1 { font-size: 30px; font-weight: 800; color: #0f172a; margin: 0 0 4px; letter-
 
     <div class="callout">
         <strong>Updated April 8, 2026 &mdash; Post Corey + Emma review meeting.</strong> Each item now reflects the final decision from the meeting. Badge colors: <span style="background:#f0fdf4;border:1px solid #bbf7d0;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700;color:#16a34a;">APPROVED/REVISED</span> = final, proceed. <span style="background:#fffbeb;border:1px solid #fde68a;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700;color:#d97706;">DEFERRED</span> = blocked or needs more info. <span style="background:#f1f5f9;border:1px solid #cbd5e1;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700;color:#64748b;">SKIPPED</span> = explicitly rejected. Items A5/A9 blocked on PO v1 PR merge. Items A10/A11 blocked on Emma MAT-7 review. Item B1 blocked on Emma spec review. Item B2 needs Chris review.
+    </div>
+
+    <div class="status-dashboard" id="statusDashboard">
+        <div class="sd-card sd-resolved active" onclick="filterItems('resolved')">
+            <div class="sd-count">37</div>
+            <div class="sd-label">Resolved</div>
+            <div class="sd-desc">Approved, revised, or partial &mdash; ready to implement</div>
+        </div>
+        <div class="sd-card sd-deferred active" onclick="filterItems('deferred')">
+            <div class="sd-count">6</div>
+            <div class="sd-label">Deferred</div>
+            <div class="sd-desc">Blocked on PR merge, plan review, or Chris review</div>
+        </div>
+        <div class="sd-card sd-skipped active" onclick="filterItems('skipped')">
+            <div class="sd-count">2</div>
+            <div class="sd-label">Skipped</div>
+            <div class="sd-desc">Explicitly rejected &mdash; no action needed</div>
+        </div>
+        <div class="sd-card sd-research active" onclick="filterItems('research')">
+            <div class="sd-count">1</div>
+            <div class="sd-label">Needs Research</div>
+            <div class="sd-desc">Direction agreed, details TBD</div>
+        </div>
     </div>
 
     <div class="summary-cards">
@@ -261,7 +313,7 @@ h1 { font-size: 30px; font-weight: 800; color: #0f172a; margin: 0 0 4px; letter-
         </summary>
         <div class="section-body">
 
-            <div class="item-card cat-a-card" onclick="this.classList.toggle('expanded')">
+            <div class="item-card cat-a-card status-skipped" data-status="skipped" onclick="this.classList.toggle('expanded')">
                 <div class="item-header">
                     <span class="item-id">A1</span>
                     <span class="item-title">Fix 33 field name conflicts &mdash; adopt Plan (Emma&rsquo;s) naming as canonical</span>
@@ -276,7 +328,7 @@ h1 { font-size: 30px; font-weight: 800; color: #0f172a; margin: 0 0 4px; letter-
                 </div>
             </div>
 
-            <div class="item-card cat-a-card" onclick="this.classList.toggle('expanded')">
+            <div class="item-card cat-a-card status-resolved" data-status="resolved" onclick="this.classList.toggle('expanded')">
                 <div class="item-header">
                     <span class="item-id">A2</span>
                     <span class="item-title">Fix 6 UIS <code>xxxById</code> fields to <code>xxxByUserId</code></span>
@@ -305,7 +357,7 @@ h1 { font-size: 30px; font-weight: 800; color: #0f172a; margin: 0 0 4px; letter-
                 </div>
             </div>
 
-            <div class="item-card cat-a-card" onclick="this.classList.toggle('expanded')">
+            <div class="item-card cat-a-card status-resolved" data-status="resolved" onclick="this.classList.toggle('expanded')">
                 <div class="item-header">
                     <span class="item-id">A3</span>
                     <span class="item-title">Remove UIS <code>Product</code> model &mdash; use existing <code>Material</code> + <code>MaterialGroup</code></span>
@@ -323,7 +375,7 @@ h1 { font-size: 30px; font-weight: 800; color: #0f172a; margin: 0 0 4px; letter-
                 </div>
             </div>
 
-            <div class="item-card cat-a-card" onclick="this.classList.toggle('expanded')">
+            <div class="item-card cat-a-card status-resolved" data-status="resolved" onclick="this.classList.toggle('expanded')">
                 <div class="item-header">
                     <span class="item-id">A4</span>
                     <span class="item-title">Remove <code>@default(cuid())</code> and <code>@default(nanoid())</code> from UIS specs</span>
@@ -342,7 +394,7 @@ h1 { font-size: 30px; font-weight: 800; color: #0f172a; margin: 0 0 4px; letter-
                 </div>
             </div>
 
-            <div class="item-card cat-a-card" onclick="this.classList.toggle('expanded')">
+            <div class="item-card cat-a-card status-deferred" data-status="deferred" onclick="this.classList.toggle('expanded')">
                 <div class="item-header">
                     <span class="item-id">A5</span>
                     <span class="item-title">Change UIS Prisma enums to const-string pattern for PO and MaterialOrder status</span>
@@ -357,7 +409,7 @@ h1 { font-size: 30px; font-weight: 800; color: #0f172a; margin: 0 0 4px; letter-
                 </div>
             </div>
 
-            <div class="item-card cat-a-card" onclick="this.classList.toggle('expanded')">
+            <div class="item-card cat-a-card status-skipped" data-status="skipped" onclick="this.classList.toggle('expanded')">
                 <div class="item-header">
                     <span class="item-id">A6</span>
                     <span class="item-title">Add <code>instanceId</code> to ALL new models in Plan specs</span>
@@ -372,7 +424,7 @@ h1 { font-size: 30px; font-weight: 800; color: #0f172a; margin: 0 0 4px; letter-
                 </div>
             </div>
 
-            <div class="item-card cat-a-card" onclick="this.classList.toggle('expanded')">
+            <div class="item-card cat-a-card status-resolved" data-status="resolved" onclick="this.classList.toggle('expanded')">
                 <div class="item-header">
                     <span class="item-id">A7</span>
                     <span class="item-title">Add workflow timestamp fields to Plan specs</span>
@@ -398,7 +450,7 @@ h1 { font-size: 30px; font-weight: 800; color: #0f172a; margin: 0 0 4px; letter-
                 </div>
             </div>
 
-            <div class="item-card cat-a-card" onclick="this.classList.toggle('expanded')">
+            <div class="item-card cat-a-card status-resolved" data-status="resolved" onclick="this.classList.toggle('expanded')">
                 <div class="item-header">
                     <span class="item-id">A8</span>
                     <span class="item-title">Finalize VendorCredit lifecycle: approval workflow via PropertyValue</span>
@@ -416,7 +468,7 @@ h1 { font-size: 30px; font-weight: 800; color: #0f172a; margin: 0 0 4px; letter-
                 </div>
             </div>
 
-            <div class="item-card cat-a-card" onclick="this.classList.toggle('expanded')">
+            <div class="item-card cat-a-card status-deferred" data-status="deferred" onclick="this.classList.toggle('expanded')">
                 <div class="item-header">
                     <span class="item-id">A9</span>
                     <span class="item-title">Finalize PO lifecycle: PropertyValue-based status with user-configurable values</span>
@@ -431,7 +483,7 @@ h1 { font-size: 30px; font-weight: 800; color: #0f172a; margin: 0 0 4px; letter-
                 </div>
             </div>
 
-            <div class="item-card cat-a-card" onclick="this.classList.toggle('expanded')">
+            <div class="item-card cat-a-card status-deferred" data-status="deferred" onclick="this.classList.toggle('expanded')">
                 <div class="item-header">
                     <span class="item-id">A10</span>
                     <span class="item-title">Finalize InventoryMovement architecture: adopt InventoryItem FK (bin card) pattern</span>
@@ -446,7 +498,7 @@ h1 { font-size: 30px; font-weight: 800; color: #0f172a; margin: 0 0 4px; letter-
                 </div>
             </div>
 
-            <div class="item-card cat-a-card" onclick="this.classList.toggle('expanded')">
+            <div class="item-card cat-a-card status-deferred" data-status="deferred" onclick="this.classList.toggle('expanded')">
                 <div class="item-header">
                     <span class="item-id">A11</span>
                     <span class="item-title">Add <code>transferGroupId</code>, <code>costCodeId</code> to InventoryMovement</span>
@@ -461,7 +513,7 @@ h1 { font-size: 30px; font-weight: 800; color: #0f172a; margin: 0 0 4px; letter-
                 </div>
             </div>
 
-            <div class="item-card cat-a-card" onclick="this.classList.toggle('expanded')">
+            <div class="item-card cat-a-card status-resolved" data-status="resolved" onclick="this.classList.toggle('expanded')">
                 <div class="item-header">
                     <span class="item-id">A12</span>
                     <span class="item-title">Line items DO get <code>isArchived</code> + <code>isDeleted</code> &mdash; parent cascades to children</span>
@@ -476,7 +528,7 @@ h1 { font-size: 30px; font-weight: 800; color: #0f172a; margin: 0 0 4px; letter-
                 </div>
             </div>
 
-            <div class="item-card cat-a-card" onclick="this.classList.toggle('expanded')">
+            <div class="item-card cat-a-card status-research" data-status="research" onclick="this.classList.toggle('expanded')">
                 <div class="item-header">
                     <span class="item-id">A13</span>
                     <span class="item-title">Decide <code>dateOfWork</code> vs multi-date Work Orders &mdash; use sub-model, not JSON</span>
@@ -495,7 +547,7 @@ h1 { font-size: 30px; font-weight: 800; color: #0f172a; margin: 0 0 4px; letter-
                 </div>
             </div>
 
-            <div class="item-card cat-a-card" onclick="this.classList.toggle('expanded')">
+            <div class="item-card cat-a-card status-resolved" data-status="resolved" onclick="this.classList.toggle('expanded')">
                 <div class="item-header">
                     <span class="item-id">A14</span>
                     <span class="item-title">Decide inventory costing method: weighted average for V1</span>
@@ -528,7 +580,7 @@ h1 { font-size: 30px; font-weight: 800; color: #0f172a; margin: 0 0 4px; letter-
         </summary>
         <div class="section-body">
 
-            <div class="item-card cat-b-card" onclick="this.classList.toggle('expanded')">
+            <div class="item-card cat-b-card status-deferred" data-status="deferred" onclick="this.classList.toggle('expanded')">
                 <div class="item-header">
                     <span class="item-id">B1</span>
                     <span class="item-title">Consolidate <code>WorkOrderSigner</code> into <code>SignatureRequest</code></span>
@@ -543,7 +595,7 @@ h1 { font-size: 30px; font-weight: 800; color: #0f172a; margin: 0 0 4px; letter-
                 </div>
             </div>
 
-            <div class="item-card cat-b-card" onclick="this.classList.toggle('expanded')">
+            <div class="item-card cat-b-card status-deferred" data-status="deferred" onclick="this.classList.toggle('expanded')">
                 <div class="item-header">
                     <span class="item-id">B2</span>
                     <span class="item-title">Eliminate <code>WorkOrderOtherItem</code> &mdash; use 3 line item types with nullable FK</span>
@@ -563,7 +615,7 @@ h1 { font-size: 30px; font-weight: 800; color: #0f172a; margin: 0 0 4px; letter-
                 </div>
             </div>
 
-            <div class="item-card cat-b-card" onclick="this.classList.toggle('expanded')">
+            <div class="item-card cat-b-card status-resolved" data-status="resolved" onclick="this.classList.toggle('expanded')">
                 <div class="item-header">
                     <span class="item-id">B3</span>
                     <span class="item-title">Add <code>manufacturerProductId</code> to <code>MaterialConsumptionEntry</code> GraphQL type</span>
@@ -582,7 +634,7 @@ h1 { font-size: 30px; font-weight: 800; color: #0f172a; margin: 0 0 4px; letter-
                 </div>
             </div>
 
-            <div class="item-card cat-b-card" onclick="this.classList.toggle('expanded')">
+            <div class="item-card cat-b-card status-resolved" data-status="resolved" onclick="this.classList.toggle('expanded')">
                 <div class="item-header">
                     <span class="item-id">B4</span>
                     <span class="item-title">Scope maintenance models &mdash; drop only <code>MaintenanceScheduleTemplate</code></span>
@@ -616,7 +668,7 @@ h1 { font-size: 30px; font-weight: 800; color: #0f172a; margin: 0 0 4px; letter-
         </summary>
         <div class="section-body">
 
-            <div class="item-card cat-c-card" onclick="this.classList.toggle('expanded')">
+            <div class="item-card cat-c-card status-resolved" data-status="resolved" onclick="this.classList.toggle('expanded')">
                 <div class="item-header">
                     <span class="item-id">C1</span>
                     <span class="item-title">PriceBookImport default status = <code>&quot;Pending&quot;</code></span>
@@ -631,7 +683,7 @@ h1 { font-size: 30px; font-weight: 800; color: #0f172a; margin: 0 0 4px; letter-
                 </div>
             </div>
 
-            <div class="item-card cat-c-card" onclick="this.classList.toggle('expanded')">
+            <div class="item-card cat-c-card status-resolved" data-status="resolved" onclick="this.classList.toggle('expanded')">
                 <div class="item-header">
                     <span class="item-id">C2</span>
                     <span class="item-title">PriceBookImport <code>errorLog</code> uses <code>Json?</code> not <code>String? @db.Text</code></span>
@@ -646,7 +698,7 @@ h1 { font-size: 30px; font-weight: 800; color: #0f172a; margin: 0 0 4px; letter-
                 </div>
             </div>
 
-            <div class="item-card cat-c-card" onclick="this.classList.toggle('expanded')">
+            <div class="item-card cat-c-card status-resolved" data-status="resolved" onclick="this.classList.toggle('expanded')">
                 <div class="item-header">
                     <span class="item-id">C3</span>
                     <span class="item-title">PriceBookImport status set includes <code>PartialSuccess</code></span>
@@ -691,7 +743,7 @@ h1 { font-size: 30px; font-weight: 800; color: #0f172a; margin: 0 0 4px; letter-
                 </tbody>
             </table>
 
-            <div class="item-card cat-d-card" onclick="this.classList.toggle('expanded')">
+            <div class="item-card cat-d-card status-resolved" data-status="resolved" onclick="this.classList.toggle('expanded')">
                 <div class="item-header">
                     <span class="item-id">D1</span>
                     <span class="item-title">Change <code>PurchaseOrder.amount</code> from <code>Decimal(10, 2)</code> to <code>Decimal(12, 2)</code></span>
@@ -709,7 +761,7 @@ h1 { font-size: 30px; font-weight: 800; color: #0f172a; margin: 0 0 4px; letter-
                 </div>
             </div>
 
-            <div class="item-card cat-d-card" onclick="this.classList.toggle('expanded')">
+            <div class="item-card cat-d-card status-resolved" data-status="resolved" onclick="this.classList.toggle('expanded')">
                 <div class="item-header">
                     <span class="item-id">D2</span>
                     <span class="item-title">Change <code>VendorCredit.amount</code> from <code>Decimal(10, 2)</code> to <code>Decimal(12, 2)</code></span>
@@ -723,7 +775,7 @@ h1 { font-size: 30px; font-weight: 800; color: #0f172a; margin: 0 0 4px; letter-
                 </div>
             </div>
 
-            <div class="item-card cat-d-card" onclick="this.classList.toggle('expanded')">
+            <div class="item-card cat-d-card status-resolved" data-status="resolved" onclick="this.classList.toggle('expanded')">
                 <div class="item-header">
                     <span class="item-id">D3</span>
                     <span class="item-title">Change all quantity fields from <code>Decimal(10, 2)</code> to <code>Decimal(10, 4)</code></span>
@@ -750,7 +802,7 @@ h1 { font-size: 30px; font-weight: 800; color: #0f172a; margin: 0 0 4px; letter-
                 </div>
             </div>
 
-            <div class="item-card cat-d-card" onclick="this.classList.toggle('expanded')">
+            <div class="item-card cat-d-card status-resolved" data-status="resolved" onclick="this.classList.toggle('expanded')">
                 <div class="item-header">
                     <span class="item-id">D4</span>
                     <span class="item-title">Align SQL CTE in Equipment P&amp;L plan to <code>Decimal(12, 2)</code></span>
@@ -790,7 +842,7 @@ h1 { font-size: 30px; font-weight: 800; color: #0f172a; margin: 0 0 4px; letter-
                 </tbody>
             </table>
 
-            <div class="item-card cat-e-card" onclick="this.classList.toggle('expanded')">
+            <div class="item-card cat-e-card status-resolved" data-status="resolved" onclick="this.classList.toggle('expanded')">
                 <div class="item-header"><span class="item-id">E1</span><span class="item-title"><code>purchaseOrder</code> permission group</span><span class="item-badge" style="background:#fffbeb;color:#d97706;">SF-6</span></div>
                 <div class="item-body">
                     <div class="decision-box">POs involve financial commitments. <code>approve</code> permission gates the <code>Submitted &rarr; Approved</code> transition. <code>view</code> supports <code>ALL</code>/<code>OWN</code>/<code>DEPARTMENT</code> scoping.</div>
@@ -800,7 +852,7 @@ h1 { font-size: 30px; font-weight: 800; color: #0f172a; margin: 0 0 4px; letter-
                 </div>
             </div>
 
-            <div class="item-card cat-e-card" onclick="this.classList.toggle('expanded')">
+            <div class="item-card cat-e-card status-resolved" data-status="resolved" onclick="this.classList.toggle('expanded')">
                 <div class="item-header"><span class="item-id">E2</span><span class="item-title"><code>vendorCredit</code> permission group</span><span class="item-badge" style="background:#fffbeb;color:#d97706;">SF-6</span></div>
                 <div class="item-body">
                     <div class="decision-box"><code>approve</code> gates <code>InReview &rarr; Approved</code>. Credits directly affect job profitability.</div>
@@ -808,7 +860,7 @@ h1 { font-size: 30px; font-weight: 800; color: #0f172a; margin: 0 0 4px; letter-
                 </div>
             </div>
 
-            <div class="item-card cat-e-card" onclick="this.classList.toggle('expanded')">
+            <div class="item-card cat-e-card status-resolved" data-status="resolved" onclick="this.classList.toggle('expanded')">
                 <div class="item-header"><span class="item-id">E3</span><span class="item-title"><code>pricing</code> permission group (separate from material)</span><span class="item-badge" style="background:#fffbeb;color:#d97706;">SF-12</span></div>
                 <div class="item-body">
                     <div class="decision-box">Discounts affect pricing across POs and P&amp;L. A user who can edit materials shouldn&rsquo;t necessarily be able to change discount percentages. Separate <code>pricing: { view, edit }</code> from <code>material: { view, edit }</code>.</div>
@@ -816,7 +868,7 @@ h1 { font-size: 30px; font-weight: 800; color: #0f172a; margin: 0 0 4px; letter-
                 </div>
             </div>
 
-            <div class="item-card cat-e-card" onclick="this.classList.toggle('expanded')">
+            <div class="item-card cat-e-card status-resolved" data-status="resolved" onclick="this.classList.toggle('expanded')">
                 <div class="item-header"><span class="item-id">E4</span><span class="item-title"><code>inventory</code> permission group</span><span class="item-badge" style="background:#fffbeb;color:#d97706;">SF-6</span></div>
                 <div class="item-body">
                     <div class="decision-box">Inventory operations (receive, checkout, transfer, adjust) need dedicated access control separate from general material catalog management.</div>
@@ -839,7 +891,7 @@ h1 { font-size: 30px; font-weight: 800; color: #0f172a; margin: 0 0 4px; letter-
         </summary>
         <div class="section-body">
 
-            <div class="item-card cat-f-card" onclick="this.classList.toggle('expanded')">
+            <div class="item-card cat-f-card status-resolved" data-status="resolved" onclick="this.classList.toggle('expanded')">
                 <div class="item-header"><span class="item-id">F1</span><span class="item-title">Define notifications for all new status transitions</span><span class="item-badge" style="background:#fffbeb;color:#d97706;">SF-11</span></div>
                 <div class="item-body">
                     <table class="data-table">
@@ -885,7 +937,7 @@ h1 { font-size: 30px; font-weight: 800; color: #0f172a; margin: 0 0 4px; letter-
 
             <p style="font-size:13px;color:#475569;line-height:1.6;margin-bottom:16px;">These are patterns/conventions that must be decided once and documented so every spec and every developer applies them consistently. They don&rsquo;t require spec-level file changes &mdash; they&rsquo;re documented here as the authoritative reference.</p>
 
-            <div class="item-card cat-g-card" onclick="this.classList.toggle('expanded')">
+            <div class="item-card cat-g-card status-resolved" data-status="resolved" onclick="this.classList.toggle('expanded')">
                 <div class="item-header"><span class="item-id">G1</span><span class="item-title">Mobile routes use <code>job-sites/[id]/...</code> pattern</span><span class="item-badge" style="background:#fffbeb;color:#d97706;">SF-7</span></div>
                 <div class="item-body">
                     <div class="decision-box"><strong>All mobile routes nest under <code>/job-sites/[id]/</code>.</strong> This matches the existing mobile app structure. Affects: material consumption (<code>/job-sites/[id]/material-consumption/new</code>), material requests (<code>/job-sites/[id]/material-request/new</code>), WO creation, equipment time. Fix inconsistent patterns like <code>/material-requests/new</code> and <code>/jobs/[jobId]/...</code>.</div>
@@ -895,7 +947,7 @@ h1 { font-size: 30px; font-weight: 800; color: #0f172a; margin: 0 0 4px; letter-
                 </div>
             </div>
 
-            <div class="item-card cat-g-card" onclick="this.classList.toggle('expanded')">
+            <div class="item-card cat-g-card status-resolved" data-status="resolved" onclick="this.classList.toggle('expanded')">
                 <div class="item-header"><span class="item-id">G2</span><span class="item-title">PDF templates go in Frontend <code>DownloadablePDF/</code></span><span class="item-badge" style="background:#fffbeb;color:#d97706;">SF-8</span></div>
                 <div class="item-body">
                     <div class="decision-box"><strong>Frontend <code>DownloadablePDF</code> pattern.</strong> This matches existing Invoice, Estimate, and Work Order PDF patterns. UIS incorrectly placed PO PDF in the API (<code>apps/api/src/templates/</code>). Correct path: <code>apps/frontend/src/components/DownloadablePDF/PurchaseOrder/SupplierPO.tsx</code>.</div>
@@ -905,7 +957,7 @@ h1 { font-size: 30px; font-weight: 800; color: #0f172a; margin: 0 0 4px; letter-
                 </div>
             </div>
 
-            <div class="item-card cat-g-card" onclick="this.classList.toggle('expanded')">
+            <div class="item-card cat-g-card status-resolved" data-status="resolved" onclick="this.classList.toggle('expanded')">
                 <div class="item-header"><span class="item-id">G3</span><span class="item-title">Discount precedence: <code>DistributorDiscount</code> &gt; <code>DistributorPrice.discountPercent</code></span><span class="item-badge" style="background:#fffbeb;color:#d97706;">SF-14</span></div>
                 <div class="item-body">
                     <div class="decision-box"><strong>Documented cascade:</strong> <code>DistributorDiscount</code> (managed entity with date ranges and scope) takes precedence when present. <code>DistributorPrice.discountPercent</code> (per-row import value from CSV) is the fallback. Discount resolution: Product-specific &gt; Category &gt; Global.</div>
@@ -913,63 +965,63 @@ h1 { font-size: 30px; font-weight: 800; color: #0f172a; margin: 0 0 4px; letter-
                 </div>
             </div>
 
-            <div class="item-card cat-g-card" onclick="this.classList.toggle('expanded')">
+            <div class="item-card cat-g-card status-resolved" data-status="resolved" onclick="this.classList.toggle('expanded')">
                 <div class="item-header"><span class="item-id">G4</span><span class="item-title">Computed field pattern: resolver-computed for display, stored for aggregation</span><span class="item-badge" style="background:#eef2ff;color:#6366f1;">NTH-1</span></div>
                 <div class="item-body">
                     <div class="decision-box"><strong>Convention:</strong> Use resolver-computed fields for display-only values (<code>effectivePrice</code>, <code>extendedTotal</code>). Use stored fields for values that need to be queried, sorted, or aggregated (<code>PurchaseOrder.amount</code>, <code>VendorCredit.totalAmount</code>). Stored values are set on create/update by the resolver.</div>
                 </div>
             </div>
 
-            <div class="item-card cat-g-card" onclick="this.classList.toggle('expanded')">
+            <div class="item-card cat-g-card status-resolved" data-status="resolved" onclick="this.classList.toggle('expanded')">
                 <div class="item-header"><span class="item-id">G5</span><span class="item-title">All list views support CSV + PDF export</span><span class="item-badge" style="background:#eef2ff;color:#6366f1;">NTH-2</span></div>
                 <div class="item-body">
                     <div class="decision-box"><strong>Convention:</strong> Every new <code>ListTableView</code> includes an export action with CSV and PDF options. Use the existing export button pattern from Job List. Add to acceptance criteria for: WO Log, CO Log, PO List, Material Request Inbox, Inventory Stock Levels, Vendor Credit List.</div>
                 </div>
             </div>
 
-            <div class="item-card cat-g-card" onclick="this.classList.toggle('expanded')">
+            <div class="item-card cat-g-card status-resolved" data-status="resolved" onclick="this.classList.toggle('expanded')">
                 <div class="item-header"><span class="item-id">G6</span><span class="item-title">Standardize <code>EmptyState</code> component</span><span class="item-badge" style="background:#eef2ff;color:#6366f1;">NTH-3</span></div>
                 <div class="item-body">
                     <div class="decision-box"><strong>Convention:</strong> All new list views and detail sections use a reusable <code>EmptyState</code> component from <code>@useanzen/ui</code> with: icon (contextual), message, and action button (e.g., &ldquo;Create First PO&rdquo;). Check if <code>EmptyState</code> already exists in the UI library before building.</div>
                 </div>
             </div>
 
-            <div class="item-card cat-g-card" onclick="this.classList.toggle('expanded')">
+            <div class="item-card cat-g-card status-resolved" data-status="resolved" onclick="this.classList.toggle('expanded')">
                 <div class="item-header"><span class="item-id">G7</span><span class="item-title">Batch operations return <code>{ success: [...], failed: [...] }</code></span><span class="item-badge" style="background:#eef2ff;color:#6366f1;">NTH-4</span></div>
                 <div class="item-body">
                     <div class="decision-box"><strong>Convention:</strong> All batch mutations (<code>approveEquipmentTimeEntries</code>, <code>approveMaterialConsumptionEntries</code>, <code>upsertWorkOrderLineItems</code>) return <code>{ success: [ids], failed: [{ id, error }] }</code> with per-item error messages. Use <code>prisma.$transaction()</code> for all-or-nothing when appropriate.</div>
                 </div>
             </div>
 
-            <div class="item-card cat-g-card" onclick="this.classList.toggle('expanded')">
+            <div class="item-card cat-g-card status-resolved" data-status="resolved" onclick="this.classList.toggle('expanded')">
                 <div class="item-header"><span class="item-id">G8</span><span class="item-title">Audit trail fields for financial entities</span><span class="item-badge" style="background:#eef2ff;color:#6366f1;">NTH-5</span></div>
                 <div class="item-body">
                     <div class="decision-box"><strong>Convention:</strong> All financial entities (PO, VendorCredit, MaterialConsumptionEntry) include: <code>createdAt</code>, <code>updatedAt</code>, <code>createdByUserId</code>, <code>updatedByUserId</code>. Entities with approval add: <code>submittedAt</code>, <code>submittedByUserId</code>, <code>approvedAt</code>, <code>approvedByUserId</code>. Use the existing <code>AuditEntry</code> pattern for change history on entities where it matters (v1.1).</div>
                 </div>
             </div>
 
-            <div class="item-card cat-g-card" onclick="this.classList.toggle('expanded')">
+            <div class="item-card cat-g-card status-resolved" data-status="resolved" onclick="this.classList.toggle('expanded')">
                 <div class="item-header"><span class="item-id">G9</span><span class="item-title">Three-way match: defer to v1.1</span><span class="item-badge" style="background:#eef2ff;color:#6366f1;">NTH-11</span></div>
                 <div class="item-body">
                     <div class="decision-box"><strong>Decision:</strong> Ship basic receiving (partial/complete receipt tracking) for v1. Full three-way match (PO qty vs received qty vs invoiced qty) is deferred to v1.1. Do not design match UI or computed columns for v1.</div>
                 </div>
             </div>
 
-            <div class="item-card cat-g-card" onclick="this.classList.toggle('expanded')">
+            <div class="item-card cat-g-card status-resolved" data-status="resolved" onclick="this.classList.toggle('expanded')">
                 <div class="item-header"><span class="item-id">G10</span><span class="item-title">Shared conversion mutation pattern</span><span class="item-badge" style="background:#eef2ff;color:#6366f1;">NTH-14</span></div>
                 <div class="item-body">
                     <div class="decision-box"><strong>Convention:</strong> Entity conversion mutations follow the pattern: <code>convert[Source]To[Target](sourceId: ID!): [Target]!</code>. Pre-fills target from source line items. Used by: WO &rarr; Invoice (<code>convertWorkOrderToInvoice</code>), WO &rarr; Change Order (<code>convertWorkOrderToChangeOrder</code>). Future: Material Request &rarr; PO.</div>
                 </div>
             </div>
 
-            <div class="item-card cat-g-card" onclick="this.classList.toggle('expanded')">
+            <div class="item-card cat-g-card status-resolved" data-status="resolved" onclick="this.classList.toggle('expanded')">
                 <div class="item-header"><span class="item-id">G11</span><span class="item-title">Offline strategy per mobile feature</span><span class="item-badge" style="background:#eef2ff;color:#6366f1;">NTH-16</span></div>
                 <div class="item-body">
                     <div class="decision-box"><strong>Decision:</strong> Offline-first: Material consumption (MAT-2b), WO creation (WO-8). Online-only: Material requests (MAT-4), Equipment time (UIS-15H), Equipment search (UIS-15E), Mobile receiving (MAT-6). Offline features queue mutations for sync when connectivity returns.</div>
                 </div>
             </div>
 
-            <div class="item-card cat-g-card" onclick="this.classList.toggle('expanded')">
+            <div class="item-card cat-g-card status-resolved" data-status="resolved" onclick="this.classList.toggle('expanded')">
                 <div class="item-header"><span class="item-id">G12</span><span class="item-title">All new list queries use <code>GetListOptions</code> with pagination</span><span class="item-badge" style="background:#eef2ff;color:#6366f1;">NTH-17</span></div>
                 <div class="item-body">
                     <div class="decision-box"><strong>Convention:</strong> All new list queries accept <code>GetListOptions</code> input type with pagination, sorting, and filtering. Construction companies accumulate thousands of records per entity. No unbounded arrays. Applies to: <code>purchaseOrders</code>, <code>materialConsumptionEntries</code>, <code>inventoryMovements</code>, <code>vendorCredits</code>, <code>materialRequests</code>, <code>workOrders</code>.</div>
@@ -991,7 +1043,7 @@ h1 { font-size: 30px; font-weight: 800; color: #0f172a; margin: 0 0 4px; letter-
         </summary>
         <div class="section-body">
 
-            <div class="item-card cat-h-card" onclick="this.classList.toggle('expanded')">
+            <div class="item-card cat-h-card status-resolved" data-status="resolved" onclick="this.classList.toggle('expanded')">
                 <div class="item-header"><span class="item-id">H1</span><span class="item-title"><code>AutoNumberService</code> for WO, CPO, SPO, MR, VC, RCV prefixes</span><span class="item-badge" style="background:#eef2ff;color:#6366f1;">NTH-9</span></div>
                 <div class="item-body">
                     <div class="decision-box"><strong>Spec:</strong> Centralized auto-numbering service at <code>apps/api/src/models/AutoNumberService.ts</code>. Input: <code>{ prefix: string, instanceId: string }</code>. Output: next number string (e.g., <code>WO-001</code>, <code>SPO-0042</code>). Uses a counter table (<code>AutoNumberCounter</code> model) with <code>@@unique([instanceId, prefix])</code>. Handles padding, collision prevention via <code>prisma.$transaction()</code>. Configurable pad width per prefix.</div>
@@ -1007,14 +1059,14 @@ h1 { font-size: 30px; font-weight: 800; color: #0f172a; margin: 0 0 4px; letter-
                 </div>
             </div>
 
-            <div class="item-card cat-h-card" onclick="this.classList.toggle('expanded')">
+            <div class="item-card cat-h-card status-resolved" data-status="resolved" onclick="this.classList.toggle('expanded')">
                 <div class="item-header"><span class="item-id">H2</span><span class="item-title"><code>RepeatingLineItemEditor</code> base component</span><span class="item-badge" style="background:#eef2ff;color:#6366f1;">NTH-8</span></div>
                 <div class="item-body">
                     <div class="decision-box"><strong>Spec:</strong> Shared React component at <code>packages/ui/src/components/RepeatingLineItemEditor/</code>. Props: <code>columns</code> (array of column defs with render, width, label), <code>rows</code> (data), <code>onAdd</code>, <code>onRemove</code>, <code>onUpdate</code>, <code>showTotals</code>, <code>totalColumns</code>. Used by: WO Labor Editor, WO Material Editor, WO Equipment Editor, PO Line Item Editor, VendorCredit Line Item Editor. Build <em>before</em> any feature-specific editors.</div>
                 </div>
             </div>
 
-            <div class="item-card cat-h-card" onclick="this.classList.toggle('expanded')">
+            <div class="item-card cat-h-card status-resolved" data-status="resolved" onclick="this.classList.toggle('expanded')">
                 <div class="item-header"><span class="item-id">H3</span><span class="item-title"><code>JobFinancialSummaryService</code> plugin/strategy refactor</span><span class="item-badge" style="background:#eef2ff;color:#6366f1;">NTH-7</span></div>
                 <div class="item-body">
                     <div class="decision-box"><strong>Spec:</strong> Refactor <code>JobFinancialSummaryService</code> from a monolithic computation to a plugin/strategy pattern. Each cost source registers a &ldquo;cost provider&rdquo; function with signature: <code>(jobId: string) =&gt; Promise&lt;{ label: string, revenue: Decimal, cost: Decimal }&gt;</code>. The service aggregates all registered providers. Prevents merge conflicts when 5 features modify it in parallel.</div>
@@ -1213,6 +1265,24 @@ document.querySelectorAll('.item-card').forEach(card => {
     });
     card.removeAttribute('onclick');
 });
+
+var activeFilters = { resolved: true, deferred: true, skipped: true, research: true };
+
+function filterItems(status) {
+    activeFilters[status] = !activeFilters[status];
+    var cards = document.querySelectorAll('.sd-card');
+    cards.forEach(function(c) {
+        var s = c.classList.contains('sd-resolved') ? 'resolved' :
+                c.classList.contains('sd-deferred') ? 'deferred' :
+                c.classList.contains('sd-skipped') ? 'skipped' : 'research';
+        c.classList.toggle('active', activeFilters[s]);
+        c.style.opacity = activeFilters[s] ? '1' : '0.4';
+    });
+    document.querySelectorAll('.item-card[data-status]').forEach(function(item) {
+        var s = item.dataset.status;
+        item.classList.toggle('filter-hidden', !activeFilters[s]);
+    });
+}
 </script>
 </body>
 </html>

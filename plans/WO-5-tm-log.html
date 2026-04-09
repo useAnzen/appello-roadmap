@@ -53,7 +53,7 @@ td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
 
 ## Overview
 
-Extract the existing Jobs list page into a shared component, then reuse it for the Work Orders list with different subModel and status configuration. Also adds the Work Orders sidebar navigation entry. Pure frontend refactor — no backend changes (WO-1 handles all schema, seeds, and Board setup).
+Extract the existing Jobs list page into a shared `JobList` component, then reuse it for the Work Orders list with different subModel and status configuration. Also adds the Work Orders sidebar navigation entry, a `jobClassification` computed column for TableFeed filtering, `subModelForSave` support in ListTableViews for Board separation, and the DAA backfill/seeding migration (moved from WO-3a) to set up WorkOrder-specific form sections and fields.
 
 **Sequence:** Immediately after WO-1. This is the first frontend work item — it gives Work Orders a visible home in the app.
 
@@ -259,27 +259,148 @@ Add "Work Orders" entry to the sidebar navigation under the "WORK" section:
 
 ---
 
+## Step 6: TableFeed jobClassification Computed Column
+
+**File:** `apps/api/src/graphql/models/TableFeed/ConfigureColumnsData/job.ts`
+
+The table feed uses the `Job` model for both ProjectJob and WorkOrder lists. To filter by classification, add a `jobClassification` computed column to the Job table feed config:
+
+```typescript
+{
+    id: "jobClassification",
+    label: "Job Classification",
+    type: "computed-value",
+    isUnique: false,
+    isForeignKey: false,
+    selectRecordSet: (record) => Prisma.sql`
+        SELECT COALESCE(pv.jobClassification, 'ProjectJob') AS value
+        FROM Job j
+        LEFT JOIN PropertyValue pv ON pv.id = j.jobTypeId
+        WHERE j.id = ${record.id}
+    `,
+    whereIdIn: (value) => {
+        const classifications = asArray(value);
+        return Prisma.sql`(
+            SELECT DISTINCT j.id FROM Job j
+            LEFT JOIN PropertyValue pv ON pv.id = j.jobTypeId
+            WHERE COALESCE(pv.jobClassification, 'ProjectJob') IN (${Prisma.join(classifications)})
+            AND j.isDeleted = false
+        )`;
+    },
+    facetValues: () => Promise.resolve(
+        jobClassifications.map((c) => ({ label: c, value: c }))
+    )
+}
+```
+
+The `JobList` component passes `queryVariableDefaultFilters={{ jobClassification: subModel }}` so each list only shows records matching its classification.
+
+---
+
+## Step 7: subModelForSave Support in ListTableViews
+
+**File:** `apps/frontend/src/components/ListTableViews/ListTableViews.tsx`
+
+The `subModel` prop serves double duty: it's used as the `TableDataName` for the table feed AND for Board filtering. Since `"ProjectJob"` and `"WorkOrder"` are not valid `TableDataName` values (only `"Job"` is), the component needs:
+
+- `subModel="Job"` — for table feed queries (valid enum value)
+- `subModelForSave="ProjectJob"` or `"WorkOrder"` — for Board filtering and saving
+
+Add `subModelForSave` to `IListTableViewProps` and pass it through to `ViewTabs`, `TableViewAddEdit` (edit and duplicate), and `ListTableViewTabs`.
+
+---
+
+## Step 8: Migration — Backfill Existing DAAs + Duplicate Shared + Create WO DAAs
+
+> **Note:** This step was originally in WO-3a but was moved here because the Board edit form needs the correct DAA columns to display for each subModel.
+
+**Create file:** `apps/api/prisma/migrations/[timestamp]_wo_3a_daa_setup/migration.sql`
+
+**Pattern:** Follows the Expense separation migration (`20241209145000_expense_document_attribute_complete_separation`) exactly. NO comma-delimited subModel values — single values only. Shared fields are DUPLICATED into both `ProjectJob` and `WorkOrder` sets.
+
+This migration does four things:
+1. Backfills all existing Job DAAs to `subModel = "ProjectJob"`
+2. Backfills all existing Job DocumentSections to `subModel = "ProjectJob"`
+3. Creates WO DocumentSections with `subModel = "WorkOrder"`
+4. Duplicates shared Job DAAs into the WO sections + creates WO-only DAAs
+
+### 8a. Backfill existing Job DAAs and sections to ProjectJob
+
+```sql
+UPDATE `DocumentAttributeAssignment`
+SET `subModel` = 'ProjectJob'
+WHERE `referenceModel` = 'Job'
+AND (`subModel` IS NULL OR `subModel` = '');
+
+UPDATE `DocumentSection`
+SET `subModel` = 'ProjectJob'
+WHERE `referenceModel` = 'Job'
+AND (`subModel` IS NULL OR `subModel` = '');
+```
+
+### 8b. Create WO DocumentSections
+
+```sql
+INSERT INTO `DocumentSection` (`id`, `createdAt`, `updatedAt`, `referenceModel`, `subModel`, `name`, `label`, `orderNo`)
+VALUES
+    (SUBSTRING(MD5(UUID()), 1, 21), NOW(), NOW(), 'Job', 'WorkOrder', 'Work Order Info', 'Work Order Info', 0),
+    (SUBSTRING(MD5(UUID()), 1, 21), NOW(), NOW(), 'Job', 'WorkOrder', 'Labor', 'Labor', 1),
+    (SUBSTRING(MD5(UUID()), 1, 21), NOW(), NOW(), 'Job', 'WorkOrder', 'Materials', 'Materials', 2),
+    (SUBSTRING(MD5(UUID()), 1, 21), NOW(), NOW(), 'Job', 'WorkOrder', 'Equipment', 'Equipment', 3),
+    (SUBSTRING(MD5(UUID()), 1, 21), NOW(), NOW(), 'Job', 'WorkOrder', 'Signatures', 'Signatures', 4);
+```
+
+### 8c. Duplicate shared Job DAAs into WO "Work Order Info" section
+
+```sql
+INSERT INTO `DocumentAttributeAssignment` (...)
+SELECT
+    SUBSTRING(MD5(UUID()), 1, 21),
+    NOW(), NOW(),
+    'Job', 'WorkOrder',
+    daa.orderNo,
+    (SELECT id FROM DocumentSection WHERE referenceModel = 'Job' AND subModel = 'WorkOrder' AND name = 'Work Order Info' LIMIT 1),
+    daa.defaultAttribute, daa.defaultAttributeLabel, daa.defaultAttributeType,
+    daa.defaultAttributeIsRequired, daa.defaultAttributeIsDerived, daa.slug, daa.referenceColumn
+FROM DocumentAttributeAssignment daa
+WHERE daa.referenceModel = 'Job' AND daa.subModel = 'ProjectJob'
+AND daa.defaultAttribute IN (
+    'job-number', 'job-name', 'job-description', 'job-rate-type',
+    'job-wage-region', 'job-purchase-order', 'job-status', 'job-type',
+    'job-customer', 'job-contact', 'job-location'
+);
+```
+
+### 8d. Create WO-only DAAs
+
+New DAAs for `wo-date-of-work` (date), `wo-labor-items` (objects), `wo-material-items` (objects), `wo-equipment-items` (objects), `wo-signatures` (objects) — each assigned to their respective WO DocumentSection.
+
+---
+
 ## Verification Checklist
 
-- [ ] `SharedJobListView` component extracted with all list functionality
-- [ ] Jobs page refactored to use `SharedJobListView` with `subModel="ProjectJob"`
-- [ ] Jobs page: table view works identically to before
-- [ ] Jobs page: kanban view works with existing job statuses
-- [ ] Jobs page: search, filters, archive, delete, restore all work
-- [ ] Jobs page: create opens DataModelForm for ProjectJob
-- [ ] Jobs page: CSV export works
-- [ ] Jobs page: inline status update works
-- [ ] Jobs page: kanban drag reorder works
-- [ ] Work Orders page at `/work-orders` renders with `subModel="WorkOrder"`
-- [ ] WO list shows only WorkOrder-classified jobs
-- [ ] WO Kanban columns from `workOrderStatus` PropertyValues (Draft, Submitted, etc.)
+- [x] `JobList` component extracted into `SharedListViews/JobList.tsx` with all list functionality
+- [x] Jobs page refactored to use `JobList` with `subModel="ProjectJob"`
+- [x] Jobs page: table view works identically to before
+- [x] Jobs page: kanban view works with existing job statuses
+- [x] Jobs page: search, filters, archive, delete, restore all work
+- [x] Jobs page: CSV export works
+- [x] Jobs page: inline status update works
+- [x] Jobs page: kanban drag reorder works
+- [x] Work Orders page at `/work-orders` renders with `subModel="WorkOrder"`
+- [x] WO list shows only WorkOrder-classified jobs (via jobClassification computed column filter)
+- [x] WO Kanban columns from `workOrderStatus` PropertyValues (Draft, Submitted, etc.)
 - [ ] WO create button opens DataModelForm with WorkOrder subModel
-- [ ] WO detail links navigate to `/work-orders/[id]`
-- [ ] WO search, filters, archive, delete, restore all work
-- [ ] WO CSV export works
-- [ ] WO inline status update uses WO statuses
-- [ ] Sidebar shows "Work Orders" navigation entry linking to `/work-orders`
-- [ ] No regression on Jobs list functionality
+- [x] WO detail links navigate to `/work-orders/[id]`
+- [x] WO search, filters, archive, delete, restore all work
+- [x] WO CSV export works
+- [x] WO inline status update uses WO statuses
+- [x] Sidebar shows "Work Orders" navigation entry linking to `/work-orders`
+- [x] `subModelForSave` passed through ListTableViews → ViewTabs → TableViewAddEdit
+- [x] Board edit/duplicate saves with correct subModel (ProjectJob or WorkOrder)
+- [x] DAA backfill: existing Job DAAs tagged `subModel = 'ProjectJob'`
+- [x] WO DocumentSections and DAAs created
+- [x] No regression on Jobs list functionality
 
 ---
 
@@ -287,11 +408,14 @@ Add "Work Orders" entry to the sidebar navigation under the "WORK" section:
 
 | Action | File | What to do |
 |--------|------|------------|
-| CREATE | `apps/frontend/src/components/SharedListViews/SharedJobListView.tsx` | Extracted from `pages/jobs/index.tsx`. All ListTableViews config, mutations, handlers parameterized by props. |
-| CREATE | `apps/frontend/src/pages/work-orders/index.tsx` | Renders `SharedJobListView` with WorkOrder params. |
-| MODIFY | `apps/frontend/src/pages/jobs/index.tsx` | Refactored to use `SharedJobListView` with ProjectJob params. |
-| MODIFY (if needed) | `JobAddEditForm` | Add optional `subModel` prop if not already present from PR #6831 |
-| MODIFY | Sidebar navigation data | Add "Work Orders" entry with route `/work-orders` |
+| CREATE | `apps/frontend/src/components/SharedListViews/JobList.tsx` | Extracted from `pages/jobs/index.tsx`. All ListTableViews config, mutations, handlers parameterized by props. |
+| CREATE | `apps/frontend/src/pages/work-orders/index.tsx` | Renders `JobList` with WorkOrder params. |
+| CREATE | `apps/api/prisma/migrations/.../migration.sql` | DAA backfill + WO sections + WO DAAs |
+| MODIFY | `apps/frontend/src/pages/jobs/index.tsx` | Refactored to use `JobList` with ProjectJob params. |
+| MODIFY | `apps/frontend/src/components/SharedListViews/index.ts` | Export `JobList`. |
+| MODIFY | `apps/frontend/src/components/ListTableViews/ListTableViews.tsx` | Add `subModelForSave` prop, pass through to ViewTabs and TableViewAddEdit. |
+| MODIFY | `apps/api/src/graphql/models/TableFeed/ConfigureColumnsData/job.ts` | Add `jobClassification` computed column with `whereIdIn` filter. |
+| MODIFY | `apps/frontend/src/lib/static-data/staticSideBarData.ts` | Add "Work Orders" entry with route `/work-orders`. |
 </script>
 
 <script src="plan-renderer.js"></script>

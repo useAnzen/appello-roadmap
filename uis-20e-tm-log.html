@@ -103,9 +103,12 @@ table.schema-table code { font-family: monospace; background: #f1f5f9; padding: 
     <div class="uis-section">
         <h2>2. SharedJobListView Component</h2>
 
+        <p><strong>Implemented as:</strong> <code>SharedListViews/JobList.tsx</code> (named <code>JobList</code> to match the convention of other SharedListViews components like <code>CompanyList</code>, <code>ContactList</code>, etc.)</p>
+
         <h3>Props</h3>
 <pre>
-interface ISharedJobListViewProps {
+interface IJobListProps {
+    className?: string;
     subModel: string;               // "ProjectJob" | "WorkOrder"
     statusPropertyName: string;     // "job status" | "workOrderStatus"
     tableName: string;              // "Jobs" | "Work Orders"
@@ -113,14 +116,22 @@ interface ISharedJobListViewProps {
     createButtonText: string;       // "Create Job" | "Create Work Order"
     searchPlaceholder: string;
     detailsRoute: string;           // "/jobs" | "/work-orders"
-    breadcrumbs: Array&lt;{ name: string; onClick: () => void }&gt;;
+    breadcrumbs: IBreadCrumbs;
     sessionFilterName: string;      // "jobs" | "workOrders"
+    initialFilter?: Array&lt;{ label: string; id: string; columnName: string; value: string }&gt;;
 }
 </pre>
 
+        <h3>Implementation notes</h3>
+        <ul>
+            <li><code>subModel</code> is used for Board filtering (<code>subModelForSave</code>) and <code>queryVariableDefaultFilters</code> (<code>jobClassification</code> filter), NOT as the TableDataName</li>
+            <li><code>ListTableViews</code> receives <code>subModel="Job"</code> (valid TableDataName) and <code>subModelForSave={subModel}</code> (for Board queries)</li>
+            <li>A <code>jobClassification</code> computed column on the Job TableFeed config handles the actual record filtering</li>
+        </ul>
+
         <h3>What the component contains (extracted from <code>pages/jobs/index.tsx</code>)</h3>
         <ul>
-            <li><code>ListTableViews</code> with <code>referenceModel="Job"</code> and <code>subModel={props.subModel}</code></li>
+            <li><code>ListTableViews</code> with <code>referenceModel="Job"</code>, <code>subModel="Job"</code>, <code>subModelForSave={subModel}</code></li>
             <li>Status query using <code>props.statusPropertyName</code> for Kanban columns</li>
             <li><code>editJob</code> mutation for inline status updates</li>
             <li><code>archiveManyJob</code> / <code>deleteManyJobs</code> / <code>restoreManyJob</code> header actions</li>

@@ -5,6 +5,27 @@
 
 ---
 
+## Design Rule Compliance — Known Issues
+
+> **User-First Time & Labor Allocation Rule**: All time/labor records must reference individual users (`userId`). Trade classification is a filter/display attribute on users, never a standalone dimension. `qtyOfWorkers` must be derived from `COUNT(DISTINCT userId)`, not a standalone scalar.
+
+### WO-2 Labor Line Item Model — VIOLATES User-First Rule
+
+The `WorkOrderLaborItem` model as currently spec'd has `tradeLevelRateId` + `qtyOfWorkers` but **no `userId`**. The UI flow lets a foreman enter "3 Journeymen, 8 hours" without specifying which workers. This breaks the timesheet rollup chain and prevents user-specific rate resolution.
+
+**Affected screens:** WO-2-01, WO-3a-01, WO-7-01, WO-7-02, WO-8-01, plus all already-designed WO-3 mockups.
+
+**To comply, the design must:**
+1. Add a `WorkOrderLaborItemWorker` join table linking each labor line to specific `userId` records
+2. Replace the `qtyOfWorkers` numeric input with a **worker picker** (search/select actual users)
+3. Derive `qtyOfWorkers` as `COUNT(DISTINCT WorkOrderLaborItemWorker.userId)`
+4. Resolve trade level and rates from the user's `UserTradeLevel` → `TradeLevel` → `TradeLevelRate` chain, not from a direct `tradeLevelRateId` picker
+5. Retain blank lines (no `tradeLevelRateId`) for ad-hoc entries, but still require user assignment
+
+**All WO labor designs below are flagged with ⚠️ and must be redesigned with this constraint.**
+
+---
+
 ## Table of Contents
 
 - [Release 1.33 — LEM Track (2 screens)](#release-133--lem-track)
@@ -93,28 +114,33 @@
 | **Type** | Form (repeating rows) |
 | **Location** | WO Create/Edit form (WO-3), Labor section |
 
-**Purpose:** Capture structured T&M labor (trade level + rate labels + hours) or ad-hoc blank lines. Structured lines don't show rates on the WO — pricing happens at invoice generation (WO-7).
+> **⚠️ USER-FIRST VIOLATION — REDESIGN REQUIRED**: Current spec uses `tradeLevelRateId` + `qtyOfWorkers` without `userId`. Must be redesigned with a worker picker and `WorkOrderLaborItemWorker` join table. See [Design Rule Compliance](#design-rule-compliance--known-issues).
 
-**Data & Entities:**
-- `WorkOrderLaborItem`: `jobId`, `tradeLevelRateId` (structured), `rate` (blank/manual), `qtyOfWorkers`, `submittedDuration` (seconds), `description`, `orderNo`
-- Structured lines: pick `TradeLevelRate` path; one DB row per rate label with hours > 0
-- Blank lines: free-text description, hours, workers, manual rate
+**Purpose:** Capture structured T&M labor (specific workers with their trade levels + rate labels + hours) or ad-hoc blank lines. Structured lines don't show rates on the WO — pricing happens at invoice generation (WO-7).
+
+**Data & Entities (REVISED per User-First rule):**
+- `WorkOrderLaborItem`: `jobId`, `submittedDuration` (seconds), `description`, `orderNo`
+- `WorkOrderLaborItemWorker`: `workOrderLaborItemId`, `userId` — join table linking each line to specific workers
+- Worker's trade level resolved via: User → `UserTradeLevel` → `TradeLevel` → `TradeLevelRate`
+- `qtyOfWorkers` is **derived**: `COUNT(DISTINCT WorkOrderLaborItemWorker.userId)`
+- Blank lines: free-text description, hours, manual rate — still require user assignment
 
 **User Interactions:**
 - "+ Add Labor" dropdown: Structured vs Blank
+- **Worker picker**: search/select actual users (not a numeric "qty of workers" input)
+- Trade level auto-resolved from selected worker's `UserTradeLevel`
 - Add/edit/remove rows without page reload
-- Mutations: `upsertWorkOrderLineItems`, soft-delete via `isDeleted`
 - Phase 1: ordering by `orderNo` only (no drag reorder)
 
 **Layout Guidance:**
 - Repeating-row table pattern within the WO form
-- Structured rows: trade level picker, workers count, hours input (no dollar amounts shown)
-- Blank rows: description, hours, workers, manual rate
+- Structured rows: **worker selector** (multi-select or repeated rows), auto-derived trade level, hours input
+- Blank rows: description, hours, worker selector, manual rate
 - Subtotals display-only (wage-based subtotals gated by `user___viewWageDetails`)
 
 **Dependencies:** WO-1; Enables WO-3, WO-7
 
-**Notes:** No rates or dollar totals on WO form for structured lines — pricing resolved at invoice/conversion via LEM-1 `TradeLevelRate`.
+**Notes:** No rates or dollar totals on WO form for structured lines — pricing resolved at invoice/conversion via LEM-1 `TradeLevelRate`. Worker assignment enables timesheet rollup and payroll chain.
 
 ---
 
@@ -181,11 +207,13 @@
 | **Type** | Form configuration |
 | **Location** | WO Create/Edit flow — DAA-driven form layout |
 
+> **⚠️ Inherits USER-FIRST violation from WO-2**: The `wo-labor-items` DAA custom renderer must use a worker picker (not `qtyOfWorkers` numeric input) and resolve trade levels from selected users.
+
 **Purpose:** Gate WO-only fields and position custom blocks (date, L/M/E editors, signatures) using the `DocumentAttributeAssignment` system with `subModel="WorkOrder"`.
 
 **Data & Entities:**
 - `DocumentAttributeAssignment` with `referenceModel="Job"`, `subModel="WorkOrder"`
-- WO-only DAAs: `wo-date-of-work` → `Job.dateOfWork`, `wo-labor-items`, `wo-material-items`, `wo-equipment-items`, `wo-signatures` (all custom render)
+- WO-only DAAs: `wo-date-of-work` → `Job.dateOfWork`, `wo-labor-items` (worker picker), `wo-material-items`, `wo-equipment-items`, `wo-signatures` (all custom render)
 - Shared job DAAs: `job-number`, `job-name`, `job-description`, `job-rate-type`, `job-wage-region`, `job-purchase-order`, `job-status`
 
 **User Interactions:**
@@ -358,10 +386,12 @@
 | **Type** | Modal |
 | **Location** | WO Detail header → "Generate Invoice" or "Convert to CO" action |
 
+> **⚠️ Inherits USER-FIRST violation from WO-2**: Conversion logic currently uses `qtyOfWorkers` scalar. Must be updated to derive worker count and rates from `WorkOrderLaborItemWorker` join table.
+
 **Purpose:** Confirmation step before executing invoice generation or change order conversion mutations.
 
 **Data & Entities:**
-- Derived display: line item count, total value
+- Derived display: line item count, total value (labor totals derived from user-linked worker records)
 - Mutations: `generateInvoiceFromWorkOrder` or `convertWorkOrderToChangeOrder`
 
 **User Interactions:**
@@ -387,12 +417,14 @@
 | **Type** | Page |
 | **Location** | `EstimateChangeOrderDetails` — fallback layout when `accountItemId` is null |
 
+> **⚠️ Inherits USER-FIRST violation from WO-2**: CO rows created from WO labor must derive hours and rates from user-linked worker records.
+
 **Purpose:** Show CO lines created from a WO without account hierarchy (flat list instead of grouped by account).
 
 **Data & Entities:**
 - `EstimateChangeOrderRecord` + `EstimateChangeOrderRecordValue`
 - `accountItemId` is optional/nullable for WO-generated COs
-- Flat rows: description, estimate ($), numeric (hours where applicable)
+- Flat rows: description, estimate ($), numeric (hours derived from user-linked labor records)
 
 **User Interactions:**
 - Read CO as usual; conditional rendering: hierarchy vs flat rows when no `accountItemId`
@@ -414,11 +446,13 @@
 | **Type** | PDF preview |
 | **Location** | Mobile WO Creation → Step 5 Summary → "Preview Tag (PDF)" button |
 
+> **⚠️ Inherits USER-FIRST violation from WO-2**: PDF rendering currently uses `qtyOfWorkers` scalar. Must reflect actual assigned workers from `WorkOrderLaborItemWorker`.
+
 **Purpose:** In-app preview of final T&M tag as formatted PDF before signature collection (Clearstory parity).
 
 **Data & Entities:**
 - `previewWorkOrderPdf` query — generates preview PDF URL
-- Built on WO record + line items + configured template
+- Built on WO record + line items (labor items include user-linked worker assignments) + configured template
 
 **User Interactions:**
 - Tap "Preview Tag (PDF)" on Summary step → in-app PDF preview
@@ -1386,7 +1420,9 @@
 **Purpose:** View all daily logs across all jobs with filtering.
 
 **Data & Entities:**
-- `DailyLog`: jobId, date, createdById, weatherConditions, temperature, windSpeed, precipitation, workPerformed, materialsUsed, equipmentUsed, visitorLog, safetyObservations, delayReasons, notes, crewCount, hoursWorked, status (Draft|Submitted|Approved), instanceId
+- `DailyLog`: jobId, date, createdById, weatherConditions, temperature, windSpeed, precipitation, workPerformed, materialsUsed, equipmentUsed, visitorLog, safetyObservations, delayReasons, notes, status (Draft|Submitted|Approved), instanceId
+- `DailyLogCrewMember`: dailyLogId, userId, hoursWorked — join table linking each crew member to their User record
+- `crewCount` and `hoursWorked` are **derived** at query/render time from `DailyLogCrewMember` (not stored as scalars) per User-First rules
 
 **User Interactions:**
 - Filter by job, date range, status

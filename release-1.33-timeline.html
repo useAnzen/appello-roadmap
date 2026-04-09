@@ -914,14 +914,25 @@ document.querySelectorAll('.item-row:not(.no-expand)').forEach(function(row) {
     });
     var hash = location.hash.slice(1);
     if (!hash) return;
-    var wantPlan = hash.endsWith('-plan');
-    var rowId = wantPlan ? hash.replace(/-plan$/, '') : hash;
+
+    var wantPlan = false;
+    var mockupAnchor = null;
+    var rowId = hash;
+    if (hash.endsWith('-plan')) {
+        wantPlan = true;
+        rowId = hash.replace(/-plan$/, '');
+    } else {
+        var mm = hash.match(/^(.*?)-(mockup-\d+)$/);
+        if (mm) { rowId = mm[1]; mockupAnchor = mm[2]; }
+    }
+
     var target = document.getElementById(rowId);
     if (!target || !target.classList.contains('item-row') || target.classList.contains('no-expand')) return;
     target.classList.add('expanded');
     var detail = target.querySelector('.item-detail');
     var specPath = resolvePath(target.dataset.spec);
     var planPath = resolvePath(target.dataset.plan);
+    if (mockupAnchor && specPath) specPath += '#' + mockupAnchor;
     if (detail && !detail.querySelector('.detail-tabs')) {
         buildDetailPanel(detail, specPath, planPath);
     }

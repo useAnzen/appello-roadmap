@@ -1,28 +1,82 @@
 # Outstanding Screen Designs — Requirements Reference
 
-> **57 screens** across all work packages that need mockup designs before implementation.
+> **54 screens** across all work packages that need mockup designs before implementation.
 > This document serves as the design brief for each screen, derived from deep research of every UIS spec.
+> All design decisions have been resolved (see below). This document is ready for design execution.
 
 ---
 
-## Design Rule Compliance — Known Issues
+## Resolved Design Decisions
 
-> **User-First Time & Labor Allocation Rule**: All time/labor records must reference individual users (`userId`). Trade classification is a filter/display attribute on users, never a standalone dimension. `qtyOfWorkers` must be derived from `COUNT(DISTINCT userId)`, not a standalone scalar.
+### Global UX Patterns (Apply to all screens)
 
-### WO-2 Labor Line Item Model — VIOLATES User-First Rule
+| Decision | Resolution |
+|----------|-----------|
+| **Flyout vs Modal vs Inline** | Rate labels, rate schedules, maintenance thresholds, PO line items → **Inline editing**. Inventory transfer, physical count, equipment timesheet rollup → **Modal**. |
+| **Tab ordering** | New tabs append to end; final order determined during implementation. |
+| **Permission gating** | Hidden completely (existing pattern). Locked icons for partial visibility considered but not used in current app — hide for now. |
+| **PDF templates** | WO-4-03, MAT-8-01, UIS-18-05 share a **common header/footer/branding template**. |
+| **Desktop + Mobile parity** | Use common sense based on existing mobile app scope. Screens marked "Both" get a mobile design; others are desktop only. PO management is desktop only. |
+| **Drag reorder** | Allow `orderNo` **and** drag-to-reorder from the start (no Phase 1 limitation). |
 
-The `WorkOrderLaborItem` model as currently spec'd has `tradeLevelRateId` + `qtyOfWorkers` but **no `userId`**. The UI flow lets a foreman enter "3 Journeymen, 8 hours" without specifying which workers. This breaks the timesheet rollup chain and prevents user-specific rate resolution.
+### WO-2 Labor — User-First Compliance
+
+> **User-First Time & Labor Allocation Rule**: All time/labor records must reference individual users (`userId`). Trade classification is a filter/display attribute on users, never a standalone dimension.
+
+The `WorkOrderLaborItem` model must be redesigned:
+
+1. **Worker picker with one row per worker** — select multiple workers, each becomes its own row with auto-derived trade level
+2. **Draft/unassigned flow** — allow blank `userId` that can be filled in later (e.g., foreman fills in field, PM assigns workers back in office)
+3. **Blank ad-hoc lines** — allow blank `userId` field that can be filled later
+4. **Trade level resolution** — workers currently have one `UserTradeLevel`; override capability is in progress. Auto-resolve from user; if a worker eventually has multiple, show a disambiguator
+5. **PDF/T&M tag** — still show **aggregated trade-level summaries** on customer-facing documents (not individual worker names)
+6. **CO conversion for equipment lines** — per Procore/Clearstory best practices, equipment lines convert to CO rows the same way as labor/material — flat line items with description, numeric (hours/qty), and dollar amount. No special treatment.
 
 **Affected screens:** WO-2-01, WO-3a-01, WO-7-01, WO-7-02, WO-8-01, plus all already-designed WO-3 mockups.
 
-**To comply, the design must:**
-1. Add a `WorkOrderLaborItemWorker` join table linking each labor line to specific `userId` records
-2. Replace the `qtyOfWorkers` numeric input with a **worker picker** (search/select actual users)
-3. Derive `qtyOfWorkers` as `COUNT(DISTINCT WorkOrderLaborItemWorker.userId)`
-4. Resolve trade level and rates from the user's `UserTradeLevel` → `TradeLevel` → `TradeLevelRate` chain, not from a direct `tradeLevelRateId` picker
-5. Retain blank lines (no `tradeLevelRateId`) for ad-hoc entries, but still require user assignment
+### Equipment Time Windows & OT (UIS-15C-02)
 
-**All WO labor designs below are flagged with ⚠️ and must be redesigned with this constraint.**
+- **Option A (v1)**: Simple instance-level fields — `equipmentStandardWorkStartHour`, `equipmentStandardWorkEndHour`, `equipmentWeekendDays`
+- **OT Multiplier**: Yes, add `overtimeMultiplier` on `EquipmentCategory` (different equipment types have different OT rates)
+- Full `EquipmentRateWindow` model for per-job overrides deferred to v2
+
+### Equipment Maintenance Thresholds (UIS-15D-02)
+
+- Both **category-level and equipment-level** threshold UIs needed (polymorphic model supports both)
+
+### Weather API (UIS-18)
+
+- **OpenWeather One Call API 3.0** — `https://api.openweathermap.org/data/3.0/onecall?lat={lat}&lon={lon}&appid={API_KEY}`
+
+### Maintenance Scheduling (UIS-15G-01)
+
+- Auto-schedule next instance **with user confirmation** (modal asking user to confirm the next scheduled date)
+
+### Invoice Duplication (UIS-QW-01)
+
+- **Yes**, show a confirmation dialog before duplicating
+
+### Form Version Publishing (UIS-F07-01)
+
+- **Diff view** with summary of changes (added/removed/modified counts + visual diff)
+
+### Public Form Links (UIS-F09-01)
+
+- Expiry and password **are in scope** — follow the existing pattern used for form sharing today
+
+### QR Code Printing (UIS-15E-01)
+
+- Printable from **both mobile and desktop**
+
+---
+
+## Removed from Outstanding List
+
+| Screen | Reason |
+|--------|--------|
+| ~~UIS-12-03: Leave Calendar~~ | **Already built** — `/leave-submissions` has a FullCalendar view with drag/drop, date-range select, and create-on-click |
+| ~~UIS-QW-04: Timesheet Base Rate Column~~ | **No design needed** — `baseValue` already exists in `timesheetReport` query response (`hours[].baseValue`). Only requires adding a column to the existing report table; no new screen design. |
+| ~~UIS-QW-03: Job Conditional Fields~~ | **No design needed** — conditional rendering of existing fields based on config. No new UI to design. |
 
 ---
 
@@ -33,7 +87,7 @@ The `WorkOrderLaborItem` model as currently spec'd has `tradeLevelRateId` + `qty
 - [Release 1.33 — Equipment Track (13 screens)](#release-133--equipment-track)
 - [Release 1.34 — MAT Track (9 screens)](#release-134--mat-track)
 - [Unscheduled — Forms Track (7 screens)](#unscheduled--forms-track)
-- [Unscheduled — Other (14 screens)](#unscheduled--other)
+- [Unscheduled — Other (11 screens)](#unscheduled--other)
 
 ---
 
@@ -64,7 +118,7 @@ The `WorkOrderLaborItem` model as currently spec'd has `tradeLevelRateId` + `qty
 **Layout Guidance:**
 - Sits above the shared `EquipmentRateTable` on the Rates tab
 - Breadcrumb: Equipment Categories › [Category] › Rates
-- "Rate Labels" management section with "+ Add Rate Type" and edit controls
+- "Rate Labels" management section with "+ Add Rate Type" and **inline** edit controls
 - Below this section: the two-level-tab rate table (Operator Included / Equipment Only × Hourly…Yearly)
 
 **Dependencies:** LEM-1 (parallel); Enables UIS-15H, UIS-15B, WO-2, UIS-15C, UIS-15A
@@ -114,33 +168,33 @@ The `WorkOrderLaborItem` model as currently spec'd has `tradeLevelRateId` + `qty
 | **Type** | Form (repeating rows) |
 | **Location** | WO Create/Edit form (WO-3), Labor section |
 
-> **⚠️ USER-FIRST VIOLATION — REDESIGN REQUIRED**: Current spec uses `tradeLevelRateId` + `qtyOfWorkers` without `userId`. Must be redesigned with a worker picker and `WorkOrderLaborItemWorker` join table. See [Design Rule Compliance](#design-rule-compliance--known-issues).
+> **REDESIGNED per User-First rule** — see [Resolved Design Decisions](#wo-2-labor--user-first-compliance).
 
 **Purpose:** Capture structured T&M labor (specific workers with their trade levels + rate labels + hours) or ad-hoc blank lines. Structured lines don't show rates on the WO — pricing happens at invoice generation (WO-7).
 
-**Data & Entities (REVISED per User-First rule):**
-- `WorkOrderLaborItem`: `jobId`, `submittedDuration` (seconds), `description`, `orderNo`
-- `WorkOrderLaborItemWorker`: `workOrderLaborItemId`, `userId` — join table linking each line to specific workers
-- Worker's trade level resolved via: User → `UserTradeLevel` → `TradeLevel` → `TradeLevelRate`
-- `qtyOfWorkers` is **derived**: `COUNT(DISTINCT WorkOrderLaborItemWorker.userId)`
-- Blank lines: free-text description, hours, manual rate — still require user assignment
+**Data & Entities:**
+- `WorkOrderLaborItem`: `jobId`, `userId` (nullable — draft/unassigned allowed), `submittedDuration` (seconds), `description`, `orderNo`
+- Worker's trade level auto-resolved via: User → `UserTradeLevel` → `TradeLevel` → `TradeLevelRate`
+- Worker count is **derived**: `COUNT(DISTINCT userId)` on related labor items
+- Blank ad-hoc lines: free-text description, hours, manual rate — `userId` can be filled later
 
 **User Interactions:**
 - "+ Add Labor" dropdown: Structured vs Blank
-- **Worker picker**: search/select actual users (not a numeric "qty of workers" input)
+- **Worker picker**: multi-select workers → each selected worker becomes its own row
 - Trade level auto-resolved from selected worker's `UserTradeLevel`
-- Add/edit/remove rows without page reload
-- Phase 1: ordering by `orderNo` only (no drag reorder)
+- Unassigned rows allowed (foreman fills in field, PM assigns workers later)
+- Add/edit/remove/drag-reorder rows
 
 **Layout Guidance:**
 - Repeating-row table pattern within the WO form
-- Structured rows: **worker selector** (multi-select or repeated rows), auto-derived trade level, hours input
-- Blank rows: description, hours, worker selector, manual rate
+- Structured rows: **worker selector** (multi-select creates one row per worker), auto-derived trade level, hours input
+- Blank rows: description, hours, optional worker selector, manual rate
+- Unassigned rows: visual indicator (e.g., "Unassigned" badge) prompting later assignment
 - Subtotals display-only (wage-based subtotals gated by `user___viewWageDetails`)
 
 **Dependencies:** WO-1; Enables WO-3, WO-7
 
-**Notes:** No rates or dollar totals on WO form for structured lines — pricing resolved at invoice/conversion via LEM-1 `TradeLevelRate`. Worker assignment enables timesheet rollup and payroll chain.
+**Notes:** No rates or dollar totals on WO form for structured lines — pricing resolved at invoice/conversion via LEM-1 `TradeLevelRate`. PDF/T&M tag shows aggregated trade-level summaries (not individual names).
 
 ---
 
@@ -207,13 +261,11 @@ The `WorkOrderLaborItem` model as currently spec'd has `tradeLevelRateId` + `qty
 | **Type** | Form configuration |
 | **Location** | WO Create/Edit flow — DAA-driven form layout |
 
-> **⚠️ Inherits USER-FIRST violation from WO-2**: The `wo-labor-items` DAA custom renderer must use a worker picker (not `qtyOfWorkers` numeric input) and resolve trade levels from selected users.
-
 **Purpose:** Gate WO-only fields and position custom blocks (date, L/M/E editors, signatures) using the `DocumentAttributeAssignment` system with `subModel="WorkOrder"`.
 
 **Data & Entities:**
 - `DocumentAttributeAssignment` with `referenceModel="Job"`, `subModel="WorkOrder"`
-- WO-only DAAs: `wo-date-of-work` → `Job.dateOfWork`, `wo-labor-items` (worker picker), `wo-material-items`, `wo-equipment-items`, `wo-signatures` (all custom render)
+- WO-only DAAs: `wo-date-of-work` → `Job.dateOfWork`, `wo-labor-items` (worker picker per User-First rule), `wo-material-items`, `wo-equipment-items`, `wo-signatures` (all custom render)
 - Shared job DAAs: `job-number`, `job-name`, `job-description`, `job-rate-type`, `job-wage-region`, `job-purchase-order`, `job-status`
 
 **User Interactions:**
@@ -386,13 +438,12 @@ The `WorkOrderLaborItem` model as currently spec'd has `tradeLevelRateId` + `qty
 | **Type** | Modal |
 | **Location** | WO Detail header → "Generate Invoice" or "Convert to CO" action |
 
-> **⚠️ Inherits USER-FIRST violation from WO-2**: Conversion logic currently uses `qtyOfWorkers` scalar. Must be updated to derive worker count and rates from `WorkOrderLaborItemWorker` join table.
-
 **Purpose:** Confirmation step before executing invoice generation or change order conversion mutations.
 
 **Data & Entities:**
 - Derived display: line item count, total value (labor totals derived from user-linked worker records)
 - Mutations: `generateInvoiceFromWorkOrder` or `convertWorkOrderToChangeOrder`
+- Equipment lines convert to CO rows the same as labor/material — flat line items with description, hours/qty, and dollar amount
 
 **User Interactions:**
 - Confirm / Cancel
@@ -417,14 +468,13 @@ The `WorkOrderLaborItem` model as currently spec'd has `tradeLevelRateId` + `qty
 | **Type** | Page |
 | **Location** | `EstimateChangeOrderDetails` — fallback layout when `accountItemId` is null |
 
-> **⚠️ Inherits USER-FIRST violation from WO-2**: CO rows created from WO labor must derive hours and rates from user-linked worker records.
-
 **Purpose:** Show CO lines created from a WO without account hierarchy (flat list instead of grouped by account).
 
 **Data & Entities:**
 - `EstimateChangeOrderRecord` + `EstimateChangeOrderRecordValue`
 - `accountItemId` is optional/nullable for WO-generated COs
-- Flat rows: description, estimate ($), numeric (hours derived from user-linked labor records)
+- Flat rows: description, estimate ($), numeric (hours/qty from WO line items)
+- Equipment lines carry over as flat rows with hours/qty and dollar amount (same as labor/material per Procore/Clearstory pattern)
 
 **User Interactions:**
 - Read CO as usual; conditional rendering: hierarchy vs flat rows when no `accountItemId`
@@ -433,8 +483,6 @@ The `WorkOrderLaborItem` model as currently spec'd has `tradeLevelRateId` + `qty
 - Same CO detail route; flat list replaces account grouping when `accountItemId` is null
 
 **Dependencies:** Prisma migration (nullable `accountItemId`), API `convertWorkOrderToChangeOrder`
-
-**Notes:** Equipment numeric field — spec allows hours equivalent or 0 to avoid confusion. Open product question on CO business use cases (Corey/Chris).
 
 ---
 
@@ -446,13 +494,11 @@ The `WorkOrderLaborItem` model as currently spec'd has `tradeLevelRateId` + `qty
 | **Type** | PDF preview |
 | **Location** | Mobile WO Creation → Step 5 Summary → "Preview Tag (PDF)" button |
 
-> **⚠️ Inherits USER-FIRST violation from WO-2**: PDF rendering currently uses `qtyOfWorkers` scalar. Must reflect actual assigned workers from `WorkOrderLaborItemWorker`.
-
 **Purpose:** In-app preview of final T&M tag as formatted PDF before signature collection (Clearstory parity).
 
 **Data & Entities:**
 - `previewWorkOrderPdf` query — generates preview PDF URL
-- Built on WO record + line items (labor items include user-linked worker assignments) + configured template
+- Built on WO record + line items (labor shows aggregated trade-level summaries, not individual names) + configured template
 
 **User Interactions:**
 - Tap "Preview Tag (PDF)" on Summary step → in-app PDF preview
@@ -567,7 +613,7 @@ The `WorkOrderLaborItem` model as currently spec'd has `tradeLevelRateId` + `qty
 
 **Layout Guidance:**
 - Toolbar above `EquipmentRateTable`: schedule dropdown + green "+ New Rate Schedule" button
-- Form can be inline or flyout
+- **Inline** form (not flyout)
 
 **Dependencies:** LEM-2; Enables UIS-15A, UIS-15B
 
@@ -584,17 +630,19 @@ The `WorkOrderLaborItem` model as currently spec'd has `tradeLevelRateId` + `qty
 **Purpose:** Configure company-wide standard/OT time windows for equipment rate resolution.
 
 **Data & Entities:**
-- Option A (v1): `Instance` fields: `equipmentStandardWorkStartHour`, `equipmentStandardWorkEndHour`, `equipmentWeekendDays`
-- Option B (future): `EquipmentRateWindow` per Instance/Job
-- `EquipmentCategory` may get `overtimeMultiplier`
+- **Option A (v1)**: `Instance` fields: `equipmentStandardWorkStartHour`, `equipmentStandardWorkEndHour`, `equipmentWeekendDays`
+- `EquipmentCategory.overtimeMultiplier` — `Decimal(3,2)` per category (e.g., cranes 1.5x, hand tools 1.0x)
+- Full `EquipmentRateWindow` model for per-job overrides deferred to v2
 
 **User Interactions:**
-- Set standard work start/end hours
-- Define weekend days
+- Set standard work start/end hours (instance-level)
+- Define weekend days (instance-level)
+- Set OT multiplier per equipment category (on category detail page)
 - Simple form with save
 
 **Layout Guidance:**
-- Small settings form; company-wide first, per-job override documented as follow-on
+- Instance Settings section: "Equipment Time Windows" with start hour, end hour, weekend day toggles
+- Equipment Category detail: `overtimeMultiplier` field inline on the Rates tab
 
 **Dependencies:** LEM-2
 
@@ -645,20 +693,22 @@ The `WorkOrderLaborItem` model as currently spec'd has `tradeLevelRateId` + `qty
 - Category grid also has "+ Add Threshold" / Edit inline
 
 **Layout Guidance:**
-- Flyout form; category page can inline expand "Add/Edit Threshold"
+- **Inline** form on both category and equipment detail pages
 - Fields: Maintenance Type, Threshold Type (Hours/Days toggle), Interval, Warning Window, Active
+- Category-level thresholds: default for all equipment in that category
+- Equipment-level thresholds: override category defaults for specific equipment
 
 **Dependencies:** UIS-15H for hour meter; Enables UIS-15G, UIS-15E (status badge)
 
-**Notes:** No log for a type → OVERDUE status; overall equipment status = worst across thresholds.
+**Notes:** No log for a type → OVERDUE status; overall equipment status = worst across thresholds. Both category and equipment threshold UIs needed (polymorphic model).
 
 ---
 
-### UIS-15E-01: Desktop Equipment Detail — Generate QR Code
+### UIS-15E-01: Equipment Detail — Generate QR Code
 | | |
 |---|---|
 | **Work Package** | UIS-15E · Equipment Search & Mobile QoL |
-| **Platform** | Desktop |
+| **Platform** | Both (Desktop + Mobile) |
 | **Type** | Modal |
 | **Location** | Equipment Detail page → "Generate QR Code" button |
 
@@ -696,7 +746,7 @@ The `WorkOrderLaborItem` model as currently spec'd has `tradeLevelRateId` + `qty
 
 **User Interactions:**
 - Create/edit schedule: date, assignee, linked form, notes
-- Complete flow: creates `MaintenanceLog`, may auto-schedule next instance
+- Complete flow: creates `MaintenanceLog`, **auto-schedules next instance with confirmation modal** (user confirms/adjusts the projected next date)
 - Optional downtime checkbox on complete
 - Reschedule / Cancel actions
 
@@ -744,18 +794,33 @@ The `WorkOrderLaborItem` model as currently spec'd has `tradeLevelRateId` + `qty
 | **Type** | Page |
 | **Location** | Equipment → Maintenance → Compliance Dashboard |
 
-**Purpose:** Show overdue vs on-time completion rate by equipment category for the current quarter.
+**Purpose:** Show maintenance compliance health across the equipment fleet with industry-standard KPIs.
 
 **Data & Entities:**
-- Aggregate: scheduled vs completed vs overdue maintenance by category
-- Time period: current quarter
+- `MaintenanceSchedule` (completed vs scheduled) → PM Compliance Rate
+- `MaintenanceThreshold` status calculations → Overdue Count
+- `DowntimeRecord` → Equipment Availability %
+- Scheduled vs ad-hoc `MaintenanceLog` → Planned vs Unplanned Ratio
+
+**KPIs (industry-standard, per CMMS best practices):**
+
+| KPI | Calculation | Target |
+|-----|------------|--------|
+| **PM Compliance Rate** | Completed PMs ÷ Scheduled PMs × 100 | 95%+ |
+| **Overdue Maintenance Count** | Count where threshold status = OVERDUE | 0 |
+| **Equipment Availability %** | (Total hrs − Downtime hrs) ÷ Total hrs × 100 | 95%+ |
+| **Planned vs Unplanned Ratio** | Scheduled ÷ Ad-hoc maintenance events | 80:20 |
+| **Compliance by Category** | PM Compliance grouped by `EquipmentCategory` | Breakdown |
+| **30-Day Lookahead** | `MaintenanceSchedule` items in warning window | Awareness |
 
 **User Interactions:**
-- View dashboard; filter by category or time period
+- View dashboard; filter by category or time period (configurable, not quarter-only)
 
 **Layout Guidance:**
-- Dashboard with stat cards, completion rate charts, category breakdown table
-- Color coding: green (on-time), red (overdue), amber (upcoming)
+- Top row: 4 stat cards (PM Compliance %, Overdue Count, Availability %, Planned:Unplanned)
+- Middle row: bar chart (compliance by category), progress ring (overall compliance)
+- Bottom: 30-day lookahead table and overdue items list
+- Color coding: green (on-target), red (overdue/below threshold), amber (warning window)
 
 **Dependencies:** UIS-15D, UIS-15G schedules
 
@@ -766,8 +831,8 @@ The `WorkOrderLaborItem` model as currently spec'd has `tradeLevelRateId` + `qty
 |---|---|
 | **Work Package** | UIS-15H · Equipment Timesheet Capture |
 | **Platform** | Desktop |
-| **Type** | Modal/Tooltip |
-| **Location** | Timesheet Approval Grid → "Equip. Hrs" column → Hover/Click |
+| **Type** | Modal |
+| **Location** | Timesheet Approval Grid → "Equip. Hrs" column → Click |
 
 **Purpose:** Approvers see weekly equipment totals and per-equipment/per-day drilldown.
 
@@ -776,13 +841,12 @@ The `WorkOrderLaborItem` model as currently spec'd has `tradeLevelRateId` + `qty
 - `timeSheetListFeedSummaryDetails` extension for tooltip data
 
 **User Interactions:**
-- Hover/click on Equip. Hrs column value → shows weekly equipment rollup
+- Click on Equip. Hrs column value → **modal** with weekly equipment rollup
 - Table: Equipment | Mon–Sun | Total, grouped by rate type
 
 **Layout Guidance:**
-- Component: `EquipmentHoursTooltip.tsx`
-- Wide enough for 7 day columns + equipment names
-- Spec describes as tooltip; could be modal if product prefers
+- Component: `EquipmentHoursModal.tsx`
+- Modal provides enough space for 7 day columns + equipment names + rate type grouping
 
 **Dependencies:** LEM-2; Permission: `timeSheetRecord___logEquipmentTime` for entry, `timeSheetRecord___approveTimesheet` for approval
 
@@ -839,7 +903,7 @@ The `WorkOrderLaborItem` model as currently spec'd has `tradeLevelRateId` + `qty
 **Layout Guidance:**
 - Tab on PO detail alongside Overview, Invoices, Estimates, Files
 - Table: Description | Qty | Unit Price | Total | Account | Cost Code
-- Inline editing or flyout per row
+- **Inline editing** (not flyout)
 
 **Dependencies:** MAT-1 migration + GraphQL; Enables MAT-5 (shared PO model)
 
@@ -973,7 +1037,7 @@ The `WorkOrderLaborItem` model as currently spec'd has `tradeLevelRateId` + `qty
 - Submit → `transferBetweenLocations` mutation
 
 **Layout Guidance:**
-- Flyout or modal from Location detail
+- **Modal** from Location detail
 - Fields: From Location (pre-filled), To Location (dropdown), Material (search), Quantity, Notes
 - Component: `TransferForm.tsx`
 
@@ -1003,7 +1067,7 @@ The `WorkOrderLaborItem` model as currently spec'd has `tradeLevelRateId` + `qty
 - Submit → `adjustInventory` mutation
 
 **Layout Guidance:**
-- Flyout or modal from Location detail
+- **Modal** from Location detail
 - Fields: Material (search), Current Qty (display), Adjustment (+/-), New Qty (calculated preview), Notes
 - Component: `AdjustmentForm.tsx`
 
@@ -1198,21 +1262,20 @@ The `WorkOrderLaborItem` model as currently spec'd has `tradeLevelRateId` + `qty
 **Purpose:** Before publishing a new form version, show what changed between current active and version being published.
 
 **Data & Entities:**
-- Compared `SafetyForm` versions
-- Summary: "+2 questions, -1 question, 2 modified"
-- Optional warning if failed submissions exist on superseded version
+- Compared `SafetyForm` versions (current active vs. version being published)
+- Diff: visual diff of questions added/removed/modified
+- Summary counts: "+2 questions, -1 question, 2 modified"
+- Warning if failed submissions exist on superseded version
 
 **User Interactions:**
-- Review change summary → Confirm Publish
+- Review **diff view** with summary of changes → Confirm Publish
 - Uses `setActiveFormMutation` (unchanged)
 
 **Layout Guidance:**
-- Modal: change summary (added/removed/modified counts), warning if needed, Confirm/Cancel
+- Modal: diff view showing added (green), removed (red), modified (amber) questions + summary counts at top, warning if needed, Confirm/Cancel
 - Component: `PublishVersionModal.tsx`
 
 **Dependencies:** Q21030-3452; versioning/timeline features in same UIS
-
-**Notes:** For v1, change summary logic may be minimal.
 
 ---
 
@@ -1260,7 +1323,7 @@ The `WorkOrderLaborItem` model as currently spec'd has `tradeLevelRateId` + `qty
 **Data & Entities:**
 - JWT payload: `type: "blank_form"` + `formWrapperId` (vs existing `feedbackId` path)
 - `PUBLIC_LINK_SECRET`; creates `Feedback` with `submittedByUserId = null` for guest
-- Optional expiry/password
+- Expiry and password — **in scope**, follow existing form sharing pattern
 
 **User Interactions:**
 - Guest opens public URL → verify JWT → fill form → submit
@@ -1329,27 +1392,9 @@ The `WorkOrderLaborItem` model as currently spec'd has `tradeLevelRateId` + `qty
 
 ---
 
-### UIS-12-03: Leave Calendar
-| | |
-|---|---|
-| **Work Package** | UIS-12 · Leave & Timesheet Workflow |
-| **Platform** | Desktop |
-| **Type** | Page |
-| **Location** | /workforce/leave → Calendar view |
+### ~~UIS-12-03: Leave Calendar~~ — REMOVED (Already Exists)
 
-**Purpose:** Team leave visibility for scheduling and capacity planning.
-
-**Data & Entities:**
-- Query: `getLeaveCalendar(startDate, endDate)`
-
-**User Interactions:**
-- View team leave on calendar
-- Navigate months
-- Click date/entry → leave detail
-
-**Layout Guidance:**
-- Visual calendar; color-coded by leave type
-- Spec does not provide pixel-level detail beyond "calendar view"
+> Built at `/leave-submissions` with FullCalendar (drag/drop, date-range select, create-on-click). No design needed.
 
 ---
 
@@ -1447,7 +1492,7 @@ The `WorkOrderLaborItem` model as currently spec'd has `tradeLevelRateId` + `qty
 
 **Data & Entities:**
 - Full `DailyLog` model with all fields
-- Aggregation sources: timesheets, weather API, job gallery photos, forms, equipment
+- Aggregation sources: timesheets, OpenWeather One Call API 3.0, job gallery photos, forms, equipment
 
 **User Interactions:**
 - Edit fields
@@ -1475,7 +1520,7 @@ The `WorkOrderLaborItem` model as currently spec'd has `tradeLevelRateId` + `qty
 
 **User Interactions:**
 - Select job, date
-- Trigger auto-aggregation (pull from timesheets, weather, photos, forms, equipment)
+- Trigger auto-aggregation (pull from timesheets, OpenWeather One Call API 3.0, photos, forms, equipment)
 - Edit/supplement aggregated data
 - Save as Draft
 
@@ -1484,7 +1529,7 @@ The `WorkOrderLaborItem` model as currently spec'd has `tradeLevelRateId` + `qty
 - Same section layout as detail page
 - Auto-populated fields clearly marked
 
-**Dependencies:** Timesheets, weather API, job gallery, forms, equipment data sources
+**Dependencies:** Timesheets, OpenWeather One Call API 3.0 (lat/lon from job address), job gallery, forms, equipment data sources
 
 ---
 
@@ -1560,11 +1605,11 @@ The `WorkOrderLaborItem` model as currently spec'd has `tradeLevelRateId` + `qty
 - Does NOT copy: invoice number, dates (today), approval status
 
 **User Interactions:**
-- Click "Duplicate" in action bar → creates new draft → navigates to new invoice
+- Click "Duplicate" in action bar → **confirmation dialog** → creates new draft → navigates to new invoice
 
 **Layout Guidance:**
 - New button in existing action bar (alongside Edit, Delete, etc.)
-- Confirmation may not be needed (creates draft, user can discard)
+- Confirmation modal: "Duplicate this invoice? A new draft will be created with the same line items."
 
 **Dependencies:** UIS-25a — PO FK on `JobBill` must be cloned
 
@@ -1595,55 +1640,15 @@ The `WorkOrderLaborItem` model as currently spec'd has `tradeLevelRateId` + `qty
 
 ---
 
-### UIS-QW-03: Job Detail — Conditional Fields
-| | |
-|---|---|
-| **Work Package** | UIS-QW · Quick Wins Batch |
-| **Platform** | Desktop |
-| **Type** | Page (conditional rendering) |
-| **Location** | Job Detail page |
+### ~~UIS-QW-03: Job Detail — Conditional Fields~~ — REMOVED (No Design Needed)
 
-**Purpose:** Render job fields only if `jobFieldVisibility` is true; hidden fields remain in DB.
-
-**Data & Entities:**
-- Reads `jobFieldVisibility` config
-- Applies to job detail rendering
-
-**User Interactions:**
-- No user interaction — fields simply appear/disappear based on config
-
-**Layout Guidance:**
-- Conditional rendering of existing field sections on Job detail
-- No visual indicator that fields are hidden (admin sees all in settings)
-
-**Dependencies:** UIS-QW-02 (Job Configuration settings)
+> Conditional rendering of existing fields based on config. No new UI to design.
 
 ---
 
-### UIS-QW-04: Job Employees Timesheet Report — Base Rate Column
-| | |
-|---|---|
-| **Work Package** | UIS-QW · Quick Wins Batch |
-| **Platform** | Desktop |
-| **Type** | Page (column addition) |
-| **Location** | Job Employees Timesheet Report |
+### ~~UIS-QW-04: Job Employees Timesheet Report — Base Rate Column~~ — REMOVED (No Design Needed)
 
-**Purpose:** Add "Base Rate" column from employee rate configuration to the timesheet report.
-
-**Data & Entities:**
-- Employee rate from rate configuration
-- May need query extension if rate not already in dataset
-
-**User Interactions:**
-- View new column (default visible)
-- Sort by base rate
-- CSV export includes new column
-
-**Layout Guidance:**
-- New column in existing report table
-- Position: after employee name, before hours columns
-
-**Notes:** No API change needed if rate already in dataset; otherwise extend query.
+> `baseValue` already exists in `timesheetReport` query response (`hours[].baseValue`). Only requires adding a column to the existing report table — implementation task, not a design task.
 
 ---
 
@@ -1656,18 +1661,24 @@ The `WorkOrderLaborItem` model as currently spec'd has `tradeLevelRateId` + `qty
 | 1.33 | Equipment | 13 | Blocks equipment billing, maintenance, and timesheet features |
 | 1.34 | MAT | 9 | Blocks customer PO, inventory, and vendor credit features |
 | Unscheduled | Forms | 7 | Required before Forms track work begins |
-| Unscheduled | Other | 14 | Required before Leave, Daily Logs, and Quick Wins |
-| **Total** | | **57** | |
+| Unscheduled | Other | 11 | Required before Leave, Daily Logs, and Quick Wins |
+| **Total** | | **54** | |
+
+### Removed Screens (3)
+
+- **UIS-12-03** (Leave Calendar) — already exists at `/leave-submissions`
+- **UIS-QW-03** (Conditional Fields) — no design needed, just conditional rendering
+- **UIS-QW-04** (Base Rate Column) — data already in query, just add column
 
 ### Immediate Priorities (Release 1.33 — 27 screens)
 
 The 27 screens in Release 1.33 are the most urgent as they directly block implementation work. Within 1.33:
 
 1. **LEM-2 and LEM-3** (2 screens) — Foundation; blocks everything downstream
-2. **WO-2 line item editors** (3 screens) — Data model visualization needed before WO-3 form work
+2. **WO-2 line item editors** (3 screens) — Data model visualization needed before WO-3 form work. **Note:** WO-2-01 requires User-First redesign with worker picker
 3. **WO-3a, WO-3d** (2 screens) — Form foundation and settings
 4. **WO-4** (3 screens) — Detail page tabs and PDF
 5. **WO-5 Kanban** (1 screen) — List page view
-6. **WO-7** (2 screens) — Conversion flows
+6. **WO-7** (2 screens) — Conversion flows (equipment → flat CO rows per industry standard)
 7. **WO-8** (1 screen) — Mobile PDF preview
 8. **Equipment UIS-15A through 15H** (13 screens) — Billing, maintenance, and timesheet gaps

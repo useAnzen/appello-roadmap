@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UIS-15D · Equipment Maintenance Triggers</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Inter', -apple-system, sans-serif; background: #f1f5f9; color: #1e293b; }
+.uis-wrap { max-width: 960px; margin: 0 auto; padding: 40px 24px 80px; }
+.uis-h1 { font-size: 30px; font-weight: 800; color: #1e293b; margin: 0 0 8px; letter-spacing: -0.01em; }
+.uis-sub { font-size: 15px; color: #64748b; line-height: 1.5; margin: 0 0 32px; }
+.uis-section { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px 28px; margin-bottom: 16px; }
+.uis-section h2 { font-size: 17px; font-weight: 700; color: #1e293b; margin: 0 0 14px; padding-bottom: 10px; border-bottom: 2px solid #e2e8f0; }
+.mockup-container { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; margin: 14px 0; }
+.mockup-bar { background: #f1f5f9; border-bottom: 1px solid #e2e8f0; padding: 10px 16px; font-size: 12px; color: #64748b; display: flex; align-items: center; gap: 10px; }
+.mockup-dots { display: flex; gap: 6px; margin-right: 8px; }
+.mockup-dot { width: 10px; height: 10px; border-radius: 50%; }
+.mockup-dot-r { background: #f87171; }
+.mockup-dot-y { background: #fbbf24; }
+.mockup-dot-g { background: #34d399; }
+.mockup-body { padding: 20px; }
+
+/* Shared */
+.m-btn { padding: 7px 16px; border-radius: 6px; font-size: 12px; font-weight: 600; border: 1px solid #e2e8f0; background: #fff; color: #1e293b; cursor: pointer; display: inline-flex; align-items: center; gap: 5px; }
+.m-btn-primary { background: #3b82f6; color: #fff; border-color: #3b82f6; }
+.m-btn-outline { border-color: #cbd5e1; }
+.m-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.m-table th { text-align: left; padding: 8px 12px; background: #f8fafc; border-bottom: 2px solid #e2e8f0; font-weight: 600; color: #64748b; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
+.m-table td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; color: #334155; }
+.m-table tr:last-child td { border-bottom: none; }
+
+/* Flyout */
+.flyout-layout { display: flex; gap: 0; min-height: 440px; }
+.flyout-backdrop { flex: 1; background: rgba(15, 23, 42, 0.15); border-radius: 8px 0 0 8px; }
+.flyout-panel { width: 400px; background: #fff; border-left: 1px solid #e2e8f0; border-radius: 0 8px 8px 0; display: flex; flex-direction: column; }
+.flyout-header { display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; border-bottom: 1px solid #e2e8f0; }
+.flyout-header h3 { font-size: 15px; font-weight: 700; color: #1e293b; }
+.flyout-close { width: 28px; height: 28px; border-radius: 6px; border: none; background: #f1f5f9; color: #64748b; font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.flyout-body { flex: 1; padding: 20px; overflow-y: auto; }
+.flyout-footer { padding: 14px 20px; border-top: 1px solid #e2e8f0; display: flex; gap: 8px; justify-content: flex-end; }
+
+/* Form fields */
+.form-group { margin-bottom: 14px; }
+.form-label { font-size: 11px; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.3px; margin-bottom: 4px; display: block; }
+.form-input { width: 100%; padding: 8px 12px; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 13px; font-family: 'Inter', sans-serif; color: #1e293b; background: #fff; }
+textarea.form-input { resize: vertical; min-height: 70px; }
+.attach-link { font-size: 12px; color: #3b82f6; text-decoration: none; font-weight: 500; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; margin-top: 4px; }
+
+/* Section header */
+.section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+.section-header h4 { font-size: 14px; font-weight: 700; color: #1e293b; }
+
+/* Inline form */
+.inline-form { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin-top: 12px; }
+.form-row { display: flex; gap: 12px; margin-bottom: 10px; align-items: flex-end; flex-wrap: wrap; }
+.form-group-sm { display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 120px; }
+.form-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 4px; }
+
+/* Toggle */
+.toggle-group { display: flex; border: 1px solid #e2e8f0; border-radius: 6px; overflow: hidden; }
+.toggle-opt { padding: 6px 14px; font-size: 12px; font-weight: 600; background: #fff; color: #64748b; border-right: 1px solid #e2e8f0; cursor: pointer; }
+.toggle-opt:last-child { border-right: none; }
+.toggle-opt.active { background: #3b82f6; color: #fff; }
+
+/* Active toggle switch */
+.switch-track { width: 36px; height: 20px; border-radius: 10px; background: #10b981; position: relative; cursor: pointer; display: inline-block; }
+.switch-thumb { width: 16px; height: 16px; border-radius: 50%; background: #fff; position: absolute; top: 2px; right: 2px; box-shadow: 0 1px 3px rgba(0,0,0,0.15); }
+
+/* Status */
+.status-active { color: #10b981; font-weight: 600; font-size: 13px; }
+.edit-link { font-size: 12px; color: #3b82f6; text-decoration: none; font-weight: 500; cursor: pointer; }
+    </style>
+</head>
+<body>
+<div class="uis-wrap">
+    <h1 class="uis-h1">UIS-15D · Equipment Maintenance Triggers</h1>
+    <p class="uis-sub">Maintenance service logging and configurable threshold triggers based on hours or calendar intervals, with proactive warning notifications.</p>
+
+    <!-- Mockup 1 -->
+    <div class="uis-section">
+        <h2>Mockup 1 — Maintenance Log Entry Flyout</h2>
+        <div class="mockup-container" id="mockup-1">
+            <div class="mockup-bar">
+                <div class="mockup-dots"><div class="mockup-dot mockup-dot-r"></div><div class="mockup-dot mockup-dot-y"></div><div class="mockup-dot mockup-dot-g"></div></div>
+                Log Maintenance Service
+            </div>
+            <div class="mockup-body" style="padding:0">
+                <div class="flyout-layout">
+                    <div class="flyout-backdrop"></div>
+                    <div class="flyout-panel">
+                        <div class="flyout-header">
+                            <h3>Log Maintenance Service</h3>
+                            <button class="flyout-close">✕</button>
+                        </div>
+                        <div class="flyout-body">
+                            <div class="form-group">
+                                <label class="form-label">Maintenance Type</label>
+                                <select class="form-input">
+                                    <option>Oil Change</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Date</label>
+                                <input class="form-input" type="text" value="Mar 28, 2026" readonly>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Technician Name</label>
+                                <input class="form-input" type="text" placeholder="Enter technician name">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Cost</label>
+                                <input class="form-input" type="text" value="$450.00" readonly>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Hours at Service</label>
+                                <input class="form-input" type="text" value="1,250 hrs" readonly>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Notes</label>
+                                <textarea class="form-input" placeholder="Add service notes..."></textarea>
+                            </div>
+                            <a class="attach-link">📎 Attach Files</a>
+                        </div>
+                        <div class="flyout-footer">
+                            <button class="m-btn m-btn-outline">Cancel</button>
+                            <button class="m-btn m-btn-primary">Save Log</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mockup 2 -->
+    <div class="uis-section">
+        <h2>Mockup 2 — Maintenance Threshold Create / Edit</h2>
+        <div class="mockup-container" id="mockup-2">
+            <div class="mockup-bar">
+                <div class="mockup-dots"><div class="mockup-dot mockup-dot-r"></div><div class="mockup-dot mockup-dot-y"></div><div class="mockup-dot mockup-dot-g"></div></div>
+                Equipment Category — Maintenance Thresholds
+            </div>
+            <div class="mockup-body">
+                <div class="section-header">
+                    <h4>Maintenance Thresholds</h4>
+                    <button class="m-btn m-btn-primary">+ Add Threshold</button>
+                </div>
+
+                <table class="m-table">
+                    <thead>
+                        <tr>
+                            <th>Type</th>
+                            <th>Trigger</th>
+                            <th>Interval</th>
+                            <th>Warning</th>
+                            <th>Status</th>
+                            <th style="width:50px"></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td style="font-weight:600">Oil Change</td>
+                            <td>Hours</td>
+                            <td>Every 250 hrs</td>
+                            <td>25 hrs before</td>
+                            <td><span class="status-active">✅ Active</span></td>
+                            <td><a class="edit-link">Edit</a></td>
+                        </tr>
+                        <tr>
+                            <td style="font-weight:600">Filter Replace</td>
+                            <td>Calendar</td>
+                            <td>Every 90 days</td>
+                            <td>14 days before</td>
+                            <td><span class="status-active">✅ Active</span></td>
+                            <td><a class="edit-link">Edit</a></td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <div class="inline-form">
+                    <div style="font-size:13px; font-weight:700; color:#1e293b; margin-bottom:12px">New Threshold</div>
+                    <div class="form-row">
+                        <div class="form-group-sm">
+                            <label class="form-label">Maintenance Type</label>
+                            <select class="form-input">
+                                <option>Select type...</option>
+                            </select>
+                        </div>
+                        <div class="form-group-sm">
+                            <label class="form-label">Threshold Type</label>
+                            <div class="toggle-group">
+                                <div class="toggle-opt active">Hours</div>
+                                <div class="toggle-opt">Calendar</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group-sm">
+                            <label class="form-label">Interval</label>
+                            <input class="form-input" type="text" placeholder="e.g. 250 hrs">
+                        </div>
+                        <div class="form-group-sm">
+                            <label class="form-label">Warning Window</label>
+                            <input class="form-input" type="text" placeholder="e.g. 25 hrs before">
+                        </div>
+                        <div class="form-group-sm">
+                            <label class="form-label">Active</label>
+                            <div style="padding-top:4px">
+                                <div class="switch-track">
+                                    <div class="switch-thumb"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="form-actions">
+                        <button class="m-btn m-btn-outline">Cancel</button>
+                        <button class="m-btn m-btn-primary">Save</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+</body>
+</html>

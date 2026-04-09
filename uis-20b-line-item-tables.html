@@ -109,7 +109,6 @@ pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
     <a href="release-1.33-timeline.html">Release 1.33</a>
     <a href="release-1.34-timeline.html">Release 1.34</a>
     <a href="master-spec-reconciliation.html">Spec Reconciliation</a>
-    <a href="ui-interface-library.html">UI Library</a>
     <a href="cross-release-continuity-audit.html">Continuity Audit</a>
 </nav>
 <div class="uis-wrap">
@@ -123,11 +122,11 @@ pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
             <span class="uis-badge badge-child">Child of UIS-20</span>
         </div>
         <h1 class="uis-h1">Work Order Line Item Tables</h1>
-        <p class="uis-sub">Material line items with rate resolution at invoice generation, plus unstructured blank lines for labour and equipment (ClearStory-style flexible entry) &mdash; the core data backbone of every T&amp;M work order. Structured labour is handled by the existing <strong>JobSchedule + TimeSheetRecord / TimeSheetDetailRecord</strong> infrastructure. Structured equipment is handled by the existing <strong>EquipmentTimeSheetRecordValue</strong> infrastructure (EQ-0). The WO captures what was done (hours, quantities); pricing is applied downstream.</p>
+        <p class="uis-sub">Structured labor, material, and equipment line items with rate resolution at invoice generation &mdash; the core data backbone of every T&amp;M work order. The WO captures what was done (hours, quantities); pricing is applied downstream.</p>
         <div class="uis-meta">
             <span><strong>Parent:</strong> UIS-20 T&amp;M Work Orders</span>
             <span><strong>Slice:</strong> WO-2</span>
-            <span><strong>Est:</strong> 4–6 days</span>
+            <span><strong>Est:</strong> 5–8 days</span>
         </div>
     </div>
 
@@ -152,7 +151,7 @@ pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
             <span class="toggle-icon">&#9660;</span>
         </h2>
         <div class="collapsible-body open">
-            <p>Structured line items are what separates a first-class work order system from a form-based workaround. Without discrete labor, material, and equipment rows, there is no way to generate accurate invoices or feed into job P&amp;L. The WO is a field document &mdash; it captures what was done (hours, equipment, quantities). Structured labour leverages the existing <strong>JobSchedule + TimeSheetRecord</strong> infrastructure so hours roll up into timesheets, the schedule, and payroll automatically. Structured equipment leverages the existing <strong>EquipmentTimeSheetRecordValue</strong> infrastructure (EQ-0) linked to TimeSheetDetailRecords. Unstructured (blank) labour lines use <code>WorkOrderLaborItem</code> and unstructured equipment lines use <code>WorkOrderEquipmentItem</code> for ClearStory-style flexible entry. Material has its own line item model with both structured and blank entries. Rates are resolved from the existing rate infrastructure (TradeLevelRate.billableValue via LEM-1 for timesheet-based labour, EquipmentRateValue for equipment via LEM-2) at invoice generation time (WO-7), not on the WO form itself.</p>
+            <p>Structured line items are what separates a first-class work order system from a form-based workaround. Without discrete labor, material, and equipment rows, there is no way to generate accurate invoices or feed into job P&amp;L. The WO is a field document &mdash; it captures what was done (trade levels, hours, equipment, quantities). Rates are resolved from the existing rate infrastructure (TradeLevelRate for labor via LEM-1, EquipmentRateValue for equipment via LEM-2) at invoice generation time (WO-7), not on the WO form itself.</p>
 
             <h3>Customer Evidence</h3>
             <div class="customer-quote">
@@ -167,8 +166,8 @@ pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
             <div class="value-cards">
                 <div class="value-card">
                     <div class="v-icon">⚡</div>
-                    <div class="v-title">Leverages Existing Infrastructure</div>
-                    <div class="v-detail">Structured labour uses JobSchedule + TimeSheetRecord — hours roll up into timesheets, schedule, and payroll with no duplication.</div>
+                    <div class="v-title">Auto-Pricing</div>
+                    <div class="v-detail">Rates pulled from TradeLevel, Material, and Equipment tables — no manual entry of dollar amounts by field workers.</div>
                 </div>
                 <div class="value-card">
                     <div class="v-icon">📊</div>
@@ -178,12 +177,12 @@ pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
                 <div class="value-card">
                     <div class="v-icon">🔗</div>
                     <div class="v-title">Rate Table Integration</div>
-                    <div class="v-detail">Leverages existing TradeLevel, Material, and Equipment rate models — no new rate management UI needed.</div>
+                    <div class="v-detail">Leverages existing TradeLevel and Material models — no new rate management UI needed.</div>
                 </div>
                 <div class="value-card">
                     <div class="v-icon">📱</div>
-                    <div class="v-title">Flexible Entry</div>
-                    <div class="v-detail">Unstructured blank lines for ad-hoc labour (ClearStory pattern) alongside structured timesheet-backed entries.</div>
+                    <div class="v-title">Mobile-Ready Data</div>
+                    <div class="v-detail">Repeating-row structure works identically on desktop and mobile (WO-8).</div>
                 </div>
             </div>
         </div>
@@ -196,21 +195,14 @@ pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
             <span class="toggle-icon">&#9660;</span>
         </h2>
         <div class="collapsible-body open">
-            <h3>Already Built</h3>
-            <ul>
-                <li><span class="scope-tag scope-done">BUILT</span> <strong>JobSchedule</strong> — assigns workers to jobs on specific dates. Existing desktop UI for scheduling and permissions for unscheduled job time logging.</li>
-                <li><span class="scope-tag scope-done">BUILT</span> <strong>TimeSheetRecord / TimeSheetDetailRecord</strong> — structured time entries with rate labels, trade levels, approval workflows, and payroll rollup.</li>
-                <li><span class="scope-tag scope-done">BUILT</span> <strong>Unscheduled job workflow</strong> — allows users with appropriate permissions to log time to jobs they aren't scheduled to.</li>
-                <li><span class="scope-tag scope-done">BUILT</span> <strong>EquipmentTimeSheetRecordValue (EQ-0)</strong> — structured equipment time entries linked to TimeSheetDetailRecords, with equipment rate labels, billing rules (per, operatorIncluded, isFullDayBilling), and rate resolution via LEM-2.</li>
-            </ul>
-
             <h3>In Scope</h3>
             <ul>
-                <li><span class="scope-tag scope-in">IN</span> 3 Prisma models: <code>WorkOrderLaborItem</code> (unstructured/blank lines only), <code>WorkOrderMaterialItem</code>, <code>WorkOrderEquipmentItem</code> (unstructured/blank lines only — structured equipment comes from EQ-0 EquipmentTimeSheetRecordValue)</li>
-                <li><span class="scope-tag scope-in">IN</span> Structured labour sourced from existing TimeSheetRecord / TimeSheetDetailRecord for the WO job — no new labour models for this path</li>
-                <li><span class="scope-tag scope-in">IN</span> Structured equipment sourced from existing EquipmentTimeSheetRecordValue linked to TimeSheetDetailRecords for the WO job (from EQ-0) — no new equipment models for this path</li>
-                <li><span class="scope-tag scope-in">IN</span> Upsert mutation for batch save of material, blank equipment, and blank labour line items</li>
-                <li><span class="scope-tag scope-in">IN</span> Recalculate totals mutation that queries both TimeSheetDetailRecords (structured labour) and WorkOrderLaborItems (blank lines) for the combined labour subtotal, and both EquipmentTimeSheetRecordValues (structured equipment) and WorkOrderEquipmentItems (blank lines) for the combined equipment subtotal</li>
+                <li><span class="scope-tag scope-in">IN</span> 3 new Prisma models: <code>WorkOrderLaborItem</code>, <code>WorkOrderMaterialItem</code>, <code>WorkOrderEquipmentItem</code></li>
+                <li><span class="scope-tag scope-in">IN</span> Auto-pricing service that pulls rates from TradeLevel, Material, and Equipment tables</li>
+                <li><span class="scope-tag scope-in">IN</span> Repeating-row editor components for each line item type</li>
+                <li><span class="scope-tag scope-in">IN</span> Row-level total calculation (hours × rate for each pay type)</li>
+                <li><span class="scope-tag scope-in">IN</span> Upsert mutation for batch save of all line items</li>
+                <li><span class="scope-tag scope-in">IN</span> Recalculate totals mutation to update Job subtotals and grandTotal</li>
             </ul>
 
             <h3>Out of Scope</h3>
@@ -218,7 +210,6 @@ pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
                 <li><span class="scope-tag scope-out">OUT</span> Drag-and-drop reordering (Phase 1 uses manual <code>orderNo</code>)</li>
                 <li><span class="scope-tag scope-out">OUT</span> Bulk import from external price sheets</li>
                 <li><span class="scope-tag scope-out">OUT</span> Custom column visibility per user</li>
-                <li><span class="scope-tag scope-out">OUT</span> New scheduling or time-logging UI — WO-3b embeds the existing log-time interface within the WO form</li>
             </ul>
         </div>
     </div>
@@ -233,13 +224,11 @@ pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
             <p>All UI mockups for line item editors (labor, material, equipment) are in <strong>WO-3 (Create/Edit Form)</strong> since that spec owns the form interface. WO-2 defines the data models and API surface only.</p>
             <p style="margin-top:8px;">Key UI patterns defined in WO-3:</p>
             <ul>
-                <li><strong>Structured Labour:</strong> Embedded log-time interface within the WO form — creates TimeSheetRecord / TimeSheetDetailRecord entries for the WO job. Uses existing scheduling and unscheduled-job workflows based on user permissions.</li>
-                <li><strong>Blank Labour:</strong> Free-text description + manual rate + hours + qty of workers. Stored as WorkOrderLaborItem records (ClearStory-style flexible entry).</li>
+                <li><strong>Labor:</strong> Structured lines (EmployeeAgreement + Trade Level + rate label columns) and blank lines (free-text description + manual rate). "+ Add Labor" dropdown with both options.</li>
                 <li><strong>Material:</strong> Structured lines (Material catalog lookup) and blank lines (free-text description + manual qty/cost). Same dropdown pattern.</li>
-                <li><strong>Structured Equipment:</strong> Equipment time entries via EquipmentTimeSheetRecordValue (from EQ-0) linked to TimeSheetDetailRecords for the WO job — catalog equipment with rate labels, billing rules, and LEM-2 rate resolution.</li>
-                <li><strong>Blank Equipment:</strong> Free-text description + manual qty + unit rate. Stored as WorkOrderEquipmentItem records (same pattern as blank labour).</li>
+                <li><strong>Equipment:</strong> Structured lines (Equipment + rate label + per) and blank lines (free-text description + manual qty/rate). Same dropdown pattern.</li>
             </ul>
-            <p style="margin-top:8px; font-size:13px; color:#64748b;">Structured labour hours roll up into timesheets, scheduling, and payroll automatically. Blank labour lines and all material/equipment lines are WO-specific. No rates or dollar totals shown on the WO form — pricing applied at invoice generation (WO-7).</p>
+            <p style="margin-top:8px; font-size:13px; color:#64748b;">All three item types support both structured (auto-populated from rate tables) and blank (fully manual) line entries. No rates or dollar totals shown on the WO form for structured lines — pricing applied at invoice generation (WO-7).</p>
         </div>
     </div>
 
@@ -250,44 +239,10 @@ pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
             <span class="toggle-icon">&#9660;</span>
         </h2>
         <div class="collapsible-body open">
-            <h3>Labour Architecture</h3>
+            <h3>WorkOrderLaborItem (Revised)</h3>
             <div style="background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px; padding:12px 16px; margin-bottom:8px; font-size:13px; color:#1e40af;">
-                <strong>Architecture decision:</strong> Work Order labour is split across two sources. <strong>Structured labour</strong> (trade-level, rate-label time entries) uses the existing <code>JobSchedule</code> + <code>TimeSheetRecord</code> / <code>TimeSheetDetailRecord</code> infrastructure — no new models needed. Hours roll up into timesheets, scheduling, and payroll automatically. <strong>Unstructured labour</strong> (blank lines) uses <code>WorkOrderLaborItem</code> for ClearStory-style flexible entry. The <code>recalculateWorkOrderTotals</code> mutation queries both sources.
+                <strong>Changes from original spec:</strong> Removed <code>instanceId</code>, <code>straightTimeHours</code>, <code>overtimeHours</code>, <code>doubleTimeHours</code>, <code>rate</code>, <code>overtimeRate</code>, <code>doubleTimeRate</code>, <code>total</code>. Replaced <code>tradeLevelId</code> with <code>tradeLevelRateId</code>. Added <code>qtyOfWorkers</code> and <code>submittedDuration</code> (seconds). One record per (orderNo + tradeLevelRateId) combination. Rate label columns with hours > 0 each become a separate record grouped by <code>orderNo</code> in the UI.
             </div>
-
-            <h4>Two labour sources</h4>
-            <table class="schema-table">
-                <thead><tr><th></th><th>Structured (TimeSheetRecord)</th><th>Unstructured (WorkOrderLaborItem)</th></tr></thead>
-                <tbody>
-                    <tr><td><strong>Data source</strong></td><td>TimeSheetRecord / TimeSheetDetailRecord linked to the WO Job</td><td>WorkOrderLaborItem records on the WO Job</td></tr>
-                    <tr><td><strong>Rate source</strong></td><td>Derived from <code>TradeLevelRate.billableValue</code> via existing timesheet infrastructure</td><td><code>rate</code> field on the line item (manually entered)</td></tr>
-                    <tr><td><strong>Rate labels</strong></td><td>From EmployeeAgreement — existing rate label column pattern</td><td>Single hours + rate input (no rate label breakdown)</td></tr>
-                    <tr><td><strong>Scheduling</strong></td><td>Via JobSchedule or unscheduled-job workflow (based on permissions)</td><td>Not applicable</td></tr>
-                    <tr><td><strong>Payroll rollup</strong></td><td>Yes — hours appear in timesheets and payroll</td><td>No — WO-only, not in timesheets</td></tr>
-                    <tr><td><strong>Use case</strong></td><td>Standard labor with formal trade levels and rate schedules</td><td>Ad-hoc labor, subcontracted help, or when trade levels don't apply</td></tr>
-                </tbody>
-            </table>
-
-            <h3>TimeSheetDetailRecord — Optional Trade Level Override</h3>
-            <div style="background:#fef3c7; border:2px solid #f59e0b; border-radius:8px; padding:14px 18px; margin-bottom:12px; font-size:13px; color:#92400e;">
-                <strong>⚠️ CALLOUT FOR CHRIS — PLEASE REVIEW ⚠️</strong><br>
-                Chris has been doing work around different wage rates per job/user. This change adds an <strong>optional</strong> <code>tradeLevelId</code> to <code>TimeSheetDetailRecord</code> to allow per-detail-record trade level selection when logging time from a Work Order. <strong>The existing derivation flow (UserTradeLevel → TimeSheetRecord.tradeLevelId) is NOT changed — this is additive only.</strong> Chris should review to ensure alignment with his recent work on per-job/user wage rates. See <strong>WO-3b LaborItemEditor mockup</strong> (Section 3) for how this is used in the UI.
-            </div>
-            <p>Currently, trade level is derived from <code>UserTradeLevel</code> for the date and stored on <code>TimeSheetRecord.tradeLevelId</code>. In the WO context, a foreman may log time for multiple crew members, and some users work at different trade levels depending on the task. This optional override allows per-detail trade level selection without breaking existing behaviour.</p>
-<pre>// On existing TimeSheetDetailRecord model, ADD:
-tradeLevelId      String?         @db.VarChar(21)
-TradeLevel        TradeLevel?     @relation(fields: [tradeLevelId], references: [id])</pre>
-            <table class="schema-table">
-                <thead><tr><th></th><th>When <code>tradeLevelId</code> IS NULL</th><th>When <code>tradeLevelId</code> IS SET</th></tr></thead>
-                <tbody>
-                    <tr><td><strong>Applies to</strong></td><td>All existing records + standard timesheet flow</td><td>WO time entries where user selects trade level per entry</td></tr>
-                    <tr><td><strong>Trade level source</strong></td><td>Derived from parent <code>TimeSheetRecord.tradeLevelId</code> (via UserTradeLevel)</td><td>Explicitly set on this detail record</td></tr>
-                    <tr><td><strong>Rate resolution</strong></td><td>Unchanged — existing TradeLevelRate lookup</td><td>Uses the specified tradeLevelId to find TradeLevelRate options</td></tr>
-                    <tr><td><strong>Existing behaviour</strong></td><td colspan="2">Completely preserved. Null is the default. No migration of existing data.</td></tr>
-                </tbody>
-            </table>
-
-            <h3>WorkOrderLaborItem (Unstructured / Blank Lines Only)</h3>
             <pre>model WorkOrderLaborItem {
   id                    String          @id @db.VarChar(21)
   isDeleted             Boolean         @default(false)
@@ -298,7 +253,13 @@ TradeLevel        TradeLevel?     @relation(fields: [tradeLevelId], references: 
   jobId                 String          @db.VarChar(21)
   Job                   Job             @relation(fields: [jobId], references: [id])
 
-  rate                  Decimal?        @db.Decimal(10, 2)
+  // Structured line: tradeLevelRateId set, rate derived from TradeLevelRate
+  tradeLevelRateId      String?         @db.VarChar(21)
+  TradeLevelRate        TradeLevelRate? @relation(fields: [tradeLevelRateId], references: [id])
+
+  // Blank line: tradeLevelRateId is null, user fills in description + rate manually
+  rate                  Decimal?        @db.Decimal(10, 2)   // only used on blank lines
+
   qtyOfWorkers          Int             @default(1)
   submittedDuration     Int             @default(0)    // seconds
   description           String?         @db.VarChar(500)
@@ -306,7 +267,19 @@ TradeLevel        TradeLevel?     @relation(fields: [tradeLevelId], references: 
 
   @@index([jobId, isDeleted])
 }</pre>
-            <p style="font-size:12px; color:#64748b; margin-top:4px;">This model is exclusively for unstructured (blank) labour lines — free-form entries where the user provides a description, rate, hours, and qty manually. No FK to TradeLevelRate. Structured labour lives in TimeSheetRecord / TimeSheetDetailRecord linked to the same Job.</p>
+            <h4>Two line types</h4>
+            <table class="schema-table">
+                <thead><tr><th></th><th>Structured Line</th><th>Blank Line</th></tr></thead>
+                <tbody>
+                    <tr><td><strong>tradeLevelRateId</strong></td><td>Set — links to TradeLevelRate</td><td>Null</td></tr>
+                    <tr><td><strong>Rate source</strong></td><td>Derived from <code>TradeLevelRate.billableValue</code> at invoice generation</td><td><code>rate</code> field on the line item (manually entered)</td></tr>
+                    <tr><td><strong>Rate label columns</strong></td><td>Loaded from EmployeeAgreement — one record per rate label with hours &gt; 0</td><td>Single hours + rate input (no rate label breakdown)</td></tr>
+                    <tr><td><strong>Description</strong></td><td>Auto-generated: "Journeyman — Wages 1x"</td><td>User-entered: "2 labourers — scaffolding move"</td></tr>
+                    <tr><td><strong>Employee Agreement</strong></td><td>Shown (auto-selected from submitter)</td><td>Not shown</td></tr>
+                    <tr><td><strong>Use case</strong></td><td>Standard labor with formal trade levels and rate schedules</td><td>Ad-hoc labor, subcontracted help, or when trade levels don't apply</td></tr>
+                </tbody>
+            </table>
+            <p style="font-size:12px; color:#64748b; margin-top:4px;">For structured lines: <code>tradeLevelRateId</code> encodes EmployeeAgreement + Contract (date-specific) + TradeLevel + RateLabel. Rates derived at invoice generation via LEM-1 <code>billableValue</code>. For blank lines: user enters description, hours, qty of workers, and a manual rate. Both types save as <code>WorkOrderLaborItem</code> records — the presence of <code>tradeLevelRateId</code> distinguishes them.</p>
 
             <h3>WorkOrderMaterialItem (Revised)</h3>
             <div style="background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px; padding:12px 16px; margin-bottom:8px; font-size:13px; color:#1e40af;">
@@ -335,46 +308,51 @@ TradeLevel        TradeLevel?     @relation(fields: [tradeLevelId], references: 
   @@index([jobId, isDeleted])
 }</pre>
 
-            <h3>Equipment Architecture</h3>
+            <h3>WorkOrderEquipmentItem (Revised)</h3>
             <div style="background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px; padding:12px 16px; margin-bottom:8px; font-size:13px; color:#1e40af;">
-                <strong>Architecture decision:</strong> Work Order equipment is split across two sources, same pattern as labour. <strong>Structured equipment</strong> (catalog equipment with rate labels and billing rules) uses the existing <code>EquipmentTimeSheetRecordValue</code> infrastructure from EQ-0, linked to <code>TimeSheetDetailRecord</code> entries for the WO job. <strong>Unstructured equipment</strong> (blank lines) uses <code>WorkOrderEquipmentItem</code> for ad-hoc entries with manual description, quantity, and rate. The <code>recalculateWorkOrderTotals</code> mutation queries both sources.
-            </div>
-
-            <h4>Two equipment sources</h4>
-            <table class="schema-table">
-                <thead><tr><th></th><th>Structured (EquipmentTimeSheetRecordValue)</th><th>Unstructured (WorkOrderEquipmentItem)</th></tr></thead>
-                <tbody>
-                    <tr><td><strong>Data source</strong></td><td>EquipmentTimeSheetRecordValue linked to TimeSheetDetailRecords for the WO Job</td><td>WorkOrderEquipmentItem records on the WO Job</td></tr>
-                    <tr><td><strong>Rate source</strong></td><td>Derived from LEM-2 <code>resolveEquipmentRate</code> via existing equipment rate infrastructure</td><td><code>unitRate</code> field on the line item (manually entered)</td></tr>
-                    <tr><td><strong>Rate labels</strong></td><td>From EquipmentRateLabel + EquipmentRatePer on EquipmentTimeSheetRecordValue</td><td>Single qty + rate input (no rate label breakdown)</td></tr>
-                    <tr><td><strong>Billing rules</strong></td><td>operatorIncluded, isFullDayBilling, per — configured on EquipmentTimeSheetRecordValue</td><td>Not applicable</td></tr>
-                    <tr><td><strong>Payroll rollup</strong></td><td>Yes — hours appear in timesheets via TimeSheetDetailRecord</td><td>No — WO-only, not in timesheets</td></tr>
-                    <tr><td><strong>Use case</strong></td><td>Company-owned or catalog equipment with configured rates</td><td>Ad-hoc rentals, subcontracted equipment, or equipment not in catalog</td></tr>
-                </tbody>
-            </table>
-
-            <h3>WorkOrderEquipmentItem (Blank Lines Only)</h3>
-            <div style="background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px; padding:12px 16px; margin-bottom:8px; font-size:13px; color:#1e40af;">
-                <strong>Simplified:</strong> This model is exclusively for unstructured (blank) equipment lines. Structured equipment (catalog equipment with rate labels, billing rules) lives in <code>EquipmentTimeSheetRecordValue</code> linked to <code>TimeSheetDetailRecord</code> for the WO job (from EQ-0). No FK to Equipment or EquipmentRateLabel.
+                <strong>Changes:</strong> Removed <code>instanceId</code>. Added structured line fields (<code>equipmentRateLabelId</code>, <code>per</code>, <code>operatorIncluded</code>, <code>submittedDuration</code>) and blank line field (<code>unitRate</code>). Supports both structured (equipment from catalog + LEM-2 rates) and blank (manual description + rate) entries, same pattern as labor.
             </div>
             <pre>model WorkOrderEquipmentItem {
-  id            String    @id @db.VarChar(21)
-  isDeleted     Boolean   @default(false)
-  isArchived    Boolean   @default(false)
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @default(now()) @updatedAt
+  id                      String              @id @db.VarChar(21)
+  isDeleted               Boolean             @default(false)
+  isArchived              Boolean             @default(false)
+  createdAt               DateTime            @default(now())
+  updatedAt               DateTime            @default(now()) @updatedAt
 
-  jobId         String    @db.VarChar(21)
-  Job           Job       @relation(fields: [jobId], references: [id])
+  jobId                   String              @db.VarChar(21)
+  Job                     Job                 @relation(fields: [jobId], references: [id])
 
-  unitRate      Decimal?  @db.Decimal(10, 2)
-  quantity      Decimal?  @db.Decimal(10, 2)
-  description   String?   @db.VarChar(500)
-  orderNo       Int       @default(0)
+  // Structured line: equipmentId set, rates derived from LEM-2
+  equipmentId             String?             @db.VarChar(21)
+  Equipment               Equipment?          @relation(fields: [equipmentId], references: [id])
+  equipmentRateLabelId    String?             @db.VarChar(21)
+  EquipmentRateLabel      EquipmentRateLabel? @relation(fields: [equipmentRateLabelId], references: [id])
+  per                     EquipmentRatePer?   @default(HOUR)
+  operatorIncluded        Boolean             @default(true)
+  isFullDayBilling        Boolean             @default(true)
+
+  // Blank line: equipmentId is null, user fills in description + rate manually
+  unitRate                Decimal?            @db.Decimal(10, 2)
+
+  // Shared fields
+  submittedDuration       Int                 @default(0)    // seconds
+  quantity                Decimal?            @db.Decimal(10, 2)  // manual qty for blank lines
+  description             String?             @db.VarChar(500)
+  orderNo                 Int                 @default(0)
 
   @@index([jobId, isDeleted])
 }</pre>
-            <p style="font-size:12px; color:#64748b; margin-top:4px;">This model is exclusively for unstructured (blank) equipment lines — free-form entries where the user provides a description, quantity, and rate manually. No FK to Equipment or EquipmentRateLabel. Structured equipment lives in EquipmentTimeSheetRecordValue linked to TimeSheetDetailRecord for the same Job.</p>
+            <h4>Two line types (same pattern as labor)</h4>
+            <table class="schema-table">
+                <thead><tr><th></th><th>Structured Line</th><th>Blank Line</th></tr></thead>
+                <tbody>
+                    <tr><td><strong>equipmentId</strong></td><td>Set — links to Equipment</td><td>Null</td></tr>
+                    <tr><td><strong>Rate source</strong></td><td>Derived from LEM-2 <code>resolveEquipmentRate</code> at invoice generation</td><td><code>unitRate</code> field (manually entered)</td></tr>
+                    <tr><td><strong>Rate label / per</strong></td><td>From EquipmentRateLabel + EquipmentRatePer</td><td>User enters qty + rate manually</td></tr>
+                    <tr><td><strong>Description</strong></td><td>Auto-generated: "CAT 320 Excavator — Standard"</td><td>User-entered: "Rented boom lift — 2 days"</td></tr>
+                    <tr><td><strong>Use case</strong></td><td>Company-owned or catalog equipment with configured rates</td><td>Ad-hoc rentals, subcontracted equipment, or equipment not in catalog</td></tr>
+                </tbody>
+            </table>
         </div>
     </div>
 
@@ -386,12 +364,12 @@ TradeLevel        TradeLevel?     @relation(fields: [tradeLevelId], references: 
         </h2>
         <div class="collapsible-body open">
             <h3>GraphQL Types (Revised)</h3>
-            <pre># Unstructured / blank labour lines only.
-# Structured labour is queried from TimeSheetRecord / TimeSheetDetailRecord.
-type WorkOrderLaborItem {
+            <pre>type WorkOrderLaborItem {
   id: ID!
   jobId: String!
-  rate: Float
+  tradeLevelRateId: String       # null for blank lines
+  TradeLevelRate: TradeLevelRate
+  rate: Float                     # manual rate for blank lines (null for structured)
   qtyOfWorkers: Int!
   submittedDuration: Int!
   description: String
@@ -411,22 +389,28 @@ type WorkOrderMaterialItem {
   orderNo: Int!
 }
 
-# Unstructured / blank equipment lines only.
-# Structured equipment is queried from EquipmentTimeSheetRecordValue.
 type WorkOrderEquipmentItem {
   id: ID!
   jobId: String!
-  unitRate: Float
+  equipmentId: String           # null for blank lines
+  Equipment: Equipment
+  equipmentRateLabelId: String
+  EquipmentRateLabel: EquipmentRateLabel
+  per: EquipmentRatePer
+  operatorIncluded: Boolean!
+  isFullDayBilling: Boolean!
+  unitRate: Float               # manual rate for blank lines
+  submittedDuration: Int!
   quantity: Float
   description: String
   orderNo: Int!
 }</pre>
 
             <h3>Input Types (Revised)</h3>
-            <pre># Unstructured / blank labour lines only.
-input UpsertWorkOrderLaborItemInput {
+            <pre>input UpsertWorkOrderLaborItemInput {
   id: ID
-  rate: Float
+  tradeLevelRateId: String   # null for blank lines
+  rate: Float                 # manual rate for blank lines
   qtyOfWorkers: Int
   submittedDuration: Int!
   description: String
@@ -443,10 +427,15 @@ input UpsertWorkOrderMaterialItemInput {
   orderNo: Int
 }
 
-# Unstructured / blank equipment lines only.
 input UpsertWorkOrderEquipmentItemInput {
   id: ID
-  unitRate: Float
+  equipmentId: String           # null for blank lines
+  equipmentRateLabelId: String
+  per: EquipmentRatePer
+  operatorIncluded: Boolean
+  isFullDayBilling: Boolean
+  unitRate: Float               # manual rate for blank lines
+  submittedDuration: Int
   quantity: Float
   description: String
   orderNo: Int
@@ -508,7 +497,7 @@ type Mutation {
                     <tr>
                         <td><span class="action-new">NEW</span></td>
                         <td><code>apps/api/src/models/WorkOrderLaborItem.ts</code></td>
-                        <td>CRUD for unstructured/blank labour lines only (description, rate, hours, qty). No tradeLevelRateId — structured labour uses TimeSheetRecord.</td>
+                        <td>CRUD with tradeLevelRateId, qtyOfWorkers, submittedDuration. No rate calculation — resolved at invoice generation.</td>
                     </tr>
                     <tr>
                         <td><span class="action-new">NEW</span></td>
@@ -518,7 +507,7 @@ type Mutation {
                     <tr>
                         <td><span class="action-new">NEW</span></td>
                         <td><code>apps/api/src/models/WorkOrderEquipmentItem.ts</code></td>
-                        <td>CRUD for blank equipment lines only (description, quantity, unitRate). No equipment FK — structured equipment uses EquipmentTimeSheetRecordValue.</td>
+                        <td>CRUD + auto-pricing from Equipment rates</td>
                     </tr>
                     <tr>
                         <td><span class="action-new">NEW</span></td>
@@ -558,7 +547,7 @@ type Mutation {
                     <tr>
                         <td><span class="action-mod">MOD</span></td>
                         <td><code>apps/api/prisma/schema.prisma</code></td>
-                        <td>Add 3 new model definitions + relations on Job, Material (no Equipment or EquipmentRateLabel relation — structured equipment uses EquipmentTimeSheetRecordValue, no TradeLevelRate relation)</td>
+                        <td>Add 3 new model definitions + relations on Job, TradeLevel, Material, Equipment</td>
                     </tr>
                     <tr>
                         <td><span class="action-mod">MOD</span></td>
@@ -578,18 +567,263 @@ type Mutation {
         </h2>
         <div class="collapsible-body open">
             <ul class="criteria-list">
-                <li><div class="criteria-check"></div>Unstructured (blank) labour items can be created with a description, manual rate, hours, and qty of workers</li>
+                <li><div class="criteria-check"></div>Labor items can be created with a TradeLevel selection and the rate, OT rate (1.5×), and DT rate (2×) are auto-populated</li>
                 <li><div class="criteria-check"></div>Material items can be created with a Material selection and the unit cost is auto-populated from the Material catalog</li>
-                <li><div class="criteria-check"></div>Blank equipment items can be created with a description, quantity, and manual unit rate</li>
-                <li><div class="criteria-check"></div>Row-level totals calculate correctly: Blank Labor = hours × rate × qtyOfWorkers; Material = Quantity × Unit Price; Blank Equipment = Quantity × Unit Rate</li>
-                <li><div class="criteria-check"></div>The <code>upsertWorkOrderLineItems</code> mutation saves blank labour, material, and equipment items in a single transaction</li>
-                <li><div class="criteria-check"></div>The <code>recalculateWorkOrderTotals</code> mutation queries both TimeSheetDetailRecords (structured labour) and WorkOrderLaborItems (blank lines) for the combined labour subtotal</li>
-                <li><div class="criteria-check"></div>The <code>recalculateWorkOrderTotals</code> mutation queries both EquipmentTimeSheetRecordValues (structured equipment) and WorkOrderEquipmentItems (blank lines) for the combined equipment subtotal</li>
+                <li><div class="criteria-check"></div>Equipment items can be created with an Equipment selection and the unit cost is auto-populated</li>
+                <li><div class="criteria-check"></div>Row-level totals calculate correctly: Labor = (ST × Rate) + (OT × OT Rate) + (DT × DT Rate); Material/Equipment = Quantity × Unit Cost</li>
+                <li><div class="criteria-check"></div>The <code>upsertWorkOrderLineItems</code> mutation saves all 3 item types in a single transaction</li>
                 <li><div class="criteria-check"></div>The <code>recalculateWorkOrderTotals</code> mutation updates the Job's laborSubtotal, materialSubtotal, equipmentSubtotal, and grandTotal</li>
                 <li><div class="criteria-check"></div>Deleting a line item (setting <code>isDeleted: true</code>) recalculates totals and removes the row from the UI</li>
-                <li><div class="criteria-check"></div>Structured labour hours logged via TimeSheetRecord for the WO job are included in the labour subtotal</li>
-                <li><div class="criteria-check"></div>Structured equipment hours logged via EquipmentTimeSheetRecordValue for the WO job are included in the equipment subtotal</li>
+                <li><div class="criteria-check"></div>The repeating-row editor allows adding, editing, and removing rows without a page reload</li>
             </ul>
+        </div>
+    </div>
+
+    <!-- UI Mockups -->
+    <div class="uis-section" id="s-mockups">
+        <h2>UI Mockups</h2>
+
+        <h3>WO-2-01: Labor Line Item Editor (User-First Redesign)</h3>
+        <div class="mockup-container" id="mockup-1">
+            <div class="mockup-bar">
+                <div class="mockup-dots"><div class="mockup-dot mockup-dot-r"></div><div class="mockup-dot mockup-dot-y"></div><div class="mockup-dot mockup-dot-g"></div></div>
+                Work Orders &rsaquo; WO-2024-0047 &rsaquo; Edit &rsaquo; <strong>Labor</strong>
+            </div>
+            <div class="mockup-body">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+                    <div>
+                        <h3 style="font-size:15px; font-weight:700; margin:0 0 4px;">Labor Line Items</h3>
+                        <span style="font-size:12px; color:#64748b;">3 workers &middot; 24.0 hrs total</span>
+                    </div>
+                    <div style="position:relative; display:inline-block;">
+                        <div class="mockup-btn mockup-btn-primary" style="font-size:12px;">+ Add Labor &#9662;</div>
+                        <div style="position:absolute; top:32px; right:0; background:#fff; border:1px solid #e2e8f0; border-radius:8px; box-shadow:0 4px 12px rgba(0,0,0,0.1); min-width:180px; z-index:10; padding:4px;">
+                            <div style="padding:8px 12px; font-size:12px; font-weight:600; color:#0f172a; cursor:pointer; border-radius:4px; background:#eff6ff;">&#128100; Structured (Select Workers)</div>
+                            <div style="padding:8px 12px; font-size:12px; color:#64748b; cursor:pointer; border-radius:4px;">&#9998; Blank (Ad-hoc Line)</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="padding:10px 14px; background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px; font-size:12px; color:#1e40af; margin-bottom:14px;">
+                    &#9432; <strong>User-First Design:</strong> Each worker gets their own row. Multi-select workers to add rows in bulk. Trade level auto-resolved from worker&rsquo;s UserTradeLevel.
+                </div>
+
+                <table style="width:100%; border-collapse:collapse; font-size:12px;">
+                    <thead>
+                        <tr style="border-bottom:2px solid #e2e8f0; text-align:left;">
+                            <th style="padding:8px 10px; width:30px; color:#94a3b8;">&#9776;</th>
+                            <th style="padding:8px 10px; font-weight:600;">Worker</th>
+                            <th style="padding:8px 10px; font-weight:600;">Trade Level</th>
+                            <th style="padding:8px 10px; font-weight:600; text-align:right;">Hours</th>
+                            <th style="padding:8px 10px; font-weight:600;">Description</th>
+                            <th style="padding:8px 10px; width:60px;"></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr style="border-bottom:1px solid #f1f5f9; background:#fff;">
+                            <td style="padding:8px 10px; color:#94a3b8; cursor:grab;">&#9776;</td>
+                            <td style="padding:8px 10px;">
+                                <div style="display:flex; align-items:center; gap:8px;">
+                                    <div style="width:28px; height:28px; border-radius:50%; background:#3b82f6; color:#fff; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:700;">JS</div>
+                                    <div><div style="font-weight:600;">John Smith</div><div style="font-size:11px; color:#64748b;">Employee #1042</div></div>
+                                </div>
+                            </td>
+                            <td style="padding:8px 10px;"><span style="padding:2px 8px; background:#dbeafe; border-radius:4px; font-size:10px; font-weight:600; color:#1d4ed8;">Journeyman</span></td>
+                            <td style="padding:8px 10px; text-align:right;"><input style="width:60px; border:1px solid #cbd5e1; border-radius:4px; padding:4px 8px; text-align:right; font-size:12px;" value="8.0" /></td>
+                            <td style="padding:8px 10px;"><input style="width:100%; border:1px solid #cbd5e1; border-radius:4px; padding:4px 8px; font-size:12px;" value="Pipe fitting - Level 2" /></td>
+                            <td style="padding:8px 10px; text-align:center;"><span style="color:#dc2626; cursor:pointer; font-size:14px;">&#x2715;</span></td>
+                        </tr>
+                        <tr style="border-bottom:1px solid #f1f5f9; background:#fff;">
+                            <td style="padding:8px 10px; color:#94a3b8; cursor:grab;">&#9776;</td>
+                            <td style="padding:8px 10px;">
+                                <div style="display:flex; align-items:center; gap:8px;">
+                                    <div style="width:28px; height:28px; border-radius:50%; background:#10b981; color:#fff; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:700;">ML</div>
+                                    <div><div style="font-weight:600;">Maria Lopez</div><div style="font-size:11px; color:#64748b;">Employee #1058</div></div>
+                                </div>
+                            </td>
+                            <td style="padding:8px 10px;"><span style="padding:2px 8px; background:#fef3c7; border-radius:4px; font-size:10px; font-weight:600; color:#92400e;">Apprentice 3</span></td>
+                            <td style="padding:8px 10px; text-align:right;"><input style="width:60px; border:1px solid #cbd5e1; border-radius:4px; padding:4px 8px; text-align:right; font-size:12px;" value="8.0" /></td>
+                            <td style="padding:8px 10px;"><input style="width:100%; border:1px solid #cbd5e1; border-radius:4px; padding:4px 8px; font-size:12px;" value="Pipe fitting - assist" /></td>
+                            <td style="padding:8px 10px; text-align:center;"><span style="color:#dc2626; cursor:pointer; font-size:14px;">&#x2715;</span></td>
+                        </tr>
+                        <tr style="border-bottom:1px solid #f1f5f9; background:#fffbeb;">
+                            <td style="padding:8px 10px; color:#94a3b8; cursor:grab;">&#9776;</td>
+                            <td style="padding:8px 10px;">
+                                <div style="display:flex; align-items:center; gap:8px;">
+                                    <div style="width:28px; height:28px; border-radius:50%; background:#e2e8f0; color:#64748b; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:700;">?</div>
+                                    <div><span style="padding:2px 8px; background:#fef3c7; border-radius:4px; font-size:10px; font-weight:600; color:#92400e;">Unassigned</span></div>
+                                </div>
+                            </td>
+                            <td style="padding:8px 10px; color:#94a3b8; font-style:italic;">Pending</td>
+                            <td style="padding:8px 10px; text-align:right;"><input style="width:60px; border:1px solid #cbd5e1; border-radius:4px; padding:4px 8px; text-align:right; font-size:12px;" value="8.0" /></td>
+                            <td style="padding:8px 10px;"><input style="width:100%; border:1px solid #cbd5e1; border-radius:4px; padding:4px 8px; font-size:12px;" value="General labor TBD" /></td>
+                            <td style="padding:8px 10px; text-align:center;"><span style="color:#dc2626; cursor:pointer; font-size:14px;">&#x2715;</span></td>
+                        </tr>
+                        <tr style="border-bottom:1px solid #f1f5f9; background:#f8fafc;">
+                            <td style="padding:8px 10px;"></td>
+                            <td colspan="2" style="padding:8px 10px; color:#94a3b8; font-style:italic; font-size:11px;">Blank ad-hoc line &mdash; no worker linked</td>
+                            <td style="padding:8px 10px; text-align:right;"><input style="width:60px; border:1px solid #cbd5e1; border-radius:4px; padding:4px 8px; text-align:right; font-size:12px;" value="4.0" /></td>
+                            <td style="padding:8px 10px;"><input style="width:100%; border:1px solid #cbd5e1; border-radius:4px; padding:4px 8px; font-size:12px;" value="Cleanup and site prep" /></td>
+                            <td style="padding:8px 10px; text-align:center;"><span style="color:#dc2626; cursor:pointer; font-size:14px;">&#x2715;</span></td>
+                        </tr>
+                    </tbody>
+                    <tfoot>
+                        <tr style="border-top:2px solid #e2e8f0;">
+                            <td colspan="3" style="padding:10px; font-weight:700; font-size:13px;">Subtotal</td>
+                            <td style="padding:10px; text-align:right; font-weight:700; font-size:13px;">28.0 hrs</td>
+                            <td colspan="2" style="padding:10px; font-size:11px; color:#94a3b8;">Rates resolved at invoice &middot; 3 workers</td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+
+        <h3>WO-2-02: Material Line Item Editor</h3>
+        <div class="mockup-container" id="mockup-2">
+            <div class="mockup-bar">
+                <div class="mockup-dots"><div class="mockup-dot mockup-dot-r"></div><div class="mockup-dot mockup-dot-y"></div><div class="mockup-dot mockup-dot-g"></div></div>
+                Work Orders &rsaquo; WO-2024-0047 &rsaquo; Edit &rsaquo; <strong>Materials</strong>
+            </div>
+            <div class="mockup-body">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+                    <div>
+                        <h3 style="font-size:15px; font-weight:700; margin:0 0 4px;">Material Line Items</h3>
+                        <span style="font-size:12px; color:#64748b;">3 items &middot; $1,285.00 total</span>
+                    </div>
+                    <div style="position:relative; display:inline-block;">
+                        <div class="mockup-btn mockup-btn-primary" style="font-size:12px;">+ Add Material &#9662;</div>
+                    </div>
+                </div>
+
+                <table style="width:100%; border-collapse:collapse; font-size:12px;">
+                    <thead>
+                        <tr style="border-bottom:2px solid #e2e8f0; text-align:left;">
+                            <th style="padding:8px 10px; width:30px; color:#94a3b8;">&#9776;</th>
+                            <th style="padding:8px 10px; font-weight:600;">Material</th>
+                            <th style="padding:8px 10px; font-weight:600; text-align:right;">Qty</th>
+                            <th style="padding:8px 10px; font-weight:600; text-align:right;">Unit Price</th>
+                            <th style="padding:8px 10px; font-weight:600; text-align:right;">Cost Price</th>
+                            <th style="padding:8px 10px; font-weight:600; text-align:right;">Total</th>
+                            <th style="padding:8px 10px; width:60px;"></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr style="border-bottom:1px solid #f1f5f9;">
+                            <td style="padding:8px 10px; color:#94a3b8; cursor:grab;">&#9776;</td>
+                            <td style="padding:8px 10px;">
+                                <div style="font-weight:600;">3/4" Copper Pipe</div>
+                                <div style="font-size:11px; color:#64748b;">SKU: CU-075-10 &middot; Piping</div>
+                            </td>
+                            <td style="padding:8px 10px; text-align:right;"><input style="width:50px; border:1px solid #cbd5e1; border-radius:4px; padding:4px 8px; text-align:right; font-size:12px;" value="50" /></td>
+                            <td style="padding:8px 10px; text-align:right;"><input style="width:70px; border:1px solid #cbd5e1; border-radius:4px; padding:4px 8px; text-align:right; font-size:12px;" value="$12.00" /></td>
+                            <td style="padding:8px 10px; text-align:right; color:#64748b;">$8.50</td>
+                            <td style="padding:8px 10px; text-align:right; font-weight:600;">$600.00</td>
+                            <td style="padding:8px 10px; text-align:center;"><span style="color:#dc2626; cursor:pointer; font-size:14px;">&#x2715;</span></td>
+                        </tr>
+                        <tr style="border-bottom:1px solid #f1f5f9;">
+                            <td style="padding:8px 10px; color:#94a3b8; cursor:grab;">&#9776;</td>
+                            <td style="padding:8px 10px;">
+                                <div style="font-weight:600;">R-30 Batt 16" OC</div>
+                                <div style="font-size:11px; color:#64748b;">SKU: INS-R30-16 &middot; Insulation</div>
+                            </td>
+                            <td style="padding:8px 10px; text-align:right;"><input style="width:50px; border:1px solid #cbd5e1; border-radius:4px; padding:4px 8px; text-align:right; font-size:12px;" value="200" /></td>
+                            <td style="padding:8px 10px; text-align:right;"><input style="width:70px; border:1px solid #cbd5e1; border-radius:4px; padding:4px 8px; text-align:right; font-size:12px;" value="$1.63" /></td>
+                            <td style="padding:8px 10px; text-align:right; color:#64748b;">$1.25</td>
+                            <td style="padding:8px 10px; text-align:right; font-weight:600;">$326.00</td>
+                            <td style="padding:8px 10px; text-align:center;"><span style="color:#dc2626; cursor:pointer; font-size:14px;">&#x2715;</span></td>
+                        </tr>
+                        <tr style="border-bottom:1px solid #f1f5f9; background:#f8fafc;">
+                            <td style="padding:8px 10px; color:#94a3b8; cursor:grab;">&#9776;</td>
+                            <td style="padding:8px 10px; font-style:italic; color:#64748b;">Misc fasteners and consumables</td>
+                            <td style="padding:8px 10px; text-align:right;"><input style="width:50px; border:1px solid #cbd5e1; border-radius:4px; padding:4px 8px; text-align:right; font-size:12px;" value="1" /></td>
+                            <td style="padding:8px 10px; text-align:right;"><input style="width:70px; border:1px solid #cbd5e1; border-radius:4px; padding:4px 8px; text-align:right; font-size:12px;" value="$359.00" /></td>
+                            <td style="padding:8px 10px; text-align:right;"><input style="width:70px; border:1px solid #cbd5e1; border-radius:4px; padding:4px 8px; text-align:right; font-size:12px; color:#64748b;" value="$280.00" /></td>
+                            <td style="padding:8px 10px; text-align:right; font-weight:600;">$359.00</td>
+                            <td style="padding:8px 10px; text-align:center;"><span style="color:#dc2626; cursor:pointer; font-size:14px;">&#x2715;</span></td>
+                        </tr>
+                    </tbody>
+                    <tfoot>
+                        <tr style="border-top:2px solid #e2e8f0;">
+                            <td colspan="5" style="padding:10px; font-weight:700; font-size:13px;">Subtotal</td>
+                            <td style="padding:10px; text-align:right; font-weight:700; font-size:13px;">$1,285.00</td>
+                            <td></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+
+        <h3>WO-2-03: Equipment Line Item Editor</h3>
+        <div class="mockup-container" id="mockup-3">
+            <div class="mockup-bar">
+                <div class="mockup-dots"><div class="mockup-dot mockup-dot-r"></div><div class="mockup-dot mockup-dot-y"></div><div class="mockup-dot mockup-dot-g"></div></div>
+                Work Orders &rsaquo; WO-2024-0047 &rsaquo; Edit &rsaquo; <strong>Equipment</strong>
+            </div>
+            <div class="mockup-body">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+                    <div>
+                        <h3 style="font-size:15px; font-weight:700; margin:0 0 4px;">Equipment Line Items</h3>
+                        <span style="font-size:12px; color:#64748b;">2 items &middot; 16.0 hrs</span>
+                    </div>
+                    <div class="mockup-btn mockup-btn-primary" style="font-size:12px;">+ Add Equipment &#9662;</div>
+                </div>
+
+                <table style="width:100%; border-collapse:collapse; font-size:12px;">
+                    <thead>
+                        <tr style="border-bottom:2px solid #e2e8f0; text-align:left;">
+                            <th style="padding:8px 10px; width:30px; color:#94a3b8;">&#9776;</th>
+                            <th style="padding:8px 10px; font-weight:600;">Equipment</th>
+                            <th style="padding:8px 10px; font-weight:600;">Rate Type</th>
+                            <th style="padding:8px 10px; font-weight:600;">Billing</th>
+                            <th style="padding:8px 10px; font-weight:600; text-align:right;">Duration/Qty</th>
+                            <th style="padding:8px 10px; font-weight:600;">Operator</th>
+                            <th style="padding:8px 10px; width:60px;"></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr style="border-bottom:1px solid #f1f5f9;">
+                            <td style="padding:8px 10px; color:#94a3b8; cursor:grab;">&#9776;</td>
+                            <td style="padding:8px 10px;">
+                                <div style="font-weight:600;">CAT 320 Excavator</div>
+                                <div style="font-size:11px; color:#64748b;">#EQ-0042 &middot; Heavy Equipment</div>
+                            </td>
+                            <td style="padding:8px 10px;"><span style="padding:2px 8px; background:#dbeafe; border-radius:4px; font-size:10px; font-weight:600; color:#1d4ed8;">Standard</span></td>
+                            <td style="padding:8px 10px;"><span style="padding:2px 8px; background:#f1f5f9; border-radius:4px; font-size:10px; font-weight:600; color:#64748b;">Hourly</span></td>
+                            <td style="padding:8px 10px; text-align:right;"><input style="width:60px; border:1px solid #cbd5e1; border-radius:4px; padding:4px 8px; text-align:right; font-size:12px;" value="8.0" /></td>
+                            <td style="padding:8px 10px;"><span style="padding:2px 8px; background:#dcfce7; border-radius:4px; font-size:10px; font-weight:600; color:#166534;">Included</span></td>
+                            <td style="padding:8px 10px; text-align:center;"><span style="color:#dc2626; cursor:pointer; font-size:14px;">&#x2715;</span></td>
+                        </tr>
+                        <tr style="border-bottom:1px solid #f1f5f9;">
+                            <td style="padding:8px 10px; color:#94a3b8; cursor:grab;">&#9776;</td>
+                            <td style="padding:8px 10px;">
+                                <div style="font-weight:600;">Hilti TE 70-ATC</div>
+                                <div style="font-size:11px; color:#64748b;">#EQ-0108 &middot; Power Tools</div>
+                            </td>
+                            <td style="padding:8px 10px;"><span style="padding:2px 8px; background:#dbeafe; border-radius:4px; font-size:10px; font-weight:600; color:#1d4ed8;">Standard</span></td>
+                            <td style="padding:8px 10px;"><span style="padding:2px 8px; background:#fef3c7; border-radius:4px; font-size:10px; font-weight:600; color:#92400e;">Full Day</span></td>
+                            <td style="padding:8px 10px; text-align:right;"><input style="width:60px; border:1px solid #cbd5e1; border-radius:4px; padding:4px 8px; text-align:right; font-size:12px;" value="1" /></td>
+                            <td style="padding:8px 10px;"><span style="padding:2px 8px; background:#f1f5f9; border-radius:4px; font-size:10px; font-weight:600; color:#64748b;">Equip Only</span></td>
+                            <td style="padding:8px 10px; text-align:center;"><span style="color:#dc2626; cursor:pointer; font-size:14px;">&#x2715;</span></td>
+                        </tr>
+                        <tr style="border-bottom:1px solid #f1f5f9; background:#f8fafc;">
+                            <td style="padding:8px 10px; color:#94a3b8; cursor:grab;">&#9776;</td>
+                            <td style="padding:8px 10px; font-style:italic; color:#64748b;">Rental scaffolding - 3rd party</td>
+                            <td style="padding:8px 10px; color:#94a3b8;">Manual</td>
+                            <td style="padding:8px 10px;"><span style="padding:2px 8px; background:#f1f5f9; border-radius:4px; font-size:10px; font-weight:600; color:#64748b;">Daily</span></td>
+                            <td style="padding:8px 10px; text-align:right;"><input style="width:60px; border:1px solid #cbd5e1; border-radius:4px; padding:4px 8px; text-align:right; font-size:12px;" value="2" /></td>
+                            <td style="padding:8px 10px; color:#94a3b8;">N/A</td>
+                            <td style="padding:8px 10px; text-align:center;"><span style="color:#dc2626; cursor:pointer; font-size:14px;">&#x2715;</span></td>
+                        </tr>
+                    </tbody>
+                    <tfoot>
+                        <tr style="border-top:2px solid #e2e8f0;">
+                            <td colspan="4" style="padding:10px; font-weight:700; font-size:13px;">Subtotal</td>
+                            <td style="padding:10px; text-align:right; font-weight:700; font-size:13px;">2 items</td>
+                            <td colspan="2" style="padding:10px; font-size:11px; color:#94a3b8;">Rates resolved at invoice</td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
         </div>
     </div>
 
@@ -601,19 +835,19 @@ type Mutation {
         </h2>
         <div class="collapsible-body open">
             <h3>Requires</h3>
-            <p><a class="dep-tag dep-requires" href="release-1.33-timeline.html#item-WO-1" target="_top">WO-1: Job Type Configuration</a></p>
+            <p><a class="dep-tag dep-requires" href="uis-20a-job-type-config.html">WO-1: Job Type Configuration</a></p>
 
             <h3>Enables</h3>
             <p>
-                <a class="dep-tag dep-enables" href="release-1.33-timeline.html#item-WO-3a" target="_top">WO-3: Create/Edit Form</a>
+                <a class="dep-tag dep-enables" href="uis-20c-create-edit-form.html">WO-3: Create/Edit Form</a>
                 <span class="dep-tag dep-enables">WO-7: Invoice Generation</span>
             </p>
 
             <h3>Siblings</h3>
             <p>
-                <a class="dep-tag dep-none" href="release-1.33-timeline.html#item-WO-1" target="_top">WO-1</a>
-                <a class="dep-tag dep-none" href="release-1.33-timeline.html#item-WO-3a" target="_top">WO-3</a>
-                <a class="dep-tag dep-none" href="release-1.33-timeline.html#item-WO-4" target="_top">WO-4</a>
+                <a class="dep-tag dep-none" href="uis-20a-job-type-config.html">WO-1</a>
+                <a class="dep-tag dep-none" href="uis-20c-create-edit-form.html">WO-3</a>
+                <a class="dep-tag dep-none" href="uis-20d-detail-page.html">WO-4</a>
                 <span class="dep-tag dep-none">WO-5</span>
                 <span class="dep-tag dep-none">WO-6</span>
                 <span class="dep-tag dep-none">WO-7</span>

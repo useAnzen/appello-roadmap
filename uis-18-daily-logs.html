@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UIS-18 · Daily Logs & Field Reports</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+.in-iframe .top-nav { display: none !important; }
+.top-nav { position: sticky; top: 0; z-index: 100; background: #0f172a; border-bottom: 1px solid #1e293b; padding: 0 24px; display: flex; align-items: center; gap: 0; }
+.top-nav a { display: inline-flex; align-items: center; padding: 12px 18px; font-size: 13px; font-weight: 600; color: #94a3b8; text-decoration: none; border-bottom: 2px solid transparent; transition: all 0.15s; white-space: nowrap; }
+.top-nav a:hover { color: #f8fafc; background: #1e293b; }
+.top-nav .nav-logo { font-size: 11px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: #475569; padding-right: 18px; margin-right: 4px; border-right: 1px solid #1e293b; }
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Inter', -apple-system, sans-serif; background: #f1f5f9; color: #1e293b; }
+.uis-wrap { max-width: 960px; margin: 0 auto; padding: 40px 24px 80px; }
+.uis-hero { margin-bottom: 32px; }
+.uis-badges { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+.uis-badge { font-size: 11px; font-weight: 700; padding: 4px 12px; border-radius: 6px; display: inline-flex; align-items: center; gap: 5px; }
+.badge-q { background: #0f172a; color: #fff; }
+.badge-daily { background: #0ea5e9; color: #fff; }
+.badge-status { background: #fef3c7; color: #92400e; }
+.uis-h1 { font-size: 30px; font-weight: 800; color: #1e293b; margin: 0 0 8px; letter-spacing: -0.01em; }
+.uis-sub { font-size: 15px; color: #64748b; line-height: 1.5; margin: 0; }
+.uis-section { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px 28px; margin-bottom: 16px; }
+.uis-section h2 { font-size: 17px; font-weight: 700; margin: 0 0 14px; padding-bottom: 10px; border-bottom: 2px solid #e2e8f0; }
+.uis-footer { text-align: center; padding: 24px; font-size: 12px; color: #94a3b8; }
+.uis-footer a { color: #3b82f6; text-decoration: none; }
+.mockup-container { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; margin: 14px 0; }
+.mockup-bar { background: #f1f5f9; border-bottom: 1px solid #e2e8f0; padding: 10px 16px; font-size: 12px; color: #64748b; display: flex; align-items: center; gap: 10px; }
+.mockup-dots { display: flex; gap: 6px; margin-right: 8px; }
+.mockup-dot { width: 10px; height: 10px; border-radius: 50%; }
+.mockup-dot-r { background: #f87171; }
+.mockup-dot-y { background: #fbbf24; }
+.mockup-dot-g { background: #34d399; }
+.mockup-body { padding: 20px; min-height: 200px; font-size: 13px; color: #334155; line-height: 1.6; }
+.mobile-frame { max-width: 375px; margin: 14px auto; border: 2px solid #e2e8f0; border-radius: 24px; overflow: hidden; }
+.breadcrumb { font-size: 12px; color: #94a3b8; margin-bottom: 12px; }
+.breadcrumb a { color: #3b82f6; text-decoration: none; }
+.breadcrumb span { margin: 0 6px; }
+.page-heading { font-size: 20px; font-weight: 700; color: #1e293b; margin-bottom: 4px; }
+.status-badge { display: inline-block; font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 6px; }
+.status-draft { background: #f1f5f9; color: #475569; }
+.status-submitted { background: #eff6ff; color: #1d4ed8; }
+.status-approved { background: #dcfce7; color: #166534; }
+.btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 600; border: none; cursor: pointer; }
+.btn-primary { background: #3b82f6; color: #fff; }
+.btn-secondary { background: #f1f5f9; color: #334155; border: 1px solid #e2e8f0; }
+.btn-outline { background: #fff; color: #3b82f6; border: 1px solid #3b82f6; }
+.btn-success { background: #10b981; color: #fff; }
+.filter-bar { display: flex; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; }
+.filter-pill { padding: 6px 14px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 12px; font-weight: 600; color: #475569; background: #fff; display: flex; align-items: center; gap: 6px; }
+.stat-row { display: flex; gap: 16px; margin-bottom: 16px; }
+.stat-item { font-size: 13px; font-weight: 600; color: #64748b; }
+.stat-item strong { color: #1e293b; font-size: 18px; margin-right: 4px; }
+.list-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.list-table th { text-align: left; padding: 8px 12px; background: #f8fafc; border-bottom: 2px solid #e2e8f0; font-weight: 600; font-size: 12px; color: #64748b; }
+.list-table td { padding: 10px 12px; border-bottom: 1px solid #f1f5f9; }
+.list-table tr:hover { background: #f8fafc; }
+.info-grid { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 12px; margin: 12px 0; }
+.info-item { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 14px; }
+.info-label { font-size: 11px; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+.info-value { font-size: 14px; font-weight: 600; color: #1e293b; }
+.weather-card { background: linear-gradient(135deg, #eff6ff 0%, #f0f9ff 100%); border: 1px solid #bfdbfe; border-radius: 10px; padding: 16px; margin: 12px 0; display: flex; align-items: center; gap: 16px; }
+.weather-icon { font-size: 32px; }
+.weather-details { flex: 1; }
+.weather-temp { font-size: 22px; font-weight: 800; color: #1e293b; }
+.weather-desc { font-size: 12px; color: #64748b; }
+.weather-stats { display: flex; gap: 16px; font-size: 12px; color: #475569; }
+.section-block { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px 16px; margin: 10px 0; }
+.section-title { font-size: 12px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+.auto-badge { font-size: 9px; font-weight: 700; padding: 2px 8px; border-radius: 4px; background: #eff6ff; color: #3b82f6; margin-left: 6px; }
+.form-input { width: 100%; padding: 8px 12px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 13px; background: #fff; }
+.tab-row { display: flex; gap: 0; border-bottom: 2px solid #e2e8f0; margin-bottom: 16px; }
+.tab-item { padding: 10px 18px; font-size: 13px; font-weight: 600; color: #94a3b8; border-bottom: 2px solid transparent; margin-bottom: -2px; cursor: pointer; }
+.tab-item.active { color: #3b82f6; border-bottom-color: #3b82f6; }
+.pdf-page { background: #fff; border: 1px solid #d1d5db; box-shadow: 0 2px 8px rgba(0,0,0,0.08); padding: 32px; max-width: 680px; margin: 0 auto; font-size: 12px; }
+.pdf-header { display: flex; justify-content: space-between; align-items: flex-start; padding-bottom: 14px; border-bottom: 2px solid #0f172a; margin-bottom: 16px; }
+.pdf-logo { font-size: 18px; font-weight: 800; color: #1e293b; }
+.pdf-section { margin-bottom: 14px; }
+.pdf-section-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: #475569; padding: 4px 0; border-bottom: 1px solid #e2e8f0; margin-bottom: 6px; }
+.pdf-grid { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 4px 16px; font-size: 11px; }
+.pdf-label { color: #94a3b8; }
+.pdf-value { font-weight: 600; }
+.photo-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 8px; }
+.photo-placeholder { background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 6px; aspect-ratio: 4/3; display: flex; align-items: center; justify-content: center; font-size: 11px; color: #94a3b8; }
+.drop-zone { border: 2px dashed #cbd5e1; border-radius: 10px; padding: 28px; text-align: center; color: #94a3b8; font-size: 13px; cursor: pointer; }
+.drop-zone:hover { border-color: #3b82f6; background: #eff6ff; color: #3b82f6; }
+.crew-member { display: flex; align-items: center; gap: 10px; padding: 6px 0; }
+.crew-avatar { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; color: #fff; }
+</style>
+</head>
+<body>
+<script>if(self!==top)document.documentElement.classList.add("in-iframe")</script>
+<nav class="top-nav">
+    <span class="nav-logo">Appello SDLC</span>
+    <a href="index.html">Roadmap</a>
+    <a href="release-1.33-timeline.html">Release 1.33</a>
+    <a href="release-1.34-timeline.html">Release 1.34</a>
+    <a href="master-spec-reconciliation.html">Spec Reconciliation</a>
+    <a href="ui-interface-library.html">UI Library</a>
+    <a href="cross-release-continuity-audit.html">Continuity Audit</a>
+</nav>
+
+<div class="uis-wrap">
+    <div class="uis-hero">
+        <div class="uis-badges">
+            <span class="uis-badge badge-q">UIS-18</span>
+            <span class="uis-badge badge-daily">Daily Logs Track</span>
+            <span class="uis-badge badge-status">Draft</span>
+        </div>
+        <h1 class="uis-h1">UIS-18 · Daily Logs & Field Reports</h1>
+        <p class="uis-sub">Daily log list, detail view, creation with auto-aggregation from timesheets and weather APIs, job-level tab, and PDF export. Provides a comprehensive field reporting workflow for superintendents and project managers.</p>
+    </div>
+
+    <!-- Mockup 1: Daily Logs List Page -->
+    <div class="uis-section" id="mockup-1">
+        <h2>Daily Logs List Page</h2>
+        <p style="margin-bottom:14px; font-size:14px; color:#64748b;">Main daily logs list at <code>/daily-logs</code> with filters, stats summary, and table view.</p>
+
+        <div class="mockup-container">
+            <div class="mockup-bar">
+                <div class="mockup-dots"><div class="mockup-dot mockup-dot-r"></div><div class="mockup-dot mockup-dot-y"></div><div class="mockup-dot mockup-dot-g"></div></div>
+                appello.useappello.app/daily-logs
+            </div>
+            <div class="mockup-body">
+                <div class="breadcrumb">Daily Logs</div>
+
+                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px;">
+                    <div class="page-heading">Daily Logs</div>
+                    <button class="btn btn-primary">+ New Daily Log</button>
+                </div>
+
+                <div class="filter-bar">
+                    <div class="filter-pill">📋 Job: All Jobs ▾</div>
+                    <div class="filter-pill">📅 Date Range ▾</div>
+                    <div class="filter-pill">📊 Status: All Statuses ▾</div>
+                    <div class="filter-pill">🔍 Search...</div>
+                </div>
+
+                <div class="stat-row">
+                    <div class="stat-item"><strong>47</strong> Total Logs</div>
+                    <div class="stat-item" style="color:#475569;"><strong style="color:#475569;">5</strong> Draft</div>
+                    <div class="stat-item" style="color:#1d4ed8;"><strong style="color:#1d4ed8;">38</strong> Submitted</div>
+                    <div class="stat-item" style="color:#166534;"><strong style="color:#166534;">4</strong> Approved</div>
+                </div>
+
+                <table class="list-table">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Job</th>
+                            <th>Crew</th>
+                            <th>Hours</th>
+                            <th>Weather</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td style="font-weight:600;">Mar 28, 2026</td>
+                            <td>Inovum Data Center</td>
+                            <td>8 workers</td>
+                            <td>64.0 hrs</td>
+                            <td>☀ 12°C</td>
+                            <td><span class="status-badge status-draft">Draft</span></td>
+                        </tr>
+                        <tr>
+                            <td style="font-weight:600;">Mar 27, 2026</td>
+                            <td>Inovum Data Center</td>
+                            <td>12 workers</td>
+                            <td>96.0 hrs</td>
+                            <td>🌧 8°C</td>
+                            <td><span class="status-badge status-submitted">Submitted</span></td>
+                        </tr>
+                        <tr>
+                            <td style="font-weight:600;">Mar 27, 2026</td>
+                            <td>Aurora Condos Ph.2</td>
+                            <td>6 workers</td>
+                            <td>48.0 hrs</td>
+                            <td>🌧 8°C</td>
+                            <td><span class="status-badge status-approved">Approved</span></td>
+                        </tr>
+                        <tr>
+                            <td style="font-weight:600;">Mar 26, 2026</td>
+                            <td>Inovum Data Center</td>
+                            <td>10 workers</td>
+                            <td>80.0 hrs</td>
+                            <td>⛅ 10°C</td>
+                            <td><span class="status-badge status-submitted">Submitted</span></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mockup 2: Daily Log Detail Page -->
+    <div class="uis-section" id="mockup-2">
+        <h2>Daily Log Detail Page</h2>
+        <p style="margin-bottom:14px; font-size:14px; color:#64748b;">Detail view at <code>/daily-logs/[id]</code> showing weather, crew, work performed, materials, equipment, safety, delays, and photos.</p>
+
+        <div class="mockup-container">
+            <div class="mockup-bar">
+                <div class="mockup-dots"><div class="mockup-dot mockup-dot-r"></div><div class="mockup-dot mockup-dot-y"></div><div class="mockup-dot mockup-dot-g"></div></div>
+                appello.useappello.app/daily-logs/dl-2026-0327
+            </div>
+            <div class="mockup-body">
+                <div class="breadcrumb">
+                    <a href="#">Daily Logs</a> <span>›</span> <a href="#">Inovum Data Center</a> <span>›</span> Mar 27, 2026
+                </div>
+
+                <div style="display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:16px;">
+                    <div>
+                        <div class="page-heading">March 27, 2026</div>
+                        <div style="font-size:13px; color:#64748b; margin-top:2px;">Inovum Data Center (#26028) · Created by <strong>Mike Chen</strong></div>
+                    </div>
+                    <div style="display:flex; gap:8px; align-items:center;">
+                        <span class="status-badge status-submitted">Submitted</span>
+                        <button class="btn btn-secondary">Edit</button>
+                        <button class="btn btn-primary">Submit for Approval</button>
+                        <button class="btn btn-outline">Export PDF</button>
+                    </div>
+                </div>
+
+                <!-- Weather -->
+                <div class="section-block">
+                    <div class="section-title">Weather <span class="auto-badge">Auto-aggregated</span></div>
+                    <div class="info-grid">
+                        <div class="info-item">
+                            <div class="info-label">Conditions</div>
+                            <div class="info-value">🌧 Rain</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Temperature</div>
+                            <div class="info-value">8°C</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Wind</div>
+                            <div class="info-value">15 km/h NW</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Precipitation</div>
+                            <div class="info-value">12mm</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Crew -->
+                <div class="section-block">
+                    <div class="section-title">Crew · 12 workers · 96.0 hrs total</div>
+                    <p style="font-size:11px; color:#64748b; margin-bottom:8px;">Derived from DailyLogCrewMember records</p>
+                    <table class="list-table" style="margin:0;">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Trade</th>
+                                <th style="text-align:right;">Hours</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td style="font-weight:600;">Mike Chen</td>
+                                <td>Foreman</td>
+                                <td style="text-align:right;">8.0</td>
+                            </tr>
+                            <tr>
+                                <td style="font-weight:600;">Sarah Lee</td>
+                                <td>Journeyman</td>
+                                <td style="text-align:right;">8.0</td>
+                            </tr>
+                            <tr>
+                                <td style="font-weight:600;">Tom Walsh</td>
+                                <td>Apprentice</td>
+                                <td style="text-align:right;">8.0</td>
+                            </tr>
+                            <tr>
+                                <td colspan="3" style="font-size:12px; color:#3b82f6; font-weight:600; cursor:pointer;">+ 9 more...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Work Performed -->
+                <div class="section-block">
+                    <div class="section-title">Work Performed</div>
+                    <p>Completed 2nd floor rough-in plumbing. Installed 14 fixture carriers and tied into the main waste stack. Pressure tested all new supply lines at 150 PSI — all passing. Started prefab on 3rd floor ductwork transitions.</p>
+                </div>
+
+                <!-- Materials Used -->
+                <div class="section-block">
+                    <div class="section-title">Materials Used</div>
+                    <p>R-30 Batt 16" × 120<br>3/4" Copper Pipe × 45</p>
+                </div>
+
+                <!-- Equipment Used -->
+                <div class="section-block">
+                    <div class="section-title">Equipment Used</div>
+                    <p>CAT 320 Excavator — 8.0 hrs<br>Kubota U35 — 6.0 hrs</p>
+                </div>
+
+                <!-- Safety Observations -->
+                <div class="section-block">
+                    <div class="section-title">Safety Observations</div>
+                    <p>All PPE compliance verified. Wet floor signage placed.</p>
+                </div>
+
+                <!-- Delay Reasons -->
+                <div class="section-block">
+                    <div class="section-title">Delay Reasons</div>
+                    <p>Rain delay from 10:00–11:30 AM (1.5 hrs)</p>
+                </div>
+
+                <!-- Photos -->
+                <div class="section-block">
+                    <div class="section-title">Photos</div>
+                    <div class="photo-grid">
+                        <div class="photo-placeholder">📷 IMG_001</div>
+                        <div class="photo-placeholder">📷 IMG_002</div>
+                        <div class="photo-placeholder">📷 IMG_003</div>
+                        <div class="photo-placeholder">📷 IMG_004</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mockup 3: Create Daily Log Page -->
+    <div class="uis-section" id="mockup-3">
+        <h2>Create Daily Log Page</h2>
+        <p style="margin-bottom:14px; font-size:14px; color:#64748b;">Creation form at <code>/daily-logs/create</code> with auto-aggregation from timesheets, weather, photos, forms, and equipment.</p>
+
+        <div class="mockup-container">
+            <div class="mockup-bar">
+                <div class="mockup-dots"><div class="mockup-dot mockup-dot-r"></div><div class="mockup-dot mockup-dot-y"></div><div class="mockup-dot mockup-dot-g"></div></div>
+                appello.useappello.app/daily-logs/create
+            </div>
+            <div class="mockup-body">
+                <div class="breadcrumb">
+                    <a href="#">Daily Logs</a> <span>›</span> Create New
+                </div>
+                <div class="page-heading" style="margin-bottom:16px;">New Daily Log</div>
+
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:16px;">
+                    <div>
+                        <label style="font-size:12px; font-weight:600; color:#475569; display:block; margin-bottom:4px;">Job <span style="color:#dc2626;">*</span></label>
+                        <div class="form-input">Select Job ▾</div>
+                    </div>
+                    <div>
+                        <label style="font-size:12px; font-weight:600; color:#475569; display:block; margin-bottom:4px;">Date</label>
+                        <div class="form-input">Apr 9, 2026 (today)</div>
+                    </div>
+                </div>
+
+                <button class="btn btn-primary" style="margin-bottom:6px;">⚡ Auto-Aggregate</button>
+                <div style="font-size:11px; color:#64748b; margin-bottom:18px;">Pull data from timesheets, weather, photos, forms, and equipment</div>
+
+                <!-- Auto-populated sections -->
+                <div class="section-block">
+                    <div class="section-title">Weather <span class="auto-badge">🔄 Auto-populated</span></div>
+                    <div class="weather-card" style="margin:0;">
+                        <div class="weather-icon">☀</div>
+                        <div class="weather-details">
+                            <div class="weather-temp">14°C</div>
+                            <div class="weather-desc">Clear skies</div>
+                        </div>
+                        <div class="weather-stats">
+                            <div>💨 8 km/h W</div>
+                            <div>💧 0 mm</div>
+                        </div>
+                    </div>
+                    <div style="font-size:10px; color:#94a3b8; margin-top:6px;">Source: OpenWeather API</div>
+                </div>
+
+                <div class="section-block">
+                    <div class="section-title">Crew <span class="auto-badge">🔄 Auto-populated</span></div>
+                    <div style="font-size:12px; color:#64748b; margin-bottom:6px;">Derived from approved timesheets for this job/date</div>
+                    <div class="crew-member">
+                        <div class="crew-avatar" style="background:#3b82f6;">MC</div>
+                        <div><span style="font-weight:600;">Mike Chen</span> · Foreman · 8.0 hrs</div>
+                    </div>
+                    <div class="crew-member">
+                        <div class="crew-avatar" style="background:#10b981;">SL</div>
+                        <div><span style="font-weight:600;">Sarah Lee</span> · Journeyman · 8.0 hrs</div>
+                    </div>
+                    <div class="crew-member">
+                        <div class="crew-avatar" style="background:#f59e0b;">TW</div>
+                        <div><span style="font-weight:600;">Tom Walsh</span> · Apprentice · 8.0 hrs</div>
+                    </div>
+                </div>
+
+                <div class="section-block">
+                    <div class="section-title">Equipment <span class="auto-badge">🔄 Auto-populated</span></div>
+                    <div style="font-size:12px; color:#64748b;">Derived from equipment time entries</div>
+                    <p style="margin-top:6px;">CAT 320 Excavator — 8.0 hrs<br>Kubota U35 — 6.0 hrs</p>
+                </div>
+
+                <!-- Manual sections -->
+                <div class="section-block">
+                    <div class="section-title">Work Performed</div>
+                    <div class="form-input" style="min-height:80px; color:#94a3b8;">Describe work completed today...</div>
+                </div>
+
+                <div class="section-block">
+                    <div class="section-title">Materials Used</div>
+                    <div style="font-size:12px; color:#94a3b8; margin-bottom:8px;">No materials added yet.</div>
+                    <button class="btn btn-secondary" style="font-size:12px; padding:5px 12px;">+ Add Material</button>
+                </div>
+
+                <div class="section-block">
+                    <div class="section-title">Safety Observations</div>
+                    <div class="form-input" style="min-height:60px; color:#94a3b8;">Record safety observations...</div>
+                </div>
+
+                <div class="section-block">
+                    <div class="section-title">Delay Reasons</div>
+                    <div class="form-input" style="min-height:60px; color:#94a3b8;">Describe any delays...</div>
+                </div>
+
+                <div class="section-block">
+                    <div class="section-title">Photos</div>
+                    <div class="drop-zone">📷 Drop photos or click to upload</div>
+                </div>
+
+                <div style="display:flex; gap:10px; margin-top:16px; padding-top:14px; border-top:1px solid #e2e8f0;">
+                    <button class="btn btn-secondary">Save as Draft</button>
+                    <button class="btn btn-primary">Submit</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mockup 4: Job Detail — Daily Logs Tab -->
+    <div class="uis-section" id="mockup-4">
+        <h2>Job Detail — Daily Logs Tab</h2>
+        <p style="margin-bottom:14px; font-size:14px; color:#64748b;">Daily Logs tab on the Job Detail page. "+ New Daily Log" pre-fills the job.</p>
+
+        <div class="mockup-container">
+            <div class="mockup-bar">
+                <div class="mockup-dots"><div class="mockup-dot mockup-dot-r"></div><div class="mockup-dot mockup-dot-y"></div><div class="mockup-dot mockup-dot-g"></div></div>
+                appello.useappello.app/jobs/26028
+            </div>
+            <div class="mockup-body">
+                <div class="breadcrumb">
+                    <a href="#">Jobs</a> <span>›</span> Inovum Data Center (#26028) <span>›</span> Daily Logs
+                </div>
+                <div class="page-heading" style="margin-bottom:14px;">Inovum Data Center (#26028)</div>
+
+                <div class="tab-row">
+                    <div class="tab-item">Overview</div>
+                    <div class="tab-item">Financial</div>
+                    <div class="tab-item active">Daily Logs</div>
+                    <div class="tab-item">Schedule</div>
+                    <div class="tab-item">Documents</div>
+                </div>
+
+                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;">
+                    <div class="filter-bar" style="margin:0;">
+                        <div class="filter-pill">📅 Date ▾</div>
+                    </div>
+                    <button class="btn btn-primary" style="font-size:12px; padding:6px 14px;">+ New Daily Log</button>
+                </div>
+
+                <table class="list-table">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Crew</th>
+                            <th>Hours</th>
+                            <th>Weather</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td style="font-weight:600;">Mar 28</td>
+                            <td>8</td>
+                            <td>64.0</td>
+                            <td>☀ 12°C</td>
+                            <td><span class="status-badge status-draft">Draft</span></td>
+                        </tr>
+                        <tr>
+                            <td style="font-weight:600;">Mar 27</td>
+                            <td>12</td>
+                            <td>96.0</td>
+                            <td>🌧 8°C</td>
+                            <td><span class="status-badge status-submitted">Submitted</span></td>
+                        </tr>
+                        <tr>
+                            <td style="font-weight:600;">Mar 26</td>
+                            <td>10</td>
+                            <td>80.0</td>
+                            <td>⛅ 10°C</td>
+                            <td><span class="status-badge status-submitted">Submitted</span></td>
+                        </tr>
+                        <tr>
+                            <td style="font-weight:600;">Mar 25</td>
+                            <td>11</td>
+                            <td>88.0</td>
+                            <td>☀ 14°C</td>
+                            <td><span class="status-badge status-approved">Approved</span></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mockup 5: Daily Log PDF Document Preview -->
+    <div class="uis-section" id="mockup-5">
+        <h2>Daily Log PDF Document Preview</h2>
+        <p style="margin-bottom:14px; font-size:14px; color:#64748b;">PDF export mockup for daily log reports with company branding and all sections.</p>
+
+        <div class="mockup-container">
+            <div class="mockup-bar">
+                <div class="mockup-dots"><div class="mockup-dot mockup-dot-r"></div><div class="mockup-dot mockup-dot-y"></div><div class="mockup-dot mockup-dot-g"></div></div>
+                Daily Log PDF Preview
+            </div>
+            <div class="mockup-body" style="background:#e2e8f0; padding:24px;">
+                <div class="pdf-page">
+                    <div class="pdf-header">
+                        <div>
+                            <div class="pdf-logo">⬡ COMPANY LOGO</div>
+                            <div style="font-size:11px; color:#64748b;">Your Company Name</div>
+                        </div>
+                        <div style="text-align:right;">
+                            <div style="font-size:16px; font-weight:800; color:#1e293b;">DAILY LOG</div>
+                            <div style="font-size:11px; color:#64748b;">March 27, 2026</div>
+                        </div>
+                    </div>
+
+                    <div class="pdf-grid" style="grid-template-columns:1fr 1fr; margin-bottom:14px;">
+                        <div><span class="pdf-label">Job:</span><br><span class="pdf-value">Inovum Data Center (#26028)</span></div>
+                        <div><span class="pdf-label">Address:</span><br><span class="pdf-value">100 Innovation Dr, Kanata ON</span></div>
+                    </div>
+
+                    <div class="pdf-section">
+                        <div class="pdf-section-title">Weather</div>
+                        <div class="pdf-grid">
+                            <div><span class="pdf-label">Conditions:</span> Rain</div>
+                            <div><span class="pdf-label">Temp:</span> 8°C</div>
+                            <div><span class="pdf-label">Wind:</span> 15 km/h NW</div>
+                            <div><span class="pdf-label">Precip:</span> 12mm</div>
+                        </div>
+                    </div>
+
+                    <div class="pdf-section">
+                        <div class="pdf-section-title">Crew (12 workers · 96.0 hrs)</div>
+                        <table style="width:100%; font-size:11px; border-collapse:collapse;">
+                            <tr style="border-bottom:1px solid #e2e8f0;">
+                                <td style="padding:3px 0; font-weight:600;">Mike Chen</td>
+                                <td>Foreman</td>
+                                <td style="text-align:right;">8.0 hrs</td>
+                            </tr>
+                            <tr style="border-bottom:1px solid #e2e8f0;">
+                                <td style="padding:3px 0; font-weight:600;">Sarah Lee</td>
+                                <td>Journeyman</td>
+                                <td style="text-align:right;">8.0 hrs</td>
+                            </tr>
+                            <tr style="border-bottom:1px solid #e2e8f0;">
+                                <td style="padding:3px 0; font-weight:600;">Tom Walsh</td>
+                                <td>Apprentice</td>
+                                <td style="text-align:right;">8.0 hrs</td>
+                            </tr>
+                            <tr>
+                                <td colspan="3" style="padding:3px 0; font-size:10px; color:#94a3b8;">+ 9 more workers...</td>
+                            </tr>
+                        </table>
+                    </div>
+
+                    <div class="pdf-section">
+                        <div class="pdf-section-title">Work Performed</div>
+                        <p style="font-size:11px; line-height:1.5;">Completed 2nd floor rough-in plumbing. Installed 14 fixture carriers and tied into the main waste stack. Pressure tested all new supply lines at 150 PSI — all passing.</p>
+                    </div>
+
+                    <div class="pdf-section">
+                        <div class="pdf-section-title">Materials Used</div>
+                        <p style="font-size:11px;">R-30 Batt 16" × 120, 3/4" Copper Pipe × 45</p>
+                    </div>
+
+                    <div class="pdf-section">
+                        <div class="pdf-section-title">Equipment Used</div>
+                        <p style="font-size:11px;">CAT 320 Excavator (8.0 hrs), Kubota U35 (6.0 hrs)</p>
+                    </div>
+
+                    <div class="pdf-section">
+                        <div class="pdf-section-title">Safety Observations</div>
+                        <p style="font-size:11px;">All PPE compliance verified. Wet floor signage placed.</p>
+                    </div>
+
+                    <div class="pdf-section">
+                        <div class="pdf-section-title">Photos</div>
+                        <div class="photo-grid">
+                            <div class="photo-placeholder" style="font-size:10px;">IMG_001</div>
+                            <div class="photo-placeholder" style="font-size:10px;">IMG_002</div>
+                            <div class="photo-placeholder" style="font-size:10px;">IMG_003</div>
+                            <div class="photo-placeholder" style="font-size:10px;">IMG_004</div>
+                        </div>
+                    </div>
+
+                    <div style="margin-top:16px; padding-top:10px; border-top:1px solid #e2e8f0; font-size:10px; color:#94a3b8; display:flex; justify-content:space-between;">
+                        <div>Status: <strong style="color:#475569;">Submitted</strong> · Created by Mike Chen</div>
+                        <div>Powered by Appello</div>
+                    </div>
+                </div>
+
+                <div style="display:flex; gap:10px; justify-content:center; margin-top:16px;">
+                    <button class="btn btn-primary">Download PDF</button>
+                    <button class="btn btn-outline">Email Report</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="uis-footer">
+        UIS-18 · Daily Logs & Field Reports · <a href="index.html">Back to Roadmap</a>
+    </div>
+</div>
+</body>
+</html>

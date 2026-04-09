@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UIS-15C · Equipment Variable Rates</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Inter', -apple-system, sans-serif; background: #f1f5f9; color: #1e293b; }
+.uis-wrap { max-width: 960px; margin: 0 auto; padding: 40px 24px 80px; }
+.uis-h1 { font-size: 30px; font-weight: 800; color: #1e293b; margin: 0 0 8px; letter-spacing: -0.01em; }
+.uis-sub { font-size: 15px; color: #64748b; line-height: 1.5; margin: 0 0 32px; }
+.uis-section { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px 28px; margin-bottom: 16px; }
+.uis-section h2 { font-size: 17px; font-weight: 700; color: #1e293b; margin: 0 0 14px; padding-bottom: 10px; border-bottom: 2px solid #e2e8f0; }
+.mockup-container { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; margin: 14px 0; }
+.mockup-bar { background: #f1f5f9; border-bottom: 1px solid #e2e8f0; padding: 10px 16px; font-size: 12px; color: #64748b; display: flex; align-items: center; gap: 10px; }
+.mockup-dots { display: flex; gap: 6px; margin-right: 8px; }
+.mockup-dot { width: 10px; height: 10px; border-radius: 50%; }
+.mockup-dot-r { background: #f87171; }
+.mockup-dot-y { background: #fbbf24; }
+.mockup-dot-g { background: #34d399; }
+.mockup-body { padding: 20px; }
+
+/* Shared */
+.m-breadcrumb { font-size: 12px; color: #64748b; margin-bottom: 14px; }
+.m-breadcrumb span { color: #3b82f6; }
+.m-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+.m-header h3 { font-size: 16px; font-weight: 700; color: #1e293b; }
+.m-btn { padding: 7px 16px; border-radius: 6px; font-size: 12px; font-weight: 600; border: 1px solid #e2e8f0; background: #fff; color: #1e293b; cursor: pointer; display: inline-flex; align-items: center; gap: 5px; }
+.m-btn-primary { background: #3b82f6; color: #fff; border-color: #3b82f6; }
+.m-btn-outline { border-color: #cbd5e1; }
+.m-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.m-table th { text-align: left; padding: 8px 12px; background: #f8fafc; border-bottom: 2px solid #e2e8f0; font-weight: 600; color: #64748b; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
+.m-table td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; color: #334155; }
+.m-table tr:last-child td { border-bottom: none; }
+.m-table .num { text-align: right; font-variant-numeric: tabular-nums; }
+.m-table th.num { text-align: right; }
+
+/* Toolbar */
+.toolbar { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; }
+.schedule-select { display: flex; align-items: center; gap: 8px; padding: 7px 14px; border: 1px solid #e2e8f0; border-radius: 8px; background: #fff; font-size: 13px; color: #1e293b; font-weight: 500; }
+.active-dot { width: 8px; height: 8px; border-radius: 50%; background: #10b981; flex-shrink: 0; }
+
+/* Inline form */
+.inline-form { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin-bottom: 16px; }
+.form-row { display: flex; gap: 12px; margin-bottom: 10px; align-items: flex-end; }
+.form-group { display: flex; flex-direction: column; gap: 4px; flex: 1; }
+.form-label { font-size: 11px; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.3px; }
+.form-input { padding: 7px 12px; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 13px; font-family: 'Inter', sans-serif; color: #1e293b; background: #fff; }
+.form-info { font-size: 12px; color: #64748b; font-style: italic; margin-bottom: 12px; }
+.form-actions { display: flex; gap: 8px; justify-content: flex-end; }
+
+/* Section header */
+.section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; margin-top: 20px; padding-bottom: 8px; border-bottom: 1px solid #e2e8f0; }
+.section-header h4 { font-size: 14px; font-weight: 700; color: #1e293b; }
+
+/* Day toggles */
+.day-toggles { display: flex; gap: 6px; margin: 8px 0 16px; }
+.day-toggle { width: 40px; height: 32px; border-radius: 6px; border: 1px solid #e2e8f0; background: #fff; font-size: 11px; font-weight: 600; color: #64748b; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+.day-toggle.active { background: #3b82f6; color: #fff; border-color: #3b82f6; }
+
+/* Settings sections */
+.settings-section { margin-bottom: 20px; }
+.settings-section h4 { font-size: 13px; font-weight: 700; color: #1e293b; margin-bottom: 8px; }
+.settings-row { display: flex; gap: 12px; align-items: center; margin-bottom: 8px; }
+.settings-label { font-size: 12px; color: #64748b; width: 80px; flex-shrink: 0; }
+.edit-link { font-size: 12px; color: #3b82f6; text-decoration: none; font-weight: 500; cursor: pointer; }
+    </style>
+</head>
+<body>
+<div class="uis-wrap">
+    <h1 class="uis-h1">UIS-15C · Equipment Variable Rates</h1>
+    <p class="uis-sub">Rate schedule management with versioned effective dates, and time window configuration for automatic overtime classification by equipment category.</p>
+
+    <!-- Mockup 1 -->
+    <div class="uis-section">
+        <h2>Mockup 1 — New Rate Schedule Form</h2>
+        <div class="mockup-container" id="mockup-1">
+            <div class="mockup-bar">
+                <div class="mockup-dots"><div class="mockup-dot mockup-dot-r"></div><div class="mockup-dot mockup-dot-y"></div><div class="mockup-dot mockup-dot-g"></div></div>
+                Rate Schedule Management
+            </div>
+            <div class="mockup-body">
+                <div class="m-breadcrumb">
+                    <span>Equipment Rates</span> › <span>Heavy Equipment</span> › Rate Schedules
+                </div>
+
+                <div class="toolbar">
+                    <div class="schedule-select">
+                        <span class="active-dot"></span>
+                        2026 Q1 Rates (Active)
+                        <span style="color:#94a3b8; margin-left:4px">▾</span>
+                    </div>
+                    <button class="m-btn m-btn-primary">+ New Rate Schedule</button>
+                </div>
+
+                <div class="inline-form">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Schedule Name</label>
+                            <input class="form-input" type="text" value="2026 Q2 Rates" readonly>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Effective Date</label>
+                            <input class="form-input" type="text" value="Apr 1, 2026" readonly>
+                        </div>
+                    </div>
+                    <div class="form-info">Rates will be copied from the currently selected schedule.</div>
+                    <div class="form-actions">
+                        <button class="m-btn m-btn-outline">Cancel</button>
+                        <button class="m-btn m-btn-primary">Create Schedule</button>
+                    </div>
+                </div>
+
+                <table class="m-table">
+                    <thead>
+                        <tr>
+                            <th>Rate Type</th>
+                            <th class="num">Rate</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td style="font-weight:600">Standard</td>
+                            <td class="num">$185.00/hr</td>
+                        </tr>
+                        <tr>
+                            <td style="font-weight:600">Standby</td>
+                            <td class="num">$92.50/hr</td>
+                        </tr>
+                        <tr>
+                            <td style="font-weight:600">Overtime</td>
+                            <td class="num">$277.50/hr</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mockup 2 -->
+    <div class="uis-section">
+        <h2>Mockup 2 — Time Window Configuration</h2>
+        <div class="mockup-container" id="mockup-2">
+            <div class="mockup-bar">
+                <div class="mockup-dots"><div class="mockup-dot mockup-dot-r"></div><div class="mockup-dot mockup-dot-y"></div><div class="mockup-dot mockup-dot-g"></div></div>
+                Instance Settings — Equipment Time Windows
+            </div>
+            <div class="mockup-body">
+                <div class="m-breadcrumb">
+                    <span>Instance Settings</span> › Equipment Time Windows
+                </div>
+
+                <div class="settings-section">
+                    <h4>Standard Work Hours</h4>
+                    <div class="settings-row">
+                        <span class="settings-label">Start Hour</span>
+                        <select class="form-input" style="width:140px">
+                            <option>7:00 AM</option>
+                        </select>
+                    </div>
+                    <div class="settings-row">
+                        <span class="settings-label">End Hour</span>
+                        <select class="form-input" style="width:140px">
+                            <option>5:00 PM</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="settings-section">
+                    <h4>Weekend Days</h4>
+                    <div class="day-toggles">
+                        <div class="day-toggle">Mon</div>
+                        <div class="day-toggle">Tue</div>
+                        <div class="day-toggle">Wed</div>
+                        <div class="day-toggle">Thu</div>
+                        <div class="day-toggle">Fri</div>
+                        <div class="day-toggle active">Sat</div>
+                        <div class="day-toggle active">Sun</div>
+                    </div>
+                </div>
+
+                <div class="settings-section">
+                    <h4>Category OT Multipliers</h4>
+                    <table class="m-table">
+                        <thead>
+                            <tr>
+                                <th>Category</th>
+                                <th class="num">OT Multiplier</th>
+                                <th style="width:60px"></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td style="font-weight:600">Heavy Equipment</td>
+                                <td class="num">1.50x</td>
+                                <td><a class="edit-link">Edit</a></td>
+                            </tr>
+                            <tr>
+                                <td style="font-weight:600">Vehicles</td>
+                                <td class="num">1.25x</td>
+                                <td><a class="edit-link">Edit</a></td>
+                            </tr>
+                            <tr>
+                                <td style="font-weight:600">Hand Tools</td>
+                                <td class="num">1.00x</td>
+                                <td><a class="edit-link">Edit</a></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div style="text-align:right; margin-top:8px">
+                    <button class="m-btn m-btn-primary">Save Settings</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+</body>
+</html>

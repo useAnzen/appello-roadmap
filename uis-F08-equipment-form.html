@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UIS-F08 · Equipment-Form Integration</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            color: #1e293b;
+            background: #ffffff;
+            line-height: 1.6;
+            padding: 40px;
+            max-width: 1100px;
+            margin: 0 auto;
+        }
+
+        h1 { font-size: 28px; font-weight: 700; margin-bottom: 8px; }
+        .description { color: #64748b; font-size: 15px; margin-bottom: 32px; }
+        .section-label { font-size: 13px; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px; }
+        .mockup-title { font-size: 18px; font-weight: 600; margin-bottom: 4px; }
+
+        .mockup-container { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; margin: 14px 0; }
+        .mockup-bar { background: #f1f5f9; border-bottom: 1px solid #e2e8f0; padding: 10px 16px; font-size: 12px; color: #64748b; display: flex; align-items: center; gap: 10px; }
+        .mockup-dots { display: flex; gap: 6px; margin-right: 8px; }
+        .mockup-dot { width: 10px; height: 10px; border-radius: 50%; }
+        .mockup-dot-r { background: #f87171; }
+        .mockup-dot-y { background: #fbbf24; }
+        .mockup-dot-g { background: #34d399; }
+        .mockup-body { padding: 20px; }
+        .mobile-frame { max-width: 375px; margin: 14px auto; border: 2px solid #e2e8f0; border-radius: 24px; overflow: hidden; }
+
+        /* Layout */
+        .side-by-side {
+            display: grid;
+            grid-template-columns: 1fr 400px;
+            gap: 24px;
+            align-items: start;
+        }
+
+        /* Modal styles */
+        .modal-overlay {
+            background: rgba(15, 23, 42, 0.45);
+            border-radius: 8px;
+            padding: 32px 20px;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+        }
+        .modal-card {
+            background: #ffffff;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+            width: 100%;
+            max-width: 480px;
+            overflow: hidden;
+        }
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 18px 20px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        .modal-header h3 { font-size: 16px; font-weight: 600; }
+        .modal-close {
+            width: 28px; height: 28px;
+            border-radius: 6px;
+            background: #f1f5f9;
+            display: flex; align-items: center; justify-content: center;
+            color: #64748b; font-size: 14px; cursor: pointer;
+        }
+        .modal-footer {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            padding: 14px 20px;
+            border-top: 1px solid #e2e8f0;
+            background: #f8fafc;
+        }
+        .btn {
+            padding: 8px 18px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 500;
+            border: none;
+            cursor: pointer;
+            font-family: inherit;
+        }
+        .btn-gray { background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; }
+        .btn-blue { background: #3b82f6; color: #ffffff; }
+
+        /* Filter bar */
+        .filter-bar {
+            display: flex;
+            gap: 10px;
+            padding: 14px 20px;
+            border-bottom: 1px solid #e2e8f0;
+            background: #f8fafc;
+        }
+        .filter-input {
+            flex: 1;
+            padding: 8px 12px;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            font-size: 13px;
+            font-family: inherit;
+            background: #ffffff;
+            color: #1e293b;
+        }
+        .filter-select {
+            padding: 8px 12px;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            font-size: 13px;
+            font-family: inherit;
+            background: #ffffff;
+            color: #1e293b;
+            min-width: 180px;
+        }
+
+        /* Equipment list */
+        .eq-list { padding: 0; }
+        .eq-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 14px 20px;
+            border-bottom: 1px solid #f1f5f9;
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+        .eq-item:last-child { border-bottom: none; }
+        .eq-item:hover { background: #f8fafc; }
+        .eq-item.selected { background: #eff6ff; }
+        .eq-radio {
+            width: 18px; height: 18px;
+            border-radius: 50%;
+            border: 2px solid #cbd5e1;
+            flex-shrink: 0;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .eq-radio.checked {
+            border-color: #3b82f6;
+        }
+        .eq-radio.checked::after {
+            content: '';
+            width: 10px; height: 10px;
+            border-radius: 50%;
+            background: #3b82f6;
+        }
+        .eq-info { flex: 1; }
+        .eq-name { font-size: 14px; font-weight: 500; }
+        .eq-meta { font-size: 12px; color: #64748b; margin-top: 2px; }
+        .eq-empty {
+            padding: 24px 20px;
+            text-align: center;
+            color: #94a3b8;
+            font-size: 13px;
+            display: none;
+        }
+
+        /* Mobile header */
+        .mobile-header {
+            background: #1e293b;
+            color: #ffffff;
+            padding: 14px 16px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 15px;
+            font-weight: 600;
+        }
+        .mobile-back { font-size: 18px; opacity: 0.7; }
+        .mobile-filter {
+            padding: 10px 16px;
+            background: #f8fafc;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        .mobile-filter input {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 14px;
+            font-family: inherit;
+            background: #ffffff;
+        }
+        .mobile-eq-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 14px 16px;
+            border-bottom: 1px solid #f1f5f9;
+        }
+        .mobile-eq-item.selected { background: #eff6ff; }
+        .mobile-sticky-btn {
+            padding: 12px 16px;
+            background: #ffffff;
+            border-top: 1px solid #e2e8f0;
+        }
+        .mobile-sticky-btn button {
+            width: 100%;
+            padding: 12px;
+            background: #3b82f6;
+            color: #ffffff;
+            border: none;
+            border-radius: 10px;
+            font-size: 15px;
+            font-weight: 600;
+            font-family: inherit;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>UIS-F08 · Equipment-Form Integration</h1>
+    <p class="description">Equipment picker modal for selecting equipment from the customer's assigned inventory, shown in desktop and mobile layouts.</p>
+
+    <!-- Mockup 1 -->
+    <div style="margin-top: 32px;">
+        <p class="section-label">Mockup 1</p>
+        <p class="mockup-title">Equipment Picker Modal</p>
+    </div>
+
+    <div id="mockup-1" class="side-by-side">
+
+        <!-- Desktop version -->
+        <div class="mockup-container">
+            <div class="mockup-bar">
+                <div class="mockup-dots">
+                    <div class="mockup-dot mockup-dot-r"></div>
+                    <div class="mockup-dot mockup-dot-y"></div>
+                    <div class="mockup-dot mockup-dot-g"></div>
+                </div>
+                Desktop · Equipment Picker Modal
+            </div>
+            <div class="mockup-body">
+                <div class="modal-overlay">
+                    <div class="modal-card">
+                        <div class="modal-header">
+                            <h3>Select Equipment</h3>
+                            <div class="modal-close">✕</div>
+                        </div>
+
+                        <div class="filter-bar">
+                            <select class="filter-select">
+                                <option>Inovum Data Center</option>
+                            </select>
+                            <input class="filter-input" type="text" placeholder="Search equipment…">
+                        </div>
+
+                        <div class="eq-list">
+                            <div class="eq-item">
+                                <div class="eq-radio"></div>
+                                <div class="eq-info">
+                                    <div class="eq-name">CAT 320 Excavator</div>
+                                    <div class="eq-meta">Heavy Equipment · SN: CAT320-2024-001</div>
+                                </div>
+                            </div>
+                            <div class="eq-item selected">
+                                <div class="eq-radio checked"></div>
+                                <div class="eq-info">
+                                    <div class="eq-name">Kubota U35</div>
+                                    <div class="eq-meta">Heavy Equipment · SN: KBT-U35-2023-042</div>
+                                </div>
+                            </div>
+                            <div class="eq-item">
+                                <div class="eq-radio"></div>
+                                <div class="eq-info">
+                                    <div class="eq-name">Ford F-250 #12</div>
+                                    <div class="eq-meta">Vehicles · SN: F250-2022-012</div>
+                                </div>
+                            </div>
+                            <div class="eq-item">
+                                <div class="eq-radio"></div>
+                                <div class="eq-info">
+                                    <div class="eq-name">DeWalt Generator</div>
+                                    <div class="eq-meta">Hand Tools · SN: DW-GEN-2024-015</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="eq-empty">No equipment found</div>
+
+                        <div class="modal-footer">
+                            <button class="btn btn-gray">Cancel</button>
+                            <button class="btn btn-blue">Confirm Selection</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Mobile version -->
+        <div class="mobile-frame">
+            <div class="mobile-header">
+                <span class="mobile-back">←</span>
+                Select Equipment
+            </div>
+            <div class="mobile-filter">
+                <input type="text" placeholder="Search equipment…">
+            </div>
+            <div>
+                <div class="mobile-eq-item">
+                    <div class="eq-radio"></div>
+                    <div class="eq-info">
+                        <div class="eq-name">CAT 320 Excavator</div>
+                        <div class="eq-meta">Heavy Equipment · SN: CAT320-2024-001</div>
+                    </div>
+                </div>
+                <div class="mobile-eq-item selected">
+                    <div class="eq-radio checked"></div>
+                    <div class="eq-info">
+                        <div class="eq-name">Kubota U35</div>
+                        <div class="eq-meta">Heavy Equipment · SN: KBT-U35-2023-042</div>
+                    </div>
+                </div>
+                <div class="mobile-eq-item">
+                    <div class="eq-radio"></div>
+                    <div class="eq-info">
+                        <div class="eq-name">Ford F-250 #12</div>
+                        <div class="eq-meta">Vehicles · SN: F250-2022-012</div>
+                    </div>
+                </div>
+                <div class="mobile-eq-item">
+                    <div class="eq-radio"></div>
+                    <div class="eq-info">
+                        <div class="eq-name">DeWalt Generator</div>
+                        <div class="eq-meta">Hand Tools · SN: DW-GEN-2024-015</div>
+                    </div>
+                </div>
+            </div>
+            <div class="mobile-sticky-btn">
+                <button>Confirm</button>
+            </div>
+        </div>
+
+    </div>
+
+</body>
+</html>

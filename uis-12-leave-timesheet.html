@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UIS-12 — Leave & Timesheet Workflow</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+.in-iframe .top-nav { display: none !important; }
+.top-nav { position: sticky; top: 0; z-index: 100; background: #0f172a; border-bottom: 1px solid #1e293b; padding: 0 24px; display: flex; align-items: center; gap: 0; }
+.top-nav a { display: inline-flex; align-items: center; padding: 12px 18px; font-size: 13px; font-weight: 600; color: #94a3b8; text-decoration: none; border-bottom: 2px solid transparent; transition: all 0.15s; white-space: nowrap; }
+.top-nav a:hover { color: #f8fafc; background: #1e293b; }
+.top-nav .nav-logo { font-size: 11px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: #475569; padding-right: 18px; margin-right: 4px; border-right: 1px solid #1e293b; }
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Inter', -apple-system, sans-serif; background: #f1f5f9; color: #0f172a; }
+.uis-wrap { max-width: 960px; margin: 0 auto; padding: 40px 24px 80px; }
+.uis-hero { margin-bottom: 32px; }
+.uis-badges { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+.uis-badge { font-size: 11px; font-weight: 700; padding: 4px 12px; border-radius: 6px; display: inline-flex; align-items: center; gap: 5px; }
+.badge-q { background: #0f172a; color: #fff; }
+.badge-leave { background: #6366f1; color: #fff; }
+.badge-daily { background: #0ea5e9; color: #fff; }
+.badge-qw { background: #f97316; color: #fff; }
+.badge-status { background: #fef3c7; color: #92400e; }
+.uis-h1 { font-size: 30px; font-weight: 800; color: #0f172a; margin: 0 0 8px; letter-spacing: -0.01em; }
+.uis-sub { font-size: 15px; color: #64748b; line-height: 1.5; margin: 0; }
+.uis-section { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px 28px; margin-bottom: 16px; }
+.uis-section h2 { font-size: 17px; font-weight: 700; margin: 0 0 14px; padding-bottom: 10px; border-bottom: 2px solid #e2e8f0; }
+.uis-section h3 { font-size: 15px; font-weight: 700; margin: 16px 0 8px; }
+.uis-footer { text-align: center; padding: 24px; font-size: 12px; color: #94a3b8; }
+.uis-footer a { color: #3b82f6; text-decoration: none; }
+.mockup-container { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; margin: 14px 0; }
+.mockup-bar { background: #f1f5f9; padding: 8px 14px; font-size: 12px; font-weight: 600; color: #64748b; border-bottom: 1px solid #e2e8f0; display: flex; align-items: center; gap: 8px; }
+.mockup-dots { display: flex; gap: 5px; }
+.mockup-dot { width: 8px; height: 8px; border-radius: 50%; }
+.mockup-dot-r { background: #f87171; }
+.mockup-dot-y { background: #fbbf24; }
+.mockup-dot-g { background: #34d399; }
+.mockup-body { padding: 24px; min-height: 200px; font-size: 13px; color: #334155; line-height: 1.6; }
+.mobile-frame { max-width: 375px; margin: 0 auto; border: 2px solid #e2e8f0; border-radius: 24px; overflow: hidden; }
+.mobile-header { background: #0f172a; color: #fff; padding: 12px 16px; font-size: 14px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+.mobile-body { padding: 16px; background: #fff; min-height: 400px; font-size: 13px; }
+
+.info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 12px 0; }
+.info-item { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 14px; }
+.info-label { font-size: 11px; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+.info-value { font-size: 14px; font-weight: 600; color: #0f172a; }
+.status-badge { display: inline-block; font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 6px; }
+.status-pending { background: #fef3c7; color: #92400e; }
+.status-approved { background: #dcfce7; color: #166534; }
+.status-rejected { background: #fee2e2; color: #dc2626; }
+.btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 600; border: none; cursor: pointer; }
+.btn-approve { background: #16a34a; color: #fff; }
+.btn-reject { background: #dc2626; color: #fff; }
+.btn-secondary { background: #f1f5f9; color: #334155; border: 1px solid #e2e8f0; }
+.btn-primary { background: #3b82f6; color: #fff; }
+.form-row { margin-bottom: 14px; }
+.form-label { font-size: 12px; font-weight: 600; color: #475569; margin-bottom: 4px; display: block; }
+.form-input { width: 100%; padding: 8px 12px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 13px; background: #fff; }
+.form-select { width: 100%; padding: 8px 12px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 13px; background: #fff; appearance: none; }
+.toggle-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; border: 1px solid #e2e8f0; border-radius: 8px; margin-bottom: 8px; background: #fff; }
+.toggle-track { width: 36px; height: 20px; border-radius: 10px; background: #e2e8f0; position: relative; }
+.toggle-track.on { background: #3b82f6; }
+.toggle-knob { width: 16px; height: 16px; border-radius: 50%; background: #fff; position: absolute; top: 2px; left: 2px; box-shadow: 0 1px 2px rgba(0,0,0,0.15); }
+.toggle-track.on .toggle-knob { left: 18px; }
+.timeline-item { display: flex; gap: 12px; padding: 10px 0; border-left: 2px solid #e2e8f0; margin-left: 8px; padding-left: 16px; position: relative; }
+.timeline-item::before { content: ''; width: 8px; height: 8px; border-radius: 50%; background: #3b82f6; position: absolute; left: -5px; top: 14px; }
+.timeline-time { font-size: 11px; color: #94a3b8; white-space: nowrap; min-width: 100px; }
+.timeline-text { font-size: 13px; color: #334155; }
+.drag-handle { color: #94a3b8; cursor: grab; font-size: 16px; }
+.q-row { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border: 1px solid #e2e8f0; border-radius: 8px; margin-bottom: 8px; background: #fff; }
+.q-text { flex: 1; font-size: 13px; font-weight: 500; }
+.type-badge { font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 4px; background: #eff6ff; color: #3b82f6; }
+.report-table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 12px 0; }
+.report-table th { text-align: left; padding: 8px 12px; background: #f8fafc; border-bottom: 2px solid #e2e8f0; font-weight: 600; font-size: 12px; color: #64748b; }
+.report-table td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; }
+.report-table .over-budget { color: #dc2626; font-weight: 600; }
+.report-table .total-row { background: #f8fafc; font-weight: 700; }
+.calc-display { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 10px 14px; margin: 10px 0; font-size: 13px; color: #1e40af; font-weight: 600; }
+.breadcrumb { font-size: 12px; color: #94a3b8; margin-bottom: 12px; }
+.breadcrumb a { color: #3b82f6; text-decoration: none; }
+.breadcrumb span { margin: 0 6px; }
+.flyout-overlay { position: relative; background: rgba(0,0,0,0.04); border-radius: 8px; padding: 0; display: flex; justify-content: flex-end; min-height: 420px; }
+.flyout-panel { width: 380px; background: #fff; border-left: 1px solid #e2e8f0; padding: 20px; box-shadow: -4px 0 12px rgba(0,0,0,0.06); }
+.flyout-title { font-size: 16px; font-weight: 700; margin-bottom: 16px; padding-bottom: 10px; border-bottom: 1px solid #e2e8f0; }
+.page-heading { font-size: 20px; font-weight: 700; color: #0f172a; margin-bottom: 4px; }
+</style>
+</head>
+<body>
+<script>if(self!==top)document.documentElement.classList.add("in-iframe")</script>
+<nav class="top-nav">
+    <span class="nav-logo">Appello SDLC</span>
+    <a href="index.html">Roadmap</a>
+    <a href="release-1.33-timeline.html">Release 1.33</a>
+    <a href="release-1.34-timeline.html">Release 1.34</a>
+    <a href="master-spec-reconciliation.html">Spec Reconciliation</a>
+    <a href="ui-interface-library.html">UI Library</a>
+    <a href="cross-release-continuity-audit.html">Continuity Audit</a>
+</nav>
+
+<div class="uis-wrap">
+    <div class="uis-hero">
+        <div class="uis-badges">
+            <span class="uis-badge badge-q">UIS-12</span>
+            <span class="uis-badge badge-leave">Leave Track</span>
+            <span class="uis-badge badge-status">Draft</span>
+        </div>
+        <h1 class="uis-h1">UIS-12 — Leave & Timesheet Workflow</h1>
+        <p class="uis-sub">Leave request detail page, create/edit flyout, timesheet question admin, and union subsidy accrual reporting. Covers the full lifecycle of leave management and supporting timesheet configuration for Appello Mechanical.</p>
+    </div>
+
+    <!-- Mockup 1: UIS-12-01 Leave Detail Page -->
+    <div class="uis-section" id="mockup-1">
+        <h2>UIS-12-01 · Leave Detail Page</h2>
+        <p style="margin-bottom:14px; font-size:14px; color:#64748b;">Desktop view of an individual leave request at <code>/workforce/leave/[id]</code>. Shows employee info, leave details, approval actions, and activity timeline.</p>
+
+        <div class="mockup-container">
+            <div class="mockup-bar">
+                <div class="mockup-dots"><div class="mockup-dot mockup-dot-r"></div><div class="mockup-dot mockup-dot-y"></div><div class="mockup-dot mockup-dot-g"></div></div>
+                appello.useappello.app/workforce/leave/lr-2024-0042
+            </div>
+            <div class="mockup-body">
+                <div class="breadcrumb">
+                    <a href="#">Workforce</a> <span>›</span> <a href="#">Leave</a> <span>›</span> LR-2024-0042
+                </div>
+                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px;">
+                    <div>
+                        <div class="page-heading">Leave Request LR-2024-0042</div>
+                        <div style="font-size:13px; color:#64748b;">Submitted Dec 12, 2024 at 9:14 AM</div>
+                    </div>
+                    <span class="status-badge status-pending">⏳ Pending Approval</span>
+                </div>
+
+                <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:16px; margin-bottom:16px;">
+                    <div style="font-size:12px; font-weight:700; color:#94a3b8; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:8px;">Employee Information</div>
+                    <div style="display:flex; align-items:center; gap:12px;">
+                        <div style="width:40px; height:40px; border-radius:50%; background:#6366f1; display:flex; align-items:center; justify-content:center; color:#fff; font-weight:700; font-size:14px;">MR</div>
+                        <div>
+                            <div style="font-size:14px; font-weight:600;">Marcus Reinholt</div>
+                            <div style="font-size:12px; color:#64748b;">Mechanical Division · Journeyman Pipefitter</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="info-grid">
+                    <div class="info-item">
+                        <div class="info-label">Leave Type</div>
+                        <div class="info-value">🏖️ Vacation</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Start Date</div>
+                        <div class="info-value">Dec 23, 2024</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">End Date</div>
+                        <div class="info-value">Dec 27, 2024</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Total Hours</div>
+                        <div class="info-value">40.0 hrs</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Half Day</div>
+                        <div class="info-value">Off</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Remaining Balance</div>
+                        <div class="info-value">72.0 hrs</div>
+                    </div>
+                </div>
+
+                <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:12px 14px; margin:12px 0;">
+                    <div class="info-label">Notes</div>
+                    <div style="font-size:13px; color:#334155; margin-top:4px;">Family holiday travel — visiting relatives in Thunder Bay. Will have limited cell service. Contact Emerald Chen for coverage on Job 2024-MEC-017.</div>
+                </div>
+
+                <div style="display:flex; gap:10px; margin:16px 0; padding-top:14px; border-top:1px solid #e2e8f0;">
+                    <button class="btn btn-approve">✓ Approve</button>
+                    <button class="btn btn-reject">✕ Reject</button>
+                    <button class="btn btn-secondary" style="margin-left:auto;">Edit</button>
+                </div>
+                <div style="font-size:11px; color:#94a3b8; margin-bottom:16px;">Approve/Reject triggers a confirmation dialog before committing.</div>
+
+                <div style="font-size:14px; font-weight:700; margin:16px 0 10px; padding-top:14px; border-top:2px solid #e2e8f0;">Activity Timeline</div>
+                <div class="timeline-item">
+                    <div class="timeline-time">Dec 12, 9:14 AM</div>
+                    <div class="timeline-text"><strong>Marcus Reinholt</strong> submitted leave request</div>
+                </div>
+                <div class="timeline-item">
+                    <div class="timeline-time">Dec 12, 9:15 AM</div>
+                    <div class="timeline-text">Notification sent to <strong>Emerald Chen</strong> (Supervisor)</div>
+                </div>
+                <div class="timeline-item" style="border-left-color:#fbbf24;">
+                    <div class="timeline-time">Pending</div>
+                    <div class="timeline-text" style="color:#92400e;">Awaiting supervisor approval</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mockup 2: UIS-12-02 Leave Request Create/Edit Flyout -->
+    <div class="uis-section" id="mockup-2">
+        <h2>UIS-12-02 · Leave Request Create/Edit Flyout</h2>
+        <p style="margin-bottom:14px; font-size:14px; color:#64748b;">Right-side flyout panel for creating or editing a leave request. Auto-calculates business day hours from date range.</p>
+
+        <div class="mockup-container">
+            <div class="mockup-bar">
+                <div class="mockup-dots"><div class="mockup-dot mockup-dot-r"></div><div class="mockup-dot mockup-dot-y"></div><div class="mockup-dot mockup-dot-g"></div></div>
+                Flyout · New Leave Request
+            </div>
+            <div class="mockup-body" style="padding:0;">
+                <div class="flyout-overlay">
+                    <div style="flex:1; display:flex; align-items:center; justify-content:center; color:#94a3b8; font-size:13px;">
+                        ← Page content behind overlay
+                    </div>
+                    <div class="flyout-panel">
+                        <div class="flyout-title">New Leave Request</div>
+
+                        <div class="form-row">
+                            <label class="form-label">Leave Type</label>
+                            <div class="form-select" style="color:#0f172a;">
+                                Vacation ▾
+                            </div>
+                            <div style="font-size:11px; color:#94a3b8; margin-top:4px;">Options: Vacation, Sick, Personal, Bereavement</div>
+                        </div>
+
+                        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+                            <div class="form-row">
+                                <label class="form-label">Start Date</label>
+                                <div class="form-input">Dec 23, 2024</div>
+                            </div>
+                            <div class="form-row">
+                                <label class="form-label">End Date</label>
+                                <div class="form-input">Dec 27, 2024</div>
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <label class="form-label">Half Day</label>
+                            <div class="toggle-row" style="border:none; padding:0; margin:0;">
+                                <span style="font-size:13px; color:#64748b;">Start as half day</span>
+                                <div class="toggle-track">
+                                    <div class="toggle-knob"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="calc-display">
+                            📊 40.0 hours (5 business days)
+                        </div>
+
+                        <div class="form-row">
+                            <label class="form-label">Notes</label>
+                            <div class="form-input" style="min-height:70px; color:#94a3b8;">Add any notes for your supervisor...</div>
+                        </div>
+
+                        <div style="display:flex; gap:10px; margin-top:16px; padding-top:14px; border-top:1px solid #e2e8f0;">
+                            <button class="btn btn-primary" style="flex:1;">Save Request</button>
+                            <button class="btn btn-secondary">Cancel</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mockup 3: UIS-12-04 Timesheet Questions Admin -->
+    <div class="uis-section" id="mockup-3">
+        <h2>UIS-12-04 · Timesheet Questions Admin</h2>
+        <p style="margin-bottom:14px; font-size:14px; color:#64748b;">Admin settings page at <code>/settings/timesheet-questions</code>. Allows admins to configure questions shown during timesheet submission, with drag-to-reorder and per-question toggles.</p>
+
+        <div class="mockup-container">
+            <div class="mockup-bar">
+                <div class="mockup-dots"><div class="mockup-dot mockup-dot-r"></div><div class="mockup-dot mockup-dot-y"></div><div class="mockup-dot mockup-dot-g"></div></div>
+                appello.useappello.app/settings/timesheet-questions
+            </div>
+            <div class="mockup-body">
+                <div class="breadcrumb">
+                    <a href="#">Settings</a> <span>›</span> Timesheet Questions
+                </div>
+                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px;">
+                    <div>
+                        <div class="page-heading">Timesheet Questions</div>
+                        <div style="font-size:13px; color:#64748b;">Configure questions prompted during daily timesheet submission.</div>
+                    </div>
+                </div>
+
+                <div class="q-row">
+                    <span class="drag-handle">⠿</span>
+                    <span class="q-text">Did you work any overtime today?</span>
+                    <span class="type-badge">YES_NO</span>
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <span style="font-size:11px; color:#64748b;">Required</span>
+                        <div class="toggle-track on" style="width:32px; height:18px;">
+                            <div class="toggle-knob" style="width:14px; height:14px; left:16px;"></div>
+                        </div>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <span style="font-size:11px; color:#64748b;">Active</span>
+                        <div class="toggle-track on" style="width:32px; height:18px;">
+                            <div class="toggle-knob" style="width:14px; height:14px; left:16px;"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="q-row">
+                    <span class="drag-handle">⠿</span>
+                    <span class="q-text">Did you experience any safety incidents?</span>
+                    <span class="type-badge">YES_NO</span>
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <span style="font-size:11px; color:#64748b;">Required</span>
+                        <div class="toggle-track on" style="width:32px; height:18px;">
+                            <div class="toggle-knob" style="width:14px; height:14px; left:16px;"></div>
+                        </div>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <span style="font-size:11px; color:#64748b;">Active</span>
+                        <div class="toggle-track on" style="width:32px; height:18px;">
+                            <div class="toggle-knob" style="width:14px; height:14px; left:16px;"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="q-row">
+                    <span class="drag-handle">⠿</span>
+                    <span class="q-text">Additional notes</span>
+                    <span class="type-badge" style="background:#f0fdf4; color:#166534;">TEXT</span>
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <span style="font-size:11px; color:#64748b;">Required</span>
+                        <div class="toggle-track" style="width:32px; height:18px;">
+                            <div class="toggle-knob" style="width:14px; height:14px;"></div>
+                        </div>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <span style="font-size:11px; color:#64748b;">Active</span>
+                        <div class="toggle-track on" style="width:32px; height:18px;">
+                            <div class="toggle-knob" style="width:14px; height:14px; left:16px;"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="margin-top:14px;">
+                    <button class="btn btn-secondary" style="border-style:dashed; width:100%; justify-content:center;">
+                        + Add Question
+                    </button>
+                </div>
+                <div style="font-size:11px; color:#94a3b8; margin-top:8px;">Type options on add: <span class="type-badge">YES_NO</span> <span class="type-badge" style="background:#f0fdf4; color:#166534;">TEXT</span> <span class="type-badge" style="background:#faf5ff; color:#7c3aed;">MULTIPLE_CHOICE</span></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mockup 4: UIS-12-05 Union Subsidy Accrual Report -->
+    <div class="uis-section" id="mockup-4">
+        <h2>UIS-12-05 · Union Subsidy Accrual Report</h2>
+        <p style="margin-bottom:14px; font-size:14px; color:#64748b;">Report at <code>/reports/union-subsidy-accrual</code>. Tracks budgeted vs. accrued union subsidies by job and union hall, flagging over-budget situations.</p>
+
+        <div class="mockup-container">
+            <div class="mockup-bar">
+                <div class="mockup-dots"><div class="mockup-dot mockup-dot-r"></div><div class="mockup-dot mockup-dot-y"></div><div class="mockup-dot mockup-dot-g"></div></div>
+                appello.useappello.app/reports/union-subsidy-accrual
+            </div>
+            <div class="mockup-body">
+                <div class="breadcrumb">
+                    <a href="#">Reports</a> <span>›</span> Union Subsidy Accrual
+                </div>
+                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px;">
+                    <div>
+                        <div class="page-heading">Union Subsidy Accrual Report</div>
+                        <div style="font-size:13px; color:#64748b;">Budget vs. accrued union subsidies by job.</div>
+                    </div>
+                    <button class="btn btn-secondary">📥 Export CSV</button>
+                </div>
+
+                <div style="display:flex; gap:10px; margin-bottom:16px;">
+                    <div class="form-input" style="width:auto; display:inline-flex; align-items:center; gap:6px; padding:6px 12px; font-size:12px; font-weight:600; color:#475569;">
+                        📅 Period: Q4 2024 (Oct – Dec) ▾
+                    </div>
+                </div>
+
+                <table class="report-table">
+                    <thead>
+                        <tr>
+                            <th>Job</th>
+                            <th>Union Hall</th>
+                            <th style="text-align:right;">Budget ($)</th>
+                            <th style="text-align:right;">Accrued ($)</th>
+                            <th style="text-align:right;">% of Budget</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td style="font-weight:600;">2024-MEC-017</td>
+                            <td>UA Local 663</td>
+                            <td style="text-align:right;">$42,500.00</td>
+                            <td style="text-align:right;">$38,240.00</td>
+                            <td style="text-align:right;">89.9%</td>
+                            <td><span class="status-badge status-pending">On Track</span></td>
+                        </tr>
+                        <tr>
+                            <td style="font-weight:600;">2024-MEC-023</td>
+                            <td>UA Local 663</td>
+                            <td style="text-align:right;">$18,000.00</td>
+                            <td style="text-align:right;" class="over-budget">$19,440.00</td>
+                            <td style="text-align:right;" class="over-budget">108.0%</td>
+                            <td><span class="status-badge status-rejected">Over Budget</span></td>
+                        </tr>
+                        <tr>
+                            <td style="font-weight:600;">2024-MEC-031</td>
+                            <td>IBEW Local 804</td>
+                            <td style="text-align:right;">$31,200.00</td>
+                            <td style="text-align:right;">$22,100.00</td>
+                            <td style="text-align:right;">70.8%</td>
+                            <td><span class="status-badge status-approved">On Track</span></td>
+                        </tr>
+                        <tr>
+                            <td style="font-weight:600;">2024-MEC-009</td>
+                            <td>UA Local 46</td>
+                            <td style="text-align:right;">$12,800.00</td>
+                            <td style="text-align:right;" class="over-budget">$14,560.00</td>
+                            <td style="text-align:right;" class="over-budget">113.8%</td>
+                            <td><span class="status-badge status-rejected">Over Budget</span></td>
+                        </tr>
+                        <tr class="total-row">
+                            <td colspan="2" style="font-weight:700;">Grand Total</td>
+                            <td style="text-align:right; font-weight:700;">$104,500.00</td>
+                            <td style="text-align:right; font-weight:700;">$94,340.00</td>
+                            <td style="text-align:right; font-weight:700;">90.3%</td>
+                            <td></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="uis-footer">
+        UIS-12 · Leave & Timesheet Workflow · <a href="index.html">Back to Roadmap</a>
+    </div>
+</div>
+</body>
+</html>

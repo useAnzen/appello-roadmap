@@ -1,0 +1,697 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UIS-15G · Equipment Maintenance Scheduling</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Inter', -apple-system, sans-serif; background: #f1f5f9; color: #1e293b; }
+.uis-wrap { max-width: 960px; margin: 0 auto; padding: 40px 24px 80px; }
+.uis-h1 { font-size: 30px; font-weight: 800; color: #1e293b; margin: 0 0 8px; letter-spacing: -0.01em; }
+.uis-sub { font-size: 15px; color: #64748b; line-height: 1.5; margin: 0 0 32px; }
+.uis-section { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px 28px; margin-bottom: 16px; }
+.uis-section h2 { font-size: 17px; font-weight: 700; color: #1e293b; margin: 0 0 14px; padding-bottom: 10px; border-bottom: 2px solid #e2e8f0; }
+
+.mockup-container { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; margin: 14px 0; }
+.mockup-bar { background: #f1f5f9; border-bottom: 1px solid #e2e8f0; padding: 10px 16px; font-size: 12px; color: #64748b; display: flex; align-items: center; gap: 10px; }
+.mockup-dots { display: flex; gap: 6px; margin-right: 8px; }
+.mockup-dot { width: 10px; height: 10px; border-radius: 50%; }
+.mockup-dot-r { background: #f87171; }
+.mockup-dot-y { background: #fbbf24; }
+.mockup-dot-g { background: #34d399; }
+.mockup-body { padding: 20px; }
+.mobile-frame { max-width: 375px; margin: 14px auto; border: 2px solid #e2e8f0; border-radius: 24px; overflow: hidden; }
+
+/* Flyout panel */
+.flyout-wrapper {
+    display: flex;
+    justify-content: flex-end;
+    min-height: 520px;
+    background: rgba(15, 23, 42, 0.15);
+}
+.flyout-panel {
+    background: #fff;
+    width: 420px;
+    border-left: 1px solid #e2e8f0;
+    box-shadow: -8px 0 30px rgba(0,0,0,0.08);
+    display: flex;
+    flex-direction: column;
+}
+.flyout-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    border-bottom: 1px solid #e2e8f0;
+}
+.flyout-header h3 {
+    font-size: 15px;
+    font-weight: 700;
+    color: #1e293b;
+}
+.flyout-close {
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    border: 1px solid #e2e8f0;
+    background: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    color: #64748b;
+    cursor: pointer;
+}
+.flyout-body {
+    padding: 20px;
+    flex: 1;
+    overflow-y: auto;
+}
+.flyout-footer {
+    padding: 14px 20px;
+    border-top: 1px solid #e2e8f0;
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+}
+
+/* Form fields */
+.field { margin-bottom: 16px; }
+.field-label {
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    color: #64748b;
+    margin-bottom: 5px;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+.field-input {
+    width: 100%;
+    padding: 9px 12px;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    font-size: 13px;
+    font-family: 'Inter', sans-serif;
+    color: #1e293b;
+    background: #fff;
+}
+.field-input-readonly {
+    background: #f8fafc;
+    color: #64748b;
+}
+.field-textarea {
+    width: 100%;
+    padding: 9px 12px;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    font-size: 13px;
+    font-family: 'Inter', sans-serif;
+    color: #1e293b;
+    min-height: 70px;
+    resize: vertical;
+}
+.field-select {
+    width: 100%;
+    padding: 9px 12px;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    font-size: 13px;
+    font-family: 'Inter', sans-serif;
+    color: #1e293b;
+    background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E") right 12px center no-repeat;
+    appearance: none;
+    -webkit-appearance: none;
+    padding-right: 32px;
+}
+.field-info {
+    font-size: 11px;
+    color: #94a3b8;
+    margin-top: 4px;
+}
+.field-checkbox {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: #1e293b;
+    margin-top: 4px;
+}
+.field-checkbox input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    border-radius: 4px;
+}
+
+.btn {
+    padding: 9px 20px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    font-family: 'Inter', sans-serif;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    border: none;
+}
+.btn-cancel {
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    color: #64748b;
+}
+.btn-primary {
+    background: #3b82f6;
+    color: #fff;
+}
+.btn-save {
+    background: #10b981;
+    color: #fff;
+}
+
+/* Dashboard styles */
+.dash-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+}
+.dash-title {
+    font-size: 18px;
+    font-weight: 700;
+    color: #1e293b;
+}
+.dash-filters {
+    display: flex;
+    gap: 8px;
+}
+.dash-filter {
+    padding: 6px 14px;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    font-size: 12px;
+    font-family: 'Inter', sans-serif;
+    color: #64748b;
+    background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E") right 10px center no-repeat;
+    appearance: none;
+    padding-right: 26px;
+}
+
+/* Stat cards */
+.stat-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin-bottom: 16px;
+}
+.stat-card {
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 16px;
+    text-align: center;
+}
+.stat-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    margin-bottom: 8px;
+}
+.stat-value {
+    font-size: 28px;
+    font-weight: 800;
+}
+.stat-target {
+    font-size: 10px;
+    color: #94a3b8;
+    margin-top: 4px;
+}
+.stat-amber { color: #f59e0b; }
+.stat-red { color: #dc2626; }
+.stat-green { color: #10b981; }
+
+/* Ring chart placeholder */
+.ring-chart {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    margin: 0 auto 6px;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.ring-chart-inner {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    background: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 700;
+}
+.ring-amber { background: conic-gradient(#f59e0b 0deg, #f59e0b 331deg, #f1f5f9 331deg); }
+.ring-green { background: conic-gradient(#10b981 0deg, #10b981 346deg, #f1f5f9 346deg); }
+
+/* Middle section */
+.mid-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+.mid-card {
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 16px;
+}
+.mid-card h4 {
+    font-size: 13px;
+    font-weight: 700;
+    color: #1e293b;
+    margin-bottom: 12px;
+}
+
+/* Bar chart */
+.bar-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px;
+}
+.bar-label {
+    font-size: 11px;
+    color: #64748b;
+    width: 110px;
+    flex-shrink: 0;
+    text-align: right;
+}
+.bar-track {
+    flex: 1;
+    height: 18px;
+    background: #f1f5f9;
+    border-radius: 4px;
+    overflow: hidden;
+}
+.bar-fill {
+    height: 100%;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    padding-left: 6px;
+    font-size: 10px;
+    font-weight: 700;
+    color: #fff;
+}
+.bar-green { background: #10b981; }
+.bar-amber { background: #f59e0b; }
+.bar-red { background: #dc2626; }
+
+/* Large compliance ring */
+.large-ring {
+    width: 140px;
+    height: 140px;
+    border-radius: 50%;
+    margin: 10px auto;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: conic-gradient(#10b981 0deg, #10b981 331deg, #f1f5f9 331deg);
+}
+.large-ring-inner {
+    width: 110px;
+    height: 110px;
+    border-radius: 50%;
+    background: #fff;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+.large-ring-value {
+    font-size: 28px;
+    font-weight: 800;
+    color: #10b981;
+}
+.large-ring-label {
+    font-size: 10px;
+    color: #64748b;
+    margin-top: 2px;
+}
+
+/* Bottom tables */
+.bottom-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+.bottom-card {
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 16px;
+}
+.bottom-card h4 {
+    font-size: 13px;
+    font-weight: 700;
+    color: #1e293b;
+    margin-bottom: 10px;
+}
+.mini-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+}
+.mini-table th {
+    text-align: left;
+    padding: 6px 8px;
+    background: #f8fafc;
+    border-bottom: 1px solid #e2e8f0;
+    font-weight: 600;
+    color: #64748b;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+.mini-table td {
+    padding: 7px 8px;
+    border-bottom: 1px solid #f1f5f9;
+    color: #334155;
+}
+.badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 600;
+}
+.badge-amber { background: #fef3c7; color: #92400e; }
+.badge-green { background: #dcfce7; color: #166534; }
+.badge-red { background: #fee2e2; color: #dc2626; }
+    </style>
+</head>
+<body>
+<div class="uis-wrap">
+    <h1 class="uis-h1">UIS-15G · Equipment Maintenance Scheduling</h1>
+    <p class="uis-sub">Schedule preventive maintenance, record equipment downtime, and monitor compliance across the fleet.</p>
+
+    <!-- Mockup 1: Schedule Maintenance Flyout -->
+    <div class="uis-section" id="mockup-1">
+        <h2>Mockup 1 — Schedule / Template Editing Flyout</h2>
+        <div class="mockup-container">
+            <div class="mockup-bar">
+                <div class="mockup-dots">
+                    <div class="mockup-dot mockup-dot-r"></div>
+                    <div class="mockup-dot mockup-dot-y"></div>
+                    <div class="mockup-dot mockup-dot-g"></div>
+                </div>
+                Equipment Detail · Schedule Maintenance
+            </div>
+            <div class="mockup-body" style="padding: 0;">
+                <div class="flyout-wrapper">
+                    <div class="flyout-panel">
+                        <div class="flyout-header">
+                            <h3>Schedule Maintenance</h3>
+                            <div class="flyout-close">✕</div>
+                        </div>
+                        <div class="flyout-body">
+                            <div class="field">
+                                <label class="field-label">Equipment</label>
+                                <input class="field-input field-input-readonly" value="CAT 320 Excavator" readonly>
+                            </div>
+                            <div class="field">
+                                <label class="field-label">Maintenance Type</label>
+                                <select class="field-select">
+                                    <option>Oil Change</option>
+                                </select>
+                            </div>
+                            <div class="field">
+                                <label class="field-label">Scheduled Date</label>
+                                <input class="field-input" value="Apr 15, 2026">
+                            </div>
+                            <div class="field">
+                                <label class="field-label">Assignee</label>
+                                <select class="field-select">
+                                    <option>Mike Chen</option>
+                                </select>
+                            </div>
+                            <div class="field">
+                                <label class="field-label">Linked Form</label>
+                                <select class="field-select">
+                                    <option>Equipment Service Checklist</option>
+                                </select>
+                            </div>
+                            <div class="field">
+                                <label class="field-label">Notes</label>
+                                <textarea class="field-textarea" placeholder="Add notes..."></textarea>
+                            </div>
+                            <div class="field">
+                                <label class="field-checkbox">
+                                    <input type="checkbox">
+                                    Record downtime when complete
+                                </label>
+                            </div>
+                        </div>
+                        <div class="flyout-footer">
+                            <button class="btn btn-cancel">Cancel</button>
+                            <button class="btn btn-primary">Schedule</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mockup 2: Record Downtime Flyout -->
+    <div class="uis-section" id="mockup-2">
+        <h2>Mockup 2 — Record Downtime Flyout</h2>
+        <div class="mockup-container">
+            <div class="mockup-bar">
+                <div class="mockup-dots">
+                    <div class="mockup-dot mockup-dot-r"></div>
+                    <div class="mockup-dot mockup-dot-y"></div>
+                    <div class="mockup-dot mockup-dot-g"></div>
+                </div>
+                Equipment Detail · Record Downtime
+            </div>
+            <div class="mockup-body" style="padding: 0;">
+                <div class="flyout-wrapper">
+                    <div class="flyout-panel">
+                        <div class="flyout-header">
+                            <h3>Record Downtime</h3>
+                            <div class="flyout-close">✕</div>
+                        </div>
+                        <div class="flyout-body">
+                            <div class="field">
+                                <label class="field-label">Equipment</label>
+                                <input class="field-input field-input-readonly" value="CAT 320 Excavator" readonly>
+                            </div>
+                            <div class="field">
+                                <label class="field-label">Start Date</label>
+                                <input class="field-input" value="Mar 28, 2026 08:00 AM">
+                            </div>
+                            <div class="field">
+                                <label class="field-label">End Date</label>
+                                <input class="field-input" placeholder="Still down">
+                                <div class="field-info">Leave blank if equipment is currently down</div>
+                            </div>
+                            <div class="field">
+                                <label class="field-label">Reason</label>
+                                <select class="field-select">
+                                    <option>Unplanned Breakdown</option>
+                                </select>
+                            </div>
+                            <div class="field">
+                                <label class="field-label">Job (Optional)</label>
+                                <select class="field-select">
+                                    <option value="">— Select job —</option>
+                                </select>
+                            </div>
+                            <div class="field">
+                                <label class="field-label">Notes</label>
+                                <textarea class="field-textarea">Hydraulic line failure - waiting on parts</textarea>
+                            </div>
+                        </div>
+                        <div class="flyout-footer">
+                            <button class="btn btn-cancel">Cancel</button>
+                            <button class="btn btn-save">Save</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mockup 3: Compliance Dashboard -->
+    <div class="uis-section" id="mockup-3">
+        <h2>Mockup 3 — Compliance Dashboard</h2>
+        <div class="mockup-container">
+            <div class="mockup-bar">
+                <div class="mockup-dots">
+                    <div class="mockup-dot mockup-dot-r"></div>
+                    <div class="mockup-dot mockup-dot-y"></div>
+                    <div class="mockup-dot mockup-dot-g"></div>
+                </div>
+                Equipment · Maintenance Compliance Dashboard
+            </div>
+            <div class="mockup-body">
+                <!-- Header -->
+                <div class="dash-header">
+                    <div class="dash-title">Maintenance Compliance Dashboard</div>
+                    <div class="dash-filters">
+                        <select class="dash-filter">
+                            <option>All Categories</option>
+                        </select>
+                        <select class="dash-filter">
+                            <option>Last 30 Days</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Stat cards row -->
+                <div class="stat-row">
+                    <div class="stat-card">
+                        <div class="stat-label">PM Compliance Rate</div>
+                        <div class="ring-chart ring-amber">
+                            <div class="ring-chart-inner">92%</div>
+                        </div>
+                        <div class="stat-value stat-amber" style="font-size: 22px;">92%</div>
+                        <div class="stat-target">Target: 95%</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Overdue Count</div>
+                        <div class="stat-value stat-red" style="margin-top: 16px;">3</div>
+                        <div class="stat-target">Target: 0</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Equipment Availability</div>
+                        <div class="ring-chart ring-green">
+                            <div class="ring-chart-inner">96%</div>
+                        </div>
+                        <div class="stat-value stat-green" style="font-size: 22px;">96.2%</div>
+                        <div class="stat-target">Target: 95%</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Planned vs Unplanned</div>
+                        <div class="stat-value stat-amber" style="font-size: 22px; margin-top: 16px;">78:22</div>
+                        <div class="stat-target">Target: 80:20</div>
+                    </div>
+                </div>
+
+                <!-- Middle row -->
+                <div class="mid-row">
+                    <div class="mid-card">
+                        <h4>Compliance by Category</h4>
+                        <div class="bar-row">
+                            <div class="bar-label">Heavy Equipment</div>
+                            <div class="bar-track"><div class="bar-fill bar-green" style="width: 95%;">95%</div></div>
+                        </div>
+                        <div class="bar-row">
+                            <div class="bar-label">Vehicles</div>
+                            <div class="bar-track"><div class="bar-fill bar-amber" style="width: 88%;">88%</div></div>
+                        </div>
+                        <div class="bar-row">
+                            <div class="bar-label">Hand Tools</div>
+                            <div class="bar-track"><div class="bar-fill bar-green" style="width: 97%;">97%</div></div>
+                        </div>
+                        <div class="bar-row">
+                            <div class="bar-label">Cranes</div>
+                            <div class="bar-track"><div class="bar-fill bar-red" style="width: 85%;">85%</div></div>
+                        </div>
+                    </div>
+                    <div class="mid-card" style="text-align: center;">
+                        <h4>Overall Fleet Compliance</h4>
+                        <div class="large-ring">
+                            <div class="large-ring-inner">
+                                <div class="large-ring-value">92%</div>
+                                <div class="large-ring-label">Fleet Compliance</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Bottom tables -->
+                <div class="bottom-row">
+                    <div class="bottom-card">
+                        <h4>30-Day Lookahead</h4>
+                        <table class="mini-table">
+                            <thead>
+                                <tr>
+                                    <th>Equipment</th>
+                                    <th>Type</th>
+                                    <th>Due Date</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>CAT 320</td>
+                                    <td>Oil Change</td>
+                                    <td>Apr 15</td>
+                                    <td><span class="badge badge-amber">⚠ Warning</span></td>
+                                </tr>
+                                <tr>
+                                    <td>Kubota U35</td>
+                                    <td>Filter Replace</td>
+                                    <td>Apr 22</td>
+                                    <td><span class="badge badge-green">✅ Scheduled</span></td>
+                                </tr>
+                                <tr>
+                                    <td>Crane #7</td>
+                                    <td>Annual Inspection</td>
+                                    <td>Apr 8</td>
+                                    <td><span class="badge badge-red">🔴 Overdue</span></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="bottom-card">
+                        <h4>Overdue Items</h4>
+                        <table class="mini-table">
+                            <thead>
+                                <tr>
+                                    <th>Equipment</th>
+                                    <th>Type</th>
+                                    <th>Due</th>
+                                    <th>Days Overdue</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>Crane #7</td>
+                                    <td>Annual Inspection</td>
+                                    <td>Mar 20</td>
+                                    <td><span style="color: #dc2626; font-weight: 700;">8 days</span></td>
+                                </tr>
+                                <tr>
+                                    <td>Boom Lift #3</td>
+                                    <td>Hydraulic Check</td>
+                                    <td>Mar 25</td>
+                                    <td><span style="color: #dc2626; font-weight: 700;">3 days</span></td>
+                                </tr>
+                                <tr>
+                                    <td>Compressor A</td>
+                                    <td>Belt Replace</td>
+                                    <td>Mar 27</td>
+                                    <td><span style="color: #dc2626; font-weight: 700;">1 day</span></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+</body>
+</html>

@@ -70,7 +70,6 @@ table.schema-table code { font-family: monospace; background: #f1f5f9; padding: 
     <a href="release-1.33-timeline.html">Release 1.33</a>
     <a href="release-1.34-timeline.html">Release 1.34</a>
     <a href="master-spec-reconciliation.html">Spec Reconciliation</a>
-    <a href="ui-interface-library.html">UI Library</a>
     <a href="cross-release-continuity-audit.html">Continuity Audit</a>
 </nav>
 <div class="uis-wrap">
@@ -98,7 +97,7 @@ table.schema-table code { font-family: monospace; background: #f1f5f9; padding: 
             <tbody>
                 <tr><td><strong>Creates</strong></td><td><code>JobBill</code> (template = Simple)</td><td><code>EstimateChangeOrderRecord</code> (type = ChangeOrder)</td></tr>
                 <tr><td><strong>Line items</strong></td><td><code>JobBillLineItem</code> with description, quantity, rate, value</td><td><code>EstimateChangeOrderRecordValue</code> with description, estimate ($), numeric (hours)</td></tr>
-                <tr><td><strong>Rate resolution</strong></td><td>Structured labor (TimeSheetDetailRecords): <code>TradeLevelRate.billableValue</code> (LEM-1)<br>Blank labor (WorkOrderLaborItems): rate from line item<br>Structured equipment (EquipmentTimeSheetRecordValues): <code>resolveEquipmentRate</code> (LEM-2)<br>Structured materials: <code>resolveMaterialSellPrice</code> (LEM-3) &rarr; <code>unitPrice</code><br>Blank equipment (WorkOrderEquipmentItem): use unitRate from line item<br>Blank material: use unitPrice from line item</td><td>Same rate resolution — value = rate &times; quantity</td></tr>
+                <tr><td><strong>Rate resolution</strong></td><td>Structured labor: <code>TradeLevelRate.billableValue</code> (LEM-1)<br>Structured equipment: <code>resolveEquipmentRate</code> (LEM-2)<br>Structured materials: <code>resolveMaterialSellPrice</code> (LEM-3) &rarr; <code>unitPrice</code><br>Blank lines: use rate/unitPrice from line item</td><td>Same rate resolution — value = rate &times; quantity</td></tr>
                 <tr><td><strong>Trigger</strong></td><td>"Generate Invoice" button on WO detail header (when status = Approved)</td><td>"Convert to CO" button on WO detail header (when status = Approved)</td></tr>
                 <tr><td><strong>Created record status</strong></td><td>JobBill gets default bill status from instance settings</td><td>CO created with status = <strong>Won</strong> (the work already happened and was approved)</td></tr>
                 <tr><td><strong>After conversion</strong></td><td>Navigate to bill detail page. WO status &rarr; Invoiced.</td><td>Navigate to CO detail page. WO status stays Approved.</td></tr>
@@ -119,14 +118,14 @@ table.schema-table code { font-family: monospace; background: #f1f5f9; padding: 
             <thead><tr><th>WO Line Item</th><th>JobBillLineItem.description</th><th>quantity</th><th>rate</th><th>value</th></tr></thead>
             <tbody>
                 <tr>
-                    <td>Structured Labor<br><span style="font-size:10px; color:#64748b;">(TimeSheetDetailRecords)</span></td>
-                    <td>"[Employee] — [TradeLevel] — [RateLabel]"<br>e.g., "John Smith — Journeyman — Wages 1x"</td>
-                    <td>hours from <code>secondsAtService</code></td>
+                    <td>Structured Labor</td>
+                    <td>"[TradeLevel] — [RateLabel]"<br>e.g., "Journeyman — Wages 1x"</td>
+                    <td><code>(duration / 3600) &times; qtyOfWorkers</code></td>
                     <td><code>TradeLevelRate.billableValue</code></td>
                     <td>qty &times; rate</td>
                 </tr>
                 <tr>
-                    <td>Blank Labor<br><span style="font-size:10px; color:#64748b;">(WorkOrderLaborItem)</span></td>
+                    <td>Blank Labor</td>
                     <td>description from line item</td>
                     <td><code>(duration / 3600) &times; qtyOfWorkers</code></td>
                     <td><code>rate</code> from line item</td>
@@ -147,14 +146,14 @@ table.schema-table code { font-family: monospace; background: #f1f5f9; padding: 
                     <td><code>total</code></td>
                 </tr>
                 <tr>
-                    <td>Structured Equipment<br><span style="font-size:10px; color:#64748b;">(EquipmentTimeSheetRecordValue)</span></td>
+                    <td>Structured Equipment</td>
                     <td>"[Equipment] — [RateLabel]"<br>e.g., "CAT 320 — Standard"</td>
                     <td>Calculated via <code>calculateQuantity()</code> from UIS-15B (handles full-day vs prorated)</td>
                     <td><code>resolveEquipmentRate()</code></td>
                     <td>qty &times; rate</td>
                 </tr>
                 <tr>
-                    <td>Blank Equipment<br><span style="font-size:10px; color:#64748b;">(WorkOrderEquipmentItem)</span></td>
+                    <td>Blank Equipment</td>
                     <td>description from line item</td>
                     <td><code>quantity</code></td>
                     <td><code>unitRate</code></td>
@@ -206,13 +205,13 @@ AccountItem      AccountItem? @relation(...)    // was: AccountItem (required)
             <thead><tr><th>WO Line Item</th><th>ECORV.description</th><th>estimate ($)</th><th>numeric (hours)</th></tr></thead>
             <tbody>
                 <tr>
-                    <td>Structured Labor<br><span style="font-size:10px; color:#64748b;">(TimeSheetDetailRecords)</span></td>
-                    <td>"[Employee] — [TradeLevel] — [RateLabel]"</td>
-                    <td>billableRate &times; hours</td>
-                    <td>hours from secondsAtService</td>
+                    <td>Structured Labor</td>
+                    <td>"[TradeLevel] — [RateLabel]"</td>
+                    <td>rate &times; (duration/3600) &times; qtyOfWorkers</td>
+                    <td>(duration/3600) &times; qtyOfWorkers</td>
                 </tr>
                 <tr>
-                    <td>Blank Labor<br><span style="font-size:10px; color:#64748b;">(WorkOrderLaborItem)</span></td>
+                    <td>Blank Labor</td>
                     <td>description from line item</td>
                     <td>rate &times; (duration/3600) &times; qtyOfWorkers</td>
                     <td>(duration/3600) &times; qtyOfWorkers</td>
@@ -224,13 +223,13 @@ AccountItem      AccountItem? @relation(...)    // was: AccountItem (required)
                     <td>0 (no hour relationship)</td>
                 </tr>
                 <tr>
-                    <td>Structured Equipment<br><span style="font-size:10px; color:#64748b;">(EquipmentTimeSheetRecordValue)</span></td>
+                    <td>Structured Equipment</td>
                     <td>"[Equipment] — [RateLabel]"</td>
                     <td>rate &times; calculated qty</td>
                     <td>calculated qty (in hours equivalent where applicable)</td>
                 </tr>
                 <tr>
-                    <td>Blank Equipment<br><span style="font-size:10px; color:#64748b;">(WorkOrderEquipmentItem)</span></td>
+                    <td>Blank Equipment</td>
                     <td>description</td>
                     <td>unitRate &times; quantity</td>
                     <td>0 (manual qty — no direct hour relationship)</td>
@@ -268,7 +267,7 @@ convertWorkOrderToChangeOrder(jobId: ID!): EstimateChangeOrderRecord
 
         <p>Two buttons on the WO detail page header, visible when <code>status = Approved</code>:</p>
 
-        <div class="mockup-container" id="mockup-1">
+        <div class="mockup-container">
             <div class="mockup-bar">
                 <div class="mockup-dots"><div class="mockup-dot mockup-dot-r"></div><div class="mockup-dot mockup-dot-y"></div><div class="mockup-dot mockup-dot-g"></div></div>
                 WO-003 Header &mdash; Status: Approved
@@ -302,6 +301,127 @@ convertWorkOrderToChangeOrder(jobId: ID!): EstimateChangeOrderRecord
         </ul>
     </div>
 
+    <!-- WO-7-01: Conversion Confirmation Modal -->
+    <div class="uis-section">
+        <h2>Conversion Confirmation Modal Mockups</h2>
+
+        <h3>WO-7-01: Generate Invoice Confirmation</h3>
+        <div class="mockup-container" id="mockup-2">
+            <div class="mockup-bar">
+                <div class="mockup-dots"><div class="mockup-dot mockup-dot-r"></div><div class="mockup-dot mockup-dot-y"></div><div class="mockup-dot mockup-dot-g"></div></div>
+                Generate Invoice &mdash; Confirmation
+            </div>
+            <div class="mockup-body" style="max-width:480px; margin:0 auto;">
+                <div style="text-align:center; margin-bottom:20px;">
+                    <div style="font-size:36px; margin-bottom:8px;">&#128203;</div>
+                    <h3 style="font-size:18px; font-weight:700; margin:0 0 4px;">Generate Invoice from Work Order</h3>
+                    <p style="font-size:13px; color:#64748b; margin:0;">A new invoice will be created with the following line items from <strong>WO-003</strong>.</p>
+                </div>
+
+                <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:14px; margin-bottom:16px;">
+                    <div style="display:flex; justify-content:space-between; font-size:12px; padding:4px 0; border-bottom:1px solid #f1f5f9;">
+                        <span style="color:#64748b;">Labor Lines</span><span style="font-weight:600;">3 items &middot; $2,400.00</span>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; font-size:12px; padding:4px 0; border-bottom:1px solid #f1f5f9;">
+                        <span style="color:#64748b;">Material Lines</span><span style="font-weight:600;">2 items &middot; $531.50</span>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; font-size:12px; padding:4px 0; border-bottom:1px solid #f1f5f9;">
+                        <span style="color:#64748b;">Equipment Lines</span><span style="font-weight:600;">2 items &middot; $2,300.00</span>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; font-size:13px; padding:8px 0 0; font-weight:700;">
+                        <span>Invoice Total</span><span>$5,231.50</span>
+                    </div>
+                </div>
+
+                <div style="padding:10px 14px; background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px; font-size:11px; color:#1e40af; margin-bottom:16px;">
+                    &#9432; After generation, WO status will transition to &ldquo;Invoiced&rdquo; and the Generate Invoice button will be disabled.
+                </div>
+
+                <div style="display:flex; gap:8px; justify-content:flex-end;">
+                    <div style="background:#f1f5f9; border-radius:6px; padding:8px 20px; font-size:13px; font-weight:600; color:#64748b; cursor:pointer;">Cancel</div>
+                    <div style="background:#3b82f6; border-radius:6px; padding:8px 20px; font-size:13px; font-weight:600; color:#fff; cursor:pointer;">Generate Invoice</div>
+                </div>
+            </div>
+        </div>
+
+        <h3>WO-7-02: WO-Generated Change Order (Flat Layout)</h3>
+        <div class="mockup-container" id="mockup-3">
+            <div class="mockup-bar">
+                <div class="mockup-dots"><div class="mockup-dot mockup-dot-r"></div><div class="mockup-dot mockup-dot-y"></div><div class="mockup-dot mockup-dot-g"></div></div>
+                Estimates &rsaquo; CO-042 (from WO-003) &rsaquo; <strong>Detail</strong>
+            </div>
+            <div class="mockup-body">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+                    <div>
+                        <div style="font-size:18px; font-weight:700;">CO-042</div>
+                        <div style="font-size:13px; color:#64748b;">Pipe insulation — Level 3 mechanical room</div>
+                        <div style="display:flex; gap:6px; margin-top:6px;">
+                            <span style="padding:2px 8px; background:#dcfce7; border-radius:4px; font-size:10px; font-weight:600; color:#166534;">Won</span>
+                            <span style="padding:2px 8px; background:#fce7f3; border-radius:4px; font-size:10px; font-weight:600; color:#be185d;">From WO-003</span>
+                        </div>
+                    </div>
+                    <div style="text-align:right;">
+                        <div style="font-size:11px; color:#64748b;">Change Order Value</div>
+                        <div style="font-size:22px; font-weight:700;">$5,231.50</div>
+                    </div>
+                </div>
+
+                <div style="padding:10px 14px; background:#fffbeb; border:1px solid #fde68a; border-radius:8px; font-size:12px; color:#92400e; margin-bottom:16px;">
+                    &#x26A0; This change order was generated from a Work Order. Line items are displayed as a flat list (no account hierarchy) because <code>accountItemId</code> is null.
+                </div>
+
+                <table style="width:100%; border-collapse:collapse; font-size:12px;">
+                    <thead>
+                        <tr style="border-bottom:2px solid #e2e8f0; text-align:left;">
+                            <th style="padding:8px 10px; font-weight:600;">Description</th>
+                            <th style="padding:8px 10px; font-weight:600; text-align:right;">Qty/Hours</th>
+                            <th style="padding:8px 10px; font-weight:600; text-align:right;">Estimate ($)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr style="border-bottom:1px solid #f1f5f9;">
+                            <td style="padding:8px 10px;"><span style="padding:2px 6px; background:#dbeafe; border-radius:3px; font-size:9px; font-weight:600; color:#1d4ed8; margin-right:6px;">LABOR</span>Journeyman Pipefitter (2 workers)</td>
+                            <td style="padding:8px 10px; text-align:right;">16.0 hrs</td>
+                            <td style="padding:8px 10px; text-align:right; font-weight:600;">$1,520.00</td>
+                        </tr>
+                        <tr style="border-bottom:1px solid #f1f5f9;">
+                            <td style="padding:8px 10px;"><span style="padding:2px 6px; background:#dbeafe; border-radius:3px; font-size:9px; font-weight:600; color:#1d4ed8; margin-right:6px;">LABOR</span>Foreman</td>
+                            <td style="padding:8px 10px; text-align:right;">8.0 hrs</td>
+                            <td style="padding:8px 10px; text-align:right; font-weight:600;">$880.00</td>
+                        </tr>
+                        <tr style="border-bottom:1px solid #f1f5f9;">
+                            <td style="padding:8px 10px;"><span style="padding:2px 6px; background:#dcfce7; border-radius:3px; font-size:9px; font-weight:600; color:#166534; margin-right:6px;">MAT</span>R-30 Batt Insulation</td>
+                            <td style="padding:8px 10px; text-align:right;">24</td>
+                            <td style="padding:8px 10px; text-align:right; font-weight:600;">$444.00</td>
+                        </tr>
+                        <tr style="border-bottom:1px solid #f1f5f9;">
+                            <td style="padding:8px 10px;"><span style="padding:2px 6px; background:#dcfce7; border-radius:3px; font-size:9px; font-weight:600; color:#166534; margin-right:6px;">MAT</span>Misc hardware &amp; fasteners</td>
+                            <td style="padding:8px 10px; text-align:right;">1</td>
+                            <td style="padding:8px 10px; text-align:right; font-weight:600;">$87.50</td>
+                        </tr>
+                        <tr style="border-bottom:1px solid #f1f5f9;">
+                            <td style="padding:8px 10px;"><span style="padding:2px 6px; background:#fef3c7; border-radius:3px; font-size:9px; font-weight:600; color:#92400e; margin-right:6px;">EQUIP</span>CAT 320 Excavator</td>
+                            <td style="padding:8px 10px; text-align:right;">8.0 hrs</td>
+                            <td style="padding:8px 10px; text-align:right; font-weight:600;">$1,400.00</td>
+                        </tr>
+                        <tr style="border-bottom:1px solid #f1f5f9;">
+                            <td style="padding:8px 10px;"><span style="padding:2px 6px; background:#fef3c7; border-radius:3px; font-size:9px; font-weight:600; color:#92400e; margin-right:6px;">EQUIP</span>JLG 600S Boom Lift</td>
+                            <td style="padding:8px 10px; text-align:right;">2 days</td>
+                            <td style="padding:8px 10px; text-align:right; font-weight:600;">$900.00</td>
+                        </tr>
+                    </tbody>
+                    <tfoot>
+                        <tr style="border-top:2px solid #0f172a;">
+                            <td style="padding:10px; font-weight:800; font-size:14px;">Total</td>
+                            <td></td>
+                            <td style="padding:10px; text-align:right; font-weight:800; font-size:14px;">$5,231.50</td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+    </div>
+
     <!-- 5. Change Surface -->
     <div class="uis-section">
         <h2>5. Change Surface</h2>
@@ -333,12 +453,10 @@ convertWorkOrderToChangeOrder(jobId: ID!): EstimateChangeOrderRecord
             <li><span>"Generate Invoice" button visible on WO detail header when status = Approved</span></li>
             <li><span>Confirmation modal shows line item count and total value before invoice generation</span></li>
             <li><span>Invoice created as Simple JobBill with one line item per WO line item</span></li>
-            <li><span>Structured labor (from TimeSheetDetailRecords): rate from <code>TradeLevelRate.billableValue</code>, qty = hours from <code>secondsAtService</code></span></li>
-            <li><span>Blank labor (from WorkOrderLaborItems): rate + qty from line item</span></li>
-            <li><span>Structured equipment (from EquipmentTimeSheetRecordValues): rate from <code>resolveEquipmentRate()</code>, qty via <code>calculateQuantity()</code> (handles full-day vs prorated)</span></li>
+            <li><span>Structured labor line items: rate from <code>TradeLevelRate.billableValue</code>, qty = hours &times; workers</span></li>
+            <li><span>Structured equipment line items: rate from <code>resolveEquipmentRate()</code>, qty via <code>calculateQuantity()</code> (handles full-day vs prorated)</span></li>
             <li><span>Structured material line items: sell price from <code>resolveMaterialSellPrice()</code> (LEM-3 cascade), qty from line item</span></li>
-            <li><span>Blank equipment (from WorkOrderEquipmentItem): description, quantity, unitRate from the line item directly</span></li>
-            <li><span>Blank material lines: unitPrice + quantity from the line item directly</span></li>
+            <li><span>Blank lines: rate/unitPrice + quantity from the line item directly</span></li>
             <li><span>After invoice generation: WO status &rarr; "Invoiced", button disabled</span></li>
             <li><span>User navigated to bill detail page after invoice creation</span></li>
             <li><span>"Convert to CO" button visible when status = Approved</span></li>

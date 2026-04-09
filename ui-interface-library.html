@@ -122,6 +122,33 @@
   .gt-mobile { background: #500724; color: #f9a8d4; }
   .gt-id { background: #2e1065; color: #c4b5fd; }
 
+  /* Preview overlay */
+  .preview-overlay { display: none; position: fixed; inset: 0; z-index: 200; background: #0f172af0; backdrop-filter: blur(8px); }
+  .preview-overlay.open { display: flex; flex-direction: column; }
+  .preview-bar { display: flex; align-items: center; gap: 12px; padding: 12px 20px; background: #1e293b; border-bottom: 1px solid #334155; flex-shrink: 0; }
+  .preview-bar .prev-id { font-family: 'SF Mono', monospace; font-size: 13px; font-weight: 700; color: #60a5fa; }
+  .preview-bar .prev-name { font-size: 14px; font-weight: 600; color: #f8fafc; flex: 1; }
+  .preview-bar .prev-status { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px; padding: 3px 10px; border-radius: 4px; }
+  .prev-st-designed { background: #166534; color: #4ade80; }
+  .prev-st-needs { background: #92400e; color: #fbbf24; }
+  .prev-st-notreq { background: #334155; color: #64748b; }
+  .preview-nav { display: flex; gap: 6px; }
+  .preview-nav button { background: #334155; border: 1px solid #475569; color: #94a3b8; width: 36px; height: 36px; border-radius: 8px; font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.15s; }
+  .preview-nav button:hover { background: #475569; color: #f8fafc; }
+  .preview-nav button:disabled { opacity: 0.3; cursor: default; }
+  .preview-close { background: #7f1d1d !important; border-color: #ef4444 !important; color: #fca5a5 !important; font-size: 18px !important; width: 36px; height: 36px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; margin-left: 8px; }
+  .preview-close:hover { background: #ef4444 !important; color: #fff !important; }
+  .preview-hint { font-size: 11px; color: #64748b; margin-left: auto; }
+  .preview-frame { flex: 1; border: none; width: 100%; background: #fff; }
+
+  /* Make designed screen rows clickable */
+  .screen-row.clickable { cursor: pointer; border-radius: 6px; padding-left: 8px; padding-right: 8px; margin: 0 -8px; }
+  .screen-row.clickable:hover { background: #253548; }
+  .screen-row.clickable .screen-name { text-decoration: underline; text-decoration-color: #47556980; text-underline-offset: 3px; }
+  .screen-row.clickable:hover .screen-name { text-decoration-color: #60a5fa; color: #60a5fa; }
+  .view-icon { font-size: 11px; color: #475569; margin-left: auto; flex-shrink: 0; transition: color 0.15s; }
+  .screen-row.clickable:hover .view-icon { color: #60a5fa; }
+
   @media (max-width: 768px) {
     .dash { grid-template-columns: repeat(2, 1fr); }
     .wp-header { flex-wrap: wrap; }
@@ -160,6 +187,22 @@
 
   <!-- Content -->
   <div id="content"></div>
+</div>
+
+<!-- Preview Overlay -->
+<div class="preview-overlay" id="previewOverlay">
+  <div class="preview-bar">
+    <span class="prev-id" id="prevId"></span>
+    <span class="prev-name" id="prevName"></span>
+    <span class="prev-status" id="prevStatus"></span>
+    <span class="preview-hint">Click screens in the list to jump between mockups</span>
+    <div class="preview-nav">
+      <button onclick="navPreview(-1)" id="prevBtn" title="Previous screen">&#9664;</button>
+      <button onclick="navPreview(1)" id="nextBtn" title="Next screen">&#9654;</button>
+    </div>
+    <button class="preview-close" onclick="closePreview()" title="Close preview">&#10005;</button>
+  </div>
+  <iframe class="preview-frame" id="previewFrame"></iframe>
 </div>
 
 <script>
@@ -802,6 +845,7 @@ function renderContent() {
         planLink = `<span class="wp-link wl-missing">No Plan</span>`;
       }
 
+      const wpIdx = WPS.indexOf(wp);
       html += `<div class="wp-card" id="wp-${wp.id}">
         <div class="wp-header" onclick="this.parentElement.classList.toggle('open')">
           <span class="wp-arrow">&#9654;</span>
@@ -817,15 +861,20 @@ function renderContent() {
           </span>
         </div>
         <div class="wp-screens">
-          ${wp.screens.map(s => `
-            <div class="screen-row">
+          ${wp.screens.map((s, sIdx) => {
+            const isClickable = s[3] === "designed" || s[3] === "needs";
+            const clickAttr = isClickable ? `onclick="openPreview(${wpIdx}, ${sIdx})"` : "";
+            const clickClass = isClickable ? " clickable" : "";
+            const viewHint = isClickable ? '<span class="view-icon">View &rarr;</span>' : "";
+            return `<div class="screen-row${clickClass}" ${clickAttr}>
               ${statusIcon(s[3])}
               <span class="screen-name">${s[0]}</span>
               ${platformBadge(s[1])}
               <span class="screen-type">${s[2]}</span>
               ${statusLabel(s[3])}
-            </div>
-          `).join("")}
+              ${viewHint}
+            </div>`;
+          }).join("")}
         </div>
       </div>`;
     });
@@ -844,6 +893,72 @@ function renderContent() {
 
   document.getElementById("content").innerHTML = html;
 }
+
+let currentWpIdx = -1, currentScreenIdx = -1;
+
+function openPreview(wpIdx, screenIdx) {
+  currentWpIdx = wpIdx;
+  currentScreenIdx = screenIdx;
+  const wp = WPS[wpIdx];
+  const s = wp.screens[screenIdx];
+
+  document.getElementById("prevId").textContent = wp.id;
+  document.getElementById("prevName").textContent = s[0];
+
+  const st = document.getElementById("prevStatus");
+  if (s[3] === "designed") { st.textContent = "Designed"; st.className = "prev-status prev-st-designed"; }
+  else if (s[3] === "needs") { st.textContent = "Needs Mockup"; st.className = "prev-status prev-st-needs"; }
+  else { st.textContent = "Not Scoped"; st.className = "prev-status prev-st-notreq"; }
+
+  document.getElementById("previewFrame").src = wp.spec;
+  document.getElementById("previewOverlay").classList.add("open");
+  document.body.style.overflow = "hidden";
+  updateNavButtons();
+}
+
+function closePreview() {
+  document.getElementById("previewOverlay").classList.remove("open");
+  document.getElementById("previewFrame").src = "";
+  document.body.style.overflow = "";
+  currentWpIdx = -1;
+  currentScreenIdx = -1;
+}
+
+function navPreview(dir) {
+  if (currentWpIdx < 0) return;
+  const wp = WPS[currentWpIdx];
+  let next = currentScreenIdx + dir;
+  while (next >= 0 && next < wp.screens.length && wp.screens[next][3] === "notreq") {
+    next += dir;
+  }
+  if (next >= 0 && next < wp.screens.length) {
+    openPreview(currentWpIdx, next);
+  } else {
+    let nextWp = currentWpIdx + dir;
+    while (nextWp >= 0 && nextWp < WPS.length) {
+      const nw = WPS[nextWp];
+      const clickable = nw.screens.findIndex(s => s[3] !== "notreq");
+      if (clickable >= 0) {
+        const startIdx = dir > 0 ? clickable : nw.screens.length - 1 - [...nw.screens].reverse().findIndex(s => s[3] !== "notreq");
+        openPreview(nextWp, startIdx);
+        return;
+      }
+      nextWp += dir;
+    }
+  }
+}
+
+function updateNavButtons() {
+  document.getElementById("prevBtn").disabled = false;
+  document.getElementById("nextBtn").disabled = false;
+}
+
+document.addEventListener("keydown", function(e) {
+  if (!document.getElementById("previewOverlay").classList.contains("open")) return;
+  if (e.key === "Escape") closePreview();
+  if (e.key === "ArrowLeft") navPreview(-1);
+  if (e.key === "ArrowRight") navPreview(1);
+});
 
 renderDashboard();
 renderFilters();

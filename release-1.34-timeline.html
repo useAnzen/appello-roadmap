@@ -547,7 +547,9 @@ document.querySelectorAll('.item-row:not(.no-expand)').forEach(function(row) {
     });
     var hash = location.hash.slice(1);
     if (!hash) return;
-    var target = document.getElementById(hash);
+    var wantPlan = hash.endsWith('-plan');
+    var rowId = wantPlan ? hash.replace(/-plan$/, '') : hash;
+    var target = document.getElementById(rowId);
     if (!target || !target.classList.contains('item-row') || target.classList.contains('no-expand')) return;
     target.classList.add('expanded');
     var detail = target.querySelector('.item-detail');
@@ -555,6 +557,10 @@ document.querySelectorAll('.item-row:not(.no-expand)').forEach(function(row) {
     var planPath = resolvePath(target.dataset.plan);
     if (detail && !detail.querySelector('.detail-tabs') && !detail.querySelector('.detail-tab-content')) {
         buildDetailPanel(detail, specPath, planPath);
+    }
+    if (wantPlan && planPath) {
+        var planTab = detail.querySelector('.detail-tab[data-tab="plan"]');
+        if (planTab && !planTab.classList.contains('disabled')) planTab.click();
     }
     setTimeout(function() { target.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 200);
 })();

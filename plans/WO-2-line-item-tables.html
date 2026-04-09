@@ -83,20 +83,23 @@ The `recalculateWorkOrderTotals` mutation queries both sources to compute the co
 
 ---
 
-## Step 0: TimeSheetDetailRecord — Optional Trade Level Override
+## Step 0: TimeSheetDetailRecord — Trade Level Override + Multiple TSDRs per Job
 
 > **⚠️ CALLOUT FOR CHRIS — PLEASE REVIEW ⚠️**
 >
-> Chris has been doing work around different wage rates per job/user. This change adds an **optional** `tradeLevelId` to `TimeSheetDetailRecord` to allow per-detail-record trade level selection when logging time from a Work Order. **The existing derivation flow (UserTradeLevel → TimeSheetRecord.tradeLevelId) is NOT changed — this is additive only.** Chris should review this change to ensure it aligns with his recent work on per-job/user wage rates and doesn't conflict. See **WO-3b LaborItemEditor mockup** (Section 3) for how this is used in the UI — users select a trade level per row in the time entry table.
+> Chris has been doing work around different wage rates per job/user. This change adds an **optional** `overrideTradeLevelId` to `TimeSheetDetailRecord` and **relaxes the unique constraint** so a user can have multiple TSDRs for the same job on the same day (with different trade levels). **The existing derivation flow (UserTradeLevel → TimeSheetRecord.tradeLevelId) is NOT changed — this is additive only.** Chris should review this change to ensure it aligns with his recent work on per-job/user wage rates and doesn't conflict. See **WO-3b LaborItemEditor mockup** (Section 3) for how this is used in the UI — users select a trade level per row in the time entry table.
 
 ### Problem
 
-Currently, trade level is derived from `UserTradeLevel` for the submission date and stored on `TimeSheetRecord.tradeLevelId`. This works well for the standard timesheet flow where one user logs their own time. However, in the Work Order context:
+Currently, trade level is derived from `UserTradeLevel` for the submission date and stored on `TimeSheetRecord.tradeLevelId`. The system allows one `TimeSheetDetailRecord` per job per `TimeSheetRecord` (i.e., one TSDR per user per date per job). This works for the standard timesheet flow but is too restrictive for Work Orders:
 
 1. A foreman may log time for **multiple crew members** from the WO form
-2. Some users work at **different trade levels depending on the work** — e.g., a user might work as Journeyman on one task and Foreman on another within the same WO
+2. Some users work at **different trade levels depending on the work on the same job on the same day** — e.g., a user might work as Trade Level A for 4 hours operating a forklift and Trade Level B for 4 hours doing other work
 
-The existing derivation only supports one trade level per TimeSheetRecord (per user per date per job). To support per-entry trade level selection without breaking existing functionality, we add an optional `tradeLevelId` on `TimeSheetDetailRecord`.
+The existing model cannot represent multiple trade levels for the same user on the same job on the same day. Two changes are needed:
+
+1. **Add `overrideTradeLevelId`** on `TimeSheetDetailRecord` — optional per-entry trade level override
+2. **Relax the unique constraint** on `TimeSheetDetailRecord` so multiple records can exist for the same job within a TimeSheetRecord, differentiated by `overrideTradeLevelId`
 
 ### Schema Change
 
@@ -104,37 +107,77 @@ The existing derivation only supports one trade level per TimeSheetRecord (per u
 
 ```prisma
 // On existing TimeSheetDetailRecord model, ADD:
-tradeLevelId      String?         @db.VarChar(21)
-TradeLevel        TradeLevel?     @relation(fields: [tradeLevelId], references: [id])
+overrideTradeLevelId      String?         @db.VarChar(21)
+OverrideTradeLevel        TradeLevel?     @relation(fields: [overrideTradeLevelId], references: [id])
+```
+
+**Uniqueness enforcement:** Currently there is no database-level unique constraint on `TimeSheetDetailRecord` for `(timeSheetRecordId, jobId)` — the one-TSDR-per-job rule is enforced in application code (scheduling and time logging checks). Two changes needed:
+
+1. **Add a database-level unique constraint** — formalize the existing application-level check as an actual DB constraint: `@@unique([timeSheetRecordId, jobId, overrideTradeLevelId])`. This allows multiple TSDRs for the same job as long as they have different `overrideTradeLevelId` values. When `overrideTradeLevelId` is NULL, `(tsrId, jobId, NULL)` is still unique — preserving the existing one-TSDR-per-job behaviour for standard timesheets.
+
+2. **Update application-level checks** — the code that currently prevents duplicate TSDRs per job (in scheduling and time logging flows) must be updated to check `(jobId, overrideTradeLevelId)` instead of just `jobId`. A user should be allowed to have multiple TSDRs for the same job if they have different trade level overrides.
+
+```prisma
+// Add to TimeSheetDetailRecord:
+overrideTradeLevelId      String?         @db.VarChar(21)
+OverrideTradeLevel        TradeLevel?     @relation(fields: [overrideTradeLevelId], references: [id])
+
+@@unique([timeSheetRecordId, jobId, overrideTradeLevelId])
 ```
 
 **Migration:**
 
 ```sql
 ALTER TABLE `TimeSheetDetailRecord`
-  ADD COLUMN `tradeLevelId` VARCHAR(21) NULL,
-  ADD CONSTRAINT `TimeSheetDetailRecord_tradeLevelId_fkey`
-    FOREIGN KEY (`tradeLevelId`) REFERENCES `TradeLevel`(`id`);
+  ADD COLUMN `overrideTradeLevelId` VARCHAR(21) NULL,
+  ADD CONSTRAINT `TimeSheetDetailRecord_overrideTradeLevelId_fkey`
+    FOREIGN KEY (`overrideTradeLevelId`) REFERENCES `TradeLevel`(`id`);
+
+-- Add the database-level unique constraint (formalizing what was previously app-level only)
+CREATE UNIQUE INDEX `TimeSheetDetailRecord_tsrId_jobId_overrideTradeLevelId_key`
+  ON `TimeSheetDetailRecord` (`timeSheetRecordId`, `jobId`, `overrideTradeLevelId`);
 ```
 
 ### Behaviour
 
-- **When `tradeLevelId` IS NULL** (default, all existing records): Trade level is derived from the parent `TimeSheetRecord.tradeLevelId` as today. **No change to existing functionality.**
-- **When `tradeLevelId` IS SET** (WO context): This detail record uses the specified trade level, which determines which `TradeLevelRate` options are available for the `TimeSheetDetailRecordValue` relationship. The parent `TimeSheetRecord.tradeLevelId` still exists and is still set via the existing UserTradeLevel derivation.
+- **When `overrideTradeLevelId` IS NULL** (default, all existing records): Trade level is derived from the parent `TimeSheetRecord.tradeLevelId` as today. One TSDR per job per TimeSheetRecord. **No change to existing functionality.**
+- **When `overrideTradeLevelId` IS SET** (WO context): This detail record uses the specified trade level, which determines which `TradeLevelRate` options are available for the `TimeSheetDetailRecordValue` relationship. Multiple TSDRs can exist for the same job within a TimeSheetRecord as long as they have different `overrideTradeLevelId` values.
+
+### Example
+
+User John Smith on Apr 7, 2026, working on WO job #123:
+- TSDR 1: `jobId = 123`, `overrideTradeLevelId = "forklift-operator"` → 4 hours at Forklift Operator rate labels
+- TSDR 2: `jobId = 123`, `overrideTradeLevelId = "journeyman"` → 4 hours at Journeyman rate labels
+
+Both exist under the same `TimeSheetRecord` (John Smith, Apr 7). The parent `TimeSheetRecord.tradeLevelId` still derives from UserTradeLevel as before.
 
 ### Rate Resolution Impact
 
 When `recalculateWorkOrderTotals` queries TimeSheetDetailRecords for labour subtotals, it should resolve the trade level (and therefore billable rate) as:
 
 ```
-effectiveTradeLevelId = detail.tradeLevelId ?? detail.TimeSheetRecord.tradeLevelId
+effectiveTradeLevelId = detail.overrideTradeLevelId ?? detail.TimeSheetRecord.tradeLevelId
 ```
+
+### Backend Changes Required
+
+The backend code that creates/edits `TimeSheetDetailRecord` entries currently assumes one TSDR per job per TimeSheetRecord. This assumption is enforced in **application code** (not a DB constraint) in the scheduling and time logging flows. Changes needed:
+
+- **`TimeSheetRecord.editFullTimeRecord()`** — when processing labour values, it finds or creates a TSDR by jobId. Update to find or create by `(jobId, overrideTradeLevelId)`.
+- **`TimeSheetRecord.createFullTimeRecord()`** — same pattern.
+- **Scheduling checks** — code that validates whether a user already has a TSDR for a job on a given date needs to include `overrideTradeLevelId` in the check. A user with two different trade level overrides for the same job on the same day is valid.
+- **Time logging validation** — any duplicate-entry checks that prevent a second TSDR for the same job must account for the trade level dimension.
+- **Timesheet form (existing)** — the standard timesheet form doesn't use `overrideTradeLevelId` (it stays null), so the existing one-TSDR-per-job behaviour is unchanged for non-WO timesheets.
+
+### Report & Calculation Audit → WO-9
+
+The `overrideTradeLevelId` change affects every piece of code that resolves a trade level from a TSDR for rate/cost calculation. This is a significant cross-cutting concern — **see [WO-9: Trade Level Override Audit](WO-9-trade-level-override-audit.html)** for the full plan covering financial reports, payroll export, timesheet approval views, LEM reports, invoice generation, PDF export, and dashboard widgets. WO-9 must ship in this release.
 
 ### Inverse relation on TradeLevel
 
 ```prisma
 // On TradeLevel model, ADD:
-TimeSheetDetailRecords  TimeSheetDetailRecord[]
+OverrideTimeSheetDetailRecords  TimeSheetDetailRecord[]
 ```
 
 ---
@@ -655,7 +698,7 @@ async recalculateWorkOrderTotals(jobId: string, currentUserId: string): Promise<
     let structuredLaborSubtotal = 0;
     for (const detail of timesheetDetails) {
         const hours = (detail.secondsAtService ?? 0) / 3600;
-        const billableRate = detail.TradeLevelRate?.billableValue?.toNumber() ?? 0;
+        const billableRate = detail.OverrideTradeLevel ?? detail.TimeSheetRecord.TradeLevel?.billableValue?.toNumber() ?? 0;
         structuredLaborSubtotal += hours * billableRate;
     }
 

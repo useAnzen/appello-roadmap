@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WO-9: Trade Level Override Audit — Implementation Plan</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+.in-iframe .top-nav { display: none !important; }
+.top-nav { position: sticky; top: 0; z-index: 100; background: #0f172a; border-bottom: 1px solid #1e293b; padding: 0 24px; display: flex; align-items: center; gap: 0; }
+.top-nav a { display: inline-flex; align-items: center; padding: 12px 18px; font-size: 13px; font-weight: 600; color: #94a3b8; text-decoration: none; border-bottom: 2px solid transparent; transition: all 0.15s; white-space: nowrap; }
+.top-nav a:hover { color: #f8fafc; background: #1e293b; }
+.top-nav .nav-logo { font-size: 11px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: #475569; padding-right: 18px; margin-right: 4px; border-right: 1px solid #1e293b; }
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Inter', -apple-system, sans-serif; background: #f8fafc; color: #0f172a; }
+.plan-wrap { max-width: 880px; margin: 0 auto; padding: 40px 24px 80px; }
+h1 { font-size: 24px; font-weight: 800; margin: 0 0 16px; }
+h2 { font-size: 18px; font-weight: 700; margin: 28px 0 12px; padding-bottom: 8px; border-bottom: 2px solid #e2e8f0; }
+h3 { font-size: 15px; font-weight: 700; margin: 20px 0 8px; padding-top: 10px; border-top: 1px solid #f1f5f9; }
+h4 { font-size: 14px; font-weight: 700; margin: 14px 0 6px; }
+p { font-size: 14px; color: #334155; line-height: 1.7; margin: 6px 0; }
+ul, ol { padding-left: 20px; margin: 8px 0; }
+li { font-size: 14px; color: #334155; line-height: 1.7; margin: 3px 0; }
+strong { color: #0f172a; }
+code { font-family: 'SF Mono', monospace; background: #f1f5f9; padding: 1px 6px; border-radius: 4px; font-size: 12px; color: #7c3aed; }
+pre { background: #0f172a; color: #f8fafc; border-radius: 8px; padding: 16px; overflow-x: auto; font-size: 13px; line-height: 1.6; margin: 12px 0; font-family: 'SF Mono', monospace; }
+pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
+hr { border: none; border-top: 1px solid #e2e8f0; margin: 24px 0; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 12px 0; }
+th { text-align: left; padding: 8px 12px; background: #f1f5f9; border-bottom: 2px solid #e2e8f0; font-weight: 600; }
+td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
+.check-item { display: flex; gap: 8px; align-items: flex-start; padding: 5px 0; }
+.check-box { width: 16px; height: 16px; border: 2px solid #cbd5e1; border-radius: 3px; flex-shrink: 0; margin-top: 2px; }
+.callout { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 14px 18px; margin: 14px 0; font-size: 13px; color: #1e40af; }
+.callout strong { color: #1e3a8a; }
+.warn { background: #fef3c7; border: 2px solid #f59e0b; border-radius: 8px; padding: 14px 18px; margin: 14px 0; font-size: 13px; color: #92400e; }
+.warn strong { color: #78350f; }
+    </style>
+</head>
+<body>
+
+<script>if(self!==top)document.documentElement.classList.add("in-iframe")</script>
+<nav class="top-nav">
+    <span class="nav-logo">Appello SDLC</span>
+    <a href="../index.html">Roadmap</a>
+    <a href="../release-1.33-timeline.html">Release 1.33</a>
+    <a href="../release-1.34-timeline.html">Release 1.34</a>
+    <a href="../master-spec-reconciliation.html">Spec Reconciliation</a>
+    <a href="../cross-release-continuity-audit.html">Continuity Audit</a>
+    <a href="ui-interface-library.html">UI Library</a>
+</nav>
+<div class="plan-wrap" id="rendered"></div>
+
+<script type="text/plain" id="plan-md">
+# WO-9: Trade Level Override — Report & Calculation Audit
+
+## Overview
+
+WO-2 Step 0 adds `overrideTradeLevelId` to `TimeSheetDetailRecord`, allowing a user to have multiple TSDRs for the same job with different trade levels (e.g., Forklift Operator for 4 hours, Journeyman for 4 hours on the same day). Every piece of code that resolves a trade level from a TSDR to calculate wage rates, billable rates, or labour costs must be updated to use the override pattern:
+
+```
+effectiveTradeLevelId = detail.overrideTradeLevelId ?? detail.TimeSheetRecord.tradeLevelId
+```
+
+Without this audit, reports and exports will use the wrong trade level (and therefore the wrong rate) for any TSDR that has an override set. This would result in incorrect payroll, incorrect job P&L, and incorrect invoices.
+
+**Estimated effort:** 2-3 days
+**Risk:** Medium — many consumer locations, but each is a small change (add the override fallback). Risk is in *missing* a location, not in the complexity of each change.
+**Requires:** WO-2 Step 0 (overrideTradeLevelId schema change)
+**Timing:** After WO features are complete, before release. Must ship in Release 1.33.
+
+---
+
+## The Pattern
+
+Every location that reads a trade level in the context of a TimeSheetDetailRecord must change from:
+
+```typescript
+// BEFORE (incorrect after WO-2 Step 0):
+const tradeLevelId = detail.TimeSheetRecord.tradeLevelId;
+
+// AFTER:
+const tradeLevelId = detail.overrideTradeLevelId ?? detail.TimeSheetRecord.tradeLevelId;
+```
+
+If the code queries TSDRs and includes the parent TimeSheetRecord for trade level, it must also include `overrideTradeLevelId` on the TSDR itself and check it first.
+
+---
+
+## Audit Results
+
+Codebase audit of `application-mono-repo` completed. The key insight: **the system uses `TimeSheetRecord.userTradeLevelId`** (not `tradeLevelId` directly). This FK points to `UserTradeLevel` which then references the `TradeLevel`. The override must intercept at the point where `userTradeLevelId` is used to resolve which `TradeLevelRate` records to create/update.
+
+### How rate resolution currently works
+
+1. `TimeSheetRecord.userTradeLevelId` → `UserTradeLevel.tradeLevelId` → `TradeLevel`
+2. `createTimeSheetDetailRecordValuePerTradeLevelRate()` uses this `tradeLevelId` to find all `TradeLevelRate` records for the user's contract + trade level + wage region
+3. Creates one `TimeSheetDetailRecordValue` per `TradeLevelRate` (one per rate label like Wages 1x, 1.5x, 2x)
+4. Sum tables (`TimeSheetRecordSums`, `TimeSheetDetailRecordSums`) aggregate by `tradeLevelRateId`
+5. Data views (cost reports) JOIN on `TimeSheetDetailRecordValue.tradeLevelRateId` → `TradeLevelRate.baseValue` for cost
+
+**Critical point:** Once `TimeSheetDetailRecordValue.tradeLevelRateId` is set correctly (at creation time), the downstream cost reports and data views will automatically use the correct rate. The fix is concentrated in the **creation and update paths**, not in every report.
+
+---
+
+## Step 1: Timesheet Sums Helper — CRITICAL
+
+**File:** `apps/api/src/helpers/timesheetHelper.ts`
+
+### Lines 31-44: INSERT INTO TimeSheetRecordSums
+
+This SQL creates sum records using `tsr.userTradeLevelId` to determine which TradeLevelRates to aggregate. It needs to account for override trade levels.
+
+**What to change:** When building the INSERT query, check `tsdr.overrideTradeLevelId` first. If set, use it to resolve TradeLevelRates instead of `tsr.userTradeLevelId`. This may require restructuring the query to JOIN through `TimeSheetDetailRecord` and use `COALESCE(tsdr.overrideTradeLevelId, utl.tradeLevelId)`.
+
+### Lines 86-108: INSERT INTO TimeSheetDetailRecordSums
+
+Same pattern — creates detail-level sum records using `tsr.userTradeLevelId`. Needs the same override check.
+
+**What to change:** Same COALESCE pattern. The detail-level sums must use the per-TSDR override when present.
+
+### What to test
+
+- Standard timesheets (no overrides) → sum records identical to before
+- Timesheet with two TSDRs for same job, different overrides → separate sum records per trade level rate
+
+---
+
+## Step 2: TimeSheetRecord Model — Rate Value Creation — CRITICAL
+
+**File:** `apps/api/src/models/TimeSheetRecord.ts`
+
+### Lines ~1871-1880: createTimeSheetDetailRecordValuePerTradeLevelRate() call
+
+Currently resolves trade level from `userTradeLevel?.tradeLevelId` and creates detail values per rate.
+
+**What to change:** Pass `detail.overrideTradeLevelId ?? userTradeLevel?.tradeLevelId` to `createTimeSheetDetailRecordValuePerTradeLevelRate()`. This ensures the correct TradeLevelRates are created based on the override when present.
+
+### Lines ~1806-1832: userTradeLevelId change handler
+
+When `userTradeLevelId` changes on a TimeSheetRecord, this code updates all related `TimeSheetDetailRecordValue.tradeLevelRateId` records — recalculating rates based on the new trade level.
+
+**What to change:** When updating, **skip** detail records where `overrideTradeLevelId` is set. Those records should keep their override-based rates, not be overwritten by the parent change.
+
+### What to test
+
+- Change a user's trade level on a TSR with no overrides → all TSDRVs updated (existing behaviour)
+- Change a user's trade level on a TSR that has some TSDRs with overrides → only non-override TSDRVs updated; override TSDRVs unchanged
+
+---
+
+## Step 3: TimeSheetDetailRecordValue Model — CRITICAL
+
+**File:** `apps/api/src/models/TimeSheetDetailRecordValue.ts`
+
+### Lines ~245-373: createTimeSheetDetailRecordValuePerTradeLevelRate()
+
+Takes a `tradeLevelId` parameter and creates a `TimeSheetDetailRecordValue` for each `TradeLevelRate` matching that trade level + wage region.
+
+**What to change:** The method signature already accepts a `tradeLevelId` parameter — the fix is in the **caller** (Step 2 above) to pass the correct one. However, verify that all callers of this method are passing the override-aware value.
+
+---
+
+## Step 4: Data Views — Verify (Likely No Changes)
+
+The cost report data views already JOIN on `TimeSheetDetailRecordValue.tradeLevelRateId` → `TradeLevelRate.baseValue`, NOT on `TimeSheetRecord.userTradeLevelId`. This means **if Steps 1-3 are correct** (the right `tradeLevelRateId` is set on each TSDRV), these views automatically produce correct results.
+
+**Verify these views produce correct output after Steps 1-3:**
+
+| File | View |
+|------|------|
+| `apps/api/src/dataview/monthlyCostReportView.ts` (line 233) | Monthly cost report — `(tsdrvcc.approvedDuration / 3600.0) * tlr.baseValue` |
+| `apps/api/src/dataview/costToCompleteReportView.ts` (line 134) | Cost to complete — same pattern |
+| `apps/api/src/dataview/earnedVsBurnedView.ts` (line 452) | Earned vs burned — same pattern |
+| `apps/api/src/dataview/monthlyCostReportViewJobLevel.ts` (line 107) | Job-level monthly cost — same pattern |
+
+**What to test:** Run each report for a job with override TSDRs and verify the cost uses the override trade level's rate, not the parent's.
+
+---
+
+## Step 5: Sum Tables Schema
+
+**File:** `apps/api/prisma/schema.prisma`
+
+Two sum tables aggregate timesheet data by `tradeLevelRateId`:
+
+| Model | Line | Unique constraint |
+|-------|------|------------------|
+| `TimeSheetRecordSums` | ~2155 | Groups by `tradeLevelRateId` |
+| `TimeSheetDetailRecordSums` | ~2169 | Unique on `(timeSheetDetailRecordId, tradeLevelRateId)` |
+
+**What to verify:** These tables don't need schema changes — they group by `tradeLevelRateId` which is the resolved rate, not the trade level. But the **helper that populates them** (Step 1) must feed the correct `tradeLevelRateId` based on the override.
+
+---
+
+## Step 6: Integration Exports (QuickBooks, Sage 50)
+
+**Files:**
+- `apps/api/src/models/integration/Quickbook.ts` (lines 82-89)
+- `apps/api/src/models/integration/Sage50.ts` (lines 277-283)
+
+Both JOIN `userTradeLevelId` and `tradeLevelRateId` for export mapping.
+
+**What to verify:** These exports use the already-assigned `tradeLevelRateId` from `TimeSheetDetailRecordValue`, not re-deriving from the parent. If Steps 1-3 are correct, these should work automatically. But **verify** that any grouping logic that groups by trade level uses the TSDRV's rate, not the parent TSR's `userTradeLevelId`.
+
+---
+
+## Step 7: Display Views (Timesheet Reports, Matrix, Approval)
+
+| File | What it shows |
+|------|---------------|
+| `apps/api/src/dataview/timeSheetReportView.ts` (lines 209, 246-247) | Displays `tsr.userTradeLevelId` with JOIN to show trade level name |
+| `apps/api/src/dataview/timesheetMatrixView.ts` (lines 633, 782-783) | Selects/filters by `tsr.userTradeLevelId` |
+
+**What to change:** These display the trade level name from the parent TSR. When overrides exist, the display should show the effective trade level per entry. This requires joining `COALESCE(tsdr.overrideTradeLevelId, utl.tradeLevelId)` for the display name.
+
+**Priority:** Lower than Steps 1-3 (display vs. calculation), but should be updated for accuracy.
+
+---
+
+## Step 8: Payroll Export
+
+Payroll exports group by employee + trade level + pay rate. The audit found that QuickBooks and Sage 50 exports use `tradeLevelRateId` from the detail record value (already correct if Steps 1-3 are fixed). However:
+
+**What to verify:** If the payroll grouping uses `TimeSheetRecord.userTradeLevelId` as a grouping key (rather than the per-TSDRV `tradeLevelRateId`), a user with overrides would be grouped incorrectly — all hours under the parent trade level instead of split by override.
+
+**What to change if needed:** Group payroll line items by `effectiveTradeLevelId` per TSDR, not by `TimeSheetRecord.userTradeLevelId`.
+
+---
+
+## Step 9: Regression Testing
+
+After all changes:
+
+1. **Run existing payroll export tests** with standard timesheets → output must be identical
+2. **Run existing financial report tests** with standard timesheets → output must be identical
+3. **Run sum table recalculation** for existing timesheets → sums unchanged
+4. **Create test timesheets with overrides** and verify:
+    - Two TSDRs for same job, different trade levels → correct `tradeLevelRateId` on each TSDRV
+    - Sum tables reflect the per-override rates
+    - Cost reports show correct costs per trade level
+    - Payroll export produces separate line items per trade level
+    - Changing `userTradeLevelId` on parent TSR does NOT affect override TSDRs
+5. **Compare P&L totals** for existing jobs before and after → no drift
+
+---
+
+## Verification Checklist
+
+- [ ] `timesheetHelper.ts` INSERT INTO TimeSheetRecordSums uses COALESCE(tsdr.overrideTradeLevelId, utl.tradeLevelId)
+- [ ] `timesheetHelper.ts` INSERT INTO TimeSheetDetailRecordSums uses same COALESCE
+- [ ] `TimeSheetRecord.ts` createTimeSheetDetailRecordValuePerTradeLevelRate() call passes override-aware trade level
+- [ ] `TimeSheetRecord.ts` userTradeLevelId change handler skips TSDRs with overrideTradeLevelId set
+- [ ] `TimeSheetDetailRecordValue.ts` createTimeSheetDetailRecordValuePerTradeLevelRate() callers all pass correct trade level
+- [ ] monthlyCostReportView produces correct costs for override TSDRs
+- [ ] costToCompleteReportView produces correct costs for override TSDRs
+- [ ] earnedVsBurnedView produces correct costs for override TSDRs
+- [ ] timeSheetReportView displays effective trade level name per TSDR
+- [ ] timesheetMatrixView shows effective trade level per TSDR
+- [ ] QuickBooks export uses correct trade level for override TSDRs
+- [ ] Sage 50 export uses correct trade level for override TSDRs
+- [ ] Payroll groups by effective trade level, not parent TSR trade level
+- [ ] Sum tables correctly populated for override TSDRs
+- [ ] No regression for existing timesheets without overrides
+- [ ] Changing parent userTradeLevelId does not overwrite override TSDR rates
+
+---
+
+## Files Summary
+
+| Priority | Action | File | What to do |
+|----------|--------|------|------------|
+| CRITICAL | MODIFY | `apps/api/src/helpers/timesheetHelper.ts` | Lines 31-44, 86-108: Use COALESCE(tsdr.overrideTradeLevelId, utl.tradeLevelId) in INSERT queries for sum tables |
+| CRITICAL | MODIFY | `apps/api/src/models/TimeSheetRecord.ts` | Lines ~1871-1880: Pass override-aware tradeLevelId to createTimeSheetDetailRecordValuePerTradeLevelRate(). Lines ~1806-1832: Skip override TSDRs when userTradeLevelId changes. |
+| CRITICAL | VERIFY | `apps/api/src/models/TimeSheetDetailRecordValue.ts` | Lines ~245-373: Verify all callers pass override-aware trade level |
+| HIGH | VERIFY | `apps/api/src/dataview/monthlyCostReportView.ts` | Line 233: Verify uses TSDRV.tradeLevelRateId (should auto-work if creation is correct) |
+| HIGH | VERIFY | `apps/api/src/dataview/costToCompleteReportView.ts` | Line 134: Same verification |
+| HIGH | VERIFY | `apps/api/src/dataview/earnedVsBurnedView.ts` | Line 452: Same verification |
+| HIGH | VERIFY | `apps/api/src/dataview/monthlyCostReportViewJobLevel.ts` | Line 107: Same verification |
+| MEDIUM | MODIFY | `apps/api/src/dataview/timeSheetReportView.ts` | Lines 209, 246-247: Display effective trade level per TSDR |
+| MEDIUM | MODIFY | `apps/api/src/dataview/timesheetMatrixView.ts` | Lines 633, 782-783: Filter/display by effective trade level |
+| MEDIUM | VERIFY | `apps/api/src/models/integration/Quickbook.ts` | Lines 82-89: Verify grouping uses TSDRV rate, not parent TSR trade level |
+| MEDIUM | VERIFY | `apps/api/src/models/integration/Sage50.ts` | Lines 277-283: Same verification |
+</script>
+
+<script src="plan-renderer.js"></script>
+<script>renderPlan();</script>
+</body>
+</html>

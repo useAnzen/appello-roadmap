@@ -106,10 +106,18 @@ async function resolveWorkOrderLineItems(
     const job = await prisma.job.findUnique({ where: { id: jobId } });
     const dailyHours = job?.dailyHours ?? 8;
 
-    // --- Labor ---
-    const laborItems = await prisma.workOrderLaborItem.findMany({
-        where: { jobId, isDeleted: false },
+    // --- Labor (TWO SOURCES) ---
+
+    // 1. Structured: TimeSheetDetailRecords for this job
+    const timesheetDetails = await prisma.timeSheetDetailRecord.findMany({
+        where: {
+            TimeSheetRecord: { jobId, isDeleted: false },
+            isDeleted: false
+        },
         include: {
+            TimeSheetRecord: {
+                include: { Employee: true }
+            },
             TradeLevelRate: {
                 include: {
                     TradeLevel: true,
@@ -119,33 +127,44 @@ async function resolveWorkOrderLineItems(
         }
     });
 
-    for (const item of laborItems) {
+    for (const detail of timesheetDetails) {
+        const hours = (detail.secondsAtService ?? 0) / 3600;
+        // Resolve trade level: detail override or parent record
+        const tradeLevelRate = detail.TradeLevelRate;
+        const billableRate = tradeLevelRate?.billableValue?.toNumber() ?? 0;
+        const tradeLevelName = tradeLevelRate?.TradeLevel?.name ?? "Labor";
+        const rateLabelName = tradeLevelRate?.EmployeeAgreementRateLabel?.name ?? "";
+        const employeeName = detail.TimeSheetRecord?.Employee
+            ? `${detail.TimeSheetRecord.Employee.firstName} ${detail.TimeSheetRecord.Employee.lastName}`
+            : "";
+
+        items.push({
+            description: `${employeeName} — ${tradeLevelName}${rateLabelName ? ` — ${rateLabelName}` : ""}`,
+            rate: billableRate,
+            quantity: hours,
+            value: Number((billableRate * hours).toFixed(2)),
+            numericHours: hours,
+            sourceType: "labor"
+        });
+    }
+
+    // 2. Blank lines: WorkOrderLaborItems
+    const blankLaborItems = await prisma.workOrderLaborItem.findMany({
+        where: { jobId, isDeleted: false }
+    });
+
+    for (const item of blankLaborItems) {
         const hours = item.submittedDuration / 3600;
         const totalHours = hours * item.qtyOfWorkers;
-
-        if (item.tradeLevelRateId && item.TradeLevelRate) {
-            // Structured: rate from TradeLevelRate.billableValue (LEM-1)
-            const rate = item.TradeLevelRate.billableValue?.toNumber() ?? 0;
-            items.push({
-                description: `${item.TradeLevelRate.TradeLevel.name} — ${item.TradeLevelRate.EmployeeAgreementRateLabel.name}`,
-                rate,
-                quantity: totalHours,
-                value: Number((rate * totalHours).toFixed(2)),
-                numericHours: totalHours,
-                sourceType: "labor"
-            });
-        } else {
-            // Blank: rate from line item
-            const rate = item.rate?.toNumber() ?? 0;
-            items.push({
-                description: item.description ?? "Labor",
-                rate,
-                quantity: totalHours,
-                value: Number((rate * totalHours).toFixed(2)),
-                numericHours: totalHours,
-                sourceType: "labor"
-            });
-        }
+        const rate = item.rate?.toNumber() ?? 0;
+        items.push({
+            description: item.description ?? "Labor",
+            rate,
+            quantity: totalHours,
+            value: Number((rate * totalHours).toFixed(2)),
+            numericHours: totalHours,
+            sourceType: "labor"
+        });
     }
 
     // --- Materials ---
@@ -167,56 +186,66 @@ async function resolveWorkOrderLineItems(
         });
     }
 
-    // --- Equipment ---
-    const equipmentItems = await prisma.workOrderEquipmentItem.findMany({
-        where: { jobId, isDeleted: false },
+    // --- Equipment (TWO SOURCES) ---
+
+    // 1. Structured: EquipmentTimeSheetRecordValues for this job
+    const equipmentTSValues = await prisma.equipmentTimeSheetRecordValue.findMany({
+        where: {
+            TimeSheetDetailRecord: {
+                TimeSheetRecord: { jobId, isDeleted: false },
+                isDeleted: false
+            }
+        },
         include: {
             Equipment: true,
-            EquipmentRateLabel: true
+            EquipmentRateLabel: true,
+            TimeSheetDetailRecord: true
         }
     });
 
     const rateValueModel = new EquipmentRateValueModel();
 
-    for (const item of equipmentItems) {
-        if (item.equipmentId && item.Equipment) {
-            // Structured: rate from LEM-2
-            const resolved = await rateValueModel.resolveEquipmentRate(
-                item.equipmentId,
-                item.equipmentRateLabelId,
-                item.per ?? "HOUR",
-                jobId,
-                item.operatorIncluded,
-                job?.dateOfWork
-            );
-            const rate = resolved?.amount ?? 0;
-            const quantity = calculateQuantity(item, dailyHours);
-            // Hours: only for HOUR per-unit
-            const numericHours = item.per === "HOUR"
-                ? item.submittedDuration / 3600
-                : 0;
+    for (const eqVal of equipmentTSValues) {
+        const resolved = await rateValueModel.resolveEquipmentRate(
+            eqVal.equipmentId,
+            eqVal.equipmentRateLabelId,
+            eqVal.per ?? "HOUR",
+            jobId,
+            eqVal.operatorIncluded,
+            job?.dateOfWork
+        );
+        const rate = resolved?.amount ?? 0;
+        const quantity = calculateQuantity(eqVal, dailyHours);
+        const numericHours = eqVal.per === "HOUR"
+            ? (eqVal.TimeSheetDetailRecord?.secondsAtService ?? 0) / 3600
+            : 0;
 
-            items.push({
-                description: `${item.Equipment.name} — ${item.EquipmentRateLabel?.name ?? "Standard"}`,
-                rate,
-                quantity,
-                value: Number((rate * quantity).toFixed(2)),
-                numericHours,
-                sourceType: "equipment"
-            });
-        } else {
-            // Blank: manual rate
-            const rate = item.unitRate?.toNumber() ?? 0;
-            const qty = item.quantity?.toNumber() ?? 0;
-            items.push({
-                description: item.description ?? "Equipment",
-                rate,
-                quantity: qty,
-                value: Number((rate * qty).toFixed(2)),
-                numericHours: 0,
-                sourceType: "equipment"
-            });
-        }
+        items.push({
+            description: `${eqVal.Equipment?.name ?? "Equipment"} — ${eqVal.EquipmentRateLabel?.name ?? "Standard"}`,
+            rate,
+            quantity,
+            value: Number((rate * quantity).toFixed(2)),
+            numericHours,
+            sourceType: "equipment"
+        });
+    }
+
+    // 2. Blank lines: WorkOrderEquipmentItems
+    const blankEquipmentItems = await prisma.workOrderEquipmentItem.findMany({
+        where: { jobId, isDeleted: false }
+    });
+
+    for (const item of blankEquipmentItems) {
+        const rate = item.unitRate?.toNumber() ?? 0;
+        const qty = item.quantity?.toNumber() ?? 0;
+        items.push({
+            description: item.description ?? "Equipment",
+            rate,
+            quantity: qty,
+            value: Number((rate * qty).toFixed(2)),
+            numericHours: 0,
+            sourceType: "equipment"
+        });
     }
 
     return items;
@@ -468,9 +497,9 @@ The modal:
 ## Verification Checklist
 
 - [ ] `accountItemId` nullable on EstimateChangeOrderRecordValue (migration applied, no existing data affected)
-- [ ] `resolveWorkOrderLineItems` correctly processes all 6 line item types (structured/blank × labor/material/equipment)
-- [ ] Structured labor: rate from TradeLevelRate.billableValue, qty = hours × workers
-- [ ] Structured equipment: rate from resolveEquipmentRate (LEM-2), qty via calculateQuantity (handles full-day/prorated)
+- [ ] `resolveWorkOrderLineItems` correctly processes labour from two sources (TimeSheetDetailRecords + WorkOrderLaborItems) plus material and equipment line items
+- [ ] Structured labor (TimeSheetDetailRecords): rate from TradeLevelRate.billableValue, qty = hours from secondsAtService
+- [ ] Structured equipment (EquipmentTimeSheetRecordValues): rate from resolveEquipmentRate (LEM-2), qty via calculateQuantity (handles full-day/prorated)
 - [ ] Structured materials: sell price from `resolveMaterialSellPrice()` (LEM-3 cascade) via `unitPrice`
 - [ ] Blank lines: rate/unitPrice from line item directly
 - [ ] Material items: numericHours = 0 (no hour relationship)

@@ -54,7 +54,7 @@ td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
 
 ## Overview
 
-Add `dateOfWork` to Job, create the polymorphic `Signature` model, seed DocumentAttributeAssignments for WO-specific fields, and update job number generation to be classification-aware. This establishes the foundation that WO-3b (Line Item Editors) and WO-3c (Signatures & Submission) build on.
+Create the polymorphic `Signature` model, seed DocumentAttributeAssignments for WO-specific fields, and update job number generation to be classification-aware. This establishes the foundation that WO-3b (Line Item Editors) and WO-3c (Signatures & Submission) build on. Work dates are handled by the existing JobSchedule relationship — no `dateOfWork` field needed on Job.
 
 **Estimated effort:** 3-4 days
 **Risk:** Medium — modifies Job model, new Signature model, DAA seed migration
@@ -63,43 +63,7 @@ Add `dateOfWork` to Job, create the polymorphic `Signature` model, seed Document
 
 ---
 
-## Step 1: Prisma Schema — dateOfWork on Job
-
-**File:** `apps/api/prisma/schema.prisma`
-
-Add to the existing Job model (around line ~1183, after existing date fields):
-
-```prisma
-dateOfWork    DateTime?   @db.Date
-```
-
-### Job Model Class
-
-**File:** `apps/api/src/models/Job.ts`
-
-Add to modelFields (after existing date fields):
-
-```typescript
-{
-    name: "dateOfWork",
-    type: "date",
-    options: {
-        isFilterable: true,
-        canEdit: true,
-        canCreate: true
-    }
-}
-```
-
-### Job GraphQL
-
-**File:** `apps/api/src/graphql/models/Job.ts`
-
-Add `dateOfWork: Date` to the Job type definition, CreateJob input, and EditJob input.
-
----
-
-## Step 2: Prisma Schema — Signature Model
+## Step 1: Prisma Schema — Signature Model
 
 **File:** `apps/api/prisma/schema.prisma`
 
@@ -147,14 +111,11 @@ Signatures    Signature[]
 
 ---
 
-## Step 3: Migration — Schema Changes
+## Step 2: Migration — Schema Changes
 
 **Create file:** `apps/api/prisma/migrations/[timestamp]_wo_3a_schema_foundation/migration.sql`
 
 ```sql
--- dateOfWork on Job
-ALTER TABLE `Job` ADD COLUMN `dateOfWork` DATE NULL;
-
 -- Signature table
 CREATE TABLE `Signature` (
   `id` VARCHAR(21) NOT NULL,
@@ -182,7 +143,7 @@ CREATE TABLE `Signature` (
 
 ---
 
-## Step 4: TypeScript Types
+## Step 3: TypeScript Types
 
 **File:** `apps/api/src/types/Signature.types.ts` (new file)
 
@@ -203,7 +164,7 @@ export interface ISignature {
 
 ---
 
-## Step 5: Signature Model Class
+## Step 4: Signature Model Class
 
 **Create file:** `apps/api/src/models/Signature.ts`
 
@@ -259,7 +220,7 @@ protected modelFields: IField<ISignature>[] = [
 
 ---
 
-## Step 6: Signature GraphQL Resolver
+## Step 5: Signature GraphQL Resolver
 
 **Create file:** `apps/api/src/graphql/models/Signature.ts`
 
@@ -336,7 +297,7 @@ Register in `apps/api/src/graphql/schema.ts` (5 places) and export from `models/
 
 ---
 
-## Step 7: Add Signatures resolver on Job type
+## Step 6: Add Signatures resolver on Job type
 
 **File:** `apps/api/src/graphql/models/Job.ts`
 
@@ -371,7 +332,7 @@ Signatures: [Signature]
 
 ---
 
-## Step 9: Update Job Number Generation
+## Step 7: Update Job Number Generation
 
 **File:** `apps/api/src/models/Job.ts`
 
@@ -450,7 +411,7 @@ if (classification === "WorkOrder") {
 
 ---
 
-## Step 10: Frontend — Custom Form Controls for WO DAA Positions
+## Step 8: Frontend — Custom Form Controls for WO DAA Positions
 
 **Important:** PR #6831 updated the Job form and detail pages from hardcoded layouts to use `DataModelForm` and `DataModelDetails`. All frontend work in this plan must be based on the PR #6831 architecture, NOT the pre-refactor `JobAddEditForm.tsx`.
 
@@ -469,11 +430,11 @@ const customFormControl: Record<string, (formData, setFormData, error?) => React
 };
 ```
 
-**Note:** `wo-date-of-work` does NOT need a custom form control — the DataModelForm renders it automatically as a standard date input based on the DAA's `defaultAttributeType = "date"`. WO-3b and WO-3c will replace the placeholder `<p>` tags with real editor components. WO-3a is a stepping stone — it won't be deployed on its own.
+**Note:** WO-3b and WO-3c will replace the placeholder `<p>` tags with real editor components. WO-3a is a stepping stone — it won't be deployed on its own. Work dates are handled by the existing JobSchedule relationship — no `dateOfWork` DAA is needed.
 
 ---
 
-## Step 11: Filter Job Type Options by Classification
+## Step 9: Filter Job Type Options by Classification
 
 When editing an existing job, the job type dropdown must only show types that match the job's current classification. A ProjectJob cannot be changed to a WorkOrder type (or vice versa) — the user must create a new job of the correct classification instead.
 
@@ -498,8 +459,6 @@ The backend guard (WO-1, Step 5) rejects cross-classification changes at the API
 
 ## Verification Checklist
 
-- [ ] `dateOfWork` column exists on Job (nullable DATE)
-- [ ] `dateOfWork` in Job modelFields, GraphQL type, and create/edit inputs
 - [ ] `Signature` table created with correct indexes and FK constraints
 - [ ] `Signature` model class with standard CRUD methods
 - [ ] `Signature` GraphQL resolver with `signatures(referenceModel, referenceId)` query
@@ -520,13 +479,12 @@ The backend guard (WO-1, Step 5) rejects cross-classification changes at the API
 - [ ] Shared fields (name, number, description, rateType, wageRegion, purchaseOrder, status, type) DUPLICATED with `subModel = "WorkOrder"` in WO sections
 - [ ] NO comma-delimited subModel values anywhere — single values only
 - [ ] Existing ProjectJob forms render identically to before (no regression from backfill)
-- [ ] WO form shows shared fields (from duplicated DAAs) + WO-only fields (dateOfWork, labor, material, equipment, signatures)
-- [ ] ProjectJob form does NOT show WO-only fields (dateOfWork, labor items, etc.)
+- [ ] WO form shows shared fields (from duplicated DAAs) + WO-only fields (labor, material, equipment, signatures)
+- [ ] ProjectJob form does NOT show WO-only fields (labor items, etc.)
 - [ ] WO form does NOT show ProjectJob-only fields
 - [ ] wageRegion visible on WO form for TradeLevelRate resolution
 - [ ] TableFeed configureColumns.ts has WorkOrder + InnerWorkOrder entries with correct subModel
 - [ ] `customFormControl` entries added for 4 WO DAA slugs with `<p>` tag placeholders
-- [ ] `dateOfWork` renders automatically via DataModelForm as standard date input
 - [ ] On create from Jobs page, job type dropdown only shows ProjectJob types
 - [ ] On create from Work Orders page, job type dropdown only shows WorkOrder types
 - [ ] On edit, job type dropdown only shows types matching the job's current classification
@@ -538,7 +496,7 @@ The backend guard (WO-1, Step 5) rejects cross-classification changes at the API
 
 | Action | File | What to do |
 |--------|------|------------|
-| MODIFY | `apps/api/prisma/schema.prisma` | Add `dateOfWork` to Job; add `Signature` model; add relations on Asset + User |
+| MODIFY | `apps/api/prisma/schema.prisma` | Add `Signature` model; add relations on Asset + User |
 | CREATE | `apps/api/prisma/migrations/.../migration.sql` | ALTER TABLE Job; CREATE TABLE Signature |
 | CREATE | `apps/api/prisma/migrations/.../migration.sql` | Backfill existing Job DAAs/sections to ProjectJob; duplicate shared DAAs into WorkOrder set; create 5 WO sections + 5 WO-only DAAs |
 | MODIFY | `apps/api/src/graphql/models/TableFeed/configureColumns.ts` | Add WorkOrder + InnerWorkOrder table feed configuration with `subModel: "WorkOrder"` |
@@ -547,8 +505,8 @@ The backend guard (WO-1, Step 5) rejects cross-classification changes at the API
 | CREATE | `apps/api/src/graphql/models/Signature.ts` | GraphQL resolver with type, query, mutations |
 | MODIFY | `apps/api/src/graphql/schema.ts` | Register Signature resolver (5 places) |
 | MODIFY | `apps/api/src/graphql/models/index.ts` | Export Signature resolver |
-| MODIFY | `apps/api/src/models/Job.ts` | Add `dateOfWork` to modelFields; update `generateJobNumber()` for WO classification; update `customCreateItem()` for WO fullJobNumber format |
-| MODIFY | `apps/api/src/graphql/models/Job.ts` | Add `dateOfWork` to type + inputs; add `Signatures` resolver |
+| MODIFY | `apps/api/src/models/Job.ts` | Update `generateJobNumber()` for WO classification; update `customCreateItem()` for WO fullJobNumber format |
+| MODIFY | `apps/api/src/graphql/models/Job.ts` | Add `Signatures` resolver |
 | MODIFY | Job DataModelForm page (from PR #6831) | Add `customFormControl` entries for 4 WO DAA slugs (rest as placeholders). Based on PR #6831's DataModelForm pattern, NOT the pre-refactor JobAddEditForm. |
 | MODIFY | Job form (jobType dropdown logic) | Filter jobType PropertyValue options by classification — ProjectJob types on Jobs page, WorkOrder types on WO page, matching classification on edit |
 </script>

@@ -54,12 +54,12 @@ td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
 
 ## Overview
 
-Three custom input components (LaborItemEditor, MaterialItemEditor, EquipmentItemEditor) that replace the `<p>` tag placeholders in the DataModelForm's `customFormControl` from WO-3a. All maintain local state and save only when the parent form's Save Draft/Submit is clicked. No backend changes — all models and mutations are from WO-2.
+A new shared **TimeEntryTable** component (extracted from `TimesheetModification`) plus three custom input components (LaborItemEditor, MaterialItemEditor, EquipmentItemEditor) that replace the `<p>` tag placeholders in the DataModelForm's `customFormControl` from WO-3a. `TimeEntryTable` provides the tabular rate-label hour entry with optional cost code breakdown — shared between the existing timesheet form and the new WO labour editor. Both the LaborItemEditor and EquipmentItemEditor follow the same dual-source pattern: **structured entries** via the existing timesheet infrastructure (TimeSheetRecord for labour, EquipmentTimeSheetRecordValue for equipment) plus **blank lines** for ClearStory-style flexible entry.
 
-**Estimated effort:** 4-5 days
-**Risk:** Medium — complex frontend components, multiple interaction patterns
+**Estimated effort:** 7-9 days
+**Risk:** Medium-High — extracting TimeEntryTable from TimesheetModification requires careful refactoring to avoid regression; structured labour and equipment editors integrate with scheduling permissions and timesheet infrastructure
 **Spec:** `tm-work-orders-uis/uis-20c-2-line-item-editors.html`
-**Requires:** WO-3a (DAA positions + customFormControl), WO-2 (line item models + upsertWorkOrderLineItems mutation), PR #6831 (DataModelForm)
+**Requires:** WO-3a (DAA positions + customFormControl), WO-2 (blank-line models + upsertWorkOrderLineItems mutation), EQ-0 (EquipmentTimeSheetRecordValue model + mutations), PR #6831 (DataModelForm)
 
 ---
 
@@ -69,7 +69,7 @@ Before building the three editors, establish shared patterns they all use.
 
 ### 1a. AddLineDropdown component
 
-All three editors use the same "+ Add [Type] ▾" dropdown with "Structured Line" and "Blank Line" options.
+Material and Equipment editors use the same "+ Add [Type] ▾" dropdown with "Structured Line" and "Blank Line" options. The Labor editor uses a similar dropdown but with "Log Time" (creates TimeSheetRecord) and "Blank Line" (creates WorkOrderLaborItem) options.
 
 **Create file:** `apps/frontend/src/components/WorkOrder/AddLineDropdown.tsx`
 
@@ -78,35 +78,115 @@ interface IAddLineDropdownProps {
     label: string;  // "Labor", "Material", "Equipment"
     onAddStructured: () => void;
     onAddBlank: () => void;
+    structuredLabel?: string;  // default "Structured Line", override to "Log Time" for labor
+    structuredHelper?: string; // helper text for the structured option
+    blankHelper?: string;      // helper text for the blank option
 }
 ```
 
 - Uses `Popover` from `@headlessui/react` (existing dependency) or a simple dropdown state
-- Two options: "Structured Line" with helper text + "Blank Line" with helper text
+- Two options: structured option with helper text + "Blank Line" with helper text
 - Green button styling matching the mockups
 
 ### 1b. Line item row visual convention
 
 - Structured rows: solid `border` + `bg-gray-50` background
 - Blank rows: dashed `border-dashed border-gray-300` + white background
-- Remove button (×): red, right-aligned, on every row
+- Delete button: `IconTrash` icon, red, right-aligned, on every row
 - Each row is a self-contained card with padding
 
 ### 1c. Duration/hours utility
 
-Shared conversion between display hours and stored seconds:
-
-```typescript
-// In a shared utils file or inline:
-const hoursToSeconds = (hours: number): number => Math.round(hours * 3600);
-const secondsToHours = (seconds: number): number => Number((seconds / 3600).toFixed(2));
-```
+Use the existing `convertHoursToSeconds` / `convertSecondsToHours` helpers if they exist in the codebase. Only create new ones if not already available.
 
 ---
 
-## Step 2: LaborItemEditor
+## Step 2: Shared TimeEntryTable Component
+
+Extract the tabular rate-label entry, trade-level row management, and cost code sub-row logic from `TimesheetModification` into a reusable component.
+
+**Create file:** `apps/frontend/src/components/Forms/TimeEntryTable/TimeEntryTable.tsx`
+
+### Props
+
+```typescript
+interface ITimeEntryTableProps {
+    className?: string | ClassNames;
+    jobId: string;
+    viewOnly?: boolean;
+    // Date-grouped data
+    dateGroups: ITimeEntryDateGroup[];
+    onDateGroupsChange: (groups: ITimeEntryDateGroup[]) => void;
+    // Cost code support
+    costCodes?: GqlCostCode[];     // available cost codes for the job
+    showCostCodes?: boolean;       // enables "Split by Cost Code" button
+}
+
+interface ITimeEntryDateGroup {
+    workDate: string;               // YYYY-MM-DD
+    rows: ITimeEntryRow[];
+    isApproved?: boolean;           // true if TimeSheetRecord for this date is Approved → all rows read-only
+}
+
+interface ITimeEntryRow {
+    id?: string;                    // temp ID or persisted
+    userId: string;                 // which user this entry is for
+    tradeLevelId: string;           // selected trade level for this entry
+    hours: Record<string, number>;  // rateLabelId → seconds
+    costCodeRows?: ICostCodeRow[];  // reuse from types.ts
+    // Derived per-row (loaded when user is selected):
+    // - EmployeeAgreement (from user)
+    // - Active EmployeeAgreementContract (from agreement + parent group's workDate)
+    // - Available TradeLevels + RateLabels (from contract, filtered by wage region)
+}
+```
+
+### What it renders
+
+**Date-grouped layout.** A WO may span multiple days, so entries are grouped by work date. Each date group is a collapsible section with its own table of rows.
+
+**Date group header:**
+- Date display (e.g., "Apr 7, 2026") with date picker to change
+- Row count and total hours for the group
+- `IconTrash` to remove the entire date group (if not Approved)
+
+**Table within each date group:**
+- **Header row:** User | Trade Level | [Rate Label columns] | Total | ×
+- **User column:** User dropdown per row. Selecting a user loads their `EmployeeAgreement`. Combined with the group's work date, the active `EmployeeAgreementContract` is resolved to populate the Trade Level and Rate Label columns.
+- **Trade Level column:** Dropdown per row, populated from the user's active contract for the group's work date. Users may work at different trade levels depending on the task (e.g., Journeyman on one entry, Foreman on another). Maps to the optional `tradeLevelId` on `TimeSheetDetailRecord` (WO-2 Step 0).
+- **Rate label columns:** Populated from the user's active contract + wage region. Numeric inputs (`step={0.25}`, stored as seconds). Total column is computed sum. `IconTrash` delete button per row.
+- **Cost code sub-rows:** Indented beneath the parent row. Cost code combobox + same rate label columns. Added via "Split by Cost Code" link.
+- **Footer:** "+ Add Row" link + "Split by Cost Code" link + column totals for the group
+
+**Global footer:** "+ Add Date" button to add a new date group (defaults to today or next available date).
+
+### Reusing existing pieces
+
+- `TimesheetRateLabelColumns.tsx` — reuse directly for the rate label input cells (already takes `getValue`/`onChange` callbacks)
+- `TimesheetCostCodeRow.tsx` / `TimesheetCostCodeSection.tsx` — reuse for cost code sub-rows
+- `helpers.ts` — reuse `validateJobCostCodes()`, `calculateCostCodeRowTotal()`, `autoAssignHoursToSingleRow()`
+
+### Refactoring TimesheetModification
+
+**Modify file:** `apps/frontend/src/components/Forms/TimesheetAddEditForm/TimesheetModification.tsx`
+
+Refactor to wrap `TimeEntryTable` instead of inline implementation:
+- `TimesheetModification` continues to handle: submitted times, check-in columns, zone travel, unscheduled job selector, the imperative ref API (`getData`, `validateCostCodes`, `getCostCodeData`)
+- The core table rendering (trade level rows + rate label inputs + cost code sub-rows) delegates to `TimeEntryTable`
+- No UI or functional regression — existing timesheet form must work identically
+
+---
+
+## Step 3: LaborItemEditor
 
 **Create file:** `apps/frontend/src/components/WorkOrder/LaborItemEditor.tsx`
+
+### Architecture
+
+The LaborItemEditor manages two distinct types of labour entries:
+
+1. **Structured (Log Time)** — Embeds the existing log-time interface to create **TimeSheetRecord / TimeSheetDetailRecord** entries for the WO job. Uses the existing scheduling and unscheduled-job workflow based on user permissions. These entries roll up into timesheets, scheduling, and payroll automatically.
+2. **Blank lines** — Free-form entries stored as **WorkOrderLaborItem** records (description, rate, hours, qty). ClearStory-style flexible entry for ad-hoc labour.
 
 ### Props
 
@@ -114,64 +194,73 @@ const secondsToHours = (seconds: number): number => Number((seconds / 3600).toFi
 interface ILaborItemEditorProps {
     className?: string | ClassNames;
     jobId: string;
-    dateOfWork: Date | null;
     items: ILaborRow[];
     setItems: (items: ILaborRow[]) => void;
 }
-```
 
-### Data loading
+type ILaborRow = ITimesheetLaborRow | IBlankLaborRow;
 
-On mount (and when `dateOfWork` changes), load:
+// Represents a TimeSheetRecord entry for the WO job
+interface ITimesheetLaborRow {
+    type: "timesheet";
+    timeSheetRecordId?: string;  // set when viewing existing entries
+    // Display fields loaded from the TimeSheetRecord:
+    employeeName?: string;
+    tradeLevelName?: string;
+    date?: string;
+    totalHours?: number;
+}
 
-1. **User's EmployeeAgreement** — query the current user's employment record to find their agreement. If multiple, show selector. If one, auto-select.
-
-2. **Active EmployeeAgreementContract** — for the selected agreement, find the contract where `effectiveDate <= dateOfWork`:
-```graphql
-query ActiveContract($employeeAgreementId: ID!, $date: Date!) {
-    employeeAgreementContracts(
-        options: { where: { employeeAgreementId: $employeeAgreementId } }
-    ) {
-        # Filter client-side by effectiveDate <= dateOfWork, take most recent
-    }
+// Represents a WorkOrderLaborItem (blank/unstructured line)
+interface IBlankLaborRow {
+    id?: string;  // set when editing existing
+    type: "blank";
+    orderNo: number;
+    description: string;
+    qtyOfWorkers: number;
+    submittedDuration: number;  // seconds
+    rate: number;
 }
 ```
 
-3. **TradeLevelRates for the contract** — load trade levels and rate labels:
+### Structured (Log Time) section
+
+Renders the `TimeEntryTable` component (from Step 2) inline with date-grouped layout. Existing timesheet entries for the WO job are loaded and grouped by `TimeSheetRecord.workDate` on mount. New date groups added via "+ Add Date", new rows within a group added via "+ Add Row".
+
+**Data loading on mount:** Query existing TimeSheetRecords for the WO job and group by workDate:
 ```graphql
-query TradeLevelRatesForContract($contractId: ID!) {
-    employeeAgreementContract(id: $contractId) {
-        TradeLevelRates {
+query TimesheetRecordsForJob($jobId: String!) {
+    timeSheetRecords(options: { where: { jobId: $jobId } }) {
+        id
+        workDate
+        status
+        TimeSheetDetailRecords {
             id
             tradeLevelId
-            employeeAgreementRateLabelId
-            TradeLevel { id, name, orderNo }
-            EmployeeAgreementRateLabel { id, name, isLineItem }
-        }
-        EmployeeAgreement {
-            EmployeeAgreementRateLabels {
-                id, name, isLineItem
+            secondsAtService
+            Employee { firstName, lastName }
+            TradeLevelRate {
+                TradeLevel { name }
+                EmployeeAgreementRateLabel { name }
             }
         }
     }
 }
 ```
 
-Filter rate labels to `isLineItem = false` for the column headers (e.g., Wages 1x, Wages 1.5x, Wages 2x).
+Each `TimeSheetRecord` (one per user per workDate per job) maps to rows within a date group. Multiple users on the same date appear as rows within the same date group.
 
-### Structured row rendering
-
-Each structured row renders:
-- Employee Agreement (read-only or selector)
-- Trade Level (dropdown from loaded trade levels)
-- Workers qty (number input)
-- Rate label columns (one per EmployeeAgreementRateLabel where `isLineItem = false`) — hour inputs matching the `TimesheetRateLabelColumns.tsx` pattern
-
-When the user enters hours in a column, update the `rateLabelDurations` map with the corresponding rateLabelId and seconds value.
+**Inline editing:**
+- Entries grouped by work date — each date group is a collapsible section with its own table
+- Within each group: rows for User, Trade Level, rate label hour columns, cost code sub-rows
+- Selecting a **user** loads their EmployeeAgreement. Combined with the group's work date, the active EmployeeAgreementContract is resolved, populating available trade levels and rate labels for that row
+- Date groups from Approved timesheets render read-only (all inputs disabled)
+- Scheduling permissions apply: if the user is not scheduled to the WO job and lacks permission for unscheduled jobs, the "Log Time" option shows a permission message
+- **No "Save Entry" button** — all structured rows save together with the form on Save Draft / Submit
 
 ### Blank row rendering
 
-Simpler layout:
+Simpler layout (unchanged from prior plan):
 - Description (text input, required)
 - Workers qty (number input)
 - Hours (number input, single column)
@@ -179,55 +268,36 @@ Simpler layout:
 
 ### Adding rows
 
-```typescript
-const handleAddStructured = () => {
-    setItems([...items, {
-        type: "structured",
-        orderNo: items.length,
-        employeeAgreementId: autoSelectedAgreementId,
-        tradeLevelId: "",
-        qtyOfWorkers: 1,
-        rateLabelDurations: {}
-    }]);
-};
-
-const handleAddBlank = () => {
-    setItems([...items, {
-        type: "blank",
-        orderNo: items.length,
-        description: "",
-        qtyOfWorkers: 1,
-        submittedDuration: 0,
-        rate: 0
-    }]);
-};
-```
+The "+ Add Labor" dropdown has two options:
+- **"Log Time"** — adds a new editable row to the TimeEntryTable (User, Trade Level, rate label columns). Row is in local state until form save.
+- **"Blank Line"** — adds a new blank row (description, workers, hours, rate).
 
 ### Subtotal
 
-At the bottom of the editor, show total hours across all rows:
+At the bottom of the editor, show total hours across both sources:
 
 ```typescript
-const totalHours = items.reduce((sum, item) => {
-    if (item.type === "structured") {
-        const rowHours = Object.values(item.rateLabelDurations)
-            .reduce((s, seconds) => s + seconds, 0) / 3600;
-        return sum + (rowHours * item.qtyOfWorkers);
-    } else {
-        return sum + ((item.submittedDuration / 3600) * item.qtyOfWorkers);
-    }
+// Structured hours from TimeSheetRecords
+const timesheetHours = timesheetRecords.reduce((sum, record) => {
+    const recordHours = record.TimeSheetDetailRecords.reduce(
+        (s, detail) => s + (detail.secondsAtService / 3600), 0
+    );
+    return sum + recordHours;
 }, 0);
+
+// Blank line hours from WorkOrderLaborItems
+const blankHours = items
+    .filter(item => item.type === "blank")
+    .reduce((sum, item) => sum + ((item.submittedDuration / 3600) * item.qtyOfWorkers), 0);
+
+const totalHours = timesheetHours + blankHours;
 ```
 
-Display: `Total Labor Hours: 30.0 hrs (4 workers · 2 trade levels · 1 blank)`
-
-### Key pattern to follow
-
-The rate label columns should follow `TimesheetRateLabelColumns.tsx` (at `apps/frontend/src/components/Forms/TimesheetAddEditForm/TimesheetRateLabelColumns.tsx`) — same concept of one column per rate label with hour input per cell.
+Display: `Total Labor Hours: 30.0 hrs (2 timesheet entries · 1 blank)`
 
 ---
 
-## Step 3: MaterialItemEditor
+## Step 4: MaterialItemEditor
 
 **Create file:** `apps/frontend/src/components/WorkOrder/MaterialItemEditor.tsx`
 
@@ -283,9 +353,16 @@ Display: `Material Total: $531.50 (2 items)`
 
 ---
 
-## Step 4: EquipmentItemEditor
+## Step 5: EquipmentItemEditor
 
 **Create file:** `apps/frontend/src/components/WorkOrder/EquipmentItemEditor.tsx`
+
+### Architecture
+
+Same dual-source pattern as the LaborItemEditor:
+
+1. **Structured equipment** — Creates `EquipmentTimeSheetRecordValue` entries (from EQ-0) linked to the WO job's TimeSheetDetailRecords. Tabular layout mirroring the TimeEntryTable pattern. All rows are editable inputs, saved together with the form on Save Draft / Submit.
+2. **Blank lines** — Free-form entries stored as `WorkOrderEquipmentItem` records (description, quantity, unit rate). Also saved on form submit.
 
 ### Props
 
@@ -293,60 +370,78 @@ Display: `Material Total: $531.50 (2 items)`
 interface IEquipmentItemEditorProps {
     className?: string | ClassNames;
     jobId: string;
-    items: IEquipmentRow[];
-    setItems: (items: IEquipmentRow[]) => void;
+    dateGroups: IEquipmentDateGroup[];
+    onDateGroupsChange: (groups: IEquipmentDateGroup[]) => void;
+    blankItems: IBlankEquipmentRow[];
+    setBlankItems: (items: IBlankEquipmentRow[]) => void;
 }
 
-type IEquipmentRow = IStructuredEquipmentRow | IBlankEquipmentRow;
+interface IEquipmentDateGroup {
+    workDate: string;               // YYYY-MM-DD
+    rows: IStructuredEquipmentRow[];
+    isApproved?: boolean;           // true if TimeSheetRecord for this date is Approved → all rows read-only
+}
 
 interface IStructuredEquipmentRow {
-    id?: string;
-    type: "structured";
-    orderNo: number;
+    id?: string;  // EquipmentTimeSheetRecordValue ID when editing existing
     equipmentId: string;
-    equipmentName?: string;        // display
-    equipmentCategoryId?: string;  // for loading rate labels
+    equipmentName?: string;
     equipmentRateLabelId: string;
     per: string;
     operatorIncluded: boolean;
     isFullDayBilling: boolean;
-    submittedDuration: number;
+    submittedDuration: number;  // seconds
+    meterStart?: number;
+    meterEnd?: number;
+    costCodeRows?: ICostCodeRow[];  // reuse from TimesheetAddEditForm/types.ts
 }
 
 interface IBlankEquipmentRow {
     id?: string;
-    type: "blank";
     orderNo: number;
     description: string;
     quantity: number;
-    per?: string;
     unitRate: number;
 }
 ```
 
-### Structured row
+### Structured equipment (date-grouped tabular entry)
 
-- Equipment selector: `CustomCombobox` with `useSearchCore`, `queryResultLabel="Equipment"` — Solr-indexed
-- On equipment select: store `equipmentCategoryId`, load `EquipmentRateLabels` for the category via `equipmentRateLabels(equipmentCategoryId)` query (from LEM-2)
-- Rate Type: dropdown populated from loaded EquipmentRateLabels (Standard, Standby, OT, etc.)
-- Per: display from rate configuration (Hour, Day, etc.) — may be pre-set from EquipmentAssignment context (business question from UIS-15H)
-- Duration: number input labeled by `per` ("hrs", "days"), stored in seconds
+Same date-grouped pattern as the LaborItemEditor. Entries grouped by work date — each date group is a collapsible section with its own table of equipment rows. Existing EquipmentTimeSheetRecordValues loaded and grouped by `TimeSheetRecord.workDate` on mount.
+
+**Date group header:** Date display with date picker, row count, total duration, `IconTrash` to remove group (if not Approved).
+
+**Table within each date group:**
+
+| Column | Description |
+|--------|------------|
+| Equipment | `CustomCombobox` searching Equipment catalog (Solr-indexed). On select, loads `EquipmentRateLabels` for the category. |
+| Rate Type | Dropdown from loaded EquipmentRateLabels (Standard, Standby, OT, etc.) |
+| Per | Dropdown (Hour, Day, Week, Month, Year) |
+| Duration | Number input labeled by `per`, stored in seconds. Auto-calculated from meter readings for hour-meter equipment. |
+| Meter Start / End | Optional numeric inputs (shown based on equipment meter type configuration) |
+| `IconTrash` | Delete button per row |
+
+**Cost code sub-rows:** Same pattern as the TimeEntryTable — "Split by Cost Code" adds sub-rows beneath an equipment row. Each sub-row has a cost code selector + duration. Uses the existing `EquipmentTimeSheetRecordCostCodeValue` model from EQ-0. Same validation (cost code hours must sum to parent row duration) and auto-assignment logic.
+
+**Adding:** "+ Add Row" within a date group adds a new equipment row. "+ Add Date" adds a new date group. "+ Add Equipment" dropdown also has "Blank Line" option for unstructured entries.
+
+**No "Save Entry" button** — all structured rows save together with the form.
 
 ### Blank row
 
 - Description: text input (required)
 - Qty: number input
-- Per: text label (user types "days", "hrs", etc.)
 - Rate: `CurrencyInput`
 
 ### Subtotal
 
-Show grouped by per-unit type:
-`Total Equipment: 8.0 hrs + 2 days (1 structured · 1 blank)`
+Show combined totals from both sources:
+`Total Equipment: 8.0 hrs + 2 days (2 structured · 1 blank)`
 
 ---
 
-## Step 5: Replace Placeholders in customFormControl
+## Step 6: Replace Placeholders in customFormControl
 
 **File:** Job DataModelForm page (from PR #6831)
 
@@ -357,7 +452,7 @@ import { LaborItemEditor } from "~root/components/WorkOrder/LaborItemEditor";
 import { MaterialItemEditor } from "~root/components/WorkOrder/MaterialItemEditor";
 import { EquipmentItemEditor } from "~root/components/WorkOrder/EquipmentItemEditor";
 
-// State for line items (managed at the form level, passed to editors)
+// State for blank labour + material + equipment line items (managed at the form level)
 const [laborItems, setLaborItems] = useState<ILaborRow[]>([]);
 const [materialItems, setMaterialItems] = useState<IMaterialRow[]>([]);
 const [equipmentItems, setEquipmentItems] = useState<IEquipmentRow[]>([]);
@@ -366,7 +461,6 @@ const customFormControl = {
     "wo-labor-items": (formData, setFormData) => (
         <LaborItemEditor
             jobId={jobId}
-            dateOfWork={formData["wo-date-of-work"]}
             items={laborItems}
             setItems={setLaborItems}
         />
@@ -391,43 +485,65 @@ const customFormControl = {
 
 ### Load existing items on edit
 
-When editing an existing WO, query the line items and populate state:
+When editing an existing WO, load both sources:
 
 ```typescript
 useEffect(() => {
     if (jobId) {
-        // Load existing labor items
+        // Load existing blank labour items (WorkOrderLaborItem)
         getWorkOrderLaborItems({ variables: { jobId } }).then(res => {
-            // Transform DB records back into ILaborRow format
-            // Group by orderNo for structured rows
+            // Transform DB records into IBlankLaborRow format
         });
-        // Same for material and equipment
+        // Structured labour (TimeSheetRecords) loaded internally by LaborItemEditor
+        // Structured equipment (EquipmentTimeSheetRecordValues) loaded internally by EquipmentItemEditor
+        // Same pattern for material (both structured + blank go through upsert)
     }
 }, [jobId]);
 ```
 
 ### On form save
 
-Intercept the DataModelForm's save handler to include line items:
+Intercept the DataModelForm's save handler to save all line items together. The save handler processes **three mutation calls**:
+
+1. **Structured labour + equipment** — calls `editFullTimeRecord` (from EQ-0 extensions) with both labour values (TimeSheetDetailRecordValues) and equipment values (EquipmentTimeSheetRecordValues). This creates/updates the TimeSheetRecord for the WO job with all structured entries.
+2. **Blank labour + blank equipment + material** — calls `upsertWorkOrderLineItems` (from WO-2) with blank WorkOrderLaborItems, WorkOrderMaterialItems, and blank WorkOrderEquipmentItems.
+3. **Job record** — saved via DataModelForm's normal save.
 
 ```typescript
 const handleSave = async (formData) => {
     // 1. Save the Job via DataModelForm's normal save
     const savedJob = await saveJob(formData);
 
-    // 2. Transform local state into mutation input
-    const laborInput = transformLaborRowsToInput(laborItems);
-    const materialInput = transformMaterialRowsToInput(materialItems);
-    const equipmentInput = transformEquipmentRowsToInput(equipmentItems);
+    // 2. Save structured labour + equipment via timesheet mutation
+    //    This creates/updates TimeSheetRecord + TimeSheetDetailRecords
+    //    with both labour values and equipment values for the WO job
+    const structuredLaborValues = transformStructuredLaborToTimesheetValues(laborItems);
+    const structuredEquipValues = transformStructuredEquipToTimesheetValues(equipmentItems);
 
-    // 3. Save line items
+    if (structuredLaborValues.length > 0 || structuredEquipValues.length > 0) {
+        await editFullTimeRecord({
+            variables: {
+                record: { /* TimeSheetRecord for this job/date/user */ },
+                values: structuredLaborValues,
+                equipmentValues: structuredEquipValues,
+                costCodeRecords: transformCostCodeRecords(laborItems),
+                // equipmentCostCodeRecords handled within equipmentValues
+            }
+        });
+    }
+
+    // 3. Save blank items via WO line item upsert
+    const blankLaborInput = transformBlankLaborRowsToInput(laborItems);
+    const materialInput = transformMaterialRowsToInput(materialItems);
+    const blankEquipInput = transformBlankEquipmentRowsToInput(equipmentItems);
+
     await upsertWorkOrderLineItems({
         variables: {
             input: {
                 jobId: savedJob.id,
-                laborItems: laborInput,
+                laborItems: blankLaborInput,
                 materialItems: materialInput,
-                equipmentItems: equipmentInput
+                equipmentItems: blankEquipInput
             }
         }
     });
@@ -437,45 +553,59 @@ const handleSave = async (formData) => {
 ### Transform functions
 
 ```typescript
-// Structured labor rows expand into multiple DB records (one per rate label with hours > 0)
-function transformLaborRowsToInput(rows: ILaborRow[]): UpsertWorkOrderLaborItemInput[] {
-    const items: UpsertWorkOrderLaborItemInput[] = [];
-    for (const row of rows) {
-        if (row.type === "structured") {
-            for (const [rateLabelId, seconds] of Object.entries(row.rateLabelDurations)) {
-                if (seconds > 0) {
-                    // Resolve tradeLevelRateId from (contractId + tradeLevelId + rateLabelId)
-                    const tradeLevelRateId = resolveTradeLevelRateId(
-                        row.tradeLevelId, rateLabelId
-                    );
-                    items.push({
-                        tradeLevelRateId,
-                        qtyOfWorkers: row.qtyOfWorkers,
-                        submittedDuration: seconds,
-                        orderNo: row.orderNo
-                    });
-                }
-            }
-        } else {
-            items.push({
-                tradeLevelRateId: null,
-                rate: row.rate,
-                qtyOfWorkers: row.qtyOfWorkers,
-                submittedDuration: row.submittedDuration,
-                description: row.description,
-                orderNo: row.orderNo
-            });
-        }
-    }
-    return items;
+// Structured labour → TimeSheetDetailRecordValue inputs
+function transformStructuredLaborToTimesheetValues(rows: ILaborRow[]) {
+    return rows
+        .filter(row => row.type === "timesheet" && !row.isApproved)
+        .flatMap(row => /* transform to EditOrCreateTimeSheetDetailRecordValue[] */);
 }
 
-// Material and equipment transforms are simpler — 1:1 mapping
+// Structured equipment → UpsertEquipmentTimeSheetRecordValueInput[]
+function transformStructuredEquipToTimesheetValues(rows: IStructuredEquipmentRow[]) {
+    return rows
+        .filter(row => !row.isApproved)
+        .map(row => ({
+            id: row.id,
+            equipmentId: row.equipmentId,
+            equipmentRateLabelId: row.equipmentRateLabelId,
+            per: row.per,
+            operatorIncluded: row.operatorIncluded,
+            isFullDayBilling: row.isFullDayBilling,
+            submittedDuration: row.submittedDuration,
+            meterStart: row.meterStart,
+            meterEnd: row.meterEnd
+        }));
+}
+
+// Blank labour → UpsertWorkOrderLaborItemInput[]
+function transformBlankLaborRowsToInput(rows: ILaborRow[]) {
+    return rows
+        .filter((row): row is IBlankLaborRow => row.type === "blank")
+        .map(row => ({
+            id: row.id,
+            rate: row.rate,
+            qtyOfWorkers: row.qtyOfWorkers,
+            submittedDuration: row.submittedDuration,
+            description: row.description,
+            orderNo: row.orderNo
+        }));
+}
+
+// Blank equipment → UpsertWorkOrderEquipmentItemInput[]
+function transformBlankEquipmentRowsToInput(rows: IBlankEquipmentRow[]) {
+    return rows.map(row => ({
+        id: row.id,
+        unitRate: row.unitRate,
+        quantity: row.quantity,
+        description: row.description,
+        orderNo: row.orderNo
+    }));
+}
 ```
 
 ---
 
-## Step 6: Style Conventions
+## Step 7: Style Conventions
 
 Follow CLAUDE.md conventions throughout:
 
@@ -492,15 +622,24 @@ Follow CLAUDE.md conventions throughout:
 
 ## Verification Checklist
 
+- [ ] TimeEntryTable component renders date-grouped layout — entries grouped by work date, each group is a collapsible section with its own table
+- [ ] TimeEntryTable: "+ Add Date" adds a new date group; "+ Add Row" adds a row within a group
+- [ ] TimeEntryTable: User dropdown per row; selecting user + group work date resolves active EmployeeAgreementContract for trade levels and rate labels
+- [ ] TimeEntryTable: Trade level dropdown per row; selecting trade level populates TradeLevelRate options (maps to optional tradeLevelId on TimeSheetDetailRecord)
+- [ ] TimeEntryTable: Same user can appear in multiple rows with different trade levels (e.g., Journeyman + Foreman)
+- [ ] TimeEntryTable: Rate label columns filtered by job wage region with fallback to default
+- [ ] TimeEntryTable: Approved date groups render all rows read-only
+- [ ] TimeEntryTable: "Split by Cost Code" adds cost code sub-rows; cost code hours validate against parent row totals
+- [ ] TimeEntryTable: Cost code combobox excludes already-selected codes for the same trade-level row
+- [ ] TimeEntryTable: Hours entered in 0.25 increments, stored as seconds
+- [ ] TimesheetModification refactored to wrap TimeEntryTable — no regression on existing timesheet form
 - [ ] LaborItemEditor component renders in the `wo-labor-items` DAA position
-- [ ] Labor structured row: Employee Agreement auto-selects from current user
-- [ ] Labor structured row: Trade Level dropdown loads from the agreement
-- [ ] Labor structured row: Rate label columns load from active contract for dateOfWork
-- [ ] Labor structured row: Changing dateOfWork reloads the contract and rate labels
-- [ ] Labor structured row: Hours entered per rate label column, stored in rateLabelDurations map
-- [ ] Labor structured row: Qty of Workers multiplier defaults to 1
+- [ ] Labor — Log Time: Inline TimeEntryTable with date-grouped layout — User, Trade Level, rate label columns, cost codes within each date group
+- [ ] Labor — Log Time: Existing TimeSheetRecords loaded and grouped by workDate on mount (Approved groups read-only)
+- [ ] Labor — Log Time: Respects scheduling permissions — scheduled users go through standard flow, unscheduled users go through unscheduled-job workflow (if permitted)
+- [ ] Labor — Log Time: No "Save Entry" button — structured rows save with the form
 - [ ] Labor blank row: Description required, manual hours + rate + workers
-- [ ] Labor subtotal shows total hours across all rows
+- [ ] Labor subtotal shows total hours from both TimeSheetRecords and blank lines combined
 - [ ] MaterialItemEditor component renders in the `wo-material-items` DAA position
 - [ ] Material structured row: CustomCombobox searches Material catalog
 - [ ] Material structured row: Selecting material auto-populates name, UoM, sell price (from LEM-3 cascade), and cost price
@@ -510,19 +649,18 @@ Follow CLAUDE.md conventions throughout:
 - [ ] Material blank row: Free-text description + manual qty/price
 - [ ] Material subtotal shows dollar total
 - [ ] EquipmentItemEditor component renders in the `wo-equipment-items` DAA position
-- [ ] Equipment structured row: CustomCombobox searches Equipment catalog
-- [ ] Equipment structured row: Rate Type dropdown loads from equipment's category EquipmentRateLabels
-- [ ] Equipment structured row: Duration input labeled by per selection
+- [ ] Equipment — Log Equipment: Date-grouped tabular layout with Equipment, Rate Type, Per, Duration, optional Meter Start/End within each date group
+- [ ] Equipment — Log Equipment: Existing EquipmentTimeSheetRecordValues loaded and grouped by workDate on mount (Approved groups read-only)
+- [ ] Equipment — Log Equipment: "Split by Cost Code" adds cost code sub-rows using EquipmentTimeSheetRecordCostCodeValue (EQ-0)
+- [ ] Equipment — Log Equipment: No "Save Entry" button — structured rows save with the form
 - [ ] Equipment blank row: Free-text description + manual qty/rate
-- [ ] Equipment subtotal shows hours/days grouped by per-unit
-- [ ] All editors: "+ Add" dropdown with Structured Line and Blank Line options
-- [ ] All editors: Remove (×) button per row works
-- [ ] All editors: Structured and blank rows coexist in the same list
-- [ ] All editors: Local state only — no DB writes on item changes
-- [ ] On form save: upsertWorkOrderLineItems called with all three item types
-- [ ] On form save: Structured labor rows correctly expand into multiple records (one per rate label with hours > 0)
-- [ ] Editing existing WO: Items loaded from DB and populated into editor state
-- [ ] No backend changes — all API from WO-2
+- [ ] Equipment subtotal combines hours from EquipmentTimeSheetRecordValues and blank lines
+- [ ] All editors: "+ Add" dropdown (Labor uses "Log Time" / "Blank Line"; Equipment uses "Log Equipment" / "Blank Line"; Material uses "Structured Line" / "Blank Line")
+- [ ] All editors: IconTrash delete button per row works (for blank lines and material/equipment)
+- [ ] All editors: Structured and blank entries coexist in the same view
+- [ ] On form save: structured labour + equipment saved via `editFullTimeRecord` (creates TimeSheetRecord + TimeSheetDetailRecords + EquipmentTimeSheetRecordValues); blank items saved via `upsertWorkOrderLineItems`
+- [ ] Editing existing WO: Blank labour from WorkOrderLaborItem, structured labour from TimeSheetRecords, blank equipment from WorkOrderEquipmentItem, structured equipment from EquipmentTimeSheetRecordValues, material from WorkOrderMaterialItem
+- [ ] No new backend models — structured labour uses TimeSheetRecord, structured equipment uses EquipmentTimeSheetRecordValue (EQ-0), blank items use WO-2 models
 
 ---
 
@@ -530,11 +668,13 @@ Follow CLAUDE.md conventions throughout:
 
 | Action | File | What to do |
 |--------|------|------------|
-| CREATE | `apps/frontend/src/components/WorkOrder/AddLineDropdown.tsx` | Shared "+ Add [Type] ▾" dropdown with Structured/Blank options |
-| CREATE | `apps/frontend/src/components/WorkOrder/LaborItemEditor.tsx` | Structured rows (agreement + trade level + rate label columns) + blank rows + subtotal |
+| CREATE | `apps/frontend/src/components/Forms/TimeEntryTable/TimeEntryTable.tsx` | Reusable tabular time entry: trade-level rows, rate-label columns, optional cost code sub-rows. Extracted from TimesheetModification pattern. |
+| MODIFY | `apps/frontend/src/components/Forms/TimesheetAddEditForm/TimesheetModification.tsx` | Refactor to wrap TimeEntryTable; keep timesheet-specific concerns (submitted times, check-ins, zone travel, unscheduled job selector, imperative ref API). No regression. |
+| CREATE | `apps/frontend/src/components/WorkOrder/AddLineDropdown.tsx` | Shared "+ Add [Type] ▾" dropdown with configurable labels (Log Time/Blank for labor, Structured/Blank for material & equipment) |
+| CREATE | `apps/frontend/src/components/WorkOrder/LaborItemEditor.tsx` | Wraps TimeEntryTable for inline time entry + logged time summary + blank rows (WorkOrderLaborItem) + combined subtotal |
 | CREATE | `apps/frontend/src/components/WorkOrder/MaterialItemEditor.tsx` | Structured rows (catalog lookup) + blank rows + auto-calculated totals + subtotal |
-| CREATE | `apps/frontend/src/components/WorkOrder/EquipmentItemEditor.tsx` | Structured rows (equipment catalog + rate labels) + blank rows + subtotal |
-| MODIFY | Job DataModelForm page (from PR #6831) | Replace `<p>` placeholders with real editor components, add line item state, add save handler with upsertWorkOrderLineItems |
+| CREATE | `apps/frontend/src/components/WorkOrder/EquipmentItemEditor.tsx` | Structured section (inline equipment time entry for EquipmentTimeSheetRecordValues via EQ-0) + blank rows (WorkOrderEquipmentItem) + logged entries summary + combined subtotal |
+| MODIFY | Job DataModelForm page (from PR #6831) | Replace `<p>` placeholders with real editor components, add line item state, save handler calls upsertWorkOrderLineItems for blank labour + material + blank equipment (structured labour saved via TimeSheetRecord mutation, structured equipment saved via EQ-0 mutation) |
 </script>
 
 <script src="plan-renderer.js"></script>

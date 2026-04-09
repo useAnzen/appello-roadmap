@@ -125,9 +125,9 @@ table.schema-table code { font-family: monospace; background: #f1f5f9; padding: 
         <p>The WorkOrder subModel already has its DocumentSections configured (from WO-3a):</p>
         <ol>
             <li><strong>Work Order Info</strong> &mdash; dateOfWork, description, job type, project, etc.</li>
-            <li><strong>Labor</strong> &mdash; <code>customFormControl["wo-labor-items"]</code></li>
+            <li><strong>Labor</strong> &mdash; <code>customFormControl["wo-labor-items"]</code> (inline time entry table for TimeSheetRecords + blank lines for WorkOrderLaborItems)</li>
             <li><strong>Materials</strong> &mdash; <code>customFormControl["wo-material-items"]</code></li>
-            <li><strong>Equipment</strong> &mdash; <code>customFormControl["wo-equipment-items"]</code></li>
+            <li><strong>Equipment</strong> &mdash; <code>customFormControl["wo-equipment-items"]</code> (structured equipment time entry for EquipmentTimeSheetRecordValues + blank lines for WorkOrderEquipmentItems)</li>
             <li><strong>Signatures</strong> &mdash; <code>customFormControl["wo-signatures"]</code></li>
         </ol>
         <p>By adding <code>steppedForm</code> to DataModelForm, we get a wizard for free from the existing section configuration. This approach also makes the stepped mode available to any future DataModelForm consumer, not just work orders.</p>
@@ -253,7 +253,7 @@ return (
         <p>Each section renders exactly as it does in standard mode &mdash; DAA fields with their labels, validation, and <code>customFormControl</code> entries. The only difference is that non-active sections are hidden (not unmounted, to preserve state).</p>
 
         <div class="callout-warn">
-            <strong>Do not unmount inactive steps.</strong> Unmounting would destroy local state in custom form controls (e.g., the labor item editor's draft rows). Use CSS <code>display: none</code> or conditional rendering that preserves the component tree. The form state itself lives in DataModelForm's state, but custom controls may have their own local state for UI interactions.
+            <strong>Do not unmount inactive steps.</strong> Unmounting would destroy local state in custom form controls (e.g., the labor item editor's in-progress time entry or blank line drafts). Use CSS <code>display: none</code> or conditional rendering that preserves the component tree. The form state itself lives in DataModelForm's state, but custom controls may have their own local state for UI interactions.
         </div>
     </div>
 
@@ -330,23 +330,18 @@ return (
                         <span>Labor</span>
                         <div class="edit-pencil">&#9998;</div>
                     </div>
-                    <!-- Disabled labor item card -->
+                    <!-- Timesheet entry summary -->
                     <div style="border:1px solid #f1f5f9; border-radius:8px; padding:10px; margin-bottom:8px; background:#f8fafc; opacity:0.7;">
-                        <div style="display:flex; gap:8px; margin-bottom:6px;">
-                            <div style="flex:1;">
-                                <div style="font-size:10px; font-weight:600; color:#94a3b8; margin-bottom:2px;">Trade Level</div>
-                                <div style="background:#fff; border:1px solid #f1f5f9; border-radius:6px; padding:6px 10px; font-size:12px; color:#64748b;">Journeyman Insulator</div>
-                            </div>
+                        <div style="display:flex; justify-content:space-between; align-items:center; font-size:12px;">
+                            <span style="color:#64748b;">John Smith &mdash; Journeyman</span>
+                            <span style="font-weight:600; color:#64748b;">10.0 hrs</span>
                         </div>
-                        <div style="display:flex; gap:8px;">
-                            <div style="flex:1;">
-                                <div style="font-size:10px; font-weight:600; color:#94a3b8; margin-bottom:2px;">Qty of Workers</div>
-                                <div style="background:#fff; border:1px solid #f1f5f9; border-radius:6px; padding:6px 10px; font-size:12px; color:#64748b; text-align:center;">3</div>
-                            </div>
-                            <div style="flex:1;">
-                                <div style="font-size:10px; font-weight:600; color:#94a3b8; margin-bottom:2px;">Hours</div>
-                                <div style="background:#fff; border:1px solid #f1f5f9; border-radius:6px; padding:6px 10px; font-size:12px; color:#64748b; text-align:center;">8.0</div>
-                            </div>
+                    </div>
+                    <!-- Blank line summary -->
+                    <div style="border:1px dashed #f1f5f9; border-radius:8px; padding:10px; margin-bottom:8px; background:#f8fafc; opacity:0.7;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; font-size:12px;">
+                            <span style="color:#64748b; font-style:italic;">2 labourers &mdash; scaffolding move</span>
+                            <span style="font-weight:600; color:#64748b;">8.0 hrs</span>
                         </div>
                     </div>
                     <div style="border:1px solid #f1f5f9; border-radius:8px; padding:10px; background:#f8fafc; opacity:0.7;">
@@ -505,7 +500,7 @@ return (
 
         <!-- ========================= STEP 2 ========================= -->
         <h3 style="margin-top:24px;">Step 2: Labor</h3>
-        <p style="font-size:13px; color:#64748b; margin-bottom:12px;">Renders the <code>customFormControl["wo-labor-items"]</code> LaborItemEditor from WO-3b. Trade level picker, qty of workers, submitted duration per item.</p>
+        <p style="font-size:13px; color:#64748b; margin-bottom:12px;">Renders the <code>customFormControl["wo-labor-items"]</code> LaborItemEditor from WO-3b. Two modes: <strong>structured time entry</strong> (User + Trade Level + rate label columns, creating TimeSheetRecords) and <strong>blank lines</strong> (description + workers + hours + rate, creating WorkOrderLaborItems). On mobile, the time entry table may be simplified for the narrower viewport. See WO-3b for the full LaborItemEditor spec.</p>
         <div class="mobile-frame" id="mockup-4">
             <div class="mobile-header">
                 <span style="flex:1; text-align:center;">New T&amp;M Tag</span>
@@ -525,39 +520,66 @@ return (
                     <div class="step-dot step-dot-pending" style="font-size:10px;">&#9734;</div>
                 </div>
 
-                <div style="font-size:16px; font-weight:700; margin-bottom:16px;">Labor</div>
+                <div style="font-size:16px; font-weight:700; margin-bottom:12px;">Labor</div>
 
-                <!-- Labor item card -->
-                <div style="border:1px solid #e2e8f0; border-radius:10px; padding:14px; margin-bottom:12px;">
-                    <div style="display:flex; gap:8px; margin-bottom:8px;">
-                        <div style="flex:1;">
+                <!-- Timesheet entry row -->
+                <div style="border:1px solid #e2e8f0; border-radius:10px; padding:14px; margin-bottom:8px;">
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:8px;">
+                        <div>
+                            <div style="font-size:11px; font-weight:600; color:#64748b; margin-bottom:4px;">User *</div>
+                            <div class="mobile-input" style="height:40px; justify-content:space-between; margin-bottom:0;">
+                                <span style="color:#0f172a; font-size:12px;">John Smith</span>
+                                <span style="color:#94a3b8;">&#9662;</span>
+                            </div>
+                        </div>
+                        <div>
                             <div style="font-size:11px; font-weight:600; color:#64748b; margin-bottom:4px;">Trade Level *</div>
                             <div class="mobile-input" style="height:40px; justify-content:space-between; margin-bottom:0;">
-                                <span style="color:#0f172a; font-weight:600; font-size:12px;">Journeyman Insulator</span>
-                                <span style="color:#0f172a;">&#8250;</span>
+                                <span style="color:#0f172a; font-size:12px;">Journeyman</span>
+                                <span style="color:#94a3b8;">&#9662;</span>
                             </div>
                         </div>
                     </div>
-
-                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:8px;">
+                    <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px;">
                         <div>
-                            <div style="font-size:11px; font-weight:600; color:#64748b; margin-bottom:4px;">Qty of Workers</div>
-                            <div class="mobile-input" style="height:40px; justify-content:center; margin-bottom:0;">
-                                <span style="color:#0f172a; font-weight:700;">3</span>
-                            </div>
+                            <div style="font-size:10px; font-weight:600; color:#64748b; margin-bottom:3px;">Wages 1x</div>
+                            <div class="mobile-input" style="height:36px; justify-content:center; margin-bottom:0;"><span style="color:#0f172a; font-weight:700; font-size:12px;">8.0</span></div>
                         </div>
                         <div>
-                            <div style="font-size:11px; font-weight:600; color:#64748b; margin-bottom:4px;">Hours</div>
-                            <div class="mobile-input" style="height:40px; justify-content:center; margin-bottom:0;">
-                                <span style="color:#0f172a; font-weight:700;">8.0</span>
-                            </div>
+                            <div style="font-size:10px; font-weight:600; color:#64748b; margin-bottom:3px;">Wages 1.5x</div>
+                            <div class="mobile-input" style="height:36px; justify-content:center; margin-bottom:0;"><span style="color:#0f172a; font-weight:700; font-size:12px;">2.0</span></div>
+                        </div>
+                        <div>
+                            <div style="font-size:10px; font-weight:600; color:#64748b; margin-bottom:3px;">Wages 2x</div>
+                            <div class="mobile-input" style="height:36px; justify-content:center; margin-bottom:0;"><span style="color:#94a3b8; font-size:12px;">&mdash;</span></div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Add Worker -->
+                <!-- Blank line -->
+                <div style="border:1px dashed #cbd5e1; border-radius:10px; padding:14px; margin-bottom:8px;">
+                    <div style="font-size:11px; font-weight:600; color:#64748b; margin-bottom:4px;">Description *</div>
+                    <div class="mobile-input" style="height:40px; margin-bottom:8px;"><span style="color:#0f172a; font-size:12px;">2 labourers &mdash; scaffolding move</span></div>
+                    <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px;">
+                        <div>
+                            <div style="font-size:10px; font-weight:600; color:#64748b; margin-bottom:3px;">Workers</div>
+                            <div class="mobile-input" style="height:36px; justify-content:center; margin-bottom:0;"><span style="color:#0f172a; font-weight:700; font-size:12px;">2</span></div>
+                        </div>
+                        <div>
+                            <div style="font-size:10px; font-weight:600; color:#64748b; margin-bottom:3px;">Hours</div>
+                            <div class="mobile-input" style="height:36px; justify-content:center; margin-bottom:0;"><span style="color:#0f172a; font-weight:700; font-size:12px;">4.0</span></div>
+                        </div>
+                        <div>
+                            <div style="font-size:10px; font-weight:600; color:#64748b; margin-bottom:3px;">Rate ($/hr)</div>
+                            <div class="mobile-input" style="height:36px; justify-content:center; margin-bottom:0;"><span style="color:#0f172a; font-weight:700; font-size:12px;">$65</span></div>
+                        </div>
+                    </div>
+                    <div style="font-size:9px; color:#94a3b8; margin-top:6px; font-style:italic;">Blank line &mdash; not in timesheets</div>
+                </div>
+
+                <!-- Add -->
                 <div style="border:1px dashed #e2e8f0; border-radius:10px; padding:14px; text-align:center; margin-bottom:16px;">
-                    <span style="font-size:14px; font-weight:600; color:#3b82f6;">+ Add Labor Item</span>
+                    <span style="font-size:14px; font-weight:600; color:#3b82f6;">+ Add Labor</span>
                 </div>
 
                 <!-- Full-width nav -->

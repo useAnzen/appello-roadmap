@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EQ-0: Equipment Time Schema — Implementation Plan</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+.in-iframe .top-nav { display: none !important; }
+.top-nav { position: sticky; top: 0; z-index: 100; background: #0f172a; border-bottom: 1px solid #1e293b; padding: 0 24px; display: flex; align-items: center; gap: 0; }
+.top-nav a { display: inline-flex; align-items: center; padding: 12px 18px; font-size: 13px; font-weight: 600; color: #94a3b8; text-decoration: none; border-bottom: 2px solid transparent; transition: all 0.15s; white-space: nowrap; }
+.top-nav a:hover { color: #f8fafc; background: #1e293b; }
+.top-nav .nav-logo { font-size: 11px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: #475569; padding-right: 18px; margin-right: 4px; border-right: 1px solid #1e293b; }
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Inter', -apple-system, sans-serif; background: #f8fafc; color: #0f172a; }
+.plan-wrap { max-width: 880px; margin: 0 auto; padding: 40px 24px 80px; }
+h1 { font-size: 24px; font-weight: 800; margin: 0 0 16px; }
+h2 { font-size: 18px; font-weight: 700; margin: 28px 0 12px; padding-bottom: 8px; border-bottom: 2px solid #e2e8f0; }
+h3 { font-size: 15px; font-weight: 700; margin: 20px 0 8px; padding-top: 10px; border-top: 1px solid #f1f5f9; }
+h4 { font-size: 14px; font-weight: 700; margin: 14px 0 6px; }
+p { font-size: 14px; color: #334155; line-height: 1.7; margin: 6px 0; }
+ul, ol { padding-left: 20px; margin: 8px 0; }
+li { font-size: 14px; color: #334155; line-height: 1.7; margin: 3px 0; }
+strong { color: #0f172a; }
+code { font-family: 'SF Mono', monospace; background: #f1f5f9; padding: 1px 6px; border-radius: 4px; font-size: 12px; color: #7c3aed; }
+pre { background: #0f172a; color: #f8fafc; border-radius: 8px; padding: 16px; overflow-x: auto; font-size: 13px; line-height: 1.6; margin: 12px 0; font-family: 'SF Mono', monospace; }
+pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
+hr { border: none; border-top: 1px solid #e2e8f0; margin: 24px 0; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 12px 0; }
+th { text-align: left; padding: 8px 12px; background: #f1f5f9; border-bottom: 2px solid #e2e8f0; font-weight: 600; }
+td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
+.check-item { display: flex; gap: 8px; align-items: flex-start; padding: 5px 0; }
+.check-box { width: 16px; height: 16px; border: 2px solid #cbd5e1; border-radius: 3px; flex-shrink: 0; margin-top: 2px; }
+.callout { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 14px 18px; margin: 14px 0; font-size: 13px; color: #1e40af; }
+.callout strong { color: #1e3a8a; }
+    </style>
+</head>
+<body>
+
+<script>if(self!==top)document.documentElement.classList.add("in-iframe")</script>
+<nav class="top-nav">
+    <span class="nav-logo">Appello SDLC</span>
+    <a href="../index.html">Roadmap</a>
+    <a href="../release-1.33-timeline.html">Release 1.33</a>
+    <a href="../release-1.34-timeline.html">Release 1.34</a>
+    <a href="../master-spec-reconciliation.html">Spec Reconciliation</a>
+    <a href="../cross-release-continuity-audit.html">Continuity Audit</a>
+    <a href="ui-interface-library.html">UI Library</a>
+</nav>
+<div class="plan-wrap" id="rendered"></div>
+
+<script type="text/plain" id="plan-md">
+# EQ-0: Equipment Time Schema — Implementation Plan
+
+## Overview
+
+Extract the backend/schema work from UIS-15H (Equipment Timesheet Capture) into a standalone prerequisite. This plan creates the two new Prisma models (`EquipmentTimeSheetRecordValue`, `EquipmentTimeSheetRecordCostCodeValue`), TypeScript types, model classes, GraphQL resolvers, permission seeds, and extends existing timesheet mutations to accept equipment values. **No UI work** — UIS-15H (now UI-only) and WO-2/WO-3b consume these models.
+
+This plan was extracted from UIS-15H Steps 1–7. UIS-15H retains Steps 8–14 (all frontend/UI work: EquipmentTimeSection component, cost code allocation UI, timesheet form integration, tooltip updates, approval grid, mobile Log Time button).
+
+**Estimated effort:** 3-4 days
+**Risk:** Medium — extends existing timesheet submission + approval flow with equipment values
+**Spec:** `appello-sdlc/docs/uis-15h-equipment-timesheet-capture.html` (full spec, this plan covers backend only)
+**Requires:** LEM-2 (EquipmentRateLabel, EquipmentRateValue, EquipmentRateSchedule, resolveEquipmentRate)
+**Enables:** UIS-15H (Equipment Timesheet UI), WO-2 (structured equipment on Work Orders)
+
+---
+
+## Step 1: Prisma Schema — 2 New Models
+
+**File:** `apps/api/prisma/schema.prisma`
+
+### 1a. EquipmentTimeSheetRecordValue
+
+```prisma
+model EquipmentTimeSheetRecordValue {
+  id                         String              @id @db.VarChar(21)
+  isDeleted                  Boolean             @default(false)
+  isArchived                 Boolean             @default(false)
+  createdAt                  DateTime            @default(now())
+  updatedAt                  DateTime            @default(now()) @updatedAt
+
+  timeSheetDetailRecordId    String              @db.VarChar(21)
+  TimeSheetDetailRecord      TimeSheetDetailRecord @relation(fields: [timeSheetDetailRecordId], references: [id])
+
+  equipmentId                String              @db.VarChar(21)
+  Equipment                  Equipment           @relation(fields: [equipmentId], references: [id])
+
+  equipmentRateLabelId       String              @db.VarChar(21)
+  EquipmentRateLabel         EquipmentRateLabel  @relation(fields: [equipmentRateLabelId], references: [id])
+  per                        EquipmentRatePer    @default(HOUR)
+  operatorIncluded           Boolean             @default(true)
+  isFullDayBilling           Boolean             @default(true)
+
+  meterStart                 Decimal?            @db.Decimal(12, 1)
+  meterEnd                   Decimal?            @db.Decimal(12, 1)
+
+  submittedDuration          Int                 @default(0)    // seconds
+  approvedDuration           Int                 @default(0)    // seconds
+
+  equipmentRateScheduleId    String?             @db.VarChar(21)
+  EquipmentRateSchedule      EquipmentRateSchedule? @relation(fields: [equipmentRateScheduleId], references: [id])
+
+  // Attachment parent link
+  parentEquipmentTimeSheetRecordValueId  String?  @db.VarChar(21)
+  ParentEquipmentTimeSheetRecordValue    EquipmentTimeSheetRecordValue? @relation("AttachmentSubLines", fields: [parentEquipmentTimeSheetRecordValueId], references: [id])
+  AttachmentSubLines                     EquipmentTimeSheetRecordValue[] @relation("AttachmentSubLines")
+
+  EquipmentTimeSheetRecordCostCodeValues EquipmentTimeSheetRecordCostCodeValue[]
+
+  @@index([timeSheetDetailRecordId, isArchived, isDeleted])
+  @@index([equipmentId, isArchived, isDeleted])
+  @@index([parentEquipmentTimeSheetRecordValueId, isDeleted])
+  @@unique([timeSheetDetailRecordId, equipmentId, equipmentRateLabelId, per, operatorIncluded])
+}
+```
+
+### 1b. EquipmentTimeSheetRecordCostCodeValue
+
+```prisma
+model EquipmentTimeSheetRecordCostCodeValue {
+  id                                  String                          @id @db.VarChar(21)
+  isDeleted                           Boolean                         @default(false)
+  isArchived                          Boolean                         @default(false)
+  createdAt                           DateTime                        @default(now())
+  updatedAt                           DateTime                        @default(now()) @updatedAt
+
+  equipmentTimeSheetRecordValueId     String                          @db.VarChar(21)
+  EquipmentTimeSheetRecordValue       EquipmentTimeSheetRecordValue   @relation(fields: [equipmentTimeSheetRecordValueId], references: [id])
+
+  costCodeId                          String                          @db.VarChar(21)
+  CostCode                            CostCode                        @relation(fields: [costCodeId], references: [id])
+
+  approvedDuration                    Int                             @default(0)    // seconds
+
+  @@index([equipmentTimeSheetRecordValueId, costCodeId, isDeleted])
+}
+```
+
+### 1c. Relations on existing models
+
+```prisma
+// On TimeSheetDetailRecord:
+EquipmentTimeSheetRecordValues EquipmentTimeSheetRecordValue[]
+
+// On Equipment:
+EquipmentTimeSheetRecordValues EquipmentTimeSheetRecordValue[]
+
+// On EquipmentRateLabel:
+EquipmentTimeSheetRecordValues EquipmentTimeSheetRecordValue[]
+
+// On EquipmentRateSchedule:
+EquipmentTimeSheetRecordValues EquipmentTimeSheetRecordValue[]
+
+// On CostCode:
+EquipmentTimeSheetRecordCostCodeValues EquipmentTimeSheetRecordCostCodeValue[]
+```
+
+### 1d. Migration
+
+Run `pnpm --filter api prisma:migrate`, name: `add_equipment_timesheet_record_value`.
+
+---
+
+## Step 2: Permission Migration
+
+**Create file:** `apps/api/prisma/migrations/[timestamp]_equipment_timesheet_permissions/migration.sql`
+
+```sql
+-- Desktop permission
+INSERT IGNORE INTO `Permission` (`id`, `name`, `slug`) VALUES
+    ('GENERATE_21_CHAR_ID_1', 'TimeSheetRecord___LogEquipmentTime', 'timesheetrecord___logequipmenttime');
+
+-- Mobile permission
+INSERT IGNORE INTO `Permission` (`id`, `name`, `slug`) VALUES
+    ('GENERATE_21_CHAR_ID_2', 'Mobile___LogEquipmentTime', 'mobile___logequipmenttime');
+
+-- Assign to super-admin role
+INSERT IGNORE INTO _PermissionToRole VALUES
+    ((SELECT id FROM Permission WHERE slug = 'timesheetrecord___logequipmenttime'),
+     (SELECT id FROM Role WHERE slug = 'super-admin'));
+
+INSERT IGNORE INTO _PermissionToRole VALUES
+    ((SELECT id FROM Permission WHERE slug = 'mobile___logequipmenttime'),
+     (SELECT id FROM Role WHERE slug = 'super-admin'));
+```
+
+Generate 21-char nanoid values for the permission IDs.
+
+---
+
+## Step 3: TypeScript Types
+
+**File:** `apps/api/src/types/Equipment.types.ts`
+
+```typescript
+export interface IEquipmentTimeSheetRecordValue {
+    timeSheetDetailRecordId: string;
+    equipmentId: string;
+    equipmentRateLabelId: string;
+    per: string;
+    operatorIncluded: boolean;
+    isFullDayBilling: boolean;
+    meterStart?: number;
+    meterEnd?: number;
+    submittedDuration: number;
+    approvedDuration: number;
+    equipmentRateScheduleId?: string;
+    parentEquipmentTimeSheetRecordValueId?: string;
+}
+
+export interface IEquipmentTimeSheetRecordCostCodeValue {
+    equipmentTimeSheetRecordValueId: string;
+    costCodeId: string;
+    approvedDuration: number;
+}
+```
+
+---
+
+## Step 4: Model Class
+
+**Create file:** `apps/api/src/models/EquipmentTimeSheetRecordValue.ts`
+
+Standard BaseModel with modelFields matching the type interface. Key method:
+
+### upsertManyEquipmentTimeSheetRecordValues
+
+Batch save from the timesheet form. Accepts an array of equipment time entries, creates new ones (no `id`) and updates existing ones (with `id`). The `equipmentRateScheduleId` is set at creation time by resolving the active schedule for the equipment's category and the work date — no separate snapshot step needed since the FK is stored directly on the record.
+
+---
+
+## Step 5: GraphQL Resolver
+
+**Create file:** `apps/api/src/graphql/models/EquipmentTimeSheetRecordValue.ts`
+
+```graphql
+type EquipmentTimeSheetRecordValue {
+    id: ID!
+    timeSheetDetailRecordId: String!
+    equipmentId: String!
+    Equipment: Equipment
+    equipmentRateLabelId: String!
+    EquipmentRateLabel: EquipmentRateLabel
+    per: EquipmentRatePer!
+    operatorIncluded: Boolean!
+    isFullDayBilling: Boolean!
+    meterStart: Float
+    meterEnd: Float
+    submittedDuration: Int!
+    approvedDuration: Int!
+    equipmentRateScheduleId: String
+    EquipmentRateSchedule: EquipmentRateSchedule
+    parentEquipmentTimeSheetRecordValueId: String
+    ParentEquipmentTimeSheetRecordValue: EquipmentTimeSheetRecordValue
+    AttachmentSubLines: [EquipmentTimeSheetRecordValue]
+    EquipmentTimeSheetRecordCostCodeValues: [EquipmentTimeSheetRecordCostCodeValue]
+}
+
+type EquipmentTimeSheetRecordCostCodeValue {
+    id: ID!
+    costCodeId: String!
+    CostCode: CostCode
+    approvedDuration: Int!
+}
+
+input UpsertEquipmentTimeSheetRecordValueInput {
+    id: ID
+    timeSheetDetailRecordId: String!
+    equipmentId: String!
+    equipmentRateLabelId: String!
+    per: EquipmentRatePer
+    operatorIncluded: Boolean
+    isFullDayBilling: Boolean
+    meterStart: Float
+    meterEnd: Float
+    submittedDuration: Int!
+    approvedDuration: Int
+    parentEquipmentTimeSheetRecordValueId: String
+}
+
+extend type Mutation {
+    upsertEquipmentTimeSheetRecordValue(data: UpsertEquipmentTimeSheetRecordValueInput!): EquipmentTimeSheetRecordValue
+    upsertManyEquipmentTimeSheetRecordValues(data: [UpsertEquipmentTimeSheetRecordValueInput!]!): Boolean
+    deleteEquipmentTimeSheetRecordValue(id: ID!): Boolean
+}
+```
+
+Register in `apps/api/src/graphql/schema.ts` (5 places: import, Resolvers, Query, Mutation, typeDefs).
+
+---
+
+## Step 6: Extend Existing Timesheet Mutations
+
+### 6a. GraphQL type changes
+
+**File:** `apps/api/src/graphql/models/TimeSheetRecord.ts`
+
+Add `equipmentValues` parameter to both mutations:
+
+```graphql
+# editFullTimeRecord — ADD:
+equipmentValues: [UpsertEquipmentTimeSheetRecordValueInput]
+
+# createFullTimeRecord — ADD:
+equipmentValues: [UpsertEquipmentTimeSheetRecordValueInput]
+```
+
+Add resolver for EquipmentTimeSheetRecordValues on TimeSheetDetailRecord type:
+
+```typescript
+EquipmentTimeSheetRecordValues: (parent) =>
+    prisma.equipmentTimeSheetRecordValue.findMany({
+        where: {
+            timeSheetDetailRecordId: parent.id,
+            isDeleted: false,
+            isArchived: false
+        }
+    })
+```
+
+### 6b. Model changes
+
+**File:** `apps/api/src/models/TimeSheetRecord.ts`
+
+In `editFullTimeRecord`: Add `equipmentValues` parameter. After labor values are processed, call `upsertManyEquipmentTimeSheetRecordValues`.
+
+In `createFullTimeRecord`: Same pattern — accept optional `equipmentValues` and process them.
+
+### 6c. Resolver pass-through
+
+Pass `args.equipmentValues` through to the model methods in the mutation resolvers.
+
+---
+
+## Step 7: Mobile Permission Mapping
+
+**File:** `apps/api/src/models/TimeSheetRecord.ts`
+
+Add to the mobile permission mapping (search for `mobile___logtime` to find the pattern):
+
+```typescript
+// ADD:
+// logEquipmentTime: "mobile___logequipmenttime"
+```
+
+---
+
+## Verification Checklist
+
+- [ ] Both tables created with correct indexes, FKs, and unique constraint
+- [ ] `EquipmentTimeSheetRecordValue`: all fields match spec (equipment, rate label, per, operator, meter readings, durations, rate schedule snapshot, attachment parent link)
+- [ ] `EquipmentTimeSheetRecordCostCodeValue`: cost code + approved duration per equipment time entry
+- [ ] Relations added to TimeSheetDetailRecord, Equipment, EquipmentRateLabel, EquipmentRateSchedule, CostCode
+- [ ] Self-relation on EquipmentTimeSheetRecordValue for attachment sub-lines
+- [ ] TypeScript types match Prisma schema
+- [ ] Model class with upsertManyEquipmentTimeSheetRecordValues (resolves equipmentRateScheduleId at creation time)
+- [ ] GraphQL types, inputs, and mutations registered (5 places in schema.ts)
+- [ ] `editFullTimeRecord` accepts and processes `equipmentValues` parameter
+- [ ] `createFullTimeRecord` accepts and processes `equipmentValues` parameter
+- [ ] Permission migration seeds desktop + mobile permissions, assigns to super-admin
+- [ ] Mobile permission mapping updated
+- [ ] No frontend changes — all UI deferred to UIS-15H and WO-3b
+- [ ] No regression on existing timesheet labor flow (equipmentValues is optional)
+
+---
+
+## Files Summary
+
+| Action | File | What to do |
+|--------|------|------------|
+| MODIFY | `apps/api/prisma/schema.prisma` | Add 2 new models + relations on TimeSheetDetailRecord, Equipment, EquipmentRateLabel, EquipmentRateSchedule, CostCode |
+| CREATE | `apps/api/prisma/migrations/.../migration.sql` | CREATE TABLE x2 with indexes, FKs, unique constraint |
+| CREATE | `apps/api/prisma/migrations/.../equipment_timesheet_permissions.sql` | Permission seeds + role assignments |
+| MODIFY | `apps/api/src/types/Equipment.types.ts` | Add 2 interfaces |
+| CREATE | `apps/api/src/models/EquipmentTimeSheetRecordValue.ts` | Model class with upsertMany (resolves equipmentRateScheduleId at creation time) |
+| CREATE | `apps/api/src/graphql/models/EquipmentTimeSheetRecordValue.ts` | GraphQL resolver + types + mutations |
+| MODIFY | `apps/api/src/graphql/schema.ts` | Register new resolver (5 places) |
+| MODIFY | `apps/api/src/graphql/models/TimeSheetRecord.ts` | Add `equipmentValues` param to editFullTimeRecord + createFullTimeRecord; add EquipmentTimeSheetRecordValues resolver on TimeSheetDetailRecord |
+| MODIFY | `apps/api/src/models/TimeSheetRecord.ts` | Process equipmentValues in editFullTimeRecord + createFullTimeRecord; add mobile permission mapping |
+</script>
+
+<script src="plan-renderer.js"></script>
+<script>renderPlan();</script>
+</body>
+</html>

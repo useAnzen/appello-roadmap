@@ -125,7 +125,7 @@ table.schema-table code { font-family: monospace; background: #f1f5f9; padding: 
             <thead><tr><th>Card</th><th>Source</th><th>Permission</th></tr></thead>
             <tbody>
                 <tr><td>Total Value</td><td>Labor + material + equipment subtotals</td><td><code>viewWageDetails</code> (shows "—" otherwise)</td></tr>
-                <tr><td>Labor Hours</td><td>Sum of labor durations &times; qty</td><td>Always visible</td></tr>
+                <tr><td>Labor Hours</td><td>Sum of TimeSheetDetailRecord hours (structured) + WorkOrderLaborItem durations &times; qty (blank lines)</td><td>Always visible</td></tr>
                 <tr><td>Material Cost</td><td>Sum of material totals</td><td>Always visible</td></tr>
                 <tr><td>Equipment</td><td>Sum of equipment durations</td><td>Always visible</td></tr>
                 <tr><td>Status</td><td>Current WO status badge</td><td>Always visible</td></tr>
@@ -150,9 +150,9 @@ table.schema-table code { font-family: monospace; background: #f1f5f9; padding: 
 
         <h4>Custom display components (read-only)</h4>
         <ul>
-            <li><strong>LaborItemsDisplay:</strong> Table grouped by orderNo. Structured rows: trade level + rate label hours + workers. Blank rows: description + hours + rate. Rates only with <code>viewWageDetails</code>.</li>
+            <li><strong>LaborItemsDisplay:</strong> Combined read-only table from two sources. <strong>Timesheet entries:</strong> employee name, trade level, rate label hours breakdown (from TimeSheetDetailRecords for the job). <strong>Blank rows:</strong> description + hours + rate (from WorkOrderLaborItems). Rates only with <code>viewWageDetails</code>. Subtotal combines both sources.</li>
             <li><strong>MaterialItemsDisplay:</strong> Table: material, qty, unit cost, total + subtotal.</li>
-            <li><strong>EquipmentItemsDisplay:</strong> Table: equipment/description, rate type, duration. Rates only with <code>viewWageDetails</code>.</li>
+            <li><strong>EquipmentItemsDisplay:</strong> Combined read-only table from two sources. <strong>Logged equipment:</strong> equipment name, rate type, duration (from EquipmentTimeSheetRecordValues for the job, rate resolved via <code>resolveEquipmentRate</code> from LEM-2). <strong>Blank rows:</strong> description + qty + rate (from WorkOrderEquipmentItems — no equipmentId, no rate labels). Rates only with <code>viewWageDetails</code>. Subtotal combines both sources.</li>
             <li><strong>SignaturesDisplay:</strong> Grid of signature images with signer name, timestamp, GPS.</li>
         </ul>
     </div>
@@ -189,7 +189,7 @@ table.schema-table code { font-family: monospace; background: #f1f5f9; padding: 
                 <!-- Summary Cards -->
                 <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:8px; margin-bottom:16px;">
                     <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:12px; text-align:center;"><div style="font-size:10px; color:#64748b;">Total Value</div><div style="font-size:18px; font-weight:700;">$4,971.50</div></div>
-                    <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:12px; text-align:center;"><div style="font-size:10px; color:#64748b;">Labor Hours</div><div style="font-size:18px; font-weight:700;">30.0 hrs</div></div>
+                    <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:12px; text-align:center;"><div style="font-size:10px; color:#64748b;">Labor Hours</div><div style="font-size:18px; font-weight:700;">28.0 hrs</div></div>
                     <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:12px; text-align:center;"><div style="font-size:10px; color:#64748b;">Material Cost</div><div style="font-size:18px; font-weight:700;">$531.50</div></div>
                     <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:12px; text-align:center;"><div style="font-size:10px; color:#64748b;">Equipment</div><div style="font-size:18px; font-weight:700;">8.0 hrs + 2 days</div></div>
                     <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:12px; text-align:center;"><div style="font-size:10px; color:#64748b;">Status</div><div style="font-size:14px; font-weight:700;"><span style="background:#fef3c7; color:#92400e; padding:2px 8px; border-radius:4px;">Submitted</span></div></div>
@@ -202,16 +202,28 @@ table.schema-table code { font-family: monospace; background: #f1f5f9; padding: 
                 <!-- Labor -->
                 <div style="border:1px solid #e2e8f0; border-radius:8px; padding:12px; margin-bottom:12px;">
                     <div style="font-size:13px; font-weight:700; margin-bottom:8px;">Labor</div>
+
+                    <!-- Timesheet entries -->
+                    <div style="font-size:10px; font-weight:600; color:#64748b; text-transform:uppercase; letter-spacing:0.3px; margin-bottom:4px;">Timesheet Entries</div>
+                    <table style="width:100%; border-collapse:collapse; font-size:11px; margin-bottom:8px;">
+                        <thead><tr style="border-bottom:2px solid #e2e8f0;"><th style="padding:4px 6px; text-align:left;">Employee</th><th style="padding:4px 6px; text-align:left;">Trade Level</th><th style="padding:4px 6px; text-align:right;">Hours</th><th style="padding:4px 6px; text-align:right;">Rate</th></tr></thead>
+                        <tbody>
+                            <tr style="border-bottom:1px solid #f1f5f9;"><td style="padding:4px 6px;">John Smith</td><td style="padding:4px 6px;">Journeyman</td><td style="padding:4px 6px; text-align:right;">10.0</td><td style="padding:4px 6px; text-align:right; color:#64748b;">$95.00/hr</td></tr>
+                            <tr style="border-bottom:1px solid #f1f5f9;"><td style="padding:4px 6px;">Mike Davis</td><td style="padding:4px 6px;">Foreman</td><td style="padding:4px 6px; text-align:right;">8.0</td><td style="padding:4px 6px; text-align:right; color:#64748b;">$110.00/hr</td></tr>
+                            <tr style="border-bottom:1px solid #f1f5f9;"><td style="padding:4px 6px;">John Smith</td><td style="padding:4px 6px;">Foreman</td><td style="padding:4px 6px; text-align:right;">2.0</td><td style="padding:4px 6px; text-align:right; color:#64748b;">$110.00/hr</td></tr>
+                        </tbody>
+                    </table>
+
+                    <!-- Blank lines -->
+                    <div style="font-size:10px; font-weight:600; color:#64748b; text-transform:uppercase; letter-spacing:0.3px; margin-bottom:4px;">Blank Lines</div>
                     <table style="width:100%; border-collapse:collapse; font-size:11px;">
                         <thead><tr style="border-bottom:2px solid #e2e8f0;"><th style="padding:4px 6px; text-align:left;">Description</th><th style="padding:4px 6px; text-align:right;">Workers</th><th style="padding:4px 6px; text-align:right;">Hours</th><th style="padding:4px 6px; text-align:right;">Rate</th></tr></thead>
                         <tbody>
-                            <tr style="border-bottom:1px solid #f1f5f9;"><td style="padding:4px 6px;">Journeyman — Wages 1x</td><td style="padding:4px 6px; text-align:right;">3</td><td style="padding:4px 6px; text-align:right;">8.0</td><td style="padding:4px 6px; text-align:right; color:#64748b;">$95.00/hr</td></tr>
-                            <tr style="border-bottom:1px solid #f1f5f9;"><td style="padding:4px 6px;">Journeyman — Wages 1.5x</td><td style="padding:4px 6px; text-align:right;">3</td><td style="padding:4px 6px; text-align:right;">2.0</td><td style="padding:4px 6px; text-align:right; color:#64748b;">$142.50/hr</td></tr>
-                            <tr style="border-bottom:1px solid #f1f5f9;"><td style="padding:4px 6px;">Foreman — Wages 1x</td><td style="padding:4px 6px; text-align:right;">1</td><td style="padding:4px 6px; text-align:right;">8.0</td><td style="padding:4px 6px; text-align:right; color:#64748b;">$110.00/hr</td></tr>
-                            <tr><td style="padding:4px 6px; font-style:italic; color:#64748b;">2 labourers — scaffolding</td><td style="padding:4px 6px; text-align:right;">2</td><td style="padding:4px 6px; text-align:right;">4.0</td><td style="padding:4px 6px; text-align:right;">$65.00/hr</td></tr>
+                            <tr><td style="padding:4px 6px; font-style:italic; color:#64748b;">2 labourers &mdash; scaffolding</td><td style="padding:4px 6px; text-align:right;">2</td><td style="padding:4px 6px; text-align:right;">4.0</td><td style="padding:4px 6px; text-align:right;">$65.00/hr</td></tr>
                         </tbody>
                     </table>
-                    <div style="text-align:right; font-size:11px; margin-top:6px; color:#64748b;">Total: <strong style="color:#0f172a;">30.0 hrs</strong></div>
+
+                    <div style="text-align:right; font-size:11px; margin-top:6px; color:#64748b;">Total: <strong style="color:#0f172a;">28.0 hrs</strong> <span style="font-size:9px;">(20.0 timesheet + 8.0 blank)</span></div>
                     <div style="font-size:9px; color:#94a3b8; margin-top:2px;">Rate column: viewWageDetails permission</div>
                 </div>
 
@@ -231,14 +243,27 @@ table.schema-table code { font-family: monospace; background: #f1f5f9; padding: 
                 <!-- Equipment -->
                 <div style="border:1px solid #e2e8f0; border-radius:8px; padding:12px; margin-bottom:12px;">
                     <div style="font-size:13px; font-weight:700; margin-bottom:8px;">Equipment</div>
-                    <table style="width:100%; border-collapse:collapse; font-size:11px;">
-                        <thead><tr style="border-bottom:2px solid #e2e8f0;"><th style="padding:4px 6px; text-align:left;">Equipment</th><th style="padding:4px 6px; text-align:right;">Duration</th></tr></thead>
+
+                    <!-- Logged equipment -->
+                    <div style="font-size:10px; font-weight:600; color:#64748b; text-transform:uppercase; letter-spacing:0.3px; margin-bottom:4px;">Logged Equipment</div>
+                    <table style="width:100%; border-collapse:collapse; font-size:11px; margin-bottom:8px;">
+                        <thead><tr style="border-bottom:2px solid #e2e8f0;"><th style="padding:4px 6px; text-align:left;">Equipment</th><th style="padding:4px 6px; text-align:left;">Rate Type</th><th style="padding:4px 6px; text-align:right;">Duration</th><th style="padding:4px 6px; text-align:right;">Rate</th></tr></thead>
                         <tbody>
-                            <tr style="border-bottom:1px solid #f1f5f9;"><td style="padding:4px 6px;">CAT 320 Excavator — Standard</td><td style="padding:4px 6px; text-align:right;">8.0 hrs</td></tr>
-                            <tr><td style="padding:4px 6px; font-style:italic; color:#64748b;">Rented boom lift — JLG 600S</td><td style="padding:4px 6px; text-align:right;">2 days @ $450.00</td></tr>
+                            <tr style="border-bottom:1px solid #f1f5f9;"><td style="padding:4px 6px;">CAT 320 Excavator</td><td style="padding:4px 6px;">Standard</td><td style="padding:4px 6px; text-align:right;">8.0 hrs</td><td style="padding:4px 6px; text-align:right; color:#64748b;">$175.00/hr</td></tr>
                         </tbody>
                     </table>
-                    <div style="text-align:right; font-size:11px; margin-top:6px; color:#64748b;">Total: <strong style="color:#0f172a;">8.0 hrs + 2 days</strong></div>
+
+                    <!-- Blank lines -->
+                    <div style="font-size:10px; font-weight:600; color:#64748b; text-transform:uppercase; letter-spacing:0.3px; margin-bottom:4px;">Blank Lines</div>
+                    <table style="width:100%; border-collapse:collapse; font-size:11px;">
+                        <thead><tr style="border-bottom:2px solid #e2e8f0;"><th style="padding:4px 6px; text-align:left;">Description</th><th style="padding:4px 6px; text-align:right;">Qty</th><th style="padding:4px 6px; text-align:right;">Rate</th></tr></thead>
+                        <tbody>
+                            <tr><td style="padding:4px 6px; font-style:italic; color:#64748b;">Rented boom lift &mdash; JLG 600S</td><td style="padding:4px 6px; text-align:right;">2 days</td><td style="padding:4px 6px; text-align:right;">$450.00/day</td></tr>
+                        </tbody>
+                    </table>
+
+                    <div style="text-align:right; font-size:11px; margin-top:6px; color:#64748b;">Total: <strong style="color:#0f172a;">8.0 hrs + 2 days</strong> <span style="font-size:9px;">(8.0 logged + 2 days blank)</span></div>
+                    <div style="font-size:9px; color:#94a3b8; margin-top:2px;">Rate column: viewWageDetails permission</div>
                 </div>
 
                 <!-- Signatures -->
@@ -267,9 +292,9 @@ table.schema-table code { font-family: monospace; background: #f1f5f9; padding: 
         <table class="schema-table">
             <thead><tr><th>DAA Slug</th><th>PDF Rendering</th></tr></thead>
             <tbody>
-                <tr><td><code>wo-labor-items</code></td><td>Table: Description | Workers | Hours | Rate (if permitted). Subtotal.</td></tr>
+                <tr><td><code>wo-labor-items</code></td><td>Combined table: timesheet entries (Employee | Trade Level | Hours | Rate) + blank lines (Description | Workers | Hours | Rate). Rates if permitted. Subtotal from both sources.</td></tr>
                 <tr><td><code>wo-material-items</code></td><td>Table: Material | Qty | UoM | Unit Cost | Total. Subtotal.</td></tr>
-                <tr><td><code>wo-equipment-items</code></td><td>Table: Equipment | Rate Type | Duration. Subtotal.</td></tr>
+                <tr><td><code>wo-equipment-items</code></td><td>Combined table: logged equipment (Equipment | Rate Type | Duration | Rate) + blank lines (Description | Qty | Rate). Rates if permitted. Subtotal from both sources.</td></tr>
                 <tr><td><code>wo-signatures</code></td><td>Signature images with signer name, date/time, GPS.</td></tr>
             </tbody>
         </table>
@@ -321,7 +346,9 @@ table.schema-table code { font-family: monospace; background: #f1f5f9; padding: 
             <li><span>Summary cards show Total Value, Labor Hours, Material Cost, Equipment, Status, Date of Work</span></li>
             <li><span>Total Value and rates visible only with <code>viewWageDetails</code></span></li>
             <li><span>DataModelDetails renders standard WorkOrder fields</span></li>
-            <li><span>Labor, Material, Equipment, Signatures rendered as custom display components within Overview</span></li>
+            <li><span>LaborItemsDisplay shows combined read-only view: timesheet entries (from TimeSheetDetailRecords) grouped by employee/date + blank lines (from WorkOrderLaborItems)</span></li>
+            <li><span>EquipmentItemsDisplay shows combined read-only view: logged equipment (from EquipmentTimeSheetRecordValues) grouped by equipment/date + blank lines (from WorkOrderEquipmentItems)</span></li>
+            <li><span>Material and Signatures rendered as custom display components within Overview</span></li>
             <li><span>Invoices tab shows read-only invoice list (no create button)</span></li>
             <li><span>Edit handled by <code>DataModelDetails</code> built-in edit functionality (not a separate header button)</span></li>
             <li><span>Print PDF generates from download template with toggleable LEM sections</span></li>

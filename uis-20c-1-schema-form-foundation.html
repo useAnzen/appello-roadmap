@@ -82,7 +82,7 @@ table.schema-table code { font-family: monospace; background: #f1f5f9; padding: 
             <span class="uis-badge badge-status">Draft</span>
         </div>
         <h1 class="uis-h1">Schema &amp; Form Foundation</h1>
-        <p class="uis-sub">Add <code>dateOfWork</code> to Job, create the polymorphic <code>Signature</code> model, set up DocumentAttributeAssignments for WO-specific fields, and update job number generation to be classification-aware. Establishes the foundation for the WO create/edit form (WO-3b, WO-3c).</p>
+        <p class="uis-sub">Create the polymorphic <code>Signature</code> model, set up DocumentAttributeAssignments for WO-specific fields, and update job number generation to be classification-aware. Establishes the foundation for the WO create/edit form (WO-3b, WO-3c). Work dates are handled by the existing JobSchedule relationship.</p>
         <div class="uis-meta">
             <span><strong>Sequence:</strong> WO-3a of 3 (Schema &rarr; Line Items &rarr; Signatures)</span>
             <span><strong>Estimate:</strong> 3-4 days</span>
@@ -110,7 +110,7 @@ table.schema-table code { font-family: monospace; background: #f1f5f9; padding: 
 
         <h3>Added / Changed</h3>
         <ul>
-            <li><span class="scope-tag scope-in">ADD</span> <code>dateOfWork</code> on Job &mdash; gated to WorkOrder via DocumentAttributeAssignment</li>
+            <li><span class="scope-tag scope-out">REMOVED</span> <code>dateOfWork</code> &mdash; work dates handled by existing JobSchedule relationship</li>
             <li><span class="scope-tag scope-in">NEW</span> <code>Signature</code> polymorphic model &mdash; reusable across WOs, forms, etc.</li>
             <li><span class="scope-tag scope-in">NEW</span> DocumentAttributeAssignment records for all WO-specific fields (gated by subModel)</li>
             <li><span class="scope-tag scope-in">MOD</span> Job number generation &mdash; classification-aware prefix/pattern</li>
@@ -128,23 +128,11 @@ table.schema-table code { font-family: monospace; background: #f1f5f9; padding: 
         </div>
     </div>
 
-    <!-- 2. dateOfWork on Job -->
+    <!-- 2. Work Dates -->
     <div class="uis-section">
-        <h2>2. dateOfWork on Job</h2>
+        <h2>2. Work Dates (via JobSchedule)</h2>
 
-<pre>
-// Add to existing Job model:
-dateOfWork    DateTime?   @db.Date
-</pre>
-
-        <p>Nullable. Only relevant and visible when <code>jobClassification = WorkOrder</code>. Visibility controlled via DocumentAttributeAssignment with <code>subModel</code> containing the WorkOrder classification.</p>
-
-        <p>This field is also used by:</p>
-        <ul>
-            <li><strong>WO-2:</strong> Determines which EmployeeAgreementContract is active (for structured labor line items)</li>
-            <li><strong>UIS-15H:</strong> Would be the work date for equipment timesheet entries linked to this WO</li>
-            <li><strong>WO-7:</strong> Invoice generation uses this as the service date</li>
-        </ul>
+        <p>Work dates for a Work Order are handled by the existing <strong>JobSchedule</strong> relationship. Workers are assigned to the WO job on specific dates via JobSchedule (or use the unscheduled-job workflow if permissions allow). The JobSchedule date determines which EmployeeAgreementContract is active for rate label and trade level resolution. <strong>No <code>dateOfWork</code> field is needed on Job.</strong></p>
     </div>
 
     <!-- 3. Signature Model -->
@@ -227,7 +215,7 @@ model Signature {
         <ol>
             <li><strong>Backfill:</strong> Set all existing Job DAAs (currently <code>subModel = NULL</code>) to <code>subModel = "ProjectJob"</code></li>
             <li><strong>Duplicate shared fields:</strong> For fields that must also appear on WO forms, create a <strong>second copy</strong> of the DAA with <code>subModel = "WorkOrder"</code>. Same <code>defaultAttribute</code>, same config, different <code>subModel</code> and <code>sectionId</code> (pointing to the WO section).</li>
-            <li><strong>Create WO-only fields:</strong> New DAAs for dateOfWork, labor items, material items, equipment items, signatures — only <code>subModel = "WorkOrder"</code></li>
+            <li><strong>Create WO-only fields:</strong> New DAAs for labor items, material items, equipment items, signatures — only <code>subModel = "WorkOrder"</code></li>
         </ol>
 
         <h4>Shared fields to duplicate for Work Orders</h4>
@@ -265,7 +253,7 @@ model Signature {
         <table class="schema-table">
             <thead><tr><th>defaultAttribute</th><th>Label</th><th>Type</th><th>subModel</th><th>Notes</th></tr></thead>
             <tbody>
-                <tr><td><code>wo-date-of-work</code></td><td>Date of Work</td><td>date</td><td>WorkOrder</td><td>Maps to <code>Job.dateOfWork</code>. Required on Submit.</td></tr>
+                <!-- wo-date-of-work removed — work dates handled by JobSchedule -->
                 <tr><td><code>wo-labor-items</code></td><td>Labor</td><td>custom</td><td>WorkOrder</td><td>Custom input: LaborItemEditor (WO-3b). Renders structured + blank line editors.</td></tr>
                 <tr><td><code>wo-material-items</code></td><td>Materials</td><td>custom</td><td>WorkOrder</td><td>Custom input: MaterialItemEditor (WO-3b). Renders structured + blank line editors.</td></tr>
                 <tr><td><code>wo-equipment-items</code></td><td>Equipment</td><td>custom</td><td>WorkOrder</td><td>Custom input: EquipmentItemEditor (WO-3b). Renders structured + blank line editors.</td></tr>
@@ -281,7 +269,7 @@ model Signature {
 // In the WO form (extends JobAddEditForm pattern):
 renderChild={(assignment, disabledByPermission) => {
     switch (assignment.defaultAttribute) {
-        case "wo-date-of-work":
+        // wo-date-of-work removed — work dates via JobSchedule
             return &lt;FormControl type="date" ... /&gt;;
         case "wo-labor-items":
             return &lt;LaborItemEditor ... /&gt;;        // WO-3b
@@ -301,7 +289,7 @@ renderChild={(assignment, disabledByPermission) => {
         <h3>DocumentSection Setup</h3>
         <p>DAAs are grouped into DocumentSections. Suggested sections for WO forms:</p>
         <ol>
-            <li><strong>Work Order Info</strong> &mdash; dateOfWork + standard Job fields (name, jobType, status)</li>
+            <li><strong>Work Order Info</strong> &mdash; standard Job fields (name, jobType, status)</li>
             <li><strong>Labor</strong> &mdash; wo-labor-items + wo-labor-subtotal</li>
             <li><strong>Materials</strong> &mdash; wo-material-items + wo-material-subtotal</li>
             <li><strong>Equipment</strong> &mdash; wo-equipment-items + wo-equipment-subtotal</li>
@@ -360,7 +348,7 @@ renderChild={(assignment, disabledByPermission) => {
 
         <div class="blast-summary">
             <div class="blast-row"><span class="blast-label">New Prisma models</span><span class="blast-value">1 (Signature)</span></div>
-            <div class="blast-row"><span class="blast-label">Modified Prisma models</span><span class="blast-value">1 (Job: add dateOfWork)</span></div>
+            <div class="blast-row"><span class="blast-label">Modified Prisma models</span><span class="blast-value">0 (Job unchanged — work dates via JobSchedule)</span></div>
             <div class="blast-row"><span class="blast-label">Migration records</span><span class="blast-value">1 schema migration + 1 DAA seed migration</span></div>
             <div class="blast-row"><span class="blast-label">Modified API files</span><span class="blast-value">~5</span></div>
             <div class="blast-row"><span class="blast-label">New API files</span><span class="blast-value">~2 (Signature model + resolver)</span></div>
@@ -369,13 +357,13 @@ renderChild={(assignment, disabledByPermission) => {
         <table class="schema-table">
             <thead><tr><th>Action</th><th>File</th><th>Change</th></tr></thead>
             <tbody>
-                <tr><td><span class="action-mod">MOD</span></td><td><code>apps/api/prisma/schema.prisma</code></td><td>Add <code>dateOfWork</code> to Job; add <code>Signature</code> model; add relation on Asset and User</td></tr>
-                <tr><td><span class="action-new">NEW</span></td><td><code>apps/api/prisma/migrations/.../migration.sql</code></td><td>ALTER TABLE Job add dateOfWork; CREATE TABLE Signature</td></tr>
+                <tr><td><span class="action-mod">MOD</span></td><td><code>apps/api/prisma/schema.prisma</code></td><td>Add <code>Signature</code> model; add relation on Asset and User</td></tr>
+                <tr><td><span class="action-new">NEW</span></td><td><code>apps/api/prisma/migrations/.../migration.sql</code></td><td>CREATE TABLE Signature</td></tr>
                 <tr><td><span class="action-new">NEW</span></td><td><code>apps/api/prisma/migrations/.../migration.sql</code></td><td>Seed DocumentAttributeAssignment + DocumentSection records for WO form</td></tr>
                 <tr><td><span class="action-new">NEW</span></td><td><code>apps/api/src/models/Signature.ts</code></td><td>Model class — standard CRUD</td></tr>
                 <tr><td><span class="action-new">NEW</span></td><td><code>apps/api/src/graphql/models/Signature.ts</code></td><td>GraphQL resolver for Signature CRUD</td></tr>
-                <tr><td><span class="action-mod">MOD</span></td><td><code>apps/api/src/models/Job.ts</code></td><td>Add <code>dateOfWork</code> to modelFields; update <code>generateJobNumber()</code> for WO classification</td></tr>
-                <tr><td><span class="action-mod">MOD</span></td><td><code>apps/api/src/graphql/models/Job.ts</code></td><td>Add <code>dateOfWork</code> to type + inputs; add <code>Signatures</code> resolver (polymorphic query)</td></tr>
+                <tr><td><span class="action-mod">MOD</span></td><td><code>apps/api/src/models/Job.ts</code></td><td>Update <code>generateJobNumber()</code> for WO classification</td></tr>
+                <tr><td><span class="action-mod">MOD</span></td><td><code>apps/api/src/graphql/models/Job.ts</code></td><td>Add <code>Signatures</code> resolver (polymorphic query)</td></tr>
                 <tr><td><span class="action-mod">MOD</span></td><td><code>apps/api/src/graphql/schema.ts</code></td><td>Register Signature resolver</td></tr>
                 <tr><td><span class="action-mod">MOD</span></td><td><code>Job form (jobType dropdown logic)</code></td><td>Filter jobType PropertyValue options by classification &mdash; ProjectJob types on Jobs page, WorkOrder types on WO page, matching classification on edit</td></tr>
             </tbody>
@@ -386,13 +374,12 @@ renderChild={(assignment, disabledByPermission) => {
     <div class="uis-section">
         <h2>8. Acceptance Criteria</h2>
         <ol class="ac-list">
-            <li><span><code>dateOfWork</code> field exists on Job model (nullable DateTime)</span></li>
-            <li><span><code>dateOfWork</code> only visible on WO forms (controlled by DAA with <code>subModel = "WorkOrder"</code>)</span></li>
+            <li><span>Work dates handled by existing JobSchedule relationship &mdash; no <code>dateOfWork</code> field on Job</span></li>
             <li><span><code>Signature</code> model created with polymorphic <code>referenceModel</code> + <code>referenceId</code>, <code>assetId</code>, <code>userId</code>, GPS coordinates, and standard audit fields</span></li>
             <li><span>Multiple Signatures can be attached to a single Job (Work Order)</span></li>
             <li><span>Existing Job DAAs backfilled: all get <code>subModel = "ProjectJob"</code>, shared fields get <code>"ProjectJob,WorkOrder"</code></span></li>
             <li><span>Shared fields visible on WO forms: name, number, description, rateType, wageRegion, purchaseOrder, status</span></li>
-            <li><span>5 new WO-only DAAs seeded: dateOfWork, labor items, material items, equipment items, signatures</span></li>
+            <li><span>4 new WO-only DAAs seeded: labor items, material items, equipment items, signatures</span></li>
             <li><span>WO-only DAAs do not appear on ProjectJob forms; ProjectJob-only DAAs do not appear on WO forms</span></li>
             <li><span>wageRegion field on WO form enables correct TradeLevelRate resolution for labor line items</span></li>
             <li><span>DocumentSections created for WO form layout (Info, Labor, Materials, Equipment, Signatures)</span></li>

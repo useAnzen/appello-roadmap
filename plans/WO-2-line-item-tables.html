@@ -54,12 +54,88 @@ td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
 
 ## Overview
 
-Create three new Prisma models for Work Order line items (Labor, Material, Equipment) with GraphQL CRUD, batch upsert mutation, and the shared structured/blank line pattern. No UI in this spec — WO-3 owns the form interface.
+Create three simplified Prisma models for Work Order **unstructured/blank line items only** (Labor, Material, Equipment). Structured labour uses the existing **TimeSheetRecord / TimeSheetDetailRecord** infrastructure. Structured equipment uses the new **EquipmentTimeSheetRecordValue** model from EQ-0. The WO UI (WO-3b) provides in-place interfaces to log structured time, but the data lives in the existing timesheet tables and rolls up automatically.
 
-**Estimated effort:** 5-8 days
-**Risk:** Medium — 3 new models, new relations on Job + TradeLevelRate + Equipment + Material
+No UI in this plan — WO-3 owns the form interface.
+
+**Estimated effort:** 3-5 days
+**Risk:** Low — 3 simplified blank-line-only models, no new structured models (those come from existing infrastructure + EQ-0)
 **Spec:** `tm-work-orders-uis/uis-20b-line-item-tables.html`
-**Requires:** WO-1 (JobClassification), LEM-1 (TradeLevelRate.billableValue), LEM-2 (EquipmentRateValue)
+**Requires:** WO-1 (JobClassification), LEM-1 (TradeLevelRate.billableValue), LEM-2 (EquipmentRateValue), EQ-0 (EquipmentTimeSheetRecordValue)
+
+### Labour Architecture Decision
+
+Work Order labour is split across two sources:
+
+- **Structured labour** — Uses the existing scheduling and timesheet infrastructure. Workers are assigned to the WO job via JobSchedule (or use the unscheduled-job workflow if permissions allow). Hours are captured as TimeSheetRecord / TimeSheetDetailRecord entries with rate labels and trade levels. All existing permissions, approval workflows, and payroll rollup apply unchanged.
+- **Unstructured labour (blank lines)** — WorkOrderLaborItem stores free-form entries (description, rate, hours, qty) for ClearStory-style flexible entry where the user doesn't go through the timesheet workflow.
+
+The `recalculateWorkOrderTotals` mutation queries both sources to compute the combined labour subtotal.
+
+### Equipment Architecture Decision
+
+Work Order equipment follows the same dual-source pattern as labour:
+
+- **Structured equipment** — Uses `EquipmentTimeSheetRecordValue` (from EQ-0) linked to the WO job's TimeSheetDetailRecords. Equipment entries include equipment selection, rate type, per-unit, meter readings, and duration. Rates resolved from LEM-2 at invoice time. Entries share the timesheet approval workflow.
+- **Unstructured equipment (blank lines)** — WorkOrderEquipmentItem stores free-form entries (description, quantity, unit rate) for ad-hoc rentals or equipment not in the catalog.
+
+The `recalculateWorkOrderTotals` mutation queries both sources to compute the combined equipment subtotal.
+
+---
+
+## Step 0: TimeSheetDetailRecord — Optional Trade Level Override
+
+> **⚠️ CALLOUT FOR CHRIS — PLEASE REVIEW ⚠️**
+>
+> Chris has been doing work around different wage rates per job/user. This change adds an **optional** `tradeLevelId` to `TimeSheetDetailRecord` to allow per-detail-record trade level selection when logging time from a Work Order. **The existing derivation flow (UserTradeLevel → TimeSheetRecord.tradeLevelId) is NOT changed — this is additive only.** Chris should review this change to ensure it aligns with his recent work on per-job/user wage rates and doesn't conflict. See **WO-3b LaborItemEditor mockup** (Section 3) for how this is used in the UI — users select a trade level per row in the time entry table.
+
+### Problem
+
+Currently, trade level is derived from `UserTradeLevel` for the submission date and stored on `TimeSheetRecord.tradeLevelId`. This works well for the standard timesheet flow where one user logs their own time. However, in the Work Order context:
+
+1. A foreman may log time for **multiple crew members** from the WO form
+2. Some users work at **different trade levels depending on the work** — e.g., a user might work as Journeyman on one task and Foreman on another within the same WO
+
+The existing derivation only supports one trade level per TimeSheetRecord (per user per date per job). To support per-entry trade level selection without breaking existing functionality, we add an optional `tradeLevelId` on `TimeSheetDetailRecord`.
+
+### Schema Change
+
+**File:** `apps/api/prisma/schema.prisma`
+
+```prisma
+// On existing TimeSheetDetailRecord model, ADD:
+tradeLevelId      String?         @db.VarChar(21)
+TradeLevel        TradeLevel?     @relation(fields: [tradeLevelId], references: [id])
+```
+
+**Migration:**
+
+```sql
+ALTER TABLE `TimeSheetDetailRecord`
+  ADD COLUMN `tradeLevelId` VARCHAR(21) NULL,
+  ADD CONSTRAINT `TimeSheetDetailRecord_tradeLevelId_fkey`
+    FOREIGN KEY (`tradeLevelId`) REFERENCES `TradeLevel`(`id`);
+```
+
+### Behaviour
+
+- **When `tradeLevelId` IS NULL** (default, all existing records): Trade level is derived from the parent `TimeSheetRecord.tradeLevelId` as today. **No change to existing functionality.**
+- **When `tradeLevelId` IS SET** (WO context): This detail record uses the specified trade level, which determines which `TradeLevelRate` options are available for the `TimeSheetDetailRecordValue` relationship. The parent `TimeSheetRecord.tradeLevelId` still exists and is still set via the existing UserTradeLevel derivation.
+
+### Rate Resolution Impact
+
+When `recalculateWorkOrderTotals` queries TimeSheetDetailRecords for labour subtotals, it should resolve the trade level (and therefore billable rate) as:
+
+```
+effectiveTradeLevelId = detail.tradeLevelId ?? detail.TimeSheetRecord.tradeLevelId
+```
+
+### Inverse relation on TradeLevel
+
+```prisma
+// On TradeLevel model, ADD:
+TimeSheetDetailRecords  TimeSheetDetailRecord[]
+```
 
 ---
 
@@ -67,7 +143,7 @@ Create three new Prisma models for Work Order line items (Labor, Material, Equip
 
 **File:** `apps/api/prisma/schema.prisma`
 
-### 1a. WorkOrderLaborItem
+### 1a. WorkOrderLaborItem (Unstructured / Blank Lines Only)
 
 ```prisma
 model WorkOrderLaborItem {
@@ -80,13 +156,10 @@ model WorkOrderLaborItem {
   jobId                 String          @db.VarChar(21)
   Job                   Job             @relation(fields: [jobId], references: [id])
 
-  // Structured line: tradeLevelRateId set, rate derived at invoice generation
-  tradeLevelRateId      String?         @db.VarChar(21)
-  TradeLevelRate        TradeLevelRate? @relation(fields: [tradeLevelRateId], references: [id])
+  jobScheduleId         String?         @db.VarChar(21)
+  JobSchedule           JobSchedule?    @relation(fields: [jobScheduleId], references: [id])
 
-  // Blank line: tradeLevelRateId is null, user fills in description + rate
   rate                  Decimal?        @db.Decimal(10, 2)
-
   qtyOfWorkers          Int             @default(1)
   submittedDuration     Int             @default(0)    // seconds
   description           String?         @db.VarChar(500)
@@ -96,7 +169,7 @@ model WorkOrderLaborItem {
 }
 ```
 
-**Key design:** `tradeLevelRateId` is nullable. When set = structured line (rate derived from TradeLevelRate.billableValue at invoice time). When null = blank line (user enters `rate` + `description` manually). One record per (orderNo + tradeLevelRateId) for structured lines — multiple records share the same orderNo to represent one visual row with multiple rate label columns.
+**Key design:** This model is exclusively for **unstructured (blank) labour lines** — free-form entries where the user provides a description, rate, hours, and qty manually. This mirrors ClearStory's flexible labour entry. Structured labour (trade-level, rate-label time entries) lives in **TimeSheetRecord / TimeSheetDetailRecord** linked to the same Job — no FK to TradeLevelRate is needed on this model.
 
 ### 1b. WorkOrderMaterialItem
 
@@ -110,6 +183,9 @@ model WorkOrderMaterialItem {
 
   jobId         String    @db.VarChar(21)
   Job           Job       @relation(fields: [jobId], references: [id])
+
+  jobScheduleId String?   @db.VarChar(21)
+  JobSchedule   JobSchedule? @relation(fields: [jobScheduleId], references: [id])
 
   materialId    String?   @db.VarChar(21)
   Material      Material? @relation(fields: [materialId], references: [id])
@@ -127,7 +203,7 @@ model WorkOrderMaterialItem {
 
 **Note:** Structured material lines auto-populate `unitPrice` (sell) and `costPrice` (cost) from `resolveMaterialSellPrice()` (LEM-3 cascade). Both are editable — the user can override. Blank lines (`materialId` null) require manual entry. `total = quantity * unitPrice`.
 
-### 1c. WorkOrderEquipmentItem
+### 1c. WorkOrderEquipmentItem (Unstructured / Blank Lines Only)
 
 ```prisma
 model WorkOrderEquipmentItem {
@@ -140,20 +216,10 @@ model WorkOrderEquipmentItem {
   jobId                   String              @db.VarChar(21)
   Job                     Job                 @relation(fields: [jobId], references: [id])
 
-  // Structured line: equipmentId set, rates from LEM-2
-  equipmentId             String?             @db.VarChar(21)
-  Equipment               Equipment?          @relation(fields: [equipmentId], references: [id])
-  equipmentRateLabelId    String?             @db.VarChar(21)
-  EquipmentRateLabel      EquipmentRateLabel? @relation(fields: [equipmentRateLabelId], references: [id])
-  per                     EquipmentRatePer?   @default(HOUR)
-  operatorIncluded        Boolean             @default(true)
-  isFullDayBilling        Boolean             @default(true)
+  jobScheduleId           String?             @db.VarChar(21)
+  JobSchedule             JobSchedule?        @relation(fields: [jobScheduleId], references: [id])
 
-  // Blank line: equipmentId is null, manual entry
   unitRate                Decimal?            @db.Decimal(10, 2)
-
-  // Shared
-  submittedDuration       Int                 @default(0)
   quantity                Decimal?            @db.Decimal(10, 2)
   description             String?             @db.VarChar(500)
   orderNo                 Int                 @default(0)
@@ -162,7 +228,7 @@ model WorkOrderEquipmentItem {
 }
 ```
 
-**Same pattern as labor:** `equipmentId` nullable. When set = structured (rates from LEM-2 at invoice time). When null = blank line (manual `unitRate` + `description`).
+**Same pattern as labor:** This model is exclusively for **unstructured (blank) equipment lines** — free-form entries where the user provides a description, quantity, and unit rate manually. Structured equipment entries (equipment from catalog, rate types, meter readings, durations) live in **EquipmentTimeSheetRecordValue** (from EQ-0) linked to TimeSheetDetailRecords for the WO job. No FK to Equipment, EquipmentRateLabel, or EquipmentRateSchedule needed on this model.
 
 ### 1d. Relations on existing models
 
@@ -172,18 +238,16 @@ WorkOrderLaborItems      WorkOrderLaborItem[]
 WorkOrderMaterialItems   WorkOrderMaterialItem[]
 WorkOrderEquipmentItems  WorkOrderEquipmentItem[]
 
-// On TradeLevelRate:
-WorkOrderLaborItems      WorkOrderLaborItem[]
-
 // On Material:
 WorkOrderMaterialItems   WorkOrderMaterialItem[]
 
-// On Equipment:
-WorkOrderEquipmentItems  WorkOrderEquipmentItem[]
-
-// On EquipmentRateLabel:
+// On JobSchedule:
+WorkOrderLaborItems      WorkOrderLaborItem[]
+WorkOrderMaterialItems   WorkOrderMaterialItem[]
 WorkOrderEquipmentItems  WorkOrderEquipmentItem[]
 ```
+
+**Note:** No relation needed on TradeLevelRate, Equipment, or EquipmentRateLabel — structured labour is tracked via TimeSheetDetailRecord (relates to TradeLevelRate through the existing timesheet infrastructure), and structured equipment is tracked via EquipmentTimeSheetRecordValue (from EQ-0, relates to Equipment + EquipmentRateLabel directly).
 
 ### 1e. Migration
 
@@ -195,7 +259,7 @@ CREATE TABLE `WorkOrderLaborItem` (
   `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   `updatedAt` DATETIME(3) NOT NULL,
   `jobId` VARCHAR(21) NOT NULL,
-  `tradeLevelRateId` VARCHAR(21) NULL,
+  `jobScheduleId` VARCHAR(21) NULL,
   `rate` DECIMAL(10, 2) NULL,
   `qtyOfWorkers` INT NOT NULL DEFAULT 1,
   `submittedDuration` INT NOT NULL DEFAULT 0,
@@ -204,7 +268,7 @@ CREATE TABLE `WorkOrderLaborItem` (
   PRIMARY KEY (`id`),
   INDEX `WorkOrderLaborItem_jobId_isDeleted_idx` (`jobId`, `isDeleted`),
   CONSTRAINT `WorkOrderLaborItem_jobId_fkey` FOREIGN KEY (`jobId`) REFERENCES `Job`(`id`),
-  CONSTRAINT `WorkOrderLaborItem_tradeLevelRateId_fkey` FOREIGN KEY (`tradeLevelRateId`) REFERENCES `TradeLevelRate`(`id`)
+  CONSTRAINT `WorkOrderLaborItem_jobScheduleId_fkey` FOREIGN KEY (`jobScheduleId`) REFERENCES `JobSchedule`(`id`)
 );
 
 CREATE TABLE `WorkOrderMaterialItem` (
@@ -214,6 +278,7 @@ CREATE TABLE `WorkOrderMaterialItem` (
   `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   `updatedAt` DATETIME(3) NOT NULL,
   `jobId` VARCHAR(21) NOT NULL,
+  `jobScheduleId` VARCHAR(21) NULL,
   `materialId` VARCHAR(21) NULL,
   `description` VARCHAR(500) NULL,
   `quantity` DECIMAL(10, 2) NULL,
@@ -224,6 +289,7 @@ CREATE TABLE `WorkOrderMaterialItem` (
   PRIMARY KEY (`id`),
   INDEX `WorkOrderMaterialItem_jobId_isDeleted_idx` (`jobId`, `isDeleted`),
   CONSTRAINT `WorkOrderMaterialItem_jobId_fkey` FOREIGN KEY (`jobId`) REFERENCES `Job`(`id`),
+  CONSTRAINT `WorkOrderMaterialItem_jobScheduleId_fkey` FOREIGN KEY (`jobScheduleId`) REFERENCES `JobSchedule`(`id`),
   CONSTRAINT `WorkOrderMaterialItem_materialId_fkey` FOREIGN KEY (`materialId`) REFERENCES `Material`(`id`)
 );
 
@@ -234,21 +300,15 @@ CREATE TABLE `WorkOrderEquipmentItem` (
   `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   `updatedAt` DATETIME(3) NOT NULL,
   `jobId` VARCHAR(21) NOT NULL,
-  `equipmentId` VARCHAR(21) NULL,
-  `equipmentRateLabelId` VARCHAR(21) NULL,
-  `per` ENUM('HOUR', 'DAY', 'WEEK', 'MONTH', 'YEAR') NULL DEFAULT 'HOUR',
-  `operatorIncluded` BOOLEAN NOT NULL DEFAULT true,
-  `isFullDayBilling` BOOLEAN NOT NULL DEFAULT true,
+  `jobScheduleId` VARCHAR(21) NULL,
   `unitRate` DECIMAL(10, 2) NULL,
-  `submittedDuration` INT NOT NULL DEFAULT 0,
   `quantity` DECIMAL(10, 2) NULL,
   `description` VARCHAR(500) NULL,
   `orderNo` INT NOT NULL DEFAULT 0,
   PRIMARY KEY (`id`),
   INDEX `WorkOrderEquipmentItem_jobId_isDeleted_idx` (`jobId`, `isDeleted`),
   CONSTRAINT `WorkOrderEquipmentItem_jobId_fkey` FOREIGN KEY (`jobId`) REFERENCES `Job`(`id`),
-  CONSTRAINT `WorkOrderEquipmentItem_equipmentId_fkey` FOREIGN KEY (`equipmentId`) REFERENCES `Equipment`(`id`),
-  CONSTRAINT `WorkOrderEquipmentItem_equipmentRateLabelId_fkey` FOREIGN KEY (`equipmentRateLabelId`) REFERENCES `EquipmentRateLabel`(`id`)
+  CONSTRAINT `WorkOrderEquipmentItem_jobScheduleId_fkey` FOREIGN KEY (`jobScheduleId`) REFERENCES `JobSchedule`(`id`)
 );
 ```
 
@@ -259,9 +319,11 @@ CREATE TABLE `WorkOrderEquipmentItem` (
 **File:** `apps/api/src/types/Job.types.ts` (or create `WorkOrder.types.ts`)
 
 ```typescript
+// Unstructured / blank labour lines only.
+// Structured labour is captured via TimeSheetRecord / TimeSheetDetailRecord.
 export interface IWorkOrderLaborItem {
     jobId: string;
-    tradeLevelRateId?: string;
+    jobScheduleId?: string;
     rate?: number;
     qtyOfWorkers: number;
     submittedDuration: number;
@@ -271,6 +333,7 @@ export interface IWorkOrderLaborItem {
 
 export interface IWorkOrderMaterialItem {
     jobId: string;
+    jobScheduleId?: string;
     materialId?: string;
     description?: string;
     quantity?: number;
@@ -280,15 +343,12 @@ export interface IWorkOrderMaterialItem {
     orderNo: number;
 }
 
+// Unstructured / blank equipment lines only.
+// Structured equipment is captured via EquipmentTimeSheetRecordValue (EQ-0).
 export interface IWorkOrderEquipmentItem {
     jobId: string;
-    equipmentId?: string;
-    equipmentRateLabelId?: string;
-    per?: string;
-    operatorIncluded: boolean;
-    isFullDayBilling: boolean;
+    jobScheduleId?: string;
     unitRate?: number;
-    submittedDuration: number;
     quantity?: number;
     description?: string;
     orderNo: number;
@@ -299,7 +359,7 @@ export interface IWorkOrderEquipmentItem {
 
 ## Step 3: Model Classes
 
-### 3a. WorkOrderLaborItem Model
+### 3a. WorkOrderLaborItem Model (Blank Lines Only)
 
 **Create file:** `apps/api/src/models/WorkOrderLaborItem.ts`
 
@@ -309,11 +369,6 @@ protected modelFields: IField<IWorkOrderLaborItem>[] = [
         name: "jobId",
         type: "string",
         options: { isRequiredOnCreate: true, isFilterable: true, canEdit: false }
-    },
-    {
-        name: "tradeLevelRateId",
-        type: "string",
-        options: { isFilterable: true }
     },
     {
         name: "rate",
@@ -350,17 +405,17 @@ Standard BaseModel with: `jobId`, `materialId`, `description`, `quantity`, `unit
 
 Add `beforeCreate`/`beforeEdit` hook to auto-calculate `total = quantity * unitPrice` when both values are provided. For structured lines (materialId is set), auto-populate `unitPrice` and `costPrice` from `resolveMaterialSellPrice()` (LEM-3) if not explicitly provided.
 
-### 3c. WorkOrderEquipmentItem Model
+### 3c. WorkOrderEquipmentItem Model (Blank Lines Only)
 
 **Create file:** `apps/api/src/models/WorkOrderEquipmentItem.ts`
 
-Standard BaseModel with: `jobId`, `equipmentId`, `equipmentRateLabelId`, `per`, `operatorIncluded`, `isFullDayBilling`, `unitRate`, `submittedDuration`, `quantity`, `description`, `orderNo`.
+Standard BaseModel with: `jobId`, `unitRate`, `quantity`, `description`, `orderNo`. No equipment FK — structured equipment uses EquipmentTimeSheetRecordValue from EQ-0.
 
 ---
 
 ## Step 4: GraphQL Resolvers
 
-### 4a. WorkOrderLaborItem Resolver
+### 4a. WorkOrderLaborItem Resolver (Blank Lines Only)
 
 **Create file:** `apps/api/src/graphql/models/WorkOrderLaborItem.ts`
 
@@ -368,8 +423,8 @@ Standard BaseModel with: `jobId`, `equipmentId`, `equipmentRateLabelId`, `per`, 
 type WorkOrderLaborItem {
     id: ID!
     jobId: String!
-    tradeLevelRateId: String
-    TradeLevelRate: TradeLevelRate
+    jobScheduleId: String
+    JobSchedule: JobSchedule
     rate: Float
     qtyOfWorkers: Int!
     submittedDuration: Int!
@@ -379,7 +434,7 @@ type WorkOrderLaborItem {
 
 input UpsertWorkOrderLaborItemInput {
     id: ID
-    tradeLevelRateId: String
+    jobScheduleId: String
     rate: Float
     qtyOfWorkers: Int
     submittedDuration: Int!
@@ -392,13 +447,7 @@ extend type Query {
 }
 ```
 
-Resolvers for `TradeLevelRate` relation:
-
-```typescript
-TradeLevelRate: (parent) => parent.tradeLevelRateId
-    ? prisma.tradeLevelRate.findUnique({ where: { id: parent.tradeLevelRateId } })
-    : null
-```
+No relation resolvers needed — this model has no FKs beyond `jobId`.
 
 ### 4b. WorkOrderMaterialItem Resolver
 
@@ -408,6 +457,8 @@ TradeLevelRate: (parent) => parent.tradeLevelRateId
 type WorkOrderMaterialItem {
     id: ID!
     jobId: String!
+    jobScheduleId: String
+    JobSchedule: JobSchedule
     materialId: String
     Material: Material
     description: String
@@ -420,6 +471,7 @@ type WorkOrderMaterialItem {
 
 input UpsertWorkOrderMaterialItemInput {
     id: ID
+    jobScheduleId: String
     materialId: String
     description: String
     quantity: Float
@@ -433,23 +485,19 @@ extend type Query {
 }
 ```
 
-### 4c. WorkOrderEquipmentItem Resolver
+### 4c. WorkOrderEquipmentItem Resolver (Blank Lines Only)
 
 **Create file:** `apps/api/src/graphql/models/WorkOrderEquipmentItem.ts`
 
 ```graphql
+# Unstructured / blank equipment lines only.
+# Structured equipment is queried from EquipmentTimeSheetRecordValue (EQ-0).
 type WorkOrderEquipmentItem {
     id: ID!
     jobId: String!
-    equipmentId: String
-    Equipment: Equipment
-    equipmentRateLabelId: String
-    EquipmentRateLabel: EquipmentRateLabel
-    per: EquipmentRatePer
-    operatorIncluded: Boolean!
-    isFullDayBilling: Boolean!
+    jobScheduleId: String
+    JobSchedule: JobSchedule
     unitRate: Float
-    submittedDuration: Int!
     quantity: Float
     description: String
     orderNo: Int!
@@ -457,13 +505,8 @@ type WorkOrderEquipmentItem {
 
 input UpsertWorkOrderEquipmentItemInput {
     id: ID
-    equipmentId: String
-    equipmentRateLabelId: String
-    per: EquipmentRatePer
-    operatorIncluded: Boolean
-    isFullDayBilling: Boolean
+    jobScheduleId: String
     unitRate: Float
-    submittedDuration: Int
     quantity: Float
     description: String
     orderNo: Int
@@ -473,6 +516,8 @@ extend type Query {
     workOrderEquipmentItems(jobId: String!): [WorkOrderEquipmentItem!]!
 }
 ```
+
+No relation resolvers needed — this model has no FKs beyond `jobId`.
 
 ---
 
@@ -587,27 +632,48 @@ Also export from `apps/api/src/graphql/models/index.ts`.
 
 **Mutation:** `recalculateWorkOrderTotals(jobId: String!): Job`
 
-Recomputes the Job-level WO summary fields (from the WO-3 Job model extensions):
+Recomputes the Job-level WO summary fields (from the WO-3 Job model extensions). Labour totals are computed from **two sources**: TimeSheetDetailRecords (structured) and WorkOrderLaborItems (unstructured blank lines).
 
 ```typescript
 async recalculateWorkOrderTotals(jobId: string, currentUserId: string): Promise<Job> {
-    // Sum labor: for structured lines, resolve billableValue from TradeLevelRate
-    // For blank lines, use rate * (submittedDuration / 3600) * qtyOfWorkers
-    const laborItems = await prisma.workOrderLaborItem.findMany({
-        where: { jobId, isDeleted: false },
-        include: { TradeLevelRate: true }
+    // --- LABOUR (two sources) ---
+
+    // 1. Structured labour: TimeSheetDetailRecords for this job
+    //    Hours come from secondsAtService; billable rate from TradeLevelRate.billableValue (LEM-1)
+    //    Query TimeSheetDetailRecord where TimeSheetRecord.jobId = jobId
+    const timesheetDetails = await prisma.timeSheetDetailRecord.findMany({
+        where: {
+            TimeSheetRecord: { jobId, isDeleted: false },
+            isDeleted: false
+        },
+        include: {
+            TimeSheetRecord: true,
+            TradeLevelRate: true
+        }
     });
 
-    let laborSubtotal = 0;
-    for (const item of laborItems) {
-        const hours = item.submittedDuration / 3600;
-        const rate = item.tradeLevelRateId
-            ? item.TradeLevelRate?.billableValue?.toNumber() ?? 0
-            : item.rate?.toNumber() ?? 0;
-        laborSubtotal += hours * rate * item.qtyOfWorkers;
+    let structuredLaborSubtotal = 0;
+    for (const detail of timesheetDetails) {
+        const hours = (detail.secondsAtService ?? 0) / 3600;
+        const billableRate = detail.TradeLevelRate?.billableValue?.toNumber() ?? 0;
+        structuredLaborSubtotal += hours * billableRate;
     }
 
-    // Sum materials: total field already calculated
+    // 2. Unstructured labour: WorkOrderLaborItems (blank lines)
+    const blankLaborItems = await prisma.workOrderLaborItem.findMany({
+        where: { jobId, isDeleted: false }
+    });
+
+    let blankLaborSubtotal = 0;
+    for (const item of blankLaborItems) {
+        const hours = item.submittedDuration / 3600;
+        const rate = item.rate?.toNumber() ?? 0;
+        blankLaborSubtotal += hours * rate * item.qtyOfWorkers;
+    }
+
+    const laborSubtotal = structuredLaborSubtotal + blankLaborSubtotal;
+
+    // --- MATERIALS ---
     const materialItems = await prisma.workOrderMaterialItem.findMany({
         where: { jobId, isDeleted: false }
     });
@@ -615,10 +681,51 @@ async recalculateWorkOrderTotals(jobId: string, currentUserId: string): Promise<
         (sum, item) => sum + (item.total?.toNumber() ?? 0), 0
     );
 
-    // Sum equipment: similar to labor
-    // For structured lines, resolve from LEM-2
-    // For blank lines, use unitRate * quantity or unitRate * (submittedDuration / 3600)
-    // ... (equipment subtotal calculation)
+    // --- EQUIPMENT (two sources) ---
+
+    // 1. Structured: EquipmentTimeSheetRecordValues for this job (from EQ-0)
+    const equipTimeEntries = await prisma.equipmentTimeSheetRecordValue.findMany({
+        where: {
+            TimeSheetDetailRecord: {
+                TimeSheetRecord: { jobId, isDeleted: false }
+            },
+            isDeleted: false
+        },
+        include: {
+            Equipment: true,
+            EquipmentRateLabel: true
+        }
+    });
+
+    let structuredEquipSubtotal = 0;
+    const rateValueModel = new EquipmentRateValueModel();
+    for (const entry of equipTimeEntries) {
+        const resolved = await rateValueModel.resolveEquipmentRate(
+            entry.equipmentId,
+            entry.equipmentRateLabelId,
+            entry.per ?? "HOUR",
+            jobId,
+            entry.operatorIncluded,
+            job?.dateOfWork
+        );
+        const rate = resolved?.amount ?? 0;
+        const quantity = calculateQuantity(entry, job?.dailyHours ?? 8);
+        structuredEquipSubtotal += rate * quantity;
+    }
+
+    // 2. Unstructured: WorkOrderEquipmentItems (blank lines)
+    const blankEquipItems = await prisma.workOrderEquipmentItem.findMany({
+        where: { jobId, isDeleted: false }
+    });
+
+    let blankEquipSubtotal = 0;
+    for (const item of blankEquipItems) {
+        const rate = item.unitRate?.toNumber() ?? 0;
+        const qty = item.quantity?.toNumber() ?? 0;
+        blankEquipSubtotal += rate * qty;
+    }
+
+    const equipmentSubtotal = structuredEquipSubtotal + blankEquipSubtotal;
 
     const markupPercent = job.markupPercent?.toNumber() ?? 0;
     const overheadPercent = job.overheadPercent?.toNumber() ?? 0;
@@ -641,32 +748,33 @@ async recalculateWorkOrderTotals(jobId: string, currentUserId: string): Promise<
 }
 ```
 
-**Note:** `recalculateWorkOrderTotals` uses `billableValue` from TradeLevelRate (LEM-1) for labor and `resolveEquipmentRate` from LEM-2 for equipment. These totals are only visible to users with `viewWageDetails` permission (gated in WO-4 detail page, not here).
+**Note:** Structured labour uses `billableValue` from TradeLevelRate (LEM-1) via the existing TimeSheetDetailRecord → TradeLevelRate relation. Structured equipment uses `resolveEquipmentRate` from LEM-2 via EquipmentTimeSheetRecordValue (EQ-0). These totals are only visible to users with `viewWageDetails` permission (gated in WO-4 detail page, not here).
 
 ---
 
 ## Verification Checklist
 
 - [ ] All 3 tables created with correct indexes and FK constraints
-- [ ] WorkOrderLaborItem: `tradeLevelRateId` nullable, `rate` nullable — mutually exclusive usage
+- [ ] WorkOrderLaborItem: blank-lines-only — `rate`, `description`, `submittedDuration`, `qtyOfWorkers`, `orderNo`. No `tradeLevelRateId` FK
 - [ ] WorkOrderMaterialItem: `materialId` nullable for blank lines, `unitPrice` + `costPrice` auto-populated from LEM-3 cascade for structured lines, `total` auto-calculated from qty * unitPrice
-- [ ] WorkOrderEquipmentItem: `equipmentId` nullable for blank lines, `unitRate` nullable for manual entry
+- [ ] WorkOrderEquipmentItem: blank-lines-only — `unitRate`, `quantity`, `description`, `orderNo`. No `equipmentId` or `equipmentRateLabelId` FK
 - [ ] GraphQL types expose all fields including nullable FKs and relation resolvers
-- [ ] `workOrderLaborItems(jobId)` query returns items ordered by orderNo
+- [ ] `workOrderLaborItems(jobId)` query returns blank labour items ordered by orderNo
 - [ ] `workOrderMaterialItems(jobId)` query returns items ordered by orderNo
-- [ ] `workOrderEquipmentItems(jobId)` query returns items ordered by orderNo
+- [ ] `workOrderEquipmentItems(jobId)` query returns blank equipment items ordered by orderNo
 - [ ] `upsertWorkOrderLineItems` creates new items (no id) and updates existing items (with id) in single call
-- [ ] Labor structured line: `tradeLevelRateId` set, `rate` null — TradeLevelRate relation resolves
-- [ ] Labor blank line: `tradeLevelRateId` null, `rate` set, `description` set
+- [ ] Labor blank line: `rate` set, `description` set, `submittedDuration` set
 - [ ] Material structured line: `materialId` set — Material name + UoM auto-populated on frontend
 - [ ] Material blank line: `materialId` null, `description` + `unitPrice` + `quantity` set manually
-- [ ] Equipment structured line: `equipmentId` set — rate labels load from category
-- [ ] Equipment blank line: `equipmentId` null, `unitRate` + `description` + `quantity` set manually
-- [ ] `recalculateWorkOrderTotals` correctly sums structured lines (from rate tables) and blank lines (from manual rates)
+- [ ] Equipment blank line: `unitRate` + `description` + `quantity` set manually
+- [ ] `recalculateWorkOrderTotals` queries EquipmentTimeSheetRecordValues (structured equipment) and WorkOrderEquipmentItems (blank lines) for the combined equipment subtotal
+- [ ] `recalculateWorkOrderTotals` uses resolveEquipmentRate (LEM-2) for structured equipment entries
+- [ ] `recalculateWorkOrderTotals` queries both TimeSheetDetailRecords (structured labour) and WorkOrderLaborItems (blank lines) for the combined labour subtotal
+- [ ] `recalculateWorkOrderTotals` uses TradeLevelRate.billableValue for structured labour via timesheet records
 - [ ] Delete mutation soft-deletes individual line items
-- [ ] Relations added to Job, TradeLevelRate, Material, Equipment, EquipmentRateLabel
+- [ ] Relations added to Job, Material only (no TradeLevelRate, Equipment, or EquipmentRateLabel relations — those are on EQ-0 models)
 - [ ] All resolvers registered in schema.ts (5 places each, 3 resolvers = 15 registrations)
-- [ ] No regression on existing Job, TradeLevelRate, Material, or Equipment functionality
+- [ ] No regression on existing Job, Material, Equipment, TimeSheetRecord, TimeSheetDetailRecord, or EquipmentTimeSheetRecordValue functionality
 
 ---
 
@@ -674,16 +782,16 @@ async recalculateWorkOrderTotals(jobId: string, currentUserId: string): Promise<
 
 | Action | File | What to do |
 |--------|------|------------|
-| MODIFY | `apps/api/prisma/schema.prisma` | Add 3 models + relations on Job, TradeLevelRate, Material, Equipment, EquipmentRateLabel |
+| MODIFY | `apps/api/prisma/schema.prisma` | Add 3 models + relations on Job, Material only (no TradeLevelRate, Equipment, or EquipmentRateLabel — those are on EQ-0 models) |
 | CREATE | `apps/api/prisma/migrations/.../migration.sql` | CREATE TABLE x3 with indexes and FKs |
 | CREATE | `apps/api/src/types/WorkOrder.types.ts` (or append to Job.types.ts) | Add 3 interfaces |
-| CREATE | `apps/api/src/models/WorkOrderLaborItem.ts` | Model class with modelFields |
+| CREATE | `apps/api/src/models/WorkOrderLaborItem.ts` | Model class — blank lines only, no TradeLevelRate FK |
 | CREATE | `apps/api/src/models/WorkOrderMaterialItem.ts` | Model class with total auto-calculation |
-| CREATE | `apps/api/src/models/WorkOrderEquipmentItem.ts` | Model class with modelFields |
-| CREATE | `apps/api/src/graphql/models/WorkOrderLaborItem.ts` | GraphQL resolver + type + query |
+| CREATE | `apps/api/src/models/WorkOrderEquipmentItem.ts` | Model class — blank lines only, no equipment FK |
+| CREATE | `apps/api/src/graphql/models/WorkOrderLaborItem.ts` | GraphQL resolver + type + query (blank lines only) |
 | CREATE | `apps/api/src/graphql/models/WorkOrderMaterialItem.ts` | GraphQL resolver + type + query |
-| CREATE | `apps/api/src/graphql/models/WorkOrderEquipmentItem.ts` | GraphQL resolver + type + query |
-| CREATE or MODIFY | `apps/api/src/graphql/models/WorkOrderLineItems.ts` or `JobBill.ts` | `upsertWorkOrderLineItems` + `recalculateWorkOrderTotals` mutations |
+| CREATE | `apps/api/src/graphql/models/WorkOrderEquipmentItem.ts` | GraphQL resolver + type + query (blank lines only) |
+| CREATE or MODIFY | `apps/api/src/graphql/models/WorkOrderLineItems.ts` or `JobBill.ts` | `upsertWorkOrderLineItems` + `recalculateWorkOrderTotals` (queries TimeSheetDetailRecord + WorkOrderLaborItem for labour; EquipmentTimeSheetRecordValue + WorkOrderEquipmentItem for equipment) |
 | MODIFY | `apps/api/src/graphql/schema.ts` | Register 3 new resolvers (15 places total) |
 | MODIFY | `apps/api/src/graphql/models/index.ts` | Export new resolvers |
 </script>

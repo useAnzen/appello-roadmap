@@ -83,11 +83,11 @@ table.schema-table code { font-family: monospace; background: #f1f5f9; padding: 
             <span class="uis-badge badge-status">Draft</span>
         </div>
         <h1 class="uis-h1">Line Item Editors</h1>
-        <p class="uis-sub">Custom input components for Labor, Material, and Equipment line items that plug into the DataModelForm via <code>customFormControl</code>. Each supports structured (from rate tables/catalog) and blank (manual entry) lines. Subtotals render within each editor. All state is local until form-level save.</p>
+        <p class="uis-sub">Custom input components for Labor, Material, and Equipment line items that plug into the DataModelForm via <code>customFormControl</code>. Labour and Equipment follow the same dual-source pattern: <strong>structured entries</strong> via the existing timesheet infrastructure (TimeSheetRecord for labour, EquipmentTimeSheetRecordValue for equipment) plus <strong>blank lines</strong> (WorkOrderLaborItem, WorkOrderEquipmentItem) for ClearStory-style flexible entry. Material supports structured (from catalog) and blank (manual) lines. Subtotals render within each editor.</p>
         <div class="uis-meta">
             <span><strong>Sequence:</strong> WO-3b of 3</span>
-            <span><strong>Estimate:</strong> 4-5 days</span>
-            <span><strong>Requires:</strong> WO-3a (DAA positions), WO-2 (line item models)</span>
+            <span><strong>Estimate:</strong> 7-9 days</span>
+            <span><strong>Requires:</strong> WO-3a (DAA positions), WO-2 (blank-line models), EQ-0 (EquipmentTimeSheetRecordValue)</span>
         </div>
     </div>
 
@@ -103,7 +103,6 @@ const customFormControl = {
     "wo-labor-items": (formData, setFormData) =&gt;
         &lt;LaborItemEditor
             jobId={jobId}
-            dateOfWork={formData["wo-date-of-work"]}
             items={laborItems}
             setItems={setLaborItems}
         /&gt;,
@@ -128,39 +127,93 @@ const customFormControl = {
 
         <h3>Key behavior rules</h3>
         <ul>
-            <li><strong>Local state only:</strong> Editors maintain their own state via <code>items</code> / <code>setItems</code>. Nothing saves to the database until the parent form's Save Draft or Submit is clicked.</li>
-            <li><strong>Subtotals within editors:</strong> Each editor renders its own subtotal at the bottom. For labor and equipment structured lines, subtotals are only shown if user has <code>viewWageDetails</code> permission. Material subtotals always shown (sell prices auto-populated from LEM-3 cascade). Cost shown alongside sell price if user has <code>viewWageDetails</code>.</li>
-            <li><strong>On form save:</strong> The parent form collects all line item state and calls <code>upsertWorkOrderLineItems</code> (from WO-2) in the same transaction as the Job save.</li>
-            <li><strong>Structured + blank lines:</strong> Each editor has an "+ Add" dropdown button with "Structured Line" and "Blank Line" options. Both types coexist in the same list.</li>
+            <li><strong>Labour &amp; Equipment — two paths each:</strong> Structured entries are created via existing timesheet infrastructure (TimeSheetRecord for labour, EquipmentTimeSheetRecordValue for equipment) and saved immediately. Blank lines are maintained in local state and saved on form submit via <code>upsertWorkOrderLineItems</code>.</li>
+            <li><strong>Material — local state:</strong> Both structured and blank material items maintain local state. Nothing saves to the database until the parent form's Save Draft or Submit is clicked.</li>
+            <li><strong>Subtotals within editors:</strong> Each editor renders its own subtotal at the bottom. Labour subtotal combines hours from TimeSheetRecords and blank lines. For equipment structured lines, subtotals are only shown if user has <code>viewWageDetails</code> permission. Material subtotals always shown (sell prices auto-populated from LEM-3 cascade). Cost shown alongside sell price if user has <code>viewWageDetails</code>.</li>
+            <li><strong>On form save:</strong> The parent form collects blank labour, material, and blank equipment line item state and calls <code>upsertWorkOrderLineItems</code> (from WO-2). Structured labour and equipment entries are already persisted via their respective workflows.</li>
+            <li><strong>Add dropdown:</strong> Labour uses "Log Time" / "Blank Line". Equipment uses "Log Equipment" / "Blank Line". Material uses "Structured Line" / "Blank Line".</li>
         </ul>
     </div>
 
-    <!-- 2. Labor Item Editor -->
+    <!-- 2. Shared TimeEntryTable Component -->
     <div class="uis-section">
-        <h2>2. LaborItemEditor</h2>
+        <h2>2. Shared Component: TimeEntryTable</h2>
+
+        <div class="callout">
+            <strong>Reusable component:</strong> <code>TimeEntryTable</code> is extracted from the existing <code>TimesheetModification</code> / <code>TimesheetRateLabelColumns</code> pattern into a self-contained, reusable component. It is used in both the existing <strong>TimesheetAddEditForm</strong> and the new <strong>LaborItemEditor</strong> (WO-3b). The component handles user selection, per-row trade level, tabular rate-label hour entry, and optional cost code breakdown.
+        </div>
+
+
+        <h3>Component interface</h3>
+<pre>
+interface ITimeEntryTableProps {
+    jobId: string;
+    viewOnly?: boolean;
+    // Date-grouped data
+    dateGroups: ITimeEntryDateGroup[];
+    onDateGroupsChange: (groups: ITimeEntryDateGroup[]) => void;
+    // Cost code support
+    costCodes?: GqlCostCode[];
+    showCostCodes?: boolean;
+}
+
+interface ITimeEntryDateGroup {
+    workDate: string;              // YYYY-MM-DD
+    rows: ITimeEntryRow[];
+    isApproved?: boolean;          // all rows read-only if Approved
+}
+
+interface ITimeEntryRow {
+    id?: string;
+    userId: string;                // which user this entry is for
+    tradeLevelId: string;          // selected trade level
+    hours: Record&lt;string, number&gt;;  // rateLabelId → seconds
+    costCodeRows?: ICostCodeRow[];
+    // Derived per-row (loaded when user selected):
+    // - EmployeeAgreement (from user)
+    // - Active contract (from agreement + parent group's workDate)
+    // - Available TradeLevels + RateLabels (from contract + wage region)
+}
+
+// Reuses existing ICostCodeRow from TimesheetAddEditForm/types.ts
+</pre>
+
+        <h3>Date-grouped layout</h3>
+        <p>A WO may span multiple days, so entries are grouped by work date. Each date group is a collapsible section with its own table of rows.</p>
+        <ul>
+            <li><strong>Date group header:</strong> Date display (e.g., "Apr 7, 2026") with date picker, row count, total hours. <code>IconTrash</code> to remove the group (if not Approved). Approved groups render all rows read-only.</li>
+            <li><strong>User column:</strong> User dropdown per row. Selecting a user loads their <code>EmployeeAgreement</code>. Combined with the group's work date, the active <code>EmployeeAgreementContract</code> is resolved to populate the Trade Level and Rate Label columns.</li>
+            <li><strong>Trade level per row:</strong> Dropdown populated from the user's active contract for the group's work date. Users may work at different trade levels depending on the task &mdash; e.g., Journeyman on one entry, Foreman on another. Maps to the optional <code>tradeLevelId</code> on <code>TimeSheetDetailRecord</code> (see WO-2 Step 0).</li>
+            <li><strong>Rate label columns:</strong> Populated from the user's active contract, filtered by the job's wage region with fallback to default. One column per <code>EmployeeAgreementRateLabel</code> where <code>isLineItem = false</code> (e.g., Wages 1x, Wages 1.5x, Wages 2x). Uses the same <code>FormControl type="numeric" step={0.25}</code> input pattern.</li>
+            <li><strong>Total column:</strong> Sum of all rate label hours for the row.</li>
+            <li><strong>Cost code sub-rows:</strong> Optional. "Split by Cost Code" adds sub-rows beneath a row. Each sub-row has a cost code selector + the same rate label columns. Cost code hours must sum to the parent row's totals. Same auto-assignment logic as the existing timesheet form.</li>
+            <li><strong>"+ Add Row"</strong> within a group adds a new user/trade-level row. <strong>"+ Add Date"</strong> adds a new date group.</li>
+        </ul>
+
+        <h3>Sharing with TimesheetAddEditForm</h3>
+        <p>The WO time entry table and the existing timesheet form share the same underlying concepts (rate-label columns, trade-level selection, cost code breakdown), but there is a key structural difference: <strong>timesheets are per-user</strong> while the <strong>WO interface handles multiple users</strong> (foreman logging for crew). This means sharing may be possible for lower-level pieces (rate label input cells, cost code row/section, validation helpers) but the table-level component will likely differ between contexts.</p>
+        <ul>
+            <li><strong>Shareable:</strong> <code>TimesheetRateLabelColumns</code> (rate label input cells), <code>TimesheetCostCodeRow</code> / <code>TimesheetCostCodeSection</code> (cost code sub-rows), validation helpers (<code>validateJobCostCodes</code>, <code>calculateCostCodeRowTotal</code>, <code>autoAssignHoursToSingleRow</code>)</li>
+            <li><strong>WO-specific:</strong> The table itself &mdash; has User + Trade Level columns per row, multi-user support, all rows save together with the WO form. The existing <code>TimesheetModification</code> component should remain unchanged.</li>
+        </ul>
+        <p style="font-size:12px; color:#64748b; margin-top:4px;">The definitive mockup is in the LaborItemEditor section below (Section 3).</p>
+    </div>
+
+    <!-- 2b. Labor Item Editor -->
+    <div class="uis-section">
+        <h2>3. LaborItemEditor</h2>
 
         <h3>Component interface</h3>
 <pre>
 interface ILaborItemEditorProps {
     jobId: string;
-    dateOfWork: Date | null;  // determines which EmployeeAgreementContract is active
-    items: ILaborRow[];
-    setItems: (items: ILaborRow[]) => void;
+    blankItems: IBlankLaborRow[];
+    setBlankItems: (items: IBlankLaborRow[]) => void;
 }
 
-type ILaborRow = IStructuredLaborRow | IBlankLaborRow;
-
-interface IStructuredLaborRow {
-    type: "structured";
-    orderNo: number;
-    employeeAgreementId: string;
-    tradeLevelId: string;
-    qtyOfWorkers: number;
-    rateLabelDurations: Record&lt;string, number&gt;;  // rateLabelId → seconds
-}
-
+// Represents a WorkOrderLaborItem (blank/unstructured line)
 interface IBlankLaborRow {
-    type: "blank";
+    id?: string;
     orderNo: number;
     description: string;
     qtyOfWorkers: number;
@@ -169,94 +222,218 @@ interface IBlankLaborRow {
 }
 </pre>
 
-        <h3>Structured line behavior</h3>
+        <h3>Structured labour (inline time entry)</h3>
         <ul>
-            <li><strong>Employee Agreement:</strong> Auto-selected from the submitting user. If user has multiple agreements, shows a selector. If one agreement, shows read-only with "(auto)".</li>
-            <li><strong>Trade Level:</strong> Dropdown populated from the agreement's trade levels. Changing trade level reloads the rate label columns.</li>
-            <li><strong>Rate label columns:</strong> Loaded from the active <code>EmployeeAgreementContract</code> for the WO's <code>dateOfWork</code>. Columns are the <code>EmployeeAgreementRateLabel</code> records where <code>isLineItem = false</code> (e.g., Wages 1x, Wages 1.5x, Wages 2x). Hours entered per column. Mirrors the timesheet form pattern from <code>TimesheetRateLabelColumns.tsx</code>.</li>
-            <li><strong>Qty of Workers:</strong> Multiplier. Default 1.</li>
-            <li><strong>No rates shown:</strong> Hours only on the form. Rates applied at invoice generation (WO-7).</li>
-            <li><strong>Database mapping:</strong> Each rate label column with hours &gt; 0 becomes a separate <code>WorkOrderLaborItem</code> record with the same <code>orderNo</code>. The <code>tradeLevelRateId</code> is resolved from (contract + tradeLevel + rateLabel).</li>
+            <li><strong>Embeds <code>TimeEntryTable</code></strong> with the WO job pre-selected and date-grouped layout. Existing TimeSheetRecords for the job are loaded and grouped by <code>workDate</code> on mount. New date groups via "+ Add Date", new rows via "+ Add Row" within a group.</li>
+            <li><strong>Date groups:</strong> Each group represents a work date. The WO may span multiple days &mdash; select a date, then add multiple users for that date. The group's work date determines which <code>EmployeeAgreementContract</code> is active for each user.</li>
+            <li><strong>User per row:</strong> Selecting a user loads their <code>EmployeeAgreement</code>. Combined with the group's work date, the active contract is resolved to populate trade levels and rate labels.</li>
+            <li><strong>Scheduling &amp; permissions:</strong> If the user is scheduled to the WO job via JobSchedule, they enter time directly. If not scheduled, the unscheduled-job workflow applies based on permissions. If they lack permission, the "Log Time" option shows a permission message.</li>
+            <li><strong>Approved rows read-only:</strong> Rows from Approved timesheets render with disabled inputs. Non-approved rows are fully editable.</li>
+            <li><strong>Saves with form:</strong> No "Save Entry" button. All structured rows save together with the WO form via <code>editFullTimeRecord</code> mutation.</li>
+            <li><strong>No rates shown:</strong> Hours only. Rates resolved from <code>TradeLevelRate.billableValue</code> at invoice generation (WO-7).</li>
         </ul>
 
         <h3>Blank line behavior</h3>
         <ul>
             <li>Description (free text, required), Workers qty, Hours (single input), Rate ($/hr, manual entry)</li>
             <li>No agreement, no trade level, no rate label columns</li>
-            <li>Saves as a single <code>WorkOrderLaborItem</code> with <code>tradeLevelRateId = null</code> and <code>rate</code> set</li>
+            <li>Saves as a <code>WorkOrderLaborItem</code> with <code>rate</code> and <code>description</code> set &mdash; ClearStory-style flexible entry</li>
         </ul>
 
-        <h3>UI Mockup</h3>
+        <h3>UI Mockup &mdash; Full LaborItemEditor</h3>
         <div class="mockup-container" id="mockup-1">
             <div class="mockup-bar">
                 <div class="mockup-dots"><div class="mockup-dot mockup-dot-r"></div><div class="mockup-dot mockup-dot-y"></div><div class="mockup-dot mockup-dot-g"></div></div>
                 LaborItemEditor &mdash; customFormControl["wo-labor-items"]
             </div>
             <div class="mockup-body">
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
                     <div style="font-size:14px; font-weight:700;">Labor</div>
                     <div style="position:relative;">
                         <div style="background:#10b981; color:#fff; border-radius:5px; padding:4px 10px; font-size:11px; font-weight:600; display:flex; align-items:center; gap:4px;">+ Add Labor <span style="opacity:0.7;">&#9662;</span></div>
                     </div>
                 </div>
 
-                <!-- Structured row 1: 3 Journeymen -->
-                <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; padding:10px; margin-bottom:8px;">
-                    <div style="display:flex; gap:8px; align-items:center; margin-bottom:8px;">
-                        <div style="flex:1;"><div style="font-size:10px; color:#64748b; margin-bottom:2px;">Employee Agreement</div><div style="background:#fff; border:1px solid #e2e8f0; border-radius:4px; padding:5px 8px; font-size:11px;">UA Local 488 <span style="color:#94a3b8;">(auto)</span></div></div>
-                        <div style="flex:1;"><div style="font-size:10px; color:#64748b; margin-bottom:2px;">Trade Level</div><div style="background:#fff; border:1px solid #e2e8f0; border-radius:4px; padding:5px 8px; font-size:11px; display:flex; justify-content:space-between;"><span>Journeyman</span><span style="color:#94a3b8;">&#9662;</span></div></div>
-                        <div style="width:70px;"><div style="font-size:10px; color:#64748b; margin-bottom:2px;">Workers</div><div style="background:#fff; border:1px solid #e2e8f0; border-radius:4px; padding:5px 8px; font-size:11px; text-align:center;">3</div></div>
-                        <div style="color:#dc2626; cursor:pointer; font-size:14px; align-self:flex-end; padding-bottom:4px;">&times;</div>
+                <!-- Date group 1: Apr 7, 2026 -->
+                <div style="border:1px solid #e2e8f0; border-radius:8px; margin-bottom:10px; overflow:hidden;">
+                    <div style="background:#f8fafc; padding:8px 12px; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #e2e8f0;">
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <div style="background:#fff; border:1px solid #e2e8f0; border-radius:4px; padding:4px 10px; font-size:12px; font-weight:600;">Apr 7, 2026</div>
+                            <span style="font-size:11px; color:#64748b;">3 rows &middot; 20.0 hrs</span>
+                        </div>
+                        <div style="color:#dc2626; cursor:pointer; font-size:12px;">&#128465;</div>
                     </div>
-                    <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:6px; font-size:10px;">
-                        <div style="text-align:center;"><div style="color:#64748b; margin-bottom:2px;">Wages 1x</div><div style="background:#fff; border:1px solid #e2e8f0; border-radius:4px; padding:4px; text-align:center; font-size:11px;">8.0</div></div>
-                        <div style="text-align:center;"><div style="color:#64748b; margin-bottom:2px;">Wages 1.5x</div><div style="background:#fff; border:1px solid #e2e8f0; border-radius:4px; padding:4px; text-align:center; font-size:11px;">2.0</div></div>
-                        <div style="text-align:center;"><div style="color:#64748b; margin-bottom:2px;">Wages 2x</div><div style="background:#fff; border:1px solid #e2e8f0; border-radius:4px; padding:4px; text-align:center; font-size:11px; color:#94a3b8;">&mdash;</div></div>
-                    </div>
-                </div>
+                <table style="width:100%; border-collapse:collapse; font-size:12px;">
+                    <thead>
+                        <tr style="border-bottom:2px solid #e2e8f0;">
+                            <th style="text-align:left; padding:6px 8px; font-weight:600; color:#64748b; width:150px;">User</th>
+                            <th style="text-align:left; padding:6px 8px; font-weight:600; color:#64748b; width:130px;">Trade Level</th>
+                            <th style="text-align:center; padding:6px 8px; font-weight:600; color:#64748b; width:70px;">Wages 1x</th>
+                            <th style="text-align:center; padding:6px 8px; font-weight:600; color:#64748b; width:70px;">Wages 1.5x</th>
+                            <th style="text-align:center; padding:6px 8px; font-weight:600; color:#64748b; width:70px;">Wages 2x</th>
+                            <th style="text-align:center; padding:6px 8px; font-weight:600; color:#0f172a; width:50px;">Total</th>
+                            <th style="width:24px;"></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- Row 1: John Smith as Journeyman -->
+                        <tr style="border-bottom:1px solid #f1f5f9;">
+                            <td style="padding:6px 8px;">
+                                <div style="background:#fff; border:1px solid #e2e8f0; border-radius:4px; padding:5px 8px; font-size:11px; display:flex; justify-content:space-between;">
+                                    <span>John Smith</span><span style="color:#94a3b8;">&#9662;</span>
+                                </div>
+                            </td>
+                            <td style="padding:6px 8px;">
+                                <div style="background:#fff; border:1px solid #e2e8f0; border-radius:4px; padding:5px 8px; font-size:11px; display:flex; justify-content:space-between;">
+                                    <span>Journeyman</span><span style="color:#94a3b8;">&#9662;</span>
+                                </div>
+                            </td>
+                            <td style="padding:6px 4px; text-align:center;">
+                                <div style="background:#fff; border:1px solid #e2e8f0; border-radius:4px; padding:5px; text-align:center; font-size:11px; width:54px; margin:0 auto;">8.0</div>
+                            </td>
+                            <td style="padding:6px 4px; text-align:center;">
+                                <div style="background:#fff; border:1px solid #e2e8f0; border-radius:4px; padding:5px; text-align:center; font-size:11px; width:54px; margin:0 auto;">2.0</div>
+                            </td>
+                            <td style="padding:6px 4px; text-align:center;">
+                                <div style="background:#fff; border:1px solid #e2e8f0; border-radius:4px; padding:5px; text-align:center; font-size:11px; width:54px; margin:0 auto; color:#94a3b8;">&mdash;</div>
+                            </td>
+                            <td style="padding:6px 8px; text-align:center; font-weight:700; font-size:12px;">10.0</td>
+                            <td style="padding:6px 4px; text-align:center; color:#dc2626; cursor:pointer;">&#128465;</td>
+                        </tr>
+                        <!-- Cost code sub-rows for John Smith / Journeyman -->
+                        <tr style="background:#f8fafc; border-bottom:1px solid #f1f5f9;">
+                            <td style="padding:4px 8px;" colspan="2">
+                                <div style="display:flex; align-items:center; gap:4px; padding-left:16px;">
+                                    <span style="color:#94a3b8; font-size:10px;">&#8627;</span>
+                                    <div style="background:#fff; border:1px solid #e2e8f0; border-radius:4px; padding:4px 8px; font-size:10px; flex:1; display:flex; justify-content:space-between;">
+                                        <span>CC-100 &mdash; Mechanical</span><span style="color:#94a3b8;">&#9662;</span>
+                                    </div>
+                                </div>
+                            </td>
+                            <td style="padding:4px; text-align:center;"><div style="background:#fff; border:1px solid #e2e8f0; border-radius:3px; padding:4px; text-align:center; font-size:10px; width:48px; margin:0 auto;">6.0</div></td>
+                            <td style="padding:4px; text-align:center;"><div style="background:#fff; border:1px solid #e2e8f0; border-radius:3px; padding:4px; text-align:center; font-size:10px; width:48px; margin:0 auto;">2.0</div></td>
+                            <td style="padding:4px; text-align:center;"><div style="font-size:10px; color:#94a3b8;">&mdash;</div></td>
+                            <td style="padding:4px 8px; text-align:center; font-size:11px; color:#64748b;">8.0</td>
+                            <td style="padding:4px; text-align:center; color:#dc2626; cursor:pointer; font-size:11px;">&#128465;</td>
+                        </tr>
+                        <tr style="background:#f8fafc; border-bottom:1px solid #e2e8f0;">
+                            <td style="padding:4px 8px;" colspan="2">
+                                <div style="display:flex; align-items:center; gap:4px; padding-left:16px;">
+                                    <span style="color:#94a3b8; font-size:10px;">&#8627;</span>
+                                    <div style="background:#fff; border:1px solid #e2e8f0; border-radius:4px; padding:4px 8px; font-size:10px; flex:1; display:flex; justify-content:space-between;">
+                                        <span>CC-200 &mdash; Electrical</span><span style="color:#94a3b8;">&#9662;</span>
+                                    </div>
+                                </div>
+                            </td>
+                            <td style="padding:4px; text-align:center;"><div style="background:#fff; border:1px solid #e2e8f0; border-radius:3px; padding:4px; text-align:center; font-size:10px; width:48px; margin:0 auto;">2.0</div></td>
+                            <td style="padding:4px; text-align:center;"><div style="font-size:10px; color:#94a3b8;">&mdash;</div></td>
+                            <td style="padding:4px; text-align:center;"><div style="font-size:10px; color:#94a3b8;">&mdash;</div></td>
+                            <td style="padding:4px 8px; text-align:center; font-size:11px; color:#64748b;">2.0</td>
+                            <td style="padding:4px; text-align:center; color:#dc2626; cursor:pointer; font-size:11px;">&#128465;</td>
+                        </tr>
 
-                <!-- Structured row 2: 1 Foreman -->
-                <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; padding:10px; margin-bottom:8px;">
-                    <div style="display:flex; gap:8px; align-items:center; margin-bottom:8px;">
-                        <div style="flex:1;"><div style="font-size:10px; color:#64748b; margin-bottom:2px;">Employee Agreement</div><div style="background:#fff; border:1px solid #e2e8f0; border-radius:4px; padding:5px 8px; font-size:11px;">UA Local 488 <span style="color:#94a3b8;">(auto)</span></div></div>
-                        <div style="flex:1;"><div style="font-size:10px; color:#64748b; margin-bottom:2px;">Trade Level</div><div style="background:#fff; border:1px solid #e2e8f0; border-radius:4px; padding:5px 8px; font-size:11px; display:flex; justify-content:space-between;"><span>Foreman</span><span style="color:#94a3b8;">&#9662;</span></div></div>
-                        <div style="width:70px;"><div style="font-size:10px; color:#64748b; margin-bottom:2px;">Workers</div><div style="background:#fff; border:1px solid #e2e8f0; border-radius:4px; padding:5px 8px; font-size:11px; text-align:center;">1</div></div>
-                        <div style="color:#dc2626; cursor:pointer; font-size:14px; align-self:flex-end; padding-bottom:4px;">&times;</div>
-                    </div>
-                    <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:6px; font-size:10px;">
-                        <div style="text-align:center;"><div style="color:#64748b; margin-bottom:2px;">Wages 1x</div><div style="background:#fff; border:1px solid #e2e8f0; border-radius:4px; padding:4px; text-align:center; font-size:11px;">8.0</div></div>
-                        <div style="text-align:center;"><div style="color:#64748b; margin-bottom:2px;">Wages 1.5x</div><div style="background:#fff; border:1px solid #e2e8f0; border-radius:4px; padding:4px; text-align:center; font-size:11px; color:#94a3b8;">&mdash;</div></div>
-                        <div style="text-align:center;"><div style="color:#64748b; margin-bottom:2px;">Wages 2x</div><div style="background:#fff; border:1px solid #e2e8f0; border-radius:4px; padding:4px; text-align:center; font-size:11px; color:#94a3b8;">&mdash;</div></div>
-                    </div>
+                        <!-- Row 2: Mike Davis as Foreman -->
+                        <tr style="border-bottom:1px solid #f1f5f9;">
+                            <td style="padding:6px 8px;">
+                                <div style="background:#fff; border:1px solid #e2e8f0; border-radius:4px; padding:5px 8px; font-size:11px; display:flex; justify-content:space-between;">
+                                    <span>Mike Davis</span><span style="color:#94a3b8;">&#9662;</span>
+                                </div>
+                            </td>
+                            <td style="padding:6px 8px;">
+                                <div style="background:#fff; border:1px solid #e2e8f0; border-radius:4px; padding:5px 8px; font-size:11px; display:flex; justify-content:space-between;">
+                                    <span>Foreman</span><span style="color:#94a3b8;">&#9662;</span>
+                                </div>
+                            </td>
+                            <td style="padding:6px 4px; text-align:center;">
+                                <div style="background:#fff; border:1px solid #e2e8f0; border-radius:4px; padding:5px; text-align:center; font-size:11px; width:54px; margin:0 auto;">8.0</div>
+                            </td>
+                            <td style="padding:6px 4px; text-align:center;">
+                                <div style="background:#fff; border:1px solid #e2e8f0; border-radius:4px; padding:5px; text-align:center; font-size:11px; width:54px; margin:0 auto; color:#94a3b8;">&mdash;</div>
+                            </td>
+                            <td style="padding:6px 4px; text-align:center;">
+                                <div style="background:#fff; border:1px solid #e2e8f0; border-radius:4px; padding:5px; text-align:center; font-size:11px; width:54px; margin:0 auto; color:#94a3b8;">&mdash;</div>
+                            </td>
+                            <td style="padding:6px 8px; text-align:center; font-weight:700; font-size:12px;">8.0</td>
+                            <td style="padding:6px 4px; text-align:center; color:#dc2626; cursor:pointer;">&#128465;</td>
+                        </tr>
+
+                        <!-- Row 3: John Smith AGAIN but as Foreman (different trade on same WO) -->
+                        <tr style="border-bottom:1px solid #f1f5f9;">
+                            <td style="padding:6px 8px;">
+                                <div style="background:#fff; border:1px solid #e2e8f0; border-radius:4px; padding:5px 8px; font-size:11px; display:flex; justify-content:space-between;">
+                                    <span>John Smith</span><span style="color:#94a3b8;">&#9662;</span>
+                                </div>
+                            </td>
+                            <td style="padding:6px 8px;">
+                                <div style="background:#fff; border:1px solid #e2e8f0; border-radius:4px; padding:5px 8px; font-size:11px; display:flex; justify-content:space-between;">
+                                    <span style="color:#7c3aed;">Foreman</span><span style="color:#94a3b8;">&#9662;</span>
+                                </div>
+                            </td>
+                            <td style="padding:6px 4px; text-align:center;">
+                                <div style="background:#fff; border:1px solid #e2e8f0; border-radius:4px; padding:5px; text-align:center; font-size:11px; width:54px; margin:0 auto;">2.0</div>
+                            </td>
+                            <td style="padding:6px 4px; text-align:center;">
+                                <div style="background:#fff; border:1px solid #e2e8f0; border-radius:4px; padding:5px; text-align:center; font-size:11px; width:54px; margin:0 auto; color:#94a3b8;">&mdash;</div>
+                            </td>
+                            <td style="padding:6px 4px; text-align:center;">
+                                <div style="background:#fff; border:1px solid #e2e8f0; border-radius:4px; padding:5px; text-align:center; font-size:11px; width:54px; margin:0 auto; color:#94a3b8;">&mdash;</div>
+                            </td>
+                            <td style="padding:6px 8px; text-align:center; font-weight:700; font-size:12px;">2.0</td>
+                            <td style="padding:6px 4px; text-align:center; color:#dc2626; cursor:pointer;">&#128465;</td>
+                        </tr>
+                    </tbody>
+                    <tfoot>
+                        <tr style="border-top:2px solid #e2e8f0;">
+                            <td style="padding:6px 8px; font-weight:600; font-size:11px; color:#64748b;" colspan="2">
+                                <span style="color:#3b82f6; cursor:pointer; font-size:10px;">+ Add Row</span>
+                                &nbsp;&nbsp;
+                                <span style="color:#64748b; cursor:pointer; font-size:10px;">Split by Cost Code</span>
+                            </td>
+                            <td style="padding:6px 4px; text-align:center; font-weight:600; color:#64748b; font-size:11px;">18.0</td>
+                            <td style="padding:6px 4px; text-align:center; font-weight:600; color:#64748b; font-size:11px;">2.0</td>
+                            <td style="padding:6px 4px; text-align:center; font-weight:600; color:#64748b; font-size:11px;">&mdash;</td>
+                            <td style="padding:6px 8px; text-align:center; font-weight:800; font-size:12px;">20.0</td>
+                            <td></td>
+                        </tr>
+                    </tfoot>
+                </table>
+                </div><!-- end date group 1 -->
+
+                <div style="font-size:10px; color:#94a3b8; font-style:italic; margin-bottom:8px;">John Smith appears twice &mdash; once as Journeyman (10 hrs) and once as Foreman (2 hrs). Per-entry trade level via optional <code>tradeLevelId</code> on TimeSheetDetailRecord.</div>
+
+                <!-- + Add Date -->
+                <div style="margin-bottom:12px;">
+                    <span style="color:#3b82f6; cursor:pointer; font-size:12px; font-weight:600;">+ Add Date</span>
                 </div>
 
                 <!-- Blank line -->
+                <div style="font-size:11px; font-weight:600; color:#64748b; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:6px; padding-top:4px; border-top:1px solid #e2e8f0;">Blank Lines</div>
                 <div style="background:#fff; border:1px dashed #cbd5e1; border-radius:6px; padding:10px; margin-bottom:8px;">
                     <div style="display:flex; gap:8px; align-items:center;">
                         <div style="flex:2;"><div style="font-size:10px; color:#64748b; margin-bottom:2px;">Description *</div><div style="background:#fff; border:1px solid #e2e8f0; border-radius:4px; padding:5px 8px; font-size:11px; color:#334155;">2 labourers &mdash; scaffolding move</div></div>
                         <div style="width:70px;"><div style="font-size:10px; color:#64748b; margin-bottom:2px;">Workers</div><div style="background:#fff; border:1px solid #e2e8f0; border-radius:4px; padding:5px 8px; font-size:11px; text-align:center;">2</div></div>
                         <div style="width:80px;"><div style="font-size:10px; color:#64748b; margin-bottom:2px;">Hours</div><div style="background:#fff; border:1px solid #e2e8f0; border-radius:4px; padding:5px 8px; font-size:11px; text-align:center;">4.0</div></div>
                         <div style="width:90px;"><div style="font-size:10px; color:#64748b; margin-bottom:2px;">Rate ($/hr)</div><div style="background:#fff; border:1px solid #e2e8f0; border-radius:4px; padding:5px 8px; font-size:11px; text-align:right;">$65.00</div></div>
-                        <div style="color:#dc2626; cursor:pointer; font-size:14px; align-self:flex-end; padding-bottom:4px;">&times;</div>
+                        <div style="color:#dc2626; cursor:pointer; font-size:14px; align-self:flex-end; padding-bottom:4px;">&#128465;</div>
                     </div>
-                    <div style="font-size:9px; color:#94a3b8; margin-top:4px; font-style:italic;">Blank line &mdash; no trade level, manual description + rate entry</div>
+                    <div style="font-size:9px; color:#94a3b8; margin-top:4px; font-style:italic;">Blank line &mdash; manual description + rate entry, not in timesheets</div>
                 </div>
 
-                <!-- Subtotal -->
+                <!-- Combined subtotal -->
                 <div style="display:flex; justify-content:flex-end; padding:8px 0; font-size:12px; color:#64748b;">
-                    Total Labor Hours: <strong style="color:#0f172a; margin-left:4px;">30.0 hrs</strong> <span style="margin-left:8px;">(4 workers &middot; 2 trade levels &middot; 1 blank)</span>
+                    Total Labor Hours: <strong style="color:#0f172a; margin-left:4px;">28.0 hrs</strong> <span style="margin-left:8px;">(3 timesheet rows &middot; 1 blank)</span>
                 </div>
             </div>
         </div>
 
         <div class="callout">
-            <strong>Where rates appear:</strong> No rates on the WO form for structured lines. Blank lines have manual rate entry. Rates for structured lines resolved from <code>TradeLevelRate.billableValue</code> at invoice generation (WO-7). Subtotal dollar amounts only shown on WO Detail Page (WO-4) with <code>viewWageDetails</code> permission.
+            <strong>Where rates appear:</strong> No rates shown for timesheet entries &mdash; rates resolved from <code>TradeLevelRate.billableValue</code> at invoice generation (WO-7). Blank lines have manual rate entry. Subtotal dollar amounts only shown on WO Detail Page (WO-4) with <code>viewWageDetails</code> permission. Timesheet entries roll up into timesheets, scheduling, and payroll automatically.
         </div>
     </div>
 
-    <!-- 3. Material Item Editor -->
+    <!-- 4. Material Item Editor -->
     <div class="uis-section">
-        <h2>3. MaterialItemEditor</h2>
+        <h2>4. MaterialItemEditor</h2>
 
         <h3>Component interface</h3>
 <pre>
@@ -313,7 +490,7 @@ interface IMaterialRow {
                         <div style="width:50px;"><div style="font-size:10px; color:#64748b; margin-bottom:2px;">UoM</div><div style="font-size:11px; color:#64748b; padding:5px 0;">rolls</div></div>
                         <div style="width:90px;"><div style="font-size:10px; color:#64748b; margin-bottom:2px;">Unit Cost</div><div style="background:#fff; border:1px solid #e2e8f0; border-radius:4px; padding:5px 8px; font-size:11px; text-align:right;">$18.50</div></div>
                         <div style="width:80px;"><div style="font-size:10px; color:#64748b; margin-bottom:2px;">Total</div><div style="font-size:11px; font-weight:600; padding:5px 0; text-align:right;">$444.00</div></div>
-                        <div style="color:#dc2626; cursor:pointer; font-size:14px;">&times;</div>
+                        <div style="color:#dc2626; cursor:pointer; font-size:14px;">&#128465;</div>
                     </div>
                 </div>
 
@@ -324,7 +501,7 @@ interface IMaterialRow {
                         <div style="width:60px;"><div style="font-size:10px; color:#64748b; margin-bottom:2px;">Qty</div><div style="background:#fff; border:1px solid #e2e8f0; border-radius:4px; padding:5px 8px; font-size:11px; text-align:center;">1</div></div>
                         <div style="width:90px;"><div style="font-size:10px; color:#64748b; margin-bottom:2px;">Unit Cost</div><div style="background:#fff; border:1px solid #e2e8f0; border-radius:4px; padding:5px 8px; font-size:11px; text-align:right;">$87.50</div></div>
                         <div style="width:80px;"><div style="font-size:10px; color:#64748b; margin-bottom:2px;">Total</div><div style="font-size:11px; font-weight:600; padding:5px 0; text-align:right;">$87.50</div></div>
-                        <div style="color:#dc2626; cursor:pointer; font-size:14px;">&times;</div>
+                        <div style="color:#dc2626; cursor:pointer; font-size:14px;">&#128465;</div>
                     </div>
                     <div style="font-size:9px; color:#94a3b8; margin-top:4px; font-style:italic;">Blank line &mdash; no catalog lookup, manual entry</div>
                 </div>
@@ -338,55 +515,28 @@ interface IMaterialRow {
         <p style="font-size:12px; color:#64748b;">Structured material lines auto-populate name, UoM, sell price (from LEM-3 cascade), and cost (from catalog). Sell price is editable. Cost shown read-only for margin visibility (<code>viewWageDetails</code> gated). Blank lines require manual entry of all fields.</p>
     </div>
 
-    <!-- 4. Equipment Item Editor -->
+    <!-- 5. Equipment Item Editor -->
     <div class="uis-section">
-        <h2>4. EquipmentItemEditor</h2>
+        <h2>5. EquipmentItemEditor</h2>
 
-        <h3>Component interface</h3>
-<pre>
-interface IEquipmentItemEditorProps {
-    jobId: string;
-    items: IEquipmentRow[];
-    setItems: (items: IEquipmentRow[]) => void;
-}
+        <div class="callout">
+            <strong>Same dual-source pattern as LaborItemEditor:</strong> Structured equipment entries use <code>EquipmentTimeSheetRecordValue</code> (from EQ-0). Blank lines use <code>WorkOrderEquipmentItem</code> (from WO-2). All rows are editable inputs and save together with the WO form &mdash; no separate "Save Entry" button. Includes cost code sub-rows via <code>EquipmentTimeSheetRecordCostCodeValue</code>.
+        </div>
 
-type IEquipmentRow = IStructuredEquipmentRow | IBlankEquipmentRow;
-
-interface IStructuredEquipmentRow {
-    type: "structured";
-    orderNo: number;
-    equipmentId: string;
-    equipmentRateLabelId: string;
-    per: string;
-    operatorIncluded: boolean;
-    isFullDayBilling: boolean;
-    submittedDuration: number;  // seconds
-}
-
-interface IBlankEquipmentRow {
-    type: "blank";
-    orderNo: number;
-    description: string;
-    quantity: number;
-    per?: string;
-    unitRate: number;
-}
-</pre>
-
-        <h3>Structured line behavior</h3>
+        <h3>Structured equipment (tabular entry)</h3>
         <ul>
-            <li><strong>Equipment selector:</strong> <code>CustomCombobox</code> searching Equipment catalog (Solr-indexed).</li>
-            <li><strong>Rate Type:</strong> Dropdown populated from <code>EquipmentRateLabel</code> for the selected equipment's category.</li>
-            <li><strong>Per:</strong> Dropdown (Hour, Day, Week, Month, Year). May be pre-set from EquipmentAssignment billing context (business question from UIS-15H).</li>
-            <li><strong>Duration:</strong> Input labeled based on <code>per</code> selection ("hrs", "days", etc.). Stored in seconds.</li>
-            <li><strong>No rates shown:</strong> Rates resolved from LEM-2 at invoice generation.</li>
+            <li><strong>Date-grouped layout mirroring the TimeEntryTable:</strong> Entries grouped by work date. Within each date group, all rows are editable inputs. Existing <code>EquipmentTimeSheetRecordValues</code> loaded and grouped by <code>TimeSheetRecord.workDate</code> on mount. New date groups via "+ Add Date", new rows via "+ Add Row". Approved date groups render read-only.</li>
+            <li><strong>Columns:</strong> Equipment (<code>CustomCombobox</code>, Solr-indexed), Rate Type (from <code>EquipmentRateLabel</code> for the equipment's category), Per (Hour/Day/Week/Month/Year), Duration (stored in seconds, auto-calculated for hour-meter equipment), optional Meter Start/End.</li>
+            <li><strong>Cost code sub-rows:</strong> "Split by Cost Code" adds sub-rows beneath an equipment row. Each sub-row has a cost code selector + duration. Uses <code>EquipmentTimeSheetRecordCostCodeValue</code> from EQ-0. Same validation (cost code hours must sum to parent row duration) and auto-assignment logic as the labour TimeEntryTable.</li>
+            <li><strong>Saves with form:</strong> No "Save Entry" button. All structured rows save together with the WO form via <code>editFullTimeRecord</code> with <code>equipmentValues</code> parameter.</li>
+            <li><strong>No rates shown:</strong> Rates resolved from LEM-2 at invoice generation (WO-7).</li>
         </ul>
 
         <h3>Blank line behavior</h3>
         <ul>
-            <li>Description (free text, required), Qty, Per (unit label), Rate (manual)</li>
-            <li>No equipment catalog lookup, no rate labels</li>
-            <li>Saves as <code>WorkOrderEquipmentItem</code> with <code>equipmentId = null</code> and <code>unitRate</code> set</li>
+            <li>Description (free text, required), Qty, Rate (<code>CurrencyInput</code>)</li>
+            <li>No equipment catalog lookup, no rate labels, no cost codes</li>
+            <li>Saves as <code>WorkOrderEquipmentItem</code> with <code>unitRate</code> and <code>description</code> set &mdash; for ad-hoc rentals or equipment not in the catalog</li>
         </ul>
 
         <h3>UI Mockup</h3>
@@ -401,88 +551,180 @@ interface IBlankEquipmentRow {
                     <div style="background:#10b981; color:#fff; border-radius:5px; padding:4px 10px; font-size:11px; font-weight:600; display:flex; align-items:center; gap:4px;">+ Add Equipment <span style="opacity:0.7;">&#9662;</span></div>
                 </div>
 
-                <!-- Structured row -->
-                <div style="background:#f0fdf4; border:1px solid #d1fae5; border-radius:6px; padding:10px; margin-bottom:8px;">
-                    <div style="display:flex; gap:8px; align-items:center;">
-                        <div style="flex:2;"><div style="font-size:10px; color:#64748b; margin-bottom:2px;">Equipment</div><div style="background:#fff; border:1px solid #e2e8f0; border-radius:4px; padding:5px 8px; font-size:11px; display:flex; justify-content:space-between;"><span>CAT 320 Excavator</span><span style="color:#94a3b8;">&#9662;</span></div></div>
-                        <div style="flex:1;"><div style="font-size:10px; color:#64748b; margin-bottom:2px;">Rate Type</div><div style="background:#fff; border:1px solid #e2e8f0; border-radius:4px; padding:5px 8px; font-size:11px; display:flex; justify-content:space-between;"><span>Standard</span><span style="color:#94a3b8;">&#9662;</span></div></div>
-                        <div style="width:70px;"><div style="font-size:10px; color:#64748b; margin-bottom:2px;">Per</div><div style="font-size:11px; padding:5px 0;">Hour</div></div>
-                        <div style="width:70px;"><div style="font-size:10px; color:#64748b; margin-bottom:2px;">Duration</div><div style="background:#fff; border:1px solid #e2e8f0; border-radius:4px; padding:5px 8px; font-size:11px; text-align:center;">8.0 hrs</div></div>
-                        <div style="color:#dc2626; cursor:pointer; font-size:14px;">&times;</div>
+                <!-- Date group: Apr 7, 2026 -->
+                <div style="border:1px solid #e2e8f0; border-radius:8px; margin-bottom:10px; overflow:hidden;">
+                    <div style="background:#f8fafc; padding:8px 12px; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #e2e8f0;">
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <div style="background:#fff; border:1px solid #e2e8f0; border-radius:4px; padding:4px 10px; font-size:12px; font-weight:600;">Apr 7, 2026</div>
+                            <span style="font-size:11px; color:#64748b;">2 items &middot; 8.0 hrs + 2 days</span>
+                        </div>
+                        <div style="color:#dc2626; cursor:pointer; font-size:12px;">&#128465;</div>
                     </div>
-                    <div style="font-size:10px; color:#94a3b8; margin-top:4px;">Rates resolved from LEM-2 at invoice generation.</div>
+                <table style="width:100%; border-collapse:collapse; font-size:12px;">
+                    <thead>
+                        <tr style="border-bottom:2px solid #e2e8f0;">
+                            <th style="text-align:left; padding:6px 8px; font-weight:600; color:#64748b; width:180px;">Equipment</th>
+                            <th style="text-align:left; padding:6px 8px; font-weight:600; color:#64748b; width:110px;">Rate Type</th>
+                            <th style="text-align:center; padding:6px 8px; font-weight:600; color:#64748b; width:70px;">Per</th>
+                            <th style="text-align:center; padding:6px 8px; font-weight:600; color:#64748b; width:80px;">Duration</th>
+                            <th style="width:24px;"></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- Row 1: CAT 320 Excavator -->
+                        <tr style="border-bottom:1px solid #f1f5f9;">
+                            <td style="padding:6px 8px;">
+                                <div style="background:#fff; border:1px solid #e2e8f0; border-radius:4px; padding:5px 8px; font-size:11px; display:flex; justify-content:space-between;"><span>CAT 320 Excavator</span><span style="color:#94a3b8;">&#9662;</span></div>
+                            </td>
+                            <td style="padding:6px 8px;">
+                                <div style="background:#fff; border:1px solid #e2e8f0; border-radius:4px; padding:5px 8px; font-size:11px; display:flex; justify-content:space-between;"><span>Standard</span><span style="color:#94a3b8;">&#9662;</span></div>
+                            </td>
+                            <td style="padding:6px 4px; text-align:center;">
+                                <div style="background:#fff; border:1px solid #e2e8f0; border-radius:4px; padding:5px 8px; font-size:11px; display:flex; justify-content:space-between;"><span>Hour</span><span style="color:#94a3b8;">&#9662;</span></div>
+                            </td>
+                            <td style="padding:6px 4px; text-align:center;">
+                                <div style="background:#fff; border:1px solid #e2e8f0; border-radius:4px; padding:5px; text-align:center; font-size:11px;">8.0 hrs</div>
+                            </td>
+                            <td style="padding:6px 4px; text-align:center; color:#dc2626; cursor:pointer;">&#128465;</td>
+                        </tr>
+                        <!-- Cost code sub-row -->
+                        <tr style="background:#f8fafc; border-bottom:1px solid #f1f5f9;">
+                            <td style="padding:4px 8px;" colspan="2">
+                                <div style="display:flex; align-items:center; gap:4px; padding-left:16px;">
+                                    <span style="color:#94a3b8; font-size:10px;">&#8627;</span>
+                                    <div style="background:#fff; border:1px solid #e2e8f0; border-radius:4px; padding:4px 8px; font-size:10px; flex:1; display:flex; justify-content:space-between;">
+                                        <span>CC-100 &mdash; Mechanical</span><span style="color:#94a3b8;">&#9662;</span>
+                                    </div>
+                                </div>
+                            </td>
+                            <td></td>
+                            <td style="padding:4px; text-align:center;"><div style="background:#fff; border:1px solid #e2e8f0; border-radius:3px; padding:4px; text-align:center; font-size:10px; width:60px; margin:0 auto;">8.0</div></td>
+                            <td style="padding:4px; text-align:center; color:#dc2626; cursor:pointer; font-size:11px;">&#128465;</td>
+                        </tr>
+
+                        <!-- Row 2: Generator -->
+                        <tr style="border-bottom:1px solid #f1f5f9;">
+                            <td style="padding:6px 8px;">
+                                <div style="background:#fff; border:1px solid #e2e8f0; border-radius:4px; padding:5px 8px; font-size:11px; display:flex; justify-content:space-between;"><span>Wacker Neuson G25</span><span style="color:#94a3b8;">&#9662;</span></div>
+                            </td>
+                            <td style="padding:6px 8px;">
+                                <div style="background:#fff; border:1px solid #e2e8f0; border-radius:4px; padding:5px 8px; font-size:11px; display:flex; justify-content:space-between;"><span>Standard</span><span style="color:#94a3b8;">&#9662;</span></div>
+                            </td>
+                            <td style="padding:6px 4px; text-align:center;">
+                                <div style="background:#fff; border:1px solid #e2e8f0; border-radius:4px; padding:5px 8px; font-size:11px; display:flex; justify-content:space-between;"><span>Day</span><span style="color:#94a3b8;">&#9662;</span></div>
+                            </td>
+                            <td style="padding:6px 4px; text-align:center;">
+                                <div style="background:#fff; border:1px solid #e2e8f0; border-radius:4px; padding:5px; text-align:center; font-size:11px;">2 days</div>
+                            </td>
+                            <td style="padding:6px 4px; text-align:center; color:#dc2626; cursor:pointer;">&#128465;</td>
+                        </tr>
+                    </tbody>
+                    <tfoot>
+                        <tr style="border-top:2px solid #e2e8f0;">
+                            <td style="padding:6px 8px;" colspan="2">
+                                <span style="color:#3b82f6; cursor:pointer; font-size:10px;">+ Add Row</span>
+                                &nbsp;&nbsp;
+                                <span style="color:#64748b; cursor:pointer; font-size:10px;">Split by Cost Code</span>
+                            </td>
+                            <td></td>
+                            <td></td>
+                            <td></td>
+                        </tr>
+                    </tfoot>
+                </table>
+                </div><!-- end date group -->
+
+                <!-- + Add Date -->
+                <div style="margin-bottom:12px;">
+                    <span style="color:#3b82f6; cursor:pointer; font-size:12px; font-weight:600;">+ Add Date</span>
                 </div>
 
-                <!-- Blank row -->
+                <!-- Blank line -->
+                <div style="font-size:11px; font-weight:600; color:#64748b; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:6px; padding-top:4px; border-top:1px solid #e2e8f0;">Blank Lines</div>
                 <div style="background:#fff; border:1px dashed #cbd5e1; border-radius:6px; padding:10px; margin-bottom:8px;">
                     <div style="display:flex; gap:8px; align-items:center;">
                         <div style="flex:2;"><div style="font-size:10px; color:#64748b; margin-bottom:2px;">Description *</div><div style="background:#fff; border:1px solid #e2e8f0; border-radius:4px; padding:5px 8px; font-size:11px; color:#334155;">Rented boom lift &mdash; JLG 600S</div></div>
                         <div style="width:60px;"><div style="font-size:10px; color:#64748b; margin-bottom:2px;">Qty</div><div style="background:#fff; border:1px solid #e2e8f0; border-radius:4px; padding:5px 8px; font-size:11px; text-align:center;">2</div></div>
-                        <div style="width:50px;"><div style="font-size:10px; color:#64748b; margin-bottom:2px;">Per</div><div style="font-size:11px; color:#64748b; padding:5px 0;">days</div></div>
                         <div style="width:90px;"><div style="font-size:10px; color:#64748b; margin-bottom:2px;">Rate</div><div style="background:#fff; border:1px solid #e2e8f0; border-radius:4px; padding:5px 8px; font-size:11px; text-align:right;">$450.00</div></div>
-                        <div style="color:#dc2626; cursor:pointer; font-size:14px;">&times;</div>
+                        <div style="color:#dc2626; cursor:pointer; font-size:14px;">&#128465;</div>
                     </div>
                     <div style="font-size:9px; color:#94a3b8; margin-top:4px; font-style:italic;">Blank line &mdash; not from equipment catalog, manual rate entry</div>
                 </div>
 
                 <!-- Equipment subtotal -->
                 <div style="display:flex; justify-content:flex-end; padding:8px 0; font-size:12px; color:#64748b;">
-                    Total Equipment: <strong style="color:#0f172a; margin-left:4px;">8.0 hrs + 2 days</strong> <span style="margin-left:8px;">(1 structured &middot; 1 blank)</span>
+                    Total Equipment: <strong style="color:#0f172a; margin-left:4px;">8.0 hrs + 2 days</strong> <span style="margin-left:8px;">(2 structured &middot; 1 blank)</span>
                 </div>
             </div>
         </div>
-        <p style="font-size:12px; color:#64748b;">Structured lines: no rates shown, resolved from LEM-2 at invoice generation. Blank lines: manual rate entry for ad-hoc rentals or equipment not in the catalog.</p>
+        <p style="font-size:12px; color:#64748b;">All rows are editable inputs (read-only if Approved). Structured entries saved as EquipmentTimeSheetRecordValues via <code>editFullTimeRecord</code> on form save. Cost code sub-rows use <code>EquipmentTimeSheetRecordCostCodeValue</code> (EQ-0). No rates shown &mdash; resolved from LEM-2 at invoice generation. Blank lines for ad-hoc rentals or equipment not in catalog.</p>
     </div>
 
-    <!-- 5. Change Surface -->
+    <!-- 6. Change Surface -->
     <div class="uis-section">
-        <h2>5. Change Surface</h2>
+        <h2>6. Change Surface</h2>
 
         <div class="blast-summary">
-            <div class="blast-row"><span class="blast-label">New frontend files</span><span class="blast-value">3 (LaborItemEditor, MaterialItemEditor, EquipmentItemEditor)</span></div>
-            <div class="blast-row"><span class="blast-label">Modified frontend files</span><span class="blast-value">1 (Job DataModelForm page — replace placeholders with real components)</span></div>
-            <div class="blast-row"><span class="blast-label">Backend changes</span><span class="blast-value">None — all models and mutations from WO-2</span></div>
+            <div class="blast-row"><span class="blast-label">New frontend files</span><span class="blast-value">5 (TimeEntryTable, AddLineDropdown, LaborItemEditor, MaterialItemEditor, EquipmentItemEditor)</span></div>
+            <div class="blast-row"><span class="blast-label">Modified frontend files</span><span class="blast-value">2 (TimesheetModification refactor + Job DataModelForm page)</span></div>
+            <div class="blast-row"><span class="blast-label">Backend changes</span><span class="blast-value">None &mdash; structured labour uses existing TimeSheetRecord infrastructure, blank labour + material + equipment use WO-2 models</span></div>
         </div>
 
         <table class="schema-table">
             <thead><tr><th>Action</th><th>File</th><th>Notes</th></tr></thead>
             <tbody>
-                <tr><td><span class="action-new">NEW</span></td><td><code>apps/frontend/src/components/WorkOrder/LaborItemEditor.tsx</code></td><td>Structured + blank labor lines, rate label columns from EmployeeAgreement, qty of workers</td></tr>
+                <tr><td><span class="action-new">NEW</span></td><td><code>apps/frontend/src/components/Forms/TimeEntryTable/TimeEntryTable.tsx</code></td><td>Reusable tabular time entry: trade-level rows, rate-label hour columns, optional cost code sub-rows. Extracted from <code>TimesheetModification</code> pattern. Shared between TimesheetAddEditForm and LaborItemEditor.</td></tr>
+                <tr><td><span class="action-new">NEW</span></td><td><code>apps/frontend/src/components/WorkOrder/AddLineDropdown.tsx</code></td><td>Shared dropdown with configurable labels (Log Time/Blank for labor, Structured/Blank for material &amp; equipment)</td></tr>
+                <tr><td><span class="action-new">NEW</span></td><td><code>apps/frontend/src/components/WorkOrder/LaborItemEditor.tsx</code></td><td>Wraps <code>TimeEntryTable</code> for structured time entry + blank lines (WorkOrderLaborItem) + logged time summary + combined subtotal</td></tr>
                 <tr><td><span class="action-new">NEW</span></td><td><code>apps/frontend/src/components/WorkOrder/MaterialItemEditor.tsx</code></td><td>Structured (catalog + LEM-3 sell price auto-populate) + blank material lines, auto-calculated totals</td></tr>
-                <tr><td><span class="action-new">NEW</span></td><td><code>apps/frontend/src/components/WorkOrder/EquipmentItemEditor.tsx</code></td><td>Structured (equipment catalog + rate labels) + blank equipment lines</td></tr>
+                <tr><td><span class="action-new">NEW</span></td><td><code>apps/frontend/src/components/WorkOrder/EquipmentItemEditor.tsx</code></td><td>Structured section (inline equipment time entry for EquipmentTimeSheetRecordValues via EQ-0) + blank rows (WorkOrderEquipmentItem) + logged entries summary + combined subtotal</td></tr>
+                <tr><td><span class="action-mod">MOD</span></td><td><code>apps/frontend/src/components/Forms/TimesheetAddEditForm/TimesheetModification.tsx</code></td><td>Refactor to wrap <code>TimeEntryTable</code> instead of inline implementation. Keeps timesheet-specific concerns (submitted times, check-ins, zone travel, unscheduled job selector).</td></tr>
                 <tr><td><span class="action-mod">MOD</span></td><td>Job DataModelForm page (from PR #6831)</td><td>Replace placeholder <code>&lt;p&gt;</code> tags in <code>customFormControl</code> with real editor components</td></tr>
             </tbody>
         </table>
     </div>
 
-    <!-- 6. Acceptance Criteria -->
+    <!-- 7. Acceptance Criteria -->
     <div class="uis-section">
-        <h2>6. Acceptance Criteria</h2>
+        <h2>7. Acceptance Criteria</h2>
         <ol class="ac-list">
-            <li><span><strong>Labor — Structured:</strong> Employee Agreement auto-selects, trade level dropdown loads rate label columns from active contract for <code>dateOfWork</code></span></li>
-            <li><span><strong>Labor — Structured:</strong> Hours entered per rate label column, qty of workers multiplier, no rates shown</span></li>
-            <li><span><strong>Labor — Blank:</strong> Free-text description, manual hours + rate + workers qty</span></li>
-            <li><span><strong>Material — Structured:</strong> Material catalog selector auto-populates name + UoM, manual unit cost, auto-calculated total</span></li>
+            <li><span><strong>TimeEntryTable:</strong> Date-grouped layout &mdash; entries grouped by work date, each group is a collapsible section with its own table</span></li>
+            <li><span><strong>TimeEntryTable:</strong> "+ Add Date" adds a new date group; "+ Add Row" adds a user/trade-level row within a group</span></li>
+            <li><span><strong>TimeEntryTable:</strong> User dropdown per row; selecting user + group work date resolves active <code>EmployeeAgreementContract</code> for trade levels and rate labels</span></li>
+            <li><span><strong>TimeEntryTable:</strong> Trade level dropdown per row; same user can appear multiple times with different trade levels (maps to optional <code>tradeLevelId</code> on <code>TimeSheetDetailRecord</code>)</span></li>
+            <li><span><strong>TimeEntryTable:</strong> Approved date groups render all rows read-only</span></li>
+            <li><span><strong>TimeEntryTable:</strong> "Split by Cost Code" adds cost code sub-rows beneath a trade-level row; cost code selector excludes already-selected codes</span></li>
+            <li><span><strong>TimeEntryTable:</strong> Cost code hours validate against parent row totals before save (same logic as existing timesheet form)</span></li>
+            <li><span><strong>TimeEntryTable:</strong> Hours entered in 0.25 increments via numeric input, stored as seconds internally</span></li>
+            <li><span><strong>TimeEntryTable:</strong> Component is shared &mdash; used by both <code>TimesheetModification</code> (existing timesheet form) and <code>LaborItemEditor</code> (WO form)</span></li>
+            <li><span><strong>TimesheetModification:</strong> Refactored to wrap <code>TimeEntryTable</code> without regression &mdash; all existing timesheet functionality preserved</span></li>
+            <li><span><strong>Labor — Log Time:</strong> Inline <code>TimeEntryTable</code> with date-grouped editable inputs; existing TimeSheetRecords loaded and grouped by workDate on mount (Approved groups read-only); respects scheduling permissions</span></li>
+            <li><span><strong>Labor — Log Time:</strong> All structured rows save with the form via <code>editFullTimeRecord</code> &mdash; no separate "Save Entry" button</span></li>
+            <li><span><strong>Labor — Blank:</strong> Free-text description, manual hours + rate + workers qty; saved as WorkOrderLaborItem</span></li>
+            <li><span><strong>Labor — Subtotal:</strong> Combines hours from TimeSheetRecords and blank lines</span></li>
+            <li><span><strong>Material — Structured:</strong> Material catalog selector auto-populates name + UoM, sell price from LEM-3 cascade (editable), auto-calculated total</span></li>
             <li><span><strong>Material — Blank:</strong> Free-text description, manual qty + unit cost + total</span></li>
-            <li><span><strong>Equipment — Structured:</strong> Equipment selector loads rate labels from category, per dropdown, duration input, no rates shown</span></li>
-            <li><span><strong>Equipment — Blank:</strong> Free-text description, manual qty + per + rate</span></li>
-            <li><span>All three editors have "+ Add" dropdown with "Structured Line" and "Blank Line" options</span></li>
-            <li><span>Remove button (×) on each row deletes the line item from local state</span></li>
+            <li><span><strong>Equipment — Structured:</strong> Date-grouped tabular layout with Equipment, Rate Type, Per, Duration. Existing entries loaded and grouped by workDate on mount. Approved date groups read-only. All save with the form.</span></li>
+            <li><span><strong>Equipment — Cost Codes:</strong> "Split by Cost Code" adds cost code sub-rows using <code>EquipmentTimeSheetRecordCostCodeValue</code> (EQ-0). Same validation + auto-assignment as labour.</span></li>
+            <li><span><strong>Equipment — Blank:</strong> Free-text description, manual qty + rate. Saved as <code>WorkOrderEquipmentItem</code>.</span></li>
+            <li><span><strong>Equipment — Subtotal:</strong> Combines hours/days from EquipmentTimeSheetRecordValues and blank lines</span></li>
+            <li><span>Labor uses "Log Time" / "Blank Line"; Equipment uses "Log Equipment" / "Blank Line"; Material uses "Structured Line" / "Blank Line"</span></li>
+            <li><span><code>IconTrash</code> delete button on blank lines and material/equipment rows deletes the item from local state</span></li>
             <li><span>Subtotals render at the bottom of each editor (hours for labor/equipment, dollars for materials)</span></li>
-            <li><span><strong>Local state only</strong> &mdash; no database writes until parent form Save Draft or Submit is clicked</span></li>
-            <li><span>On form save, all line items collected and passed to <code>upsertWorkOrderLineItems</code> mutation (WO-2)</span></li>
-            <li><span>Existing line items loaded from database when editing an existing Work Order</span></li>
-            <li><span>Structured and blank lines can coexist in the same editor</span></li>
+            <li><span>On form save: structured labour + equipment saved via <code>editFullTimeRecord</code> (creates TimeSheetRecord + detail records + equipment values); blank items saved via <code>upsertWorkOrderLineItems</code> (WO-2)</span></li>
+            <li><span>Existing items loaded when editing: blank labour from WorkOrderLaborItem, structured labour from TimeSheetRecords, blank equipment from WorkOrderEquipmentItem, structured equipment from EquipmentTimeSheetRecordValues, material from WorkOrderMaterialItem</span></li>
+            <li><span>Structured entries and blank lines coexist in both labour and equipment editors</span></li>
         </ol>
     </div>
 
-    <!-- 7. Dependencies -->
+    <!-- 8. Dependencies -->
     <div class="uis-section">
-        <h2>7. Dependencies</h2>
+        <h2>8. Dependencies</h2>
         <h3>Requires</h3>
         <p>
             <span class="dep-tag dep-requires">WO-3a</span> DAA positions in <code>customFormControl</code> &mdash; defines where editors render in the form<br>
-            <span class="dep-tag dep-requires">WO-2</span> WorkOrderLaborItem / MaterialItem / EquipmentItem models + <code>upsertWorkOrderLineItems</code> mutation<br>
+            <span class="dep-tag dep-requires">WO-2</span> WorkOrderLaborItem / MaterialItem / EquipmentItem (all blank-line-only) + <code>upsertWorkOrderLineItems</code> mutation<br>
+            <span class="dep-tag dep-requires">EQ-0</span> EquipmentTimeSheetRecordValue model + <code>upsertEquipmentTimeSheetRecordValue</code> mutation for structured equipment<br>
             <span class="dep-tag dep-requires">PR #6831</span> DataModelForm with <code>customFormControl</code> pattern
         </p>
         <h3>Enables</h3>

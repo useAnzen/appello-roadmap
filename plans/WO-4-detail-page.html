@@ -141,20 +141,39 @@ const WorkOrderDetailPage: FC = () => {
 
 ### 2a. Summary cards
 
-Query the WO's line items to compute summary values:
+Query both labour sources plus material/equipment to compute summary values:
 
 ```typescript
-// Labor hours: sum all labor item durations * qty
-const laborHours = laborItems.reduce((sum, item) => {
+// Labor hours — TWO SOURCES:
+
+// 1. Structured: TimeSheetDetailRecords for this job
+const timesheetHours = timesheetDetails.reduce((sum, detail) => {
+    return sum + ((detail.secondsAtService ?? 0) / 3600);
+}, 0);
+
+// 2. Blank lines: WorkOrderLaborItems
+const blankHours = blankLaborItems.reduce((sum, item) => {
     const hours = item.submittedDuration / 3600;
     return sum + (hours * item.qtyOfWorkers);
 }, 0);
+
+const laborHours = timesheetHours + blankHours;
 
 // Material cost: sum all material totals
 const materialCost = materialItems.reduce((sum, item) =>
     sum + (item.total ?? 0), 0);
 
-// Equipment: group by per-unit for display
+// Equipment — TWO SOURCES:
+
+// 1. Structured: EquipmentTimeSheetRecordValues for this job
+const structuredEquipHours = equipmentTimesheetValues.reduce((sum, val) => {
+    return sum + ((val.duration ?? 0) / 3600);
+}, 0);
+
+// 2. Blank lines: WorkOrderEquipmentItems
+const blankEquipTotal = blankEquipmentItems.reduce((sum, item) =>
+    sum + (item.quantity * item.unitRate), 0);
+
 // Total value: computed from rates (viewWageDetails gated)
 ```
 
@@ -186,13 +205,16 @@ DataModelDetails handles the standard fields (name, date of work, status, job ty
 
 **Create file:** `apps/frontend/src/components/WorkOrder/LaborItemsDisplay.tsx`
 
-Queries `workOrderLaborItems(jobId)` and renders a read-only table:
+Queries **two sources** and renders a combined read-only table:
 
-- Group items by `orderNo` to reconstruct visual rows
-- Structured rows: show "Trade Level — Rate Label" as description, workers, hours
-- Blank rows: show description (italic), workers, hours, rate
+1. **Structured labour:** `timeSheetRecords(jobId)` → TimeSheetDetailRecords with employee, trade level (using `detail.tradeLevelId ?? record.tradeLevelId`), rate label breakdown, and hours
+2. **Blank lines:** `workOrderLaborItems(jobId)` → WorkOrderLaborItem records
+
+Display:
+- **Timesheet entries:** Show employee name, trade level, rate label hours breakdown. Grouped by employee/date.
+- **Blank rows:** Show description (italic), workers, hours, rate
 - Rate column: only visible with `viewWageDetails` permission (check `hasPermissions({ user: { viewWageDetails: true } }, permissions)`)
-- Subtotal row at bottom showing total hours
+- Subtotal row at bottom showing combined total hours from both sources
 
 ### 3b. MaterialItemsDisplay
 
@@ -209,12 +231,16 @@ Queries `workOrderMaterialItems(jobId)` and renders a read-only table:
 
 **Create file:** `apps/frontend/src/components/WorkOrder/EquipmentItemsDisplay.tsx`
 
-Queries `workOrderEquipmentItems(jobId)` and renders a read-only table:
+Queries **two sources** and renders a combined read-only table:
 
-- Structured rows: Equipment name, Rate Type, Duration
-- Blank rows: Description (italic), qty, per, rate
+1. **Structured equipment:** `equipmentTimeSheetRecordValues(jobId)` → EquipmentTimeSheetRecordValue records (from EQ-0) linked to TimeSheetDetailRecords for the WO job. Equipment name from relation, rate type label, duration. Rate resolved via `resolveEquipmentRate` from LEM-2.
+2. **Blank lines:** `workOrderEquipmentItems(jobId)` → WorkOrderEquipmentItem records (description, quantity, unitRate only — no equipmentId, no rate labels)
+
+Display:
+- **Logged equipment:** Show equipment name, rate type, duration. Grouped by equipment/date.
+- **Blank rows:** Show description (italic), qty, rate
 - Rate/cost info gated by `viewWageDetails` permission
-- Subtotal grouped by per-unit (e.g., "8.0 hrs + 2 days")
+- Subtotal row at bottom showing combined total from both sources
 
 ### 3d. SignaturesDisplay
 
@@ -265,11 +291,11 @@ The PDF renderer receives the `templateId` and the `jobId`. It:
 // For each DAA slug included in the template:
 switch (daa.slug) {
     case "wo-labor-items":
-        return renderLaborTable(laborItems, includeRates);
+        return renderLaborTable(timesheetDetails, blankLaborItems, includeRates);
     case "wo-material-items":
         return renderMaterialTable(materialItems);
     case "wo-equipment-items":
-        return renderEquipmentTable(equipmentItems, includeRates);
+        return renderEquipmentTable(equipmentTimesheetValues, blankEquipmentItems, includeRates);
     case "wo-signatures":
         return renderSignatures(signatures);
     default:
@@ -481,9 +507,11 @@ The Work Orders list (WO-1/WO-5) links to `/work-orders/[id]` which renders this
 - [ ] Overview tab shows 2x3 summary card grid with correct values
 - [ ] Total Value card gated by `viewWageDetails` permission
 - [ ] DataModelDetails renders standard WORK_ORDER DAA fields
-- [ ] LaborItemsDisplay shows read-only table grouped by orderNo with structured + blank rows
+- [ ] LaborItemsDisplay queries both TimeSheetDetailRecords (structured) and WorkOrderLaborItems (blank lines)
+- [ ] LaborItemsDisplay shows timesheet entries grouped by employee/date + blank rows in a combined read-only table
 - [ ] MaterialItemsDisplay shows read-only table with costs and subtotal
-- [ ] EquipmentItemsDisplay shows read-only table with structured + blank rows
+- [ ] EquipmentItemsDisplay queries both EquipmentTimeSheetRecordValues (structured) and WorkOrderEquipmentItems (blank lines)
+- [ ] EquipmentItemsDisplay shows logged equipment grouped by equipment/date + blank rows in a combined read-only table
 - [ ] SignaturesDisplay shows signature images with signer name, timestamp, GPS
 - [ ] Rate columns on labor and equipment gated by `viewWageDetails`
 - [ ] Invoices tab shows read-only invoice list (no create button)

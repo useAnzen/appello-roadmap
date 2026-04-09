@@ -124,7 +124,6 @@ h1 { font-size: 30px; font-weight: 800; color: #0f172a; margin: 0 0 8px; letter-
     <a href="release-1.33-timeline.html">Release 1.33</a>
     <a href="release-1.34-timeline.html" class="active">Release 1.34</a>
     <a href="master-spec-reconciliation.html">Spec Reconciliation</a>
-    <a href="ui-interface-library.html">UI Library</a>
     <a href="cross-release-continuity-audit.html">Continuity Audit</a>
 </nav>
 <div class="wrap">
@@ -539,6 +538,26 @@ document.querySelectorAll('.item-row:not(.no-expand)').forEach(function(row) {
         }
     });
 });
+
+// Assign IDs to item-rows from their item-id text, then auto-expand from URL hash
+(function() {
+    document.querySelectorAll('.item-row').forEach(function(row) {
+        var idEl = row.querySelector('.item-id');
+        if (idEl) row.id = 'item-' + idEl.textContent.trim().replace(/\s+/g, '');
+    });
+    var hash = location.hash.slice(1);
+    if (!hash) return;
+    var target = document.getElementById(hash);
+    if (!target || !target.classList.contains('item-row') || target.classList.contains('no-expand')) return;
+    target.classList.add('expanded');
+    var detail = target.querySelector('.item-detail');
+    var specPath = resolvePath(target.dataset.spec);
+    var planPath = resolvePath(target.dataset.plan);
+    if (detail && !detail.querySelector('.detail-tabs') && !detail.querySelector('.detail-tab-content')) {
+        buildDetailPanel(detail, specPath, planPath);
+    }
+    setTimeout(function() { target.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 200);
+})();
 </script>
 </body>
 </html>

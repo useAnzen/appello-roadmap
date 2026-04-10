@@ -188,18 +188,12 @@ async function resolveWorkOrderLineItems(
 
     // --- Equipment (TWO SOURCES) ---
 
-    // 1. Structured: EquipmentTimeSheetRecordValues for this job
-    const equipmentTSValues = await prisma.equipmentTimeSheetRecordValue.findMany({
-        where: {
-            TimeSheetDetailRecord: {
-                TimeSheetRecord: { jobId, isDeleted: false },
-                isDeleted: false
-            }
-        },
+    // 1. Structured: EquipmentTimeEntries for this job
+    const equipmentTSValues = await prisma.equipmentTimeEntry.findMany({
+        where: { jobId, isDeleted: false },
         include: {
             Equipment: true,
-            EquipmentRateLabel: true,
-            TimeSheetDetailRecord: true
+            EquipmentRateLabel: true
         }
     });
 
@@ -217,7 +211,7 @@ async function resolveWorkOrderLineItems(
         const rate = resolved?.amount ?? 0;
         const quantity = calculateQuantity(eqVal, dailyHours);
         const numericHours = eqVal.per === "HOUR"
-            ? (eqVal.TimeSheetDetailRecord?.secondsAtService ?? 0) / 3600
+            ? (eqVal.duration ?? 0) / 3600
             : 0;
 
         items.push({
@@ -499,7 +493,7 @@ The modal:
 - [ ] `accountItemId` nullable on EstimateChangeOrderRecordValue (migration applied, no existing data affected)
 - [ ] `resolveWorkOrderLineItems` correctly processes labour from two sources (TimeSheetDetailRecords + WorkOrderLaborItems) plus material and equipment line items
 - [ ] Structured labor (TimeSheetDetailRecords): rate from TradeLevelRate.billableValue, qty = hours from secondsAtService
-- [ ] Structured equipment (EquipmentTimeSheetRecordValues): rate from resolveEquipmentRate (LEM-2), qty via calculateQuantity (handles full-day/prorated)
+- [ ] Structured equipment (EquipmentTimeEntries): rate from resolveEquipmentRate (LEM-2), qty via calculateQuantity (handles full-day/prorated)
 - [ ] Structured materials: sell price from `resolveMaterialSellPrice()` (LEM-3 cascade) via `unitPrice`
 - [ ] Blank lines: rate/unitPrice from line item directly
 - [ ] Material items: numericHours = 0 (no hour relationship)

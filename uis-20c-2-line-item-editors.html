@@ -83,11 +83,11 @@ table.schema-table code { font-family: monospace; background: #f1f5f9; padding: 
             <span class="uis-badge badge-status">Draft</span>
         </div>
         <h1 class="uis-h1">Line Item Editors</h1>
-        <p class="uis-sub">Custom input components for Labor, Material, and Equipment line items that plug into the DataModelForm via <code>customFormControl</code>. Labour and Equipment follow the same dual-source pattern: <strong>structured entries</strong> via the existing timesheet infrastructure (TimeSheetRecord for labour, EquipmentTimeSheetRecordValue for equipment) plus <strong>blank lines</strong> (WorkOrderLaborItem, WorkOrderEquipmentItem) for ClearStory-style flexible entry. Material supports structured (from catalog) and blank (manual) lines. Subtotals render within each editor.</p>
+        <p class="uis-sub">Custom input components for Labor, Material, and Equipment line items that plug into the DataModelForm via <code>customFormControl</code>. Labour and Equipment follow the same dual-source pattern: <strong>structured entries</strong> via the existing timesheet infrastructure (TimeSheetRecord for labour, EquipmentTimeEntry for equipment) plus <strong>blank lines</strong> (WorkOrderLaborItem, WorkOrderEquipmentItem) for ClearStory-style flexible entry. Material supports structured (from catalog) and blank (manual) lines. Subtotals render within each editor.</p>
         <div class="uis-meta">
             <span><strong>Sequence:</strong> WO-3b of 3</span>
             <span><strong>Estimate:</strong> 7-9 days</span>
-            <span><strong>Requires:</strong> WO-3a (DAA positions), WO-2 (blank-line models), EQ-0 (EquipmentTimeSheetRecordValue)</span>
+            <span><strong>Requires:</strong> WO-3a (DAA positions), WO-2 (blank-line models), EQ-0 (EquipmentTimeEntry)</span>
         </div>
     </div>
 
@@ -127,7 +127,7 @@ const customFormControl = {
 
         <h3>Key behavior rules</h3>
         <ul>
-            <li><strong>Labour &amp; Equipment — two paths each:</strong> Structured entries are created via existing timesheet infrastructure (TimeSheetRecord for labour, EquipmentTimeSheetRecordValue for equipment) and saved immediately. Blank lines are maintained in local state and saved on form submit via <code>upsertWorkOrderLineItems</code>.</li>
+            <li><strong>Labour &amp; Equipment — two paths each:</strong> Structured entries are created via existing timesheet infrastructure (TimeSheetRecord for labour, EquipmentTimeEntry for equipment) and saved immediately. Blank lines are maintained in local state and saved on form submit via <code>upsertWorkOrderLineItems</code>.</li>
             <li><strong>Material — local state:</strong> Both structured and blank material items maintain local state. Nothing saves to the database until the parent form's Save Draft or Submit is clicked.</li>
             <li><strong>Subtotals within editors:</strong> Each editor renders its own subtotal at the bottom. Labour subtotal combines hours from TimeSheetRecords and blank lines. For equipment structured lines, subtotals are only shown if user has <code>viewWageDetails</code> permission. Material subtotals always shown (sell prices auto-populated from LEM-3 cascade). Cost shown alongside sell price if user has <code>viewWageDetails</code>.</li>
             <li><strong>On form save:</strong> The parent form collects blank labour, material, and blank equipment line item state and calls <code>upsertWorkOrderLineItems</code> (from WO-2). Structured labour and equipment entries are already persisted via their respective workflows.</li>
@@ -520,15 +520,15 @@ interface IMaterialRow {
         <h2>5. EquipmentItemEditor</h2>
 
         <div class="callout">
-            <strong>Same dual-source pattern as LaborItemEditor:</strong> Structured equipment entries use <code>EquipmentTimeSheetRecordValue</code> (from EQ-0). Blank lines use <code>WorkOrderEquipmentItem</code> (from WO-2). All rows are editable inputs and save together with the WO form &mdash; no separate "Save Entry" button. Includes cost code sub-rows via <code>EquipmentTimeSheetRecordCostCodeValue</code>.
+            <strong>Same dual-source pattern as LaborItemEditor:</strong> Structured equipment entries use <code>EquipmentTimeEntry</code> (from EQ-0). Blank lines use <code>WorkOrderEquipmentItem</code> (from WO-2). All rows are editable inputs and save together with the WO form &mdash; no separate "Save Entry" button. Includes cost code sub-rows via <code>EquipmentTimeEntryCostCode</code>.
         </div>
 
         <h3>Structured equipment (tabular entry)</h3>
         <ul>
-            <li><strong>Date-grouped layout mirroring the TimeEntryTable:</strong> Entries grouped by work date. Within each date group, all rows are editable inputs. Existing <code>EquipmentTimeSheetRecordValues</code> loaded and grouped by <code>TimeSheetRecord.workDate</code> on mount. New date groups via "+ Add Date", new rows via "+ Add Row". Approved date groups render read-only.</li>
+            <li><strong>Date-grouped layout mirroring the TimeEntryTable:</strong> Entries grouped by work date. Within each date group, all rows are editable inputs. Existing <code>EquipmentTimeEntries</code> loaded by <code>jobId</code> and grouped by <code>workDate</code> on mount. New date groups via "+ Add Date", new rows via "+ Add Row". Approved date groups render read-only.</li>
             <li><strong>Columns:</strong> Equipment (<code>CustomCombobox</code>, Solr-indexed), Rate Type (from <code>EquipmentRateLabel</code> for the equipment's category), Per (Hour/Day/Week/Month/Year), Duration (stored in seconds, auto-calculated for hour-meter equipment), optional Meter Start/End.</li>
-            <li><strong>Cost code sub-rows:</strong> "Split by Cost Code" adds sub-rows beneath an equipment row. Each sub-row has a cost code selector + duration. Uses <code>EquipmentTimeSheetRecordCostCodeValue</code> from EQ-0. Same validation (cost code hours must sum to parent row duration) and auto-assignment logic as the labour TimeEntryTable.</li>
-            <li><strong>Saves with form:</strong> No "Save Entry" button. All structured rows save together with the WO form via <code>editFullTimeRecord</code> with <code>equipmentValues</code> parameter.</li>
+            <li><strong>Cost code sub-rows:</strong> "Split by Cost Code" adds sub-rows beneath an equipment row. Each sub-row has a cost code selector + duration. Uses <code>EquipmentTimeEntryCostCode</code> from EQ-0. Same validation (cost code hours must sum to parent row duration) and auto-assignment logic as the labour TimeEntryTable.</li>
+            <li><strong>Saves with form:</strong> No "Save Entry" button. All structured rows save together with the WO form via <code>upsertManyEquipmentTimeEntries</code> mutation.</li>
             <li><strong>No rates shown:</strong> Rates resolved from LEM-2 at invoice generation (WO-7).</li>
         </ul>
 
@@ -657,7 +657,7 @@ interface IMaterialRow {
                 </div>
             </div>
         </div>
-        <p style="font-size:12px; color:#64748b;">All rows are editable inputs (read-only if Approved). Structured entries saved as EquipmentTimeSheetRecordValues via <code>editFullTimeRecord</code> on form save. Cost code sub-rows use <code>EquipmentTimeSheetRecordCostCodeValue</code> (EQ-0). No rates shown &mdash; resolved from LEM-2 at invoice generation. Blank lines for ad-hoc rentals or equipment not in catalog.</p>
+        <p style="font-size:12px; color:#64748b;">All rows are editable inputs (read-only if Approved). Structured entries saved as EquipmentTimeEntries via <code>upsertManyEquipmentTimeEntries</code> on form save. Cost code sub-rows use <code>EquipmentTimeEntryCostCode</code> (EQ-0). No rates shown &mdash; resolved from LEM-2 at invoice generation. Blank lines for ad-hoc rentals or equipment not in catalog.</p>
     </div>
 
     <!-- 6. Change Surface -->
@@ -677,7 +677,7 @@ interface IMaterialRow {
                 <tr><td><span class="action-new">NEW</span></td><td><code>apps/frontend/src/components/WorkOrder/AddLineDropdown.tsx</code></td><td>Shared dropdown with configurable labels (Log Time/Blank for labor, Structured/Blank for material &amp; equipment)</td></tr>
                 <tr><td><span class="action-new">NEW</span></td><td><code>apps/frontend/src/components/WorkOrder/LaborItemEditor.tsx</code></td><td>Wraps <code>TimeEntryTable</code> for structured time entry + blank lines (WorkOrderLaborItem) + logged time summary + combined subtotal</td></tr>
                 <tr><td><span class="action-new">NEW</span></td><td><code>apps/frontend/src/components/WorkOrder/MaterialItemEditor.tsx</code></td><td>Structured (catalog + LEM-3 sell price auto-populate) + blank material lines, auto-calculated totals</td></tr>
-                <tr><td><span class="action-new">NEW</span></td><td><code>apps/frontend/src/components/WorkOrder/EquipmentItemEditor.tsx</code></td><td>Structured section (inline equipment time entry for EquipmentTimeSheetRecordValues via EQ-0) + blank rows (WorkOrderEquipmentItem) + logged entries summary + combined subtotal</td></tr>
+                <tr><td><span class="action-new">NEW</span></td><td><code>apps/frontend/src/components/WorkOrder/EquipmentItemEditor.tsx</code></td><td>Structured section (inline equipment time entry for EquipmentTimeEntries via EQ-0) + blank rows (WorkOrderEquipmentItem) + logged entries summary + combined subtotal</td></tr>
                 <tr><td><span class="action-mod">MOD</span></td><td><code>apps/frontend/src/components/Forms/TimesheetAddEditForm/TimesheetModification.tsx</code></td><td>Refactor to wrap <code>TimeEntryTable</code> instead of inline implementation. Keeps timesheet-specific concerns (submitted times, check-ins, zone travel, unscheduled job selector).</td></tr>
                 <tr><td><span class="action-mod">MOD</span></td><td>Job DataModelForm page (from PR #6831)</td><td>Replace placeholder <code>&lt;p&gt;</code> tags in <code>customFormControl</code> with real editor components</td></tr>
             </tbody>
@@ -705,14 +705,14 @@ interface IMaterialRow {
             <li><span><strong>Material — Structured:</strong> Material catalog selector auto-populates name + UoM, sell price from LEM-3 cascade (editable), auto-calculated total</span></li>
             <li><span><strong>Material — Blank:</strong> Free-text description, manual qty + unit cost + total</span></li>
             <li><span><strong>Equipment — Structured:</strong> Date-grouped tabular layout with Equipment, Rate Type, Per, Duration. Existing entries loaded and grouped by workDate on mount. Approved date groups read-only. All save with the form.</span></li>
-            <li><span><strong>Equipment — Cost Codes:</strong> "Split by Cost Code" adds cost code sub-rows using <code>EquipmentTimeSheetRecordCostCodeValue</code> (EQ-0). Same validation + auto-assignment as labour.</span></li>
+            <li><span><strong>Equipment — Cost Codes:</strong> "Split by Cost Code" adds cost code sub-rows using <code>EquipmentTimeEntryCostCode</code> (EQ-0). Same validation + auto-assignment as labour.</span></li>
             <li><span><strong>Equipment — Blank:</strong> Free-text description, manual qty + rate. Saved as <code>WorkOrderEquipmentItem</code>.</span></li>
-            <li><span><strong>Equipment — Subtotal:</strong> Combines hours/days from EquipmentTimeSheetRecordValues and blank lines</span></li>
+            <li><span><strong>Equipment — Subtotal:</strong> Combines hours/days from EquipmentTimeEntries and blank lines</span></li>
             <li><span>Labor uses "Log Time" / "Blank Line"; Equipment uses "Log Equipment" / "Blank Line"; Material uses "Structured Line" / "Blank Line"</span></li>
             <li><span><code>IconTrash</code> delete button on blank lines and material/equipment rows deletes the item from local state</span></li>
             <li><span>Subtotals render at the bottom of each editor (hours for labor/equipment, dollars for materials)</span></li>
-            <li><span>On form save: structured labour + equipment saved via <code>editFullTimeRecord</code> (creates TimeSheetRecord + detail records + equipment values); blank items saved via <code>upsertWorkOrderLineItems</code> (WO-2)</span></li>
-            <li><span>Existing items loaded when editing: blank labour from WorkOrderLaborItem, structured labour from TimeSheetRecords, blank equipment from WorkOrderEquipmentItem, structured equipment from EquipmentTimeSheetRecordValues, material from WorkOrderMaterialItem</span></li>
+            <li><span>On form save: structured labour saved via <code>editFullTimeRecord</code> (creates TimeSheetRecord + detail records); structured equipment saved via <code>upsertManyEquipmentTimeEntries</code>; blank items saved via <code>upsertWorkOrderLineItems</code> (WO-2)</span></li>
+            <li><span>Existing items loaded when editing: blank labour from WorkOrderLaborItem, structured labour from TimeSheetRecords, blank equipment from WorkOrderEquipmentItem, structured equipment from EquipmentTimeEntries, material from WorkOrderMaterialItem</span></li>
             <li><span>Structured entries and blank lines coexist in both labour and equipment editors</span></li>
         </ol>
     </div>
@@ -724,7 +724,7 @@ interface IMaterialRow {
         <p>
             <span class="dep-tag dep-requires">WO-3a</span> DAA positions in <code>customFormControl</code> &mdash; defines where editors render in the form<br>
             <span class="dep-tag dep-requires">WO-2</span> WorkOrderLaborItem / MaterialItem / EquipmentItem (all blank-line-only) + <code>upsertWorkOrderLineItems</code> mutation<br>
-            <span class="dep-tag dep-requires">EQ-0</span> EquipmentTimeSheetRecordValue model + <code>upsertEquipmentTimeSheetRecordValue</code> mutation for structured equipment<br>
+            <span class="dep-tag dep-requires">EQ-0</span> EquipmentTimeEntry model + <code>upsertEquipmentTimeEntry</code> mutation for structured equipment<br>
             <span class="dep-tag dep-requires">PR #6831</span> DataModelForm with <code>customFormControl</code> pattern
         </p>
         <h3>Enables</h3>

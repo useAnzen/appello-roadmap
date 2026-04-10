@@ -78,6 +78,7 @@
   .t-mat { background: #451a03; color: #fcd34d; }
   .t-forms { background: #4c1d95; color: #c4b5fd; }
   .t-other { background: #334155; color: #94a3b8; }
+  .wp-backend { font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 3px; text-transform: uppercase; background: #334155; color: #94a3b8; border: 1px solid #475569; letter-spacing: 0.3px; }
   .wp-coverage { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; white-space: nowrap; }
   .wp-cov-bar { width: 60px; height: 6px; border-radius: 3px; background: #334155; overflow: hidden; }
   .wp-cov-fill { height: 100%; border-radius: 3px; }
@@ -157,6 +158,7 @@
     <div class="legend-item"><div class="legend-icon li-designed">&#10003;</div> <strong>Designed</strong> &mdash; Has a visual mockup in the spec. Ready to build.</div>
     <div class="legend-item"><div class="legend-icon li-needs">!</div> <strong>Needs Mockup</strong> &mdash; Behavior described but no visual design yet. Needs one before building.</div>
     <div class="legend-item"><div class="legend-icon li-notreq">&mdash;</div> <strong>Not Yet Scoped</strong> &mdash; Referenced but not detailed. May not need its own screen.</div>
+    <div class="legend-item"><span class="wp-backend" style="font-size:10px;">Backend</span> <strong>Backend Only</strong> &mdash; Configuration or data model work. No UI designs required.</div>
   </div>
 
   <!-- Dashboard -->
@@ -216,13 +218,16 @@ const WPS = [
     ]
   },
   {
+    id: "EQ-0", name: "Equipment Time Schema", release: "1.33", track: "WO",
+    spec: "uis-15H-equipment-timesheet.html", plan: "plans/EQ-0-equipment-time-schema.html",
+    backend: true,
+    screens: []
+  },
+  {
     id: "WO-2", name: "Line Item Tables (Data Model)", release: "1.33", track: "WO",
     spec: "uis-20b-line-item-tables.html", plan: "plans/WO-2-line-item-tables.html",
-    screens: [
-      ["Labor Line Item Editor — Data Model & Fields", "Both", "Form", "designed", "uis-20b-line-item-tables.html#mockup-1"],
-      ["Material Line Item Editor — Data Model & Fields", "Both", "Form", "designed", "uis-20b-line-item-tables.html#mockup-2"],
-      ["Equipment Line Item Editor — Data Model & Fields", "Both", "Form", "designed", "uis-20b-line-item-tables.html#mockup-3"]
-    ]
+    backend: true,
+    screens: []
   },
   {
     id: "WO-3", name: "Work Order Create/Edit Form", release: "1.33", track: "WO",
@@ -242,9 +247,8 @@ const WPS = [
   {
     id: "WO-3a", name: "Schema & Form Foundation", release: "1.33", track: "WO",
     spec: "uis-20c-1-schema-form-foundation.html", plan: "plans/WO-3a-schema-form-foundation.html",
-    screens: [
-      ["Job DataModelForm — WO Fields (DAA Configuration)", "Desktop", "Form", "designed", "uis-20c-1-schema-form-foundation.html#mockup-1"]
-    ]
+    backend: true,
+    screens: []
   },
   {
     id: "WO-3b", name: "Line Item Editors", release: "1.33", track: "WO",
@@ -802,9 +806,19 @@ function renderContent() {
 
     rwps.forEach(wp => {
       const c = wpCounts(wp);
-      const covPct = Math.round(c.designed / (c.designed + c.needs) * 100) || 0;
-      const covColor = covPct === 100 ? "#22c55e" : covPct >= 50 ? "#f59e0b" : "#ef4444";
-      const covLabel = c.needs === 0 ? `<span style="color:#4ade80">${c.designed}/${c.designed} designed</span>` : `<span style="color:#fbbf24">${c.designed}/${c.designed+c.needs} designed</span>`;
+      const isBackend = !!wp.backend;
+
+      let covSection;
+      if (isBackend) {
+        covSection = `<span class="wp-backend">Backend</span>`;
+      } else {
+        const covPct = Math.round(c.designed / (c.designed + c.needs) * 100) || 0;
+        const covColor = covPct === 100 ? "#22c55e" : covPct >= 50 ? "#f59e0b" : "#ef4444";
+        const covLabel = c.needs === 0 ? `<span style="color:#4ade80">${c.designed}/${c.designed} designed</span>` : `<span style="color:#fbbf24">${c.designed}/${c.designed+c.needs} designed</span>`;
+        covSection = `<span class="wp-coverage">${covLabel}
+            <span class="wp-cov-bar"><span class="wp-cov-fill" style="width:${covPct}%;background:${covColor}"></span></span>
+          </span>`;
+      }
 
       let planLink;
       if (wp.plan) {
@@ -814,22 +828,7 @@ function renderContent() {
       }
 
       const wpIdx = WPS.indexOf(wp);
-      html += `<div class="wp-card" id="wp-${wp.id}">
-        <div class="wp-header" onclick="this.parentElement.classList.toggle('open')">
-          <span class="wp-arrow">&#9654;</span>
-          <span class="wp-id">${wp.id}</span>
-          <span class="wp-name">${wp.name}</span>
-          ${trackBadge(wp.track)}
-          <span class="wp-coverage">${covLabel}
-            <span class="wp-cov-bar"><span class="wp-cov-fill" style="width:${covPct}%;background:${covColor}"></span></span>
-          </span>
-          <span class="wp-links">
-            <a class="wp-link wl-spec" href="${wp.spec}" target="_blank" onclick="event.stopPropagation()">Spec</a>
-            ${planLink}
-          </span>
-        </div>
-        <div class="wp-screens">
-          ${wp.screens.map((s, sIdx) => {
+      const screensHtml = isBackend ? '' : '<div class="wp-screens">' + wp.screens.map((s, sIdx) => {
             const mockupLink = s[4];
             const isClickable = !!mockupLink;
             const clickAttr = isClickable ? `onclick="window.open('${mockupLink}', '_blank')"` : "";
@@ -843,8 +842,21 @@ function renderContent() {
               ${statusLabel(s[3])}
               ${viewHint}
             </div>`;
-          }).join("")}
+          }).join("") + '</div>';
+
+      html += `<div class="wp-card" id="wp-${wp.id}">
+        <div class="wp-header" onclick="${isBackend ? '' : "this.parentElement.classList.toggle('open')"}">
+          <span class="wp-arrow">${isBackend ? '' : '&#9654;'}</span>
+          <span class="wp-id">${wp.id}</span>
+          <span class="wp-name">${wp.name}</span>
+          ${trackBadge(wp.track)}
+          ${covSection}
+          <span class="wp-links">
+            <a class="wp-link wl-spec" href="${wp.spec}" target="_blank" onclick="event.stopPropagation()">Spec</a>
+            ${planLink}
+          </span>
         </div>
+        ${screensHtml}
       </div>`;
     });
   });

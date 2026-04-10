@@ -54,12 +54,12 @@ td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
 
 ## Overview
 
-A new shared **TimeEntryTable** component (extracted from `TimesheetModification`) plus three custom input components (LaborItemEditor, MaterialItemEditor, EquipmentItemEditor) that replace the `<p>` tag placeholders in the DataModelForm's `customFormControl` from WO-3a. `TimeEntryTable` provides the tabular rate-label hour entry with optional cost code breakdown — shared between the existing timesheet form and the new WO labour editor. Both the LaborItemEditor and EquipmentItemEditor follow the same dual-source pattern: **structured entries** via the existing timesheet infrastructure (TimeSheetRecord for labour, EquipmentTimeSheetRecordValue for equipment) plus **blank lines** for ClearStory-style flexible entry.
+A new shared **TimeEntryTable** component (extracted from `TimesheetModification`) plus three custom input components (LaborItemEditor, MaterialItemEditor, EquipmentItemEditor) that replace the `<p>` tag placeholders in the DataModelForm's `customFormControl` from WO-3a. `TimeEntryTable` provides the tabular rate-label hour entry with optional cost code breakdown — shared between the existing timesheet form and the new WO labour editor. Both the LaborItemEditor and EquipmentItemEditor follow the same dual-source pattern: **structured entries** (TimeSheetRecord for labour via existing timesheet infrastructure; EquipmentTimeEntry for equipment via standalone EQ-0 model linked directly to job) plus **blank lines** for ClearStory-style flexible entry.
 
 **Estimated effort:** 7-9 days
-**Risk:** Medium-High — extracting TimeEntryTable from TimesheetModification requires careful refactoring to avoid regression; structured labour and equipment editors integrate with scheduling permissions and timesheet infrastructure
+**Risk:** Medium-High — extracting TimeEntryTable from TimesheetModification requires careful refactoring to avoid regression; structured labour editor integrates with scheduling permissions and timesheet infrastructure; structured equipment editor integrates with standalone EquipmentTimeEntry model (EQ-0)
 **Spec:** `tm-work-orders-uis/uis-20c-2-line-item-editors.html`
-**Requires:** WO-3a (DAA positions + customFormControl), WO-2 (blank-line models + upsertWorkOrderLineItems mutation), EQ-0 (EquipmentTimeSheetRecordValue model + mutations), PR #6831 (DataModelForm)
+**Requires:** WO-3a (DAA positions + customFormControl), WO-2 (blank-line models + upsertWorkOrderLineItems mutation), EQ-0 (EquipmentTimeEntry model + mutations), PR #6831 (DataModelForm)
 
 ---
 
@@ -361,8 +361,8 @@ Display: `Material Total: $531.50 (2 items)`
 
 Same dual-source pattern as the LaborItemEditor:
 
-1. **Structured equipment** — Creates `EquipmentTimeSheetRecordValue` entries (from EQ-0) linked to the WO job's TimeSheetDetailRecords. Tabular layout mirroring the TimeEntryTable pattern. All rows are editable inputs, saved together with the form on Save Draft / Submit.
-2. **Blank lines** — Free-form entries stored as `WorkOrderEquipmentItem` records (description, quantity, unit rate). Also saved on form submit.
+1. **Structured equipment** — Creates `EquipmentTimeEntry` entries (from EQ-0) linked directly to the WO job via `jobId`. Tabular layout mirroring the TimeEntryTable pattern. All rows are editable inputs, saved via `upsertManyEquipmentTimeEntries` on Save Draft / Submit.
+2. **Blank lines** — Free-form entries stored as `WorkOrderEquipmentItem` records (description, quantity, unit rate). Saved via `upsertWorkOrderLineItems` on form submit.
 
 ### Props
 
@@ -379,11 +379,12 @@ interface IEquipmentItemEditorProps {
 interface IEquipmentDateGroup {
     workDate: string;               // YYYY-MM-DD
     rows: IStructuredEquipmentRow[];
-    isApproved?: boolean;           // true if TimeSheetRecord for this date is Approved → all rows read-only
+    isApproved?: boolean;           // true if EquipmentTimeEntry status is APPROVED → all rows read-only
 }
 
 interface IStructuredEquipmentRow {
-    id?: string;  // EquipmentTimeSheetRecordValue ID when editing existing
+    id?: string;  // EquipmentTimeEntry ID when editing existing
+    workDate?: string;  // EquipmentTimeEntry has its own workDate (from parent date group)
     equipmentId: string;
     equipmentName?: string;
     equipmentRateLabelId: string;
@@ -407,7 +408,7 @@ interface IBlankEquipmentRow {
 
 ### Structured equipment (date-grouped tabular entry)
 
-Same date-grouped pattern as the LaborItemEditor. Entries grouped by work date — each date group is a collapsible section with its own table of equipment rows. Existing EquipmentTimeSheetRecordValues loaded and grouped by `TimeSheetRecord.workDate` on mount.
+Same date-grouped pattern as the LaborItemEditor. Entries grouped by work date — each date group is a collapsible section with its own table of equipment rows. Existing EquipmentTimeEntries loaded by querying `WHERE jobId = woJobId` and grouped by `EquipmentTimeEntry.workDate` on mount.
 
 **Date group header:** Date display with date picker, row count, total duration, `IconTrash` to remove group (if not Approved).
 
@@ -422,7 +423,7 @@ Same date-grouped pattern as the LaborItemEditor. Entries grouped by work date �
 | Meter Start / End | Optional numeric inputs (shown based on equipment meter type configuration) |
 | `IconTrash` | Delete button per row |
 
-**Cost code sub-rows:** Same pattern as the TimeEntryTable — "Split by Cost Code" adds sub-rows beneath an equipment row. Each sub-row has a cost code selector + duration. Uses the existing `EquipmentTimeSheetRecordCostCodeValue` model from EQ-0. Same validation (cost code hours must sum to parent row duration) and auto-assignment logic.
+**Cost code sub-rows:** Same pattern as the TimeEntryTable — "Split by Cost Code" adds sub-rows beneath an equipment row. Each sub-row has a cost code selector + duration. Uses the existing `EquipmentTimeEntryCostCode` model from EQ-0. Same validation (cost code hours must sum to parent row duration) and auto-assignment logic.
 
 **Adding:** "+ Add Row" within a date group adds a new equipment row. "+ Add Date" adds a new date group. "+ Add Equipment" dropdown also has "Blank Line" option for unstructured entries.
 
@@ -495,7 +496,7 @@ useEffect(() => {
             // Transform DB records into IBlankLaborRow format
         });
         // Structured labour (TimeSheetRecords) loaded internally by LaborItemEditor
-        // Structured equipment (EquipmentTimeSheetRecordValues) loaded internally by EquipmentItemEditor
+        // Structured equipment (EquipmentTimeEntries) loaded internally by EquipmentItemEditor
         // Same pattern for material (both structured + blank go through upsert)
     }
 }, [jobId]);
@@ -503,36 +504,48 @@ useEffect(() => {
 
 ### On form save
 
-Intercept the DataModelForm's save handler to save all line items together. The save handler processes **three mutation calls**:
+Intercept the DataModelForm's save handler to save all line items together. The save handler processes **four mutation calls** (labour and equipment save independently):
 
-1. **Structured labour + equipment** — calls `editFullTimeRecord` (from EQ-0 extensions) with both labour values (TimeSheetDetailRecordValues) and equipment values (EquipmentTimeSheetRecordValues). This creates/updates the TimeSheetRecord for the WO job with all structured entries.
-2. **Blank labour + blank equipment + material** — calls `upsertWorkOrderLineItems` (from WO-2) with blank WorkOrderLaborItems, WorkOrderMaterialItems, and blank WorkOrderEquipmentItems.
-3. **Job record** — saved via DataModelForm's normal save.
+1. **Structured labour** — calls `editFullTimeRecord` with labour values (TimeSheetDetailRecordValues). This creates/updates the TimeSheetRecord for the WO job with structured labour entries.
+2. **Structured equipment** — calls `upsertManyEquipmentTimeEntries` with equipment entries linked directly to the job via `jobId`. Equipment saves are independent from labour — they do not go through the timesheet mutation.
+3. **Blank labour + blank equipment + material** — calls `upsertWorkOrderLineItems` (from WO-2) with blank WorkOrderLaborItems, WorkOrderMaterialItems, and blank WorkOrderEquipmentItems.
+4. **Job record** — saved via DataModelForm's normal save.
 
 ```typescript
 const handleSave = async (formData) => {
     // 1. Save the Job via DataModelForm's normal save
     const savedJob = await saveJob(formData);
 
-    // 2. Save structured labour + equipment via timesheet mutation
-    //    This creates/updates TimeSheetRecord + TimeSheetDetailRecords
-    //    with both labour values and equipment values for the WO job
+    // 2. Save structured labour via timesheet mutation
+    //    This creates/updates TimeSheetRecord + TimeSheetDetailRecords for the WO job
     const structuredLaborValues = transformStructuredLaborToTimesheetValues(laborItems);
-    const structuredEquipValues = transformStructuredEquipToTimesheetValues(equipmentItems);
 
-    if (structuredLaborValues.length > 0 || structuredEquipValues.length > 0) {
+    if (structuredLaborValues.length > 0) {
         await editFullTimeRecord({
             variables: {
                 record: { /* TimeSheetRecord for this job/date/user */ },
                 values: structuredLaborValues,
-                equipmentValues: structuredEquipValues,
                 costCodeRecords: transformCostCodeRecords(laborItems),
-                // equipmentCostCodeRecords handled within equipmentValues
             }
         });
     }
 
-    // 3. Save blank items via WO line item upsert
+    // 3. Save structured equipment via its own mutation (independent from labour)
+    //    EquipmentTimeEntry has jobId directly — not saved through timesheet infrastructure
+    const structuredEquipValues = transformStructuredEquipToEquipmentEntries(equipmentItems);
+
+    if (structuredEquipValues.length > 0) {
+        await upsertManyEquipmentTimeEntries({
+            variables: {
+                input: {
+                    jobId: savedJob.id,
+                    entries: structuredEquipValues,
+                }
+            }
+        });
+    }
+
+    // 4. Save blank items via WO line item upsert
     const blankLaborInput = transformBlankLaborRowsToInput(laborItems);
     const materialInput = transformMaterialRowsToInput(materialItems);
     const blankEquipInput = transformBlankEquipmentRowsToInput(equipmentItems);
@@ -560,8 +573,8 @@ function transformStructuredLaborToTimesheetValues(rows: ILaborRow[]) {
         .flatMap(row => /* transform to EditOrCreateTimeSheetDetailRecordValue[] */);
 }
 
-// Structured equipment → UpsertEquipmentTimeSheetRecordValueInput[]
-function transformStructuredEquipToTimesheetValues(rows: IStructuredEquipmentRow[]) {
+// Structured equipment → UpsertEquipmentTimeEntryInput[] (saved via upsertManyEquipmentTimeEntries)
+function transformStructuredEquipToEquipmentEntries(rows: IStructuredEquipmentRow[]) {
     return rows
         .filter(row => !row.isApproved)
         .map(row => ({
@@ -573,7 +586,8 @@ function transformStructuredEquipToTimesheetValues(rows: IStructuredEquipmentRow
             isFullDayBilling: row.isFullDayBilling,
             submittedDuration: row.submittedDuration,
             meterStart: row.meterStart,
-            meterEnd: row.meterEnd
+            meterEnd: row.meterEnd,
+            workDate: row.workDate,  // EquipmentTimeEntry has its own workDate
         }));
 }
 
@@ -650,17 +664,17 @@ Follow CLAUDE.md conventions throughout:
 - [ ] Material subtotal shows dollar total
 - [ ] EquipmentItemEditor component renders in the `wo-equipment-items` DAA position
 - [ ] Equipment — Log Equipment: Date-grouped tabular layout with Equipment, Rate Type, Per, Duration, optional Meter Start/End within each date group
-- [ ] Equipment — Log Equipment: Existing EquipmentTimeSheetRecordValues loaded and grouped by workDate on mount (Approved groups read-only)
-- [ ] Equipment — Log Equipment: "Split by Cost Code" adds cost code sub-rows using EquipmentTimeSheetRecordCostCodeValue (EQ-0)
+- [ ] Equipment — Log Equipment: Existing EquipmentTimeEntries loaded by jobId and grouped by workDate on mount (entries with APPROVED status read-only)
+- [ ] Equipment — Log Equipment: "Split by Cost Code" adds cost code sub-rows using EquipmentTimeEntryCostCode (EQ-0)
 - [ ] Equipment — Log Equipment: No "Save Entry" button — structured rows save with the form
 - [ ] Equipment blank row: Free-text description + manual qty/rate
-- [ ] Equipment subtotal combines hours from EquipmentTimeSheetRecordValues and blank lines
+- [ ] Equipment subtotal combines hours from EquipmentTimeEntries and blank lines
 - [ ] All editors: "+ Add" dropdown (Labor uses "Log Time" / "Blank Line"; Equipment uses "Log Equipment" / "Blank Line"; Material uses "Structured Line" / "Blank Line")
 - [ ] All editors: IconTrash delete button per row works (for blank lines and material/equipment)
 - [ ] All editors: Structured and blank entries coexist in the same view
-- [ ] On form save: structured labour + equipment saved via `editFullTimeRecord` (creates TimeSheetRecord + TimeSheetDetailRecords + EquipmentTimeSheetRecordValues); blank items saved via `upsertWorkOrderLineItems`
-- [ ] Editing existing WO: Blank labour from WorkOrderLaborItem, structured labour from TimeSheetRecords, blank equipment from WorkOrderEquipmentItem, structured equipment from EquipmentTimeSheetRecordValues, material from WorkOrderMaterialItem
-- [ ] No new backend models — structured labour uses TimeSheetRecord, structured equipment uses EquipmentTimeSheetRecordValue (EQ-0), blank items use WO-2 models
+- [ ] On form save: structured labour saved via `editFullTimeRecord` (creates TimeSheetRecord + TimeSheetDetailRecords); structured equipment saved independently via `upsertManyEquipmentTimeEntries` (creates EquipmentTimeEntries linked to job by jobId); blank items saved via `upsertWorkOrderLineItems`
+- [ ] Editing existing WO: Blank labour from WorkOrderLaborItem, structured labour from TimeSheetRecords, blank equipment from WorkOrderEquipmentItem, structured equipment from EquipmentTimeEntries, material from WorkOrderMaterialItem
+- [ ] No new backend models — structured labour uses TimeSheetRecord, structured equipment uses EquipmentTimeEntry (EQ-0), blank items use WO-2 models
 
 ---
 
@@ -673,8 +687,8 @@ Follow CLAUDE.md conventions throughout:
 | CREATE | `apps/frontend/src/components/WorkOrder/AddLineDropdown.tsx` | Shared "+ Add [Type] ▾" dropdown with configurable labels (Log Time/Blank for labor, Structured/Blank for material & equipment) |
 | CREATE | `apps/frontend/src/components/WorkOrder/LaborItemEditor.tsx` | Wraps TimeEntryTable for inline time entry + logged time summary + blank rows (WorkOrderLaborItem) + combined subtotal |
 | CREATE | `apps/frontend/src/components/WorkOrder/MaterialItemEditor.tsx` | Structured rows (catalog lookup) + blank rows + auto-calculated totals + subtotal |
-| CREATE | `apps/frontend/src/components/WorkOrder/EquipmentItemEditor.tsx` | Structured section (inline equipment time entry for EquipmentTimeSheetRecordValues via EQ-0) + blank rows (WorkOrderEquipmentItem) + logged entries summary + combined subtotal |
-| MODIFY | Job DataModelForm page (from PR #6831) | Replace `<p>` placeholders with real editor components, add line item state, save handler calls upsertWorkOrderLineItems for blank labour + material + blank equipment (structured labour saved via TimeSheetRecord mutation, structured equipment saved via EQ-0 mutation) |
+| CREATE | `apps/frontend/src/components/WorkOrder/EquipmentItemEditor.tsx` | Structured section (inline equipment time entry for EquipmentTimeEntries via EQ-0) + blank rows (WorkOrderEquipmentItem) + logged entries summary + combined subtotal |
+| MODIFY | Job DataModelForm page (from PR #6831) | Replace `<p>` placeholders with real editor components, add line item state, save handler calls: editFullTimeRecord for structured labour, upsertManyEquipmentTimeEntries for structured equipment (independent from labour), upsertWorkOrderLineItems for blank labour + material + blank equipment |
 </script>
 
 <script src="plan-renderer.js"></script>

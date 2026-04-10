@@ -549,10 +549,10 @@ The `WorkOrderLaborItem` model must be redesigned:
 | **Type** | Tab + Modal |
 | **Location** | Job Detail → Billing tab → "Create Equipment Invoice" |
 
-**Purpose:** Bill approved equipment time on Simple `JobBill`s; prevent double billing via `JobBillLineItem.equipmentTimeSheetRecordValueId`.
+**Purpose:** Bill approved equipment time on Simple `JobBill`s; prevent double billing via `JobBillLineItem.equipmentTimeEntryId`.
 
 **Data & Entities:**
-- `EquipmentTimeSheetRecordValue`, `JobBill`, `JobBillLineItem`
+- `EquipmentTimeEntry`, `JobBill`, `JobBillLineItem`
 - Queries: `unbilledEquipmentTimeEntries`, mutation: `generateEquipmentInvoice`
 
 **User Interactions:**
@@ -837,7 +837,7 @@ The `WorkOrderLaborItem` model must be redesigned:
 **Purpose:** Approvers see weekly equipment totals and per-equipment/per-day drilldown.
 
 **Data & Entities:**
-- `EquipmentTimeSheetRecordValue` (`approvedDuration` / `submittedDuration`)
+- `EquipmentTimeEntry` (`approvedDuration` / `submittedDuration`)
 - `timeSheetListFeedSummaryDetails` extension for tooltip data
 
 **User Interactions:**
@@ -863,7 +863,7 @@ The `WorkOrderLaborItem` model must be redesigned:
 **Purpose:** New "Equip. Hrs" column showing weekly total per user alongside existing labor hours.
 
 **Data & Entities:**
-- Weekly total from `EquipmentTimeSheetRecordValue`
+- Weekly total from `EquipmentTimeEntry`
 - Separate from labor totals in daily tooltip
 
 **User Interactions:**

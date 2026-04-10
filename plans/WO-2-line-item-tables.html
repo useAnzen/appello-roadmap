@@ -54,14 +54,14 @@ td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
 
 ## Overview
 
-Create three simplified Prisma models for Work Order **unstructured/blank line items only** (Labor, Material, Equipment). Structured labour uses the existing **TimeSheetRecord / TimeSheetDetailRecord** infrastructure. Structured equipment uses the new **EquipmentTimeSheetRecordValue** model from EQ-0. The WO UI (WO-3b) provides in-place interfaces to log structured time, but the data lives in the existing timesheet tables and rolls up automatically.
+Create three simplified Prisma models for Work Order **unstructured/blank line items only** (Labor, Material, Equipment). Structured labour uses the existing **TimeSheetRecord / TimeSheetDetailRecord** infrastructure. Structured equipment uses the new **EquipmentTimeEntry** model from EQ-0. The WO UI (WO-3b) provides in-place interfaces to log structured time — labour data lives in the existing timesheet tables and rolls up automatically; equipment data lives in standalone EquipmentTimeEntry records linked directly to the job.
 
 No UI in this plan — WO-3 owns the form interface.
 
 **Estimated effort:** 3-5 days
 **Risk:** Low — 3 simplified blank-line-only models, no new structured models (those come from existing infrastructure + EQ-0)
 **Spec:** `tm-work-orders-uis/uis-20b-line-item-tables.html`
-**Requires:** WO-1 (JobClassification), LEM-1 (TradeLevelRate.billableValue), LEM-2 (EquipmentRateValue), EQ-0 (EquipmentTimeSheetRecordValue)
+**Requires:** WO-1 (JobClassification), LEM-1 (TradeLevelRate.billableValue), LEM-2 (EquipmentRateValue), EQ-0 (EquipmentTimeEntry)
 
 ### Labour Architecture Decision
 
@@ -76,7 +76,7 @@ The `recalculateWorkOrderTotals` mutation queries both sources to compute the co
 
 Work Order equipment follows the same dual-source pattern as labour:
 
-- **Structured equipment** — Uses `EquipmentTimeSheetRecordValue` (from EQ-0) linked to the WO job's TimeSheetDetailRecords. Equipment entries include equipment selection, rate type, per-unit, meter readings, and duration. Rates resolved from LEM-2 at invoice time. Entries share the timesheet approval workflow.
+- **Structured equipment** — Uses `EquipmentTimeEntry` (from EQ-0) linked directly to the WO job via `jobId`. Equipment entries include equipment selection, rate type, per-unit, meter readings, and duration. Rates resolved from LEM-2 at invoice time. Equipment entries have their own independent approval workflow (status: DRAFT/SUBMITTED/APPROVED/REJECTED) and are saved via `upsertEquipmentTimeEntry` / `upsertManyEquipmentTimeEntries` mutations.
 - **Unstructured equipment (blank lines)** — WorkOrderEquipmentItem stores free-form entries (description, quantity, unit rate) for ad-hoc rentals or equipment not in the catalog.
 
 The `recalculateWorkOrderTotals` mutation queries both sources to compute the combined equipment subtotal.
@@ -271,7 +271,7 @@ model WorkOrderEquipmentItem {
 }
 ```
 
-**Same pattern as labor:** This model is exclusively for **unstructured (blank) equipment lines** — free-form entries where the user provides a description, quantity, and unit rate manually. Structured equipment entries (equipment from catalog, rate types, meter readings, durations) live in **EquipmentTimeSheetRecordValue** (from EQ-0) linked to TimeSheetDetailRecords for the WO job. No FK to Equipment, EquipmentRateLabel, or EquipmentRateSchedule needed on this model.
+**Same pattern as labor:** This model is exclusively for **unstructured (blank) equipment lines** — free-form entries where the user provides a description, quantity, and unit rate manually. Structured equipment entries (equipment from catalog, rate types, meter readings, durations) live in **EquipmentTimeEntry** (from EQ-0) linked directly to the WO job via `jobId`. No FK to Equipment, EquipmentRateLabel, or EquipmentRateSchedule needed on this model.
 
 ### 1d. Relations on existing models
 
@@ -290,7 +290,7 @@ WorkOrderMaterialItems   WorkOrderMaterialItem[]
 WorkOrderEquipmentItems  WorkOrderEquipmentItem[]
 ```
 
-**Note:** No relation needed on TradeLevelRate, Equipment, or EquipmentRateLabel — structured labour is tracked via TimeSheetDetailRecord (relates to TradeLevelRate through the existing timesheet infrastructure), and structured equipment is tracked via EquipmentTimeSheetRecordValue (from EQ-0, relates to Equipment + EquipmentRateLabel directly).
+**Note:** No relation needed on TradeLevelRate, Equipment, or EquipmentRateLabel — structured labour is tracked via TimeSheetDetailRecord (relates to TradeLevelRate through the existing timesheet infrastructure), and structured equipment is tracked via EquipmentTimeEntry (from EQ-0, linked directly to Job via `jobId` and relates to Equipment + EquipmentRateLabel directly).
 
 ### 1e. Migration
 
@@ -387,7 +387,7 @@ export interface IWorkOrderMaterialItem {
 }
 
 // Unstructured / blank equipment lines only.
-// Structured equipment is captured via EquipmentTimeSheetRecordValue (EQ-0).
+// Structured equipment is captured via EquipmentTimeEntry (EQ-0).
 export interface IWorkOrderEquipmentItem {
     jobId: string;
     jobScheduleId?: string;
@@ -452,7 +452,7 @@ Add `beforeCreate`/`beforeEdit` hook to auto-calculate `total = quantity * unitP
 
 **Create file:** `apps/api/src/models/WorkOrderEquipmentItem.ts`
 
-Standard BaseModel with: `jobId`, `unitRate`, `quantity`, `description`, `orderNo`. No equipment FK — structured equipment uses EquipmentTimeSheetRecordValue from EQ-0.
+Standard BaseModel with: `jobId`, `unitRate`, `quantity`, `description`, `orderNo`. No equipment FK — structured equipment uses EquipmentTimeEntry from EQ-0.
 
 ---
 
@@ -534,7 +534,7 @@ extend type Query {
 
 ```graphql
 # Unstructured / blank equipment lines only.
-# Structured equipment is queried from EquipmentTimeSheetRecordValue (EQ-0).
+# Structured equipment is queried from EquipmentTimeEntry (EQ-0).
 type WorkOrderEquipmentItem {
     id: ID!
     jobId: String!
@@ -726,12 +726,11 @@ async recalculateWorkOrderTotals(jobId: string, currentUserId: string): Promise<
 
     // --- EQUIPMENT (two sources) ---
 
-    // 1. Structured: EquipmentTimeSheetRecordValues for this job (from EQ-0)
-    const equipTimeEntries = await prisma.equipmentTimeSheetRecordValue.findMany({
+    // 1. Structured: EquipmentTimeEntries for this job (from EQ-0)
+    //    EquipmentTimeEntry has jobId directly — no need to go through TimeSheetDetailRecord
+    const equipTimeEntries = await prisma.equipmentTimeEntry.findMany({
         where: {
-            TimeSheetDetailRecord: {
-                TimeSheetRecord: { jobId, isDeleted: false }
-            },
+            jobId,
             isDeleted: false
         },
         include: {
@@ -791,7 +790,7 @@ async recalculateWorkOrderTotals(jobId: string, currentUserId: string): Promise<
 }
 ```
 
-**Note:** Structured labour uses `billableValue` from TradeLevelRate (LEM-1) via the existing TimeSheetDetailRecord → TradeLevelRate relation. Structured equipment uses `resolveEquipmentRate` from LEM-2 via EquipmentTimeSheetRecordValue (EQ-0). These totals are only visible to users with `viewWageDetails` permission (gated in WO-4 detail page, not here).
+**Note:** Structured labour uses `billableValue` from TradeLevelRate (LEM-1) via the existing TimeSheetDetailRecord → TradeLevelRate relation. Structured equipment uses `resolveEquipmentRate` from LEM-2 via EquipmentTimeEntry (EQ-0), queried directly by `jobId`. These totals are only visible to users with `viewWageDetails` permission (gated in WO-4 detail page, not here).
 
 ---
 
@@ -810,14 +809,14 @@ async recalculateWorkOrderTotals(jobId: string, currentUserId: string): Promise<
 - [ ] Material structured line: `materialId` set — Material name + UoM auto-populated on frontend
 - [ ] Material blank line: `materialId` null, `description` + `unitPrice` + `quantity` set manually
 - [ ] Equipment blank line: `unitRate` + `description` + `quantity` set manually
-- [ ] `recalculateWorkOrderTotals` queries EquipmentTimeSheetRecordValues (structured equipment) and WorkOrderEquipmentItems (blank lines) for the combined equipment subtotal
+- [ ] `recalculateWorkOrderTotals` queries EquipmentTimeEntries (structured equipment) and WorkOrderEquipmentItems (blank lines) for the combined equipment subtotal
 - [ ] `recalculateWorkOrderTotals` uses resolveEquipmentRate (LEM-2) for structured equipment entries
 - [ ] `recalculateWorkOrderTotals` queries both TimeSheetDetailRecords (structured labour) and WorkOrderLaborItems (blank lines) for the combined labour subtotal
 - [ ] `recalculateWorkOrderTotals` uses TradeLevelRate.billableValue for structured labour via timesheet records
 - [ ] Delete mutation soft-deletes individual line items
 - [ ] Relations added to Job, Material only (no TradeLevelRate, Equipment, or EquipmentRateLabel relations — those are on EQ-0 models)
 - [ ] All resolvers registered in schema.ts (5 places each, 3 resolvers = 15 registrations)
-- [ ] No regression on existing Job, Material, Equipment, TimeSheetRecord, TimeSheetDetailRecord, or EquipmentTimeSheetRecordValue functionality
+- [ ] No regression on existing Job, Material, Equipment, TimeSheetRecord, TimeSheetDetailRecord, or EquipmentTimeEntry functionality
 
 ---
 
@@ -834,7 +833,7 @@ async recalculateWorkOrderTotals(jobId: string, currentUserId: string): Promise<
 | CREATE | `apps/api/src/graphql/models/WorkOrderLaborItem.ts` | GraphQL resolver + type + query (blank lines only) |
 | CREATE | `apps/api/src/graphql/models/WorkOrderMaterialItem.ts` | GraphQL resolver + type + query |
 | CREATE | `apps/api/src/graphql/models/WorkOrderEquipmentItem.ts` | GraphQL resolver + type + query (blank lines only) |
-| CREATE or MODIFY | `apps/api/src/graphql/models/WorkOrderLineItems.ts` or `JobBill.ts` | `upsertWorkOrderLineItems` + `recalculateWorkOrderTotals` (queries TimeSheetDetailRecord + WorkOrderLaborItem for labour; EquipmentTimeSheetRecordValue + WorkOrderEquipmentItem for equipment) |
+| CREATE or MODIFY | `apps/api/src/graphql/models/WorkOrderLineItems.ts` or `JobBill.ts` | `upsertWorkOrderLineItems` + `recalculateWorkOrderTotals` (queries TimeSheetDetailRecord + WorkOrderLaborItem for labour; EquipmentTimeEntry WHERE jobId + WorkOrderEquipmentItem for equipment) |
 | MODIFY | `apps/api/src/graphql/schema.ts` | Register 3 new resolvers (15 places total) |
 | MODIFY | `apps/api/src/graphql/models/index.ts` | Export new resolvers |
 </script>

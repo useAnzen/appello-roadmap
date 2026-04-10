@@ -54,12 +54,14 @@ td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
 
 ## Overview
 
-Extract the backend/schema work from UIS-15H (Equipment Timesheet Capture) into a standalone prerequisite. This plan creates the two new Prisma models (`EquipmentTimeSheetRecordValue`, `EquipmentTimeSheetRecordCostCodeValue`), TypeScript types, model classes, GraphQL resolvers, permission seeds, and extends existing timesheet mutations to accept equipment values. **No UI work** — UIS-15H (now UI-only) and WO-2/WO-3b consume these models.
+Standalone equipment time tracking as a first-class entity. Equipment time is decoupled from the labour timesheet system — entries do not require a user or a `TimeSheetDetailRecord`. This handles all real-world scenarios: operator-logged time, unattended equipment (generators, pumps), dry hire, overhead/shop use, and foreman-logged entries for crew.
 
-This plan was extracted from UIS-15H Steps 1–7. UIS-15H retains Steps 8–14 (all frontend/UI work: EquipmentTimeSection component, cost code allocation UI, timesheet form integration, tooltip updates, approval grid, mobile Log Time button).
+This plan creates two new Prisma models (`EquipmentTimeEntry`, `EquipmentTimeEntryCostCode`), TypeScript types, model classes, GraphQL resolvers, permission seeds, and approval mutations. **No UI work** — UIS-15H (Equipment Timesheet UI) and WO-3b (Line Item Editors) consume these models.
+
+**Decision:** Option B from the [data model options analysis](EQ-0-data-model-options.html) — standalone `EquipmentTimeEntry` with optional operator, optional job, own approval status.
 
 **Estimated effort:** 3-4 days
-**Risk:** Medium — extends existing timesheet submission + approval flow with equipment values
+**Risk:** Medium — new standalone model with its own approval flow
 **Spec:** `appello-sdlc/docs/uis-15h-equipment-timesheet-capture.html` (full spec, this plan covers backend only)
 **Requires:** LEM-2 (EquipmentRateLabel, EquipmentRateValue, EquipmentRateSchedule, resolveEquipmentRate)
 **Enables:** UIS-15H (Equipment Timesheet UI), WO-2 (structured equipment on Work Orders)
@@ -70,119 +72,154 @@ This plan was extracted from UIS-15H Steps 1–7. UIS-15H retains Steps 8–14 (
 
 **File:** `apps/api/prisma/schema.prisma`
 
-### 1a. EquipmentTimeSheetRecordValue
+### 1a. EquipmentTimeEntry
 
 ```prisma
-model EquipmentTimeSheetRecordValue {
-  id                         String              @id @db.VarChar(21)
-  isDeleted                  Boolean             @default(false)
-  isArchived                 Boolean             @default(false)
-  createdAt                  DateTime            @default(now())
-  updatedAt                  DateTime            @default(now()) @updatedAt
+model EquipmentTimeEntry {
+  id                    String              @id @db.VarChar(21)
+  isDeleted             Boolean             @default(false)
+  isArchived            Boolean             @default(false)
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @default(now()) @updatedAt
 
-  timeSheetDetailRecordId    String              @db.VarChar(21)
-  TimeSheetDetailRecord      TimeSheetDetailRecord @relation(fields: [timeSheetDetailRecordId], references: [id])
+  // Core: what equipment, where, when, how long
+  equipmentId           String              @db.VarChar(21)
+  Equipment             Equipment           @relation(fields: [equipmentId], references: [id])
+  jobId                 String?             @db.VarChar(21)
+  Job                   Job?                @relation(fields: [jobId], references: [id])
+  jobScheduleId         String?             @db.VarChar(21)
+  JobSchedule           JobSchedule?        @relation(fields: [jobScheduleId], references: [id])
+  workDate              DateTime            @db.Date
 
-  equipmentId                String              @db.VarChar(21)
-  Equipment                  Equipment           @relation(fields: [equipmentId], references: [id])
+  // Rate resolution
+  equipmentRateLabelId  String              @db.VarChar(21)
+  EquipmentRateLabel    EquipmentRateLabel  @relation(fields: [equipmentRateLabelId], references: [id])
+  per                   String              @default("HOUR")      // HOUR | DAY | WEEK | MONTH | YEAR
+  operatorIncluded      Boolean             @default(true)        // wet hire vs dry hire
+  isFullDayBilling      Boolean             @default(true)
 
-  equipmentRateLabelId       String              @db.VarChar(21)
-  EquipmentRateLabel         EquipmentRateLabel  @relation(fields: [equipmentRateLabelId], references: [id])
-  per                        EquipmentRatePer    @default(HOUR)
-  operatorIncluded           Boolean             @default(true)
-  isFullDayBilling           Boolean             @default(true)
+  // Duration
+  submittedDuration     Int                 @default(0)           // seconds
+  approvedDuration      Int                 @default(0)           // seconds
 
-  meterStart                 Decimal?            @db.Decimal(12, 1)
-  meterEnd                   Decimal?            @db.Decimal(12, 1)
+  // Meter readings (optional, for audit trail / FEMA)
+  meterStart            Decimal?            @db.Decimal(12, 1)
+  meterEnd              Decimal?            @db.Decimal(12, 1)
 
-  submittedDuration          Int                 @default(0)    // seconds
-  approvedDuration           Int                 @default(0)    // seconds
+  // Rate schedule snapshot (set at approval time)
+  equipmentRateScheduleId String?           @db.VarChar(21)
+  EquipmentRateSchedule   EquipmentRateSchedule? @relation(fields: [equipmentRateScheduleId], references: [id])
 
-  equipmentRateScheduleId    String?             @db.VarChar(21)
-  EquipmentRateSchedule      EquipmentRateSchedule? @relation(fields: [equipmentRateScheduleId], references: [id])
+  // Operator (optional — not required for unattended equipment)
+  operatorUserId        String?             @db.VarChar(21)
+  OperatorUser          User?               @relation("EquipmentTimeEntryOperator", fields: [operatorUserId], references: [id])
 
-  // Attachment parent link
-  parentEquipmentTimeSheetRecordValueId  String?  @db.VarChar(21)
-  ParentEquipmentTimeSheetRecordValue    EquipmentTimeSheetRecordValue? @relation("AttachmentSubLines", fields: [parentEquipmentTimeSheetRecordValueId], references: [id])
-  AttachmentSubLines                     EquipmentTimeSheetRecordValue[] @relation("AttachmentSubLines")
+  // Who logged this entry (always set — accountability)
+  createdByUserId       String              @db.VarChar(21)
+  CreatedByUser         User                @relation("EquipmentTimeEntryCreator", fields: [createdByUserId], references: [id])
 
-  EquipmentTimeSheetRecordCostCodeValues EquipmentTimeSheetRecordCostCodeValue[]
+  // Approval (own status — independent from labour timesheets)
+  status                String              @default("DRAFT")     // DRAFT | SUBMITTED | APPROVED | REJECTED
+  approvedByUserId      String?             @db.VarChar(21)
+  ApprovedByUser        User?               @relation("EquipmentTimeEntryApprover", fields: [approvedByUserId], references: [id])
 
-  @@index([timeSheetDetailRecordId, isArchived, isDeleted])
-  @@index([equipmentId, isArchived, isDeleted])
-  @@index([parentEquipmentTimeSheetRecordValueId, isDeleted])
-  @@unique([timeSheetDetailRecordId, equipmentId, equipmentRateLabelId, per, operatorIncluded])
+  // Attachment parent link (excavator + breaker sub-line)
+  parentEquipmentTimeEntryId String?        @db.VarChar(21)
+  ParentEquipmentTimeEntry   EquipmentTimeEntry? @relation("AttachmentSubLines", fields: [parentEquipmentTimeEntryId], references: [id])
+  AttachmentSubLines         EquipmentTimeEntry[] @relation("AttachmentSubLines")
+
+  // Cost codes
+  EquipmentTimeEntryCostCodes EquipmentTimeEntryCostCode[]
+
+  @@index([equipmentId, workDate, isDeleted])
+  @@index([jobId, workDate, isDeleted])
+  @@index([operatorUserId, workDate, isDeleted])
+  @@index([status, isDeleted])
+  @@index([parentEquipmentTimeEntryId, isDeleted])
 }
 ```
 
-### 1b. EquipmentTimeSheetRecordCostCodeValue
+### 1b. EquipmentTimeEntryCostCode
 
 ```prisma
-model EquipmentTimeSheetRecordCostCodeValue {
-  id                                  String                          @id @db.VarChar(21)
-  isDeleted                           Boolean                         @default(false)
-  isArchived                          Boolean                         @default(false)
-  createdAt                           DateTime                        @default(now())
-  updatedAt                           DateTime                        @default(now()) @updatedAt
+model EquipmentTimeEntryCostCode {
+  id                        String              @id @db.VarChar(21)
+  isDeleted                 Boolean             @default(false)
+  isArchived                Boolean             @default(false)
+  createdAt                 DateTime            @default(now())
+  updatedAt                 DateTime            @default(now()) @updatedAt
 
-  equipmentTimeSheetRecordValueId     String                          @db.VarChar(21)
-  EquipmentTimeSheetRecordValue       EquipmentTimeSheetRecordValue   @relation(fields: [equipmentTimeSheetRecordValueId], references: [id])
+  equipmentTimeEntryId      String              @db.VarChar(21)
+  EquipmentTimeEntry        EquipmentTimeEntry  @relation(fields: [equipmentTimeEntryId], references: [id])
 
-  costCodeId                          String                          @db.VarChar(21)
-  CostCode                            CostCode                        @relation(fields: [costCodeId], references: [id])
+  costCodeId                String              @db.VarChar(21)
+  CostCode                  CostCode            @relation(fields: [costCodeId], references: [id])
 
-  approvedDuration                    Int                             @default(0)    // seconds
+  approvedDuration          Int                 @default(0)    // seconds
 
-  @@index([equipmentTimeSheetRecordValueId, costCodeId, isDeleted])
+  @@index([equipmentTimeEntryId, costCodeId, isDeleted])
 }
 ```
 
 ### 1c. Relations on existing models
 
 ```prisma
-// On TimeSheetDetailRecord:
-EquipmentTimeSheetRecordValues EquipmentTimeSheetRecordValue[]
-
 // On Equipment:
-EquipmentTimeSheetRecordValues EquipmentTimeSheetRecordValue[]
+EquipmentTimeEntries EquipmentTimeEntry[]
+
+// On Job:
+EquipmentTimeEntries EquipmentTimeEntry[]
+
+// On JobSchedule:
+EquipmentTimeEntries EquipmentTimeEntry[]
 
 // On EquipmentRateLabel:
-EquipmentTimeSheetRecordValues EquipmentTimeSheetRecordValue[]
+EquipmentTimeEntries EquipmentTimeEntry[]
 
 // On EquipmentRateSchedule:
-EquipmentTimeSheetRecordValues EquipmentTimeSheetRecordValue[]
+EquipmentTimeEntries EquipmentTimeEntry[]
+
+// On User (3 separate relations):
+EquipmentTimeEntriesAsOperator   EquipmentTimeEntry[] @relation("EquipmentTimeEntryOperator")
+EquipmentTimeEntriesCreated      EquipmentTimeEntry[] @relation("EquipmentTimeEntryCreator")
+EquipmentTimeEntriesApproved     EquipmentTimeEntry[] @relation("EquipmentTimeEntryApprover")
 
 // On CostCode:
-EquipmentTimeSheetRecordCostCodeValues EquipmentTimeSheetRecordCostCodeValue[]
+EquipmentTimeEntryCostCodes EquipmentTimeEntryCostCode[]
 ```
 
 ### 1d. Migration
 
-Run `pnpm --filter api prisma:migrate`, name: `add_equipment_timesheet_record_value`.
+Run `pnpm --filter api prisma:migrate`, name: `add_equipment_time_entry`.
 
 ---
 
 ## Step 2: Permission Migration
 
-**Create file:** `apps/api/prisma/migrations/[timestamp]_equipment_timesheet_permissions/migration.sql`
+**Create file:** `apps/api/prisma/migrations/[timestamp]_equipment_time_permissions/migration.sql`
 
 ```sql
--- Desktop permission
+-- Desktop permissions
 INSERT IGNORE INTO `Permission` (`id`, `name`, `slug`) VALUES
-    ('GENERATE_21_CHAR_ID_1', 'TimeSheetRecord___LogEquipmentTime', 'timesheetrecord___logequipmenttime');
+    ('GENERATE_21_CHAR_ID_1', 'EquipmentTimeEntry___Create', 'equipmenttimeentry___create'),
+    ('GENERATE_21_CHAR_ID_2', 'EquipmentTimeEntry___Edit', 'equipmenttimeentry___edit'),
+    ('GENERATE_21_CHAR_ID_3', 'EquipmentTimeEntry___View', 'equipmenttimeentry___view'),
+    ('GENERATE_21_CHAR_ID_4', 'EquipmentTimeEntry___Approve', 'equipmenttimeentry___approve');
 
 -- Mobile permission
 INSERT IGNORE INTO `Permission` (`id`, `name`, `slug`) VALUES
-    ('GENERATE_21_CHAR_ID_2', 'Mobile___LogEquipmentTime', 'mobile___logequipmenttime');
+    ('GENERATE_21_CHAR_ID_5', 'Mobile___LogEquipmentTime', 'mobile___logequipmenttime');
 
--- Assign to super-admin role
-INSERT IGNORE INTO _PermissionToRole VALUES
-    ((SELECT id FROM Permission WHERE slug = 'timesheetrecord___logequipmenttime'),
-     (SELECT id FROM Role WHERE slug = 'super-admin'));
-
-INSERT IGNORE INTO _PermissionToRole VALUES
-    ((SELECT id FROM Permission WHERE slug = 'mobile___logequipmenttime'),
-     (SELECT id FROM Role WHERE slug = 'super-admin'));
+-- Assign all to super-admin role
+INSERT IGNORE INTO _PermissionToRole
+SELECT p.id, r.id FROM Permission p, Role r
+WHERE p.slug IN (
+    'equipmenttimeentry___create',
+    'equipmenttimeentry___edit',
+    'equipmenttimeentry___view',
+    'equipmenttimeentry___approve',
+    'mobile___logequipmenttime'
+) AND r.slug = 'super-admin';
 ```
 
 Generate 21-char nanoid values for the permission IDs.
@@ -194,9 +231,11 @@ Generate 21-char nanoid values for the permission IDs.
 **File:** `apps/api/src/types/Equipment.types.ts`
 
 ```typescript
-export interface IEquipmentTimeSheetRecordValue {
-    timeSheetDetailRecordId: string;
+export interface IEquipmentTimeEntry {
     equipmentId: string;
+    jobId?: string;
+    jobScheduleId?: string;
+    workDate: Date;
     equipmentRateLabelId: string;
     per: string;
     operatorIncluded: boolean;
@@ -206,11 +245,15 @@ export interface IEquipmentTimeSheetRecordValue {
     submittedDuration: number;
     approvedDuration: number;
     equipmentRateScheduleId?: string;
-    parentEquipmentTimeSheetRecordValueId?: string;
+    operatorUserId?: string;
+    createdByUserId: string;
+    status: string;
+    approvedByUserId?: string;
+    parentEquipmentTimeEntryId?: string;
 }
 
-export interface IEquipmentTimeSheetRecordCostCodeValue {
-    equipmentTimeSheetRecordValueId: string;
+export interface IEquipmentTimeEntryCostCode {
+    equipmentTimeEntryId: string;
     costCodeId: string;
     approvedDuration: number;
 }
@@ -220,29 +263,49 @@ export interface IEquipmentTimeSheetRecordCostCodeValue {
 
 ## Step 4: Model Class
 
-**Create file:** `apps/api/src/models/EquipmentTimeSheetRecordValue.ts`
+**Create file:** `apps/api/src/models/EquipmentTimeEntry.ts`
 
-Standard BaseModel with modelFields matching the type interface. Key method:
+Standard BaseModel with modelFields matching the type interface. Key methods:
 
-### upsertManyEquipmentTimeSheetRecordValues
+### upsertEquipmentTimeEntry
 
-Batch save from the timesheet form. Accepts an array of equipment time entries, creates new ones (no `id`) and updates existing ones (with `id`). The `equipmentRateScheduleId` is set at creation time by resolving the active schedule for the equipment's category and the work date — no separate snapshot step needed since the FK is stored directly on the record.
+Single create/update. Sets `createdByUserId` from the session user on create. Resolves `equipmentRateScheduleId` from the active schedule for the equipment's category and the work date.
+
+### upsertManyEquipmentTimeEntries
+
+Batch save. Accepts an array of equipment time entries, creates new ones (no `id`) and updates existing ones (with `id`). Used by the timesheet form and WO form when saving multiple equipment entries at once.
+
+### submitEquipmentTimeEntries
+
+Transitions `status` from `DRAFT` to `SUBMITTED` for a set of entry IDs. Validates required fields (equipment, workDate, duration > 0).
+
+### approveEquipmentTimeEntries
+
+Transitions `status` from `SUBMITTED` to `APPROVED`. Sets `approvedByUserId` and `approvedDuration`. Snapshots `equipmentRateScheduleId` to the active schedule for the work date if not already set.
+
+### rejectEquipmentTimeEntries
+
+Transitions `status` from `SUBMITTED` to `REJECTED`. Sets `approvedByUserId`.
 
 ---
 
 ## Step 5: GraphQL Resolver
 
-**Create file:** `apps/api/src/graphql/models/EquipmentTimeSheetRecordValue.ts`
+**Create file:** `apps/api/src/graphql/models/EquipmentTimeEntry.ts`
 
 ```graphql
-type EquipmentTimeSheetRecordValue {
+type EquipmentTimeEntry {
     id: ID!
-    timeSheetDetailRecordId: String!
     equipmentId: String!
     Equipment: Equipment
+    jobId: String
+    Job: Job
+    jobScheduleId: String
+    JobSchedule: JobSchedule
+    workDate: DateTime!
     equipmentRateLabelId: String!
     EquipmentRateLabel: EquipmentRateLabel
-    per: EquipmentRatePer!
+    per: String!
     operatorIncluded: Boolean!
     isFullDayBilling: Boolean!
     meterStart: Float
@@ -251,38 +314,71 @@ type EquipmentTimeSheetRecordValue {
     approvedDuration: Int!
     equipmentRateScheduleId: String
     EquipmentRateSchedule: EquipmentRateSchedule
-    parentEquipmentTimeSheetRecordValueId: String
-    ParentEquipmentTimeSheetRecordValue: EquipmentTimeSheetRecordValue
-    AttachmentSubLines: [EquipmentTimeSheetRecordValue]
-    EquipmentTimeSheetRecordCostCodeValues: [EquipmentTimeSheetRecordCostCodeValue]
+    operatorUserId: String
+    OperatorUser: User
+    createdByUserId: String!
+    CreatedByUser: User
+    status: String!
+    approvedByUserId: String
+    ApprovedByUser: User
+    parentEquipmentTimeEntryId: String
+    ParentEquipmentTimeEntry: EquipmentTimeEntry
+    AttachmentSubLines: [EquipmentTimeEntry]
+    EquipmentTimeEntryCostCodes: [EquipmentTimeEntryCostCode]
 }
 
-type EquipmentTimeSheetRecordCostCodeValue {
+type EquipmentTimeEntryCostCode {
     id: ID!
+    equipmentTimeEntryId: String!
     costCodeId: String!
     CostCode: CostCode
     approvedDuration: Int!
 }
 
-input UpsertEquipmentTimeSheetRecordValueInput {
+input UpsertEquipmentTimeEntryInput {
     id: ID
-    timeSheetDetailRecordId: String!
     equipmentId: String!
+    jobId: String
+    jobScheduleId: String
+    workDate: DateTime!
     equipmentRateLabelId: String!
-    per: EquipmentRatePer
+    per: String
     operatorIncluded: Boolean
     isFullDayBilling: Boolean
     meterStart: Float
     meterEnd: Float
     submittedDuration: Int!
     approvedDuration: Int
-    parentEquipmentTimeSheetRecordValueId: String
+    operatorUserId: String
+    parentEquipmentTimeEntryId: String
+}
+
+input UpsertEquipmentTimeEntryCostCodeInput {
+    id: ID
+    equipmentTimeEntryId: String!
+    costCodeId: String!
+    approvedDuration: Int
+}
+
+extend type Query {
+    equipmentTimeEntries(
+        equipmentId: String
+        jobId: String
+        operatorUserId: String
+        workDate: DateTime
+        status: String
+    ): [EquipmentTimeEntry]
 }
 
 extend type Mutation {
-    upsertEquipmentTimeSheetRecordValue(data: UpsertEquipmentTimeSheetRecordValueInput!): EquipmentTimeSheetRecordValue
-    upsertManyEquipmentTimeSheetRecordValues(data: [UpsertEquipmentTimeSheetRecordValueInput!]!): Boolean
-    deleteEquipmentTimeSheetRecordValue(id: ID!): Boolean
+    upsertEquipmentTimeEntry(data: UpsertEquipmentTimeEntryInput!): EquipmentTimeEntry
+    upsertManyEquipmentTimeEntries(data: [UpsertEquipmentTimeEntryInput!]!): Boolean
+    deleteEquipmentTimeEntry(id: ID!): Boolean
+    submitEquipmentTimeEntries(ids: [ID!]!): Boolean
+    approveEquipmentTimeEntries(ids: [ID!]!): Boolean
+    rejectEquipmentTimeEntries(ids: [ID!]!): Boolean
+    upsertEquipmentTimeEntryCostCode(data: UpsertEquipmentTimeEntryCostCodeInput!): EquipmentTimeEntryCostCode
+    deleteEquipmentTimeEntryCostCode(id: ID!): Boolean
 }
 ```
 
@@ -290,52 +386,9 @@ Register in `apps/api/src/graphql/schema.ts` (5 places: import, Resolvers, Query
 
 ---
 
-## Step 6: Extend Existing Timesheet Mutations
+## Step 6: Mobile Permission Mapping
 
-### 6a. GraphQL type changes
-
-**File:** `apps/api/src/graphql/models/TimeSheetRecord.ts`
-
-Add `equipmentValues` parameter to both mutations:
-
-```graphql
-# editFullTimeRecord — ADD:
-equipmentValues: [UpsertEquipmentTimeSheetRecordValueInput]
-
-# createFullTimeRecord — ADD:
-equipmentValues: [UpsertEquipmentTimeSheetRecordValueInput]
-```
-
-Add resolver for EquipmentTimeSheetRecordValues on TimeSheetDetailRecord type:
-
-```typescript
-EquipmentTimeSheetRecordValues: (parent) =>
-    prisma.equipmentTimeSheetRecordValue.findMany({
-        where: {
-            timeSheetDetailRecordId: parent.id,
-            isDeleted: false,
-            isArchived: false
-        }
-    })
-```
-
-### 6b. Model changes
-
-**File:** `apps/api/src/models/TimeSheetRecord.ts`
-
-In `editFullTimeRecord`: Add `equipmentValues` parameter. After labor values are processed, call `upsertManyEquipmentTimeSheetRecordValues`.
-
-In `createFullTimeRecord`: Same pattern — accept optional `equipmentValues` and process them.
-
-### 6c. Resolver pass-through
-
-Pass `args.equipmentValues` through to the model methods in the mutation resolvers.
-
----
-
-## Step 7: Mobile Permission Mapping
-
-**File:** `apps/api/src/models/TimeSheetRecord.ts`
+**File:** `apps/api/src/models/TimeSheetRecord.ts` (or wherever the mobile permission map lives)
 
 Add to the mobile permission mapping (search for `mobile___logtime` to find the pattern):
 
@@ -348,20 +401,20 @@ Add to the mobile permission mapping (search for `mobile___logtime` to find the 
 
 ## Verification Checklist
 
-- [ ] Both tables created with correct indexes, FKs, and unique constraint
-- [ ] `EquipmentTimeSheetRecordValue`: all fields match spec (equipment, rate label, per, operator, meter readings, durations, rate schedule snapshot, attachment parent link)
-- [ ] `EquipmentTimeSheetRecordCostCodeValue`: cost code + approved duration per equipment time entry
-- [ ] Relations added to TimeSheetDetailRecord, Equipment, EquipmentRateLabel, EquipmentRateSchedule, CostCode
-- [ ] Self-relation on EquipmentTimeSheetRecordValue for attachment sub-lines
+- [ ] Both tables created with correct indexes and FKs
+- [ ] `EquipmentTimeEntry`: all fields match Option B schema (equipment, job (nullable), jobSchedule (nullable), workDate, rate label, per, operator (nullable), creator, status, approval, meter readings, durations, rate schedule snapshot, attachment parent link)
+- [ ] `EquipmentTimeEntryCostCode`: cost code + approved duration per equipment time entry
+- [ ] Relations added to Equipment, Job, JobSchedule, EquipmentRateLabel, EquipmentRateSchedule, User (3 relations), CostCode
+- [ ] Self-relation on EquipmentTimeEntry for attachment sub-lines
 - [ ] TypeScript types match Prisma schema
-- [ ] Model class with upsertManyEquipmentTimeSheetRecordValues (resolves equipmentRateScheduleId at creation time)
-- [ ] GraphQL types, inputs, and mutations registered (5 places in schema.ts)
-- [ ] `editFullTimeRecord` accepts and processes `equipmentValues` parameter
-- [ ] `createFullTimeRecord` accepts and processes `equipmentValues` parameter
-- [ ] Permission migration seeds desktop + mobile permissions, assigns to super-admin
+- [ ] Model class with upsert, upsertMany, submit, approve, reject methods
+- [ ] Rate schedule snapshot resolved at approval time
+- [ ] GraphQL types, inputs, queries, and mutations registered (5 places in schema.ts)
+- [ ] Query supports filtering by equipmentId, jobId, operatorUserId, workDate, status
+- [ ] Permission migration seeds 4 desktop + 1 mobile permissions, assigns to super-admin
 - [ ] Mobile permission mapping updated
 - [ ] No frontend changes — all UI deferred to UIS-15H and WO-3b
-- [ ] No regression on existing timesheet labor flow (equipmentValues is optional)
+- [ ] No changes to existing timesheet mutations — equipment is fully independent
 
 ---
 
@@ -369,15 +422,14 @@ Add to the mobile permission mapping (search for `mobile___logtime` to find the 
 
 | Action | File | What to do |
 |--------|------|------------|
-| MODIFY | `apps/api/prisma/schema.prisma` | Add 2 new models + relations on TimeSheetDetailRecord, Equipment, EquipmentRateLabel, EquipmentRateSchedule, CostCode |
-| CREATE | `apps/api/prisma/migrations/.../migration.sql` | CREATE TABLE x2 with indexes, FKs, unique constraint |
-| CREATE | `apps/api/prisma/migrations/.../equipment_timesheet_permissions.sql` | Permission seeds + role assignments |
+| MODIFY | `apps/api/prisma/schema.prisma` | Add 2 new models + relations on Equipment, Job, JobSchedule, EquipmentRateLabel, EquipmentRateSchedule, User (3 relations), CostCode |
+| CREATE | `apps/api/prisma/migrations/.../migration.sql` | CREATE TABLE x2 with indexes and FKs |
+| CREATE | `apps/api/prisma/migrations/.../equipment_time_permissions.sql` | Permission seeds (4 desktop + 1 mobile) + role assignments |
 | MODIFY | `apps/api/src/types/Equipment.types.ts` | Add 2 interfaces |
-| CREATE | `apps/api/src/models/EquipmentTimeSheetRecordValue.ts` | Model class with upsertMany (resolves equipmentRateScheduleId at creation time) |
-| CREATE | `apps/api/src/graphql/models/EquipmentTimeSheetRecordValue.ts` | GraphQL resolver + types + mutations |
+| CREATE | `apps/api/src/models/EquipmentTimeEntry.ts` | Model class with upsert, upsertMany, submit, approve, reject |
+| CREATE | `apps/api/src/graphql/models/EquipmentTimeEntry.ts` | GraphQL resolver + types + queries + mutations |
 | MODIFY | `apps/api/src/graphql/schema.ts` | Register new resolver (5 places) |
-| MODIFY | `apps/api/src/graphql/models/TimeSheetRecord.ts` | Add `equipmentValues` param to editFullTimeRecord + createFullTimeRecord; add EquipmentTimeSheetRecordValues resolver on TimeSheetDetailRecord |
-| MODIFY | `apps/api/src/models/TimeSheetRecord.ts` | Process equipmentValues in editFullTimeRecord + createFullTimeRecord; add mobile permission mapping |
+| MODIFY | `apps/api/src/models/TimeSheetRecord.ts` | Add mobile permission mapping for logEquipmentTime |
 </script>
 
 <script src="plan-renderer.js"></script>

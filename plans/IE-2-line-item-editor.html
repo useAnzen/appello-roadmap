@@ -139,6 +139,30 @@ Implement to match `uis-IE-2-line-item-editor.html` §3–4 and parent glossary 
 
 ---
 
+## Integration / E2E test scenarios
+
+1. Open Itemized estimate → empty grid → **Add line** → add one row per type → Save → reload → four rows persist with correct `lineItemType` and FKs.
+2. **Labor:** Pick user from TableFeed → resolver fills unit cost → change qty → line price updates; reload matches.
+3. **Material:** Search catalog → select → unit + unit cost populated.
+4. **Equipment:** Select equipment → choose billing unit hr/day → rate matches LEM-2 expectation.
+5. **Custom:** Add custom row only; save with manual cost; no resolver call (or error ignored).
+6. **Reorder:** Drag row 1 below row 3 → Save → `orderNo` order matches UI.
+7. **Read-only:** User with view-only estimate permission sees grid without add/delete (or hidden per product).
+8. **Validation:** Set qty to 0 → Save blocked with inline errors.
+
+---
+
+## Per-type implementation steps (add flows)
+
+| Type | Component / hook | Steps |
+|------|------------------|-------|
+| **Labor** | `useGetTableDataRecordSetQuery` (`GqlTableDataName` user) + trade display from selected user’s `UserTradeLevel` | (1) Add-line popover Labor section. (2) On user select, derive primary trade level for display; allow trade override if PM requires. (3) Call `resolveEstimateLineItemUnitCost` with `userId` + `tradeLevelId`. (4) Insert row in local state. |
+| **Material** | Material catalog query / TableFeed Materials | (1) Debounced search. (2) On select, set `materialId`, fire resolver, set `unit` + `unitCost`. |
+| **Equipment** | Equipment picker + `FormControl` for billing unit | (1) Pick `equipmentId`. (2) User selects hr/day. (3) Resolver with `equipmentId` + `unit`. (4) Insert row. |
+| **Custom** | No TableFeed | (1) Choose Custom → append blank row with `lineItemType: Custom`. (2) User fills description, qty, unit, unit cost; compute price locally until save. |
+
+---
+
 ## Files Summary
 
 | Action | File |

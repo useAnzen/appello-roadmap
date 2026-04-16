@@ -63,6 +63,15 @@ table.schema-table td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; ver
 .mockup-settings label { display: flex; align-items: center; gap: 8px; font-size: 12px; padding: 4px 0; cursor: default; }
 .mockup-cb { width: 14px; height: 14px; border: 1px solid #cbd5e1; border-radius: 3px; background: #fff; }
 .tbd-note { font-size: 11px; color: #64748b; font-style: italic; margin-top: 8px; }
+.pdf-page { background: #fff; border: 1px solid #cbd5e1; border-radius: 4px; max-width: 520px; margin: 14px auto; padding: 18px 22px 32px; font-size: 9px; line-height: 1.45; color: #1e293b; box-shadow: 0 6px 20px rgba(15, 23, 42, 0.1); min-height: 560px; position: relative; }
+.pdf-logo { height: 28px; background: #e2e8f0; border-radius: 4px; margin-bottom: 10px; max-width: 120px; }
+.pdf-meta { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; padding-bottom: 10px; border-bottom: 1px solid #e2e8f0; font-size: 8px; color: #475569; }
+.pdf-letter { font-size: 8px; color: #334155; margin-bottom: 12px; min-height: 48px; background: #fafafa; border: 1px dashed #e2e8f0; padding: 8px; border-radius: 4px; }
+.pdf-table-wrap { margin: 10px 0; }
+.pdf-totals { margin-top: 12px; border-top: 2px solid #0f172a; padding-top: 8px; font-size: 9px; }
+.pdf-totals-row { display: flex; justify-content: space-between; padding: 2px 0; }
+.pdf-footer { position: absolute; bottom: 14px; left: 22px; right: 22px; font-size: 7px; color: #94a3b8; display: flex; justify-content: space-between; border-top: 1px solid #f1f5f9; padding-top: 6px; }
+.placement-opt { border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 12px; background: #fafafa; font-size: 11px; margin-bottom: 8px; }
 </style>
 </head>
 <body>
@@ -97,7 +106,9 @@ table.schema-table td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; ver
             <li><a href="#s1">Business Case</a></li>
             <li><a href="#s2">Scope</a></li>
             <li><a href="#s3">UI / PDF Layout</a></li>
+            <li><a href="#s3-fullpage">Full page &amp; pagination</a></li>
             <li><a href="#s3b">PDF display settings</a></li>
+            <li><a href="#s3b-place">Settings placement</a></li>
             <li><a href="#s4">Change Surface</a></li>
             <li><a href="#s5">Acceptance Criteria</a></li>
             <li><a href="#s6">Dependencies</a></li>
@@ -154,6 +165,38 @@ table.schema-table td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; ver
                     </table>
                 </div>
             </div>
+
+            <h3 id="s3-fullpage">3.1 Full client PDF page (single-page composition)</h3>
+            <p>Letterhead, job / customer block, optional quote letter (merge tags from existing letter editor), line table, totals aligned with <a href="uis-IE-3-totals-overhead.html">IE-3</a>, notes / terms footer, page number.</p>
+            <div class="pdf-page">
+                <div class="pdf-logo">[Logo]</div>
+                <div class="pdf-meta">
+                    <span><strong>Proposal</strong> EST-2026-0142 &middot; Apr 12, 2026</span>
+                    <span>ACME Retail TI &middot; 123 Main St</span>
+                </div>
+                <div class="pdf-letter">Dear Customer,&nbsp;&hellip; (letter body / merge tags)</div>
+                <div class="pdf-table-wrap">
+                    <table class="schema-table" style="font-size:8px;margin:0;">
+                        <thead><tr><th>Description</th><th>Qty</th><th>Unit</th><th>Unit price</th><th>Line total</th></tr></thead>
+                        <tbody>
+                            <tr><td>Jacketing &mdash; 50 LF</td><td>50</td><td>LF</td><td>$12.50</td><td>$625.00</td></tr>
+                            <tr><td>Pipefitter labor</td><td>24</td><td>hr</td><td>$74.80</td><td>$1,795.20</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="pdf-totals">
+                    <div class="pdf-totals-row"><span>Line sell subtotal</span><span>$2,420.20</span></div>
+                    <div class="pdf-totals-row"><span>Overhead (10%)</span><span>$242.02</span></div>
+                    <div class="pdf-totals-row" style="font-weight:800;padding-top:4px;"><span>Grand total</span><span>$2,662.22</span></div>
+                </div>
+                <div class="pdf-footer">
+                    <span>Authorized signature: ______________________</span>
+                    <span>Page 1 of 1</span>
+                </div>
+            </div>
+
+            <h3>3.2 Multi-page behavior</h3>
+            <p>When line items overflow the printable region: <strong>repeat table header</strong> on each page; <strong>totals and signature block</strong> appear on the <strong>last</strong> page only (or repeat subtotal per page &mdash; <strong>TBD</strong>). PDF engine (@react-pdf or current pipeline) must support page breaks on row boundaries.</p>
         </div>
     </div>
     <div class="uis-section" id="s3b">
@@ -168,6 +211,12 @@ table.schema-table td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; ver
                 <label><span class="mockup-cb"></span> Show markup % / $ on client PDF</label>
             </div>
             <p class="tbd-note"><strong>TBD (product):</strong> Persist toggles on instance defaults, per-estimate override, or PDF modal only &mdash; spec UI stands regardless.</p>
+
+            <h3 id="s3b-place">4.1 Where settings live (placement options)</h3>
+            <p>Engineering picks one primary surface; document in implementation PR.</p>
+            <div class="placement-opt"><strong>A. Export PDF modal / flyout</strong> &mdash; User chooses Client vs Internal + column toggles each time they export. Best when sales wants per-send flexibility.</div>
+            <div class="placement-opt"><strong>B. Estimate record settings</strong> &mdash; Toggles stored on <code>EstimateChangeOrderRecord</code> (or JSON options column); PDF uses last saved values.</div>
+            <div class="placement-opt"><strong>C. Instance defaults</strong> &mdash; Admin sets defaults; estimate can override (combines A+B).</div>
         </div>
     </div>
     <div class="uis-section" id="s4">

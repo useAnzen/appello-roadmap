@@ -73,6 +73,14 @@ table.schema-table code { font-family: monospace; background: #f1f5f9; padding: 
 .mockup-select { background: #fff; border: 1px solid #cbd5e1; border-radius: 6px; padding: 6px 10px; font-size: 12px; color: #0f172a; display: inline-block; margin: 4px 8px 4px 0; }
 .mockup-btn { display: inline-block; padding: 6px 12px; border-radius: 6px; font-size: 11px; font-weight: 600; background: #f1f5f9; border: 1px solid #e2e8f0; color: #334155; margin-top: 8px; }
 .callout-warn { background: #fef3c7; border: 1px solid #fcd34d; border-radius: 8px; padding: 10px 12px; margin: 10px 0; font-size: 12px; color: #92400e; }
+.mockup-stack { display: flex; flex-direction: column; gap: 10px; }
+.mockup-grid-placeholder { min-height: 56px; background: #fff; border: 1px dashed #cbd5e1; border-radius: 8px; padding: 10px; font-size: 10px; color: #64748b; }
+.mockup-placement-row { display: flex; flex-wrap: wrap; gap: 14px; align-items: flex-start; }
+.mockup-modal { border: 2px solid #64748b; border-radius: 10px; background: #fff; padding: 12px 14px; max-width: 340px; margin: 10px 0; box-shadow: 0 10px 28px rgba(15, 23, 42, 0.14); font-size: 11px; }
+.switch-frames { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+@media (max-width: 720px) { .switch-frames { grid-template-columns: 1fr; } }
+.frame-box { border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 12px; background: #fafafa; font-size: 11px; line-height: 1.5; color: #334155; }
+.frame-arrow { text-align: center; font-size: 20px; color: #94a3b8; padding: 4px 0; }
 </style>
 </head>
 <body>
@@ -107,6 +115,7 @@ table.schema-table code { font-family: monospace; background: #f1f5f9; padding: 
             <li><a href="#s1">Business Case</a></li>
             <li><a href="#s2">Scope</a></li>
             <li><a href="#s3ui">UI Concepts</a></li>
+            <li><a href="#s3ui-place">Placement, edit states &amp; switching</a></li>
             <li><a href="#s3">Data Model</a></li>
             <li><a href="#s4">API Surface</a></li>
             <li><a href="#s5">Change Surface</a></li>
@@ -172,6 +181,64 @@ table.schema-table code { font-family: monospace; background: #f1f5f9; padding: 
                     </div>
                 </div>
             </div>
+        </div>
+
+        <h3 id="s3ui-place">3.1 Panel placement vs line grid</h3>
+        <p>Default layout: <strong>stack</strong> &mdash; <code>EstimateLineItemEditor</code> full width, then <code>EstimateChangeOrderTotals</code> (Itemized branch) directly <strong>below</strong> the grid, right-aligned card (max-width) on wide viewports. Alternative (TBD): totals as a <strong>sticky right column</strong> beside the grid on xl breakpoints.</p>
+        <div class="mockup-container">
+            <div class="mockup-bar">Worksheet column &mdash; vertical stack</div>
+            <div class="mockup-body">
+                <div class="mockup-stack">
+                    <div class="mockup-grid-placeholder"><strong>IE-2</strong> line grid (scrolls horizontally if many columns)</div>
+                    <div class="mockup-placement-row">
+                        <div style="flex:1;min-width:120px;font-size:10px;color:#64748b;">Optional: &ldquo;Set default markup %&rdquo; can move to grid toolbar (same row as Add line).</div>
+                        <div class="mockup-totals" style="margin:0;">
+                            <div style="font-size:10px;font-weight:700;color:#64748b;text-transform:uppercase;margin-bottom:6px;">Totals (this spec)</div>
+                            <div class="mockup-totals-row"><span>Line sell subtotal</span><span>$6,915.04</span></div>
+                            <div class="mockup-totals-row"><span>Grand total</span><span>$7,606.54</span></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <h3 id="s3ui-edit">3.2 Edit states (overhead, contingency)</h3>
+        <table class="schema-table">
+            <thead><tr><th>Control</th><th>On change</th><th>Persist</th></tr></thead>
+            <tbody>
+                <tr><td>Overhead %</td><td>Live-recalculate dependent rows in panel (client) to match Full worksheet UX</td><td>On parent <strong>Save</strong> with other header fields</td></tr>
+                <tr><td>Contingency % / $</td><td>Same as overhead when fields exist</td><td>Save with record</td></tr>
+                <tr><td>Bid / job value (if shown)</td><td>May stay derived from grand total for Itemized or remain manual &mdash; <strong>TBD</strong></td><td>Per existing ECO rules</td></tr>
+            </tbody>
+        </table>
+        <p style="font-size:13px;color:#64748b;">Dirty state: totals inputs participate in document dirty tracking; disabling Save until valid.</p>
+
+        <h3 id="s3ui-switch">3.3 Switching <code>creationType</code> (Full / BidFirst &harr; Itemized)</h3>
+        <div class="switch-frames">
+            <div class="frame-box">
+                <strong>Before</strong> &mdash; <code>Full</code> worksheet<br>
+                <span style="color:#64748b;">Eight <code>EstimateChangeOrderRecordValue</code> rows grouped by <code>AccountItem</code> visible in grid.</span>
+            </div>
+            <div class="frame-box">
+                <strong>After confirm</strong> &mdash; <code>Itemized</code><br>
+                <span style="color:#64748b;">Account-item grid hidden. Empty <code>EstimateLineItem</code> editor shown. Legacy worksheet rows remain in DB but <strong>not</strong> shown (or archived per PM &mdash; see parent product decisions).</span>
+            </div>
+        </div>
+        <div class="frame-arrow">&#8595;</div>
+        <div class="mockup-container">
+            <div class="mockup-bar">Confirm dialog (pattern: WO-7 style conversion modal)</div>
+            <div class="mockup-body">
+                <div class="callout-warn" style="margin:0;">Switching to Itemized will hide the account-item worksheet from this estimate. Line items you add here are separate from COGS worksheet rows. [ Cancel ] [ Continue ]</div>
+            </div>
+        </div>
+
+        <h3 id="s3ui-default">3.4 Default markup flow</h3>
+        <p><strong>Primary pattern:</strong> click <strong>Set default markup %</strong> &rarr; small modal or flyout with numeric <code>FormControl</code> &rarr; confirm. <strong>Which rows:</strong> product picks one &mdash; (A) only lines with markup still at sentinel / null, (B) all lines, (C) new lines only going forward. Document choice in <a href="uis-IE-itemized-estimates.html#s-integ-pd">UIS-IE product decisions</a>.</p>
+        <div class="mockup-modal">
+            <div style="font-weight:700;margin-bottom:8px;color:#0f172a;">Set default markup</div>
+            <div style="margin-bottom:8px;"><span class="mockup-select" style="padding:4px 10px;">12 %</span></div>
+            <div style="font-size:10px;color:#64748b;margin-bottom:10px;">Applies per product rule (see matrix).</div>
+            <span class="mockup-btn">Apply</span> <span class="mockup-btn" style="background:#fff;">Cancel</span>
         </div>
     </div>
     <div class="uis-section" id="s3">

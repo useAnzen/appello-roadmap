@@ -66,6 +66,12 @@ table.schema-table td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; ver
 .mockup-modal { background: #fff; border-radius: 10px; padding: 16px 18px; border: 1px solid #e2e8f0; box-shadow: 0 8px 24px rgba(0,0,0,0.12); }
 .mockup-modal h4 { font-size: 14px; font-weight: 700; margin: 0 0 10px; color: #0f172a; }
 .callout-rules { background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 10px 12px; margin-top: 12px; font-size: 12px; color: #991b1b; }
+.mockup-header-bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 10px 12px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; margin-bottom: 10px; font-size: 11px; color: #475569; }
+.mockup-header-actions { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.mockup-btn-ghost { display: inline-block; padding: 6px 10px; border-radius: 6px; font-size: 11px; font-weight: 600; background: #fff; color: #334155; border: 1px solid #e2e8f0; }
+.mockup-success-banner { background: #ecfdf5; border: 1px solid #6ee7b7; border-radius: 8px; padding: 12px 14px; font-size: 12px; color: #065f46; margin-top: 10px; }
+.mockup-error-banner { background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 12px 14px; font-size: 12px; color: #991b1b; margin-top: 10px; }
+.mockup-btn-disabled { display: inline-block; padding: 8px 16px; border-radius: 6px; font-size: 12px; font-weight: 600; background: #e2e8f0; color: #94a3b8; cursor: not-allowed; }
 </style>
 </head>
 <body>
@@ -100,6 +106,7 @@ table.schema-table td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; ver
             <li><a href="#s1">Business Case</a></li>
             <li><a href="#s2">Scope</a></li>
             <li><a href="#s-ui">UI Concepts</a></li>
+            <li><a href="#s-ui-context">Header context &amp; outcomes</a></li>
             <li><a href="#s3">Line Mapping</a></li>
             <li><a href="#s4">API Surface</a></li>
             <li><a href="#s5">Change Surface</a></li>
@@ -168,6 +175,47 @@ table.schema-table td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; ver
             </div>
         </div>
         <div class="callout-rules"><strong>Hide / disable:</strong> Not Won &middot; No line items &middot; User lacks invoice create permission &middot; <code>creationType</code> &ne; Itemized &middot; Optional: duplicate-invoice guard (product).</div>
+
+        <h3 id="s-ui-context">3.1 Generate invoice in full detail header</h3>
+        <p>Place <strong>Generate invoice</strong> alongside existing estimate actions (e.g. Export PDF, Duplicate, status controls) in <code>EstimateChangeOrderDetails</code> header / toolbar &mdash; not buried in Billing tab only.</p>
+        <div class="mockup-container">
+            <div class="mockup-bar"><code>EstimateChangeOrderDetails</code> &mdash; header row (simplified)</div>
+            <div class="mockup-body">
+                <div class="mockup-header-bar">
+                    <span style="font-weight:700;color:#0f172a;">EST-2026-0142</span>
+                    <span style="flex:1"></span>
+                    <div class="mockup-header-actions">
+                        <span class="mockup-btn-ghost">Export PDF</span>
+                        <span class="mockup-btn-ghost">Duplicate</span>
+                        <span class="mockup-btn-primary">Generate invoice</span>
+                    </div>
+                </div>
+                <p style="font-size:11px;color:#64748b;margin:0;">Generate invoice uses same enable rules as standalone bar above.</p>
+            </div>
+        </div>
+
+        <h3 id="s-ui-success">3.2 Post-success</h3>
+        <p>After successful <code>createInvoiceFromEstimate</code>: close modal; show success <strong>toast</strong>; <strong>navigate</strong> to <code>JobBill</code> detail (or job Billing tab with bill selected) per existing billing deep-link patterns. User should land on a view showing mapped line items.</p>
+        <div class="mockup-success-banner">
+            <strong>Invoice INV-9081 created.</strong> 6 lines &middot; $7,606.54 &middot; <span style="color:#2563eb;text-decoration:underline;cursor:pointer;">Open invoice</span>
+        </div>
+
+        <h3 id="s-ui-error">3.3 Error state</h3>
+        <p>On GraphQL / network failure: keep modal open (or return to detail); show <strong>inline error</strong> in modal footer + <strong>Retry</strong> button. Do not clear line selection. Log server message for support.</p>
+        <div class="mockup-modal-overlay" style="margin-top:0;">
+            <div class="mockup-modal">
+                <h4>Create Simple invoice from estimate?</h4>
+                <div class="mockup-error-banner" style="margin:0 0 10px;">Request failed: insufficient billing permission. [ Retry ]</div>
+                <div style="display:flex;gap:10px;justify-content:flex-end;"><span class="mockup-btn-secondary">Close</span></div>
+            </div>
+        </div>
+
+        <h3 id="s-ui-dup">3.4 Duplicate invoice guard (optional product)</h3>
+        <p>If PM <strong>blocks</strong> a second invoice from the same estimate: render primary button as <strong>disabled</strong>, tooltip &ldquo;An invoice already exists for this estimate.&rdquo;, and text link <strong>View existing invoice</strong> (opens <code>JobBill</code>). If PM <strong>allows</strong> duplicates, show secondary confirm in modal instead.</p>
+        <div class="mockup-detail-bar">
+            <span class="mockup-btn-disabled" title="Invoice INV-9081 already linked">Generate invoice</span>
+            <span style="font-size:11px;color:#64748b;">View <a href="#" style="color:#2563eb;">INV-9081</a></span>
+        </div>
     </div>
     <div class="uis-section" id="s3">
         <h2 class="collapsible-toggle open" onclick="toggleSection(this)">4. Line Mapping <span class="toggle-icon">&#9660;</span></h2>

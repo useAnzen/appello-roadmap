@@ -82,6 +82,18 @@ table.mockup-grid td { padding: 6px 8px; border: 1px solid #e2e8f0; background: 
 .mockup-add-panel { background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 12px; margin-top: 10px; max-width: 420px; }
 .mockup-add-group { font-weight: 700; color: #64748b; margin-top: 8px; margin-bottom: 4px; font-size: 10px; text-transform: uppercase; letter-spacing: 0.04em; }
 .mockup-add-item { padding: 3px 0; color: #334155; border-bottom: 1px solid #f8fafc; font-size: 11px; }
+.mockup-page-shell { display: flex; gap: 12px; flex-wrap: wrap; align-items: stretch; }
+.mockup-page-sidebar { flex: 0 0 120px; min-height: 120px; background: #e2e8f0; border-radius: 8px; padding: 8px; font-size: 9px; color: #475569; text-align: center; line-height: 1.4; }
+.mockup-page-main { flex: 1; min-width: 280px; }
+.mockup-drag { cursor: grab; color: #94a3b8; font-size: 14px; padding: 0 4px; user-select: none; }
+.flow-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 12px; margin: 12px 0; }
+.flow-card { border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 12px; background: #fff; font-size: 11px; line-height: 1.5; color: #334155; }
+.flow-step { font-size: 10px; color: #64748b; margin-top: 6px; padding-top: 6px; border-top: 1px solid #f1f5f9; }
+.mockup-empty { padding: 28px 16px; text-align: center; color: #64748b; background: #fafafa; border: 1px dashed #cbd5e1; border-radius: 8px; }
+.mockup-load-row { display: flex; align-items: center; gap: 8px; padding: 8px; background: #fff; border: 1px solid #e2e8f0; border-radius: 6px; margin: 6px 0; font-size: 11px; color: #64748b; }
+.mockup-spin { width: 14px; height: 14px; border: 2px solid #e2e8f0; border-top-color: #3b82f6; border-radius: 50%; animation: ie2spin 0.7s linear infinite; }
+@keyframes ie2spin { to { transform: rotate(360deg); } }
+.mockup-ro { opacity: 0.65; pointer-events: none; }
 </style>
 </head>
 <body>
@@ -116,6 +128,7 @@ table.mockup-grid td { padding: 6px 8px; border: 1px solid #e2e8f0; background: 
             <li><a href="#s1">Business Case</a></li>
             <li><a href="#s2">Scope</a></li>
             <li><a href="#s3">UI Concepts</a></li>
+            <li><a href="#s3-shell">Worksheet shell &amp; per-type flows</a></li>
             <li><a href="#s4">Field &amp; column spec</a></li>
             <li><a href="#s5">Data &amp; API</a></li>
             <li><a href="#s6">Change Surface</a></li>
@@ -249,8 +262,115 @@ table.mockup-grid td { padding: 6px 8px; border: 1px solid #e2e8f0; background: 
                 </div>
             </div>
 
-            <h3>States</h3>
-            <div class="callout"><strong>Empty:</strong> grid shows placeholder row + <strong>Add line</strong> focused. <strong>Loading:</strong> spinner on row while <code>resolveEstimateLineItemUnitCost</code> runs. <strong>Permission denied:</strong> grid read-only or hidden per existing estimate rules. <strong>Resolve failure:</strong> inline error on row; allow manual unit cost.</div>
+            <h3 id="s3-shell">3.1 Worksheet in <code>EstimateChangeOrderDetails</code> (right pane)</h3>
+            <p>Integration anchor: main column shows <strong>Worksheet | Letter | Files</strong>; when Worksheet + <code>creationType = Itemized</code>, render <code>EstimateLineItemEditor</code> below the radio group. Sidebar (left) unchanged.</p>
+            <div class="mockup-container">
+                <div class="mockup-bar">Right column only &mdash; radio + itemized body</div>
+                <div class="mockup-body">
+                    <div class="mockup-page-shell">
+                        <div class="mockup-page-sidebar">Sidebar<br>(existing form, save)</div>
+                        <div class="mockup-page-main">
+                            <div style="padding:6px 8px;background:#f1f5f9;border-radius:6px;font-weight:700;font-size:11px;margin-bottom:8px;color:#475569;">Worksheet &nbsp;|&nbsp; Letter &nbsp;|&nbsp; Files</div>
+                            <div style="font-size:10px;color:#166534;background:#f0fdf4;border:1px dashed #86efac;padding:6px;border-radius:6px;margin-bottom:8px;"><strong>IE-2</strong> line grid + add combobox live here. <strong>IE-3</strong> totals card stacks below grid (see IE-3 spec).</div>
+                            <div style="font-size:10px;color:#64748b;">Letter / Files tabs do not mount the line editor.</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <h3 id="s3-flows">3.2 Per-type add flows (after pick)</h3>
+            <div class="flow-grid">
+                <div class="flow-card">
+                    <strong>Labor</strong> <span class="mockup-badge mockup-badge-labor">Labor</span>
+                    <div class="flow-step">1. Open <strong>Add line</strong> &rarr; Labor group.<br>2. <code>useGetTableDataRecordSetQuery</code> (User) &rarr; pick worker.<br>3. Show primary <code>UserTradeLevel</code>; unit + <code>unitCost</code> from <code>TradeLevelRate.billableValue</code> via resolver.<br>4. Row inserted; qty editable.</div>
+                </div>
+                <div class="flow-card">
+                    <strong>Material</strong> <span class="mockup-badge mockup-badge-mat">Mat</span>
+                    <div class="flow-step">1. Search material catalog.<br>2. On select, resolver fills <code>unit</code> + <code>unitCost</code> (<code>MaterialAttributePrice</code> / LEM-3 when present).<br>3. Description = material display name + optional note.</div>
+                </div>
+                <div class="flow-card">
+                    <strong>Equipment</strong> <span class="mockup-badge mockup-badge-eq">Eq</span>
+                    <div class="flow-step">1. Pick equipment record.<br>2. Billing unit selector: <strong>hr</strong> or <strong>day</strong> (per product).<br>3. <code>resolveEquipmentRate</code> seeds cost.<br>4. Row shows equipment name + unit.</div>
+                </div>
+                <div class="flow-card">
+                    <strong>Custom</strong> <span class="mockup-badge mockup-badge-custom">Custom</span>
+                    <div class="flow-step">1. Choose Custom &rarr; blank row.<br>2. All FKs null; user types description, qty, unit, unit cost manually.<br>3. No resolver call until optional &ldquo;Suggest rate&rdquo; (out of v1 unless PM adds).</div>
+                </div>
+            </div>
+
+            <h3 id="s3-interact">3.3 Row interactions</h3>
+            <table class="schema-table">
+                <thead><tr><th>Cell / control</th><th>Click</th><th>Tab / Enter</th><th>Escape</th><th>Post-create edit</th></tr></thead>
+                <tbody>
+                    <tr><td>Qty, Unit, Unit cost, Markup fields</td><td>Focus inline <code>FormControl</code></td><td>Tab moves left-to-right; Enter commits cell (same as blur)</td><td>Revert if dirty (optional) or blur without commit per app pattern</td><td>Always editable when row editable</td></tr>
+                    <tr><td>Type badge</td><td>No action</td><td>Skip in tab order</td><td>&mdash;</td><td><strong>No</strong> type change after create (delete + re-add)</td></tr>
+                    <tr><td>Selected item / description</td><td>Labor/Mat/Eq: open picker to replace linked entity <strong>TBD</strong>; Custom: text edit</td><td>Enter opens picker when supported</td><td>Close picker</td><td>Product: allow swap of user/material/equipment vs lock after first save</td></tr>
+                    <tr><td>Line price</td><td>Read-only</td><td>Skip</td><td>&mdash;</td><td>Never direct edit</td></tr>
+                    <tr><td>Delete</td><td>Remove row (confirm if PM wants)</td><td>Activates button when focused</td><td>&mdash;</td><td>Yes</td></tr>
+                </tbody>
+            </table>
+
+            <h3 id="s3-reorder">3.4 Reorder</h3>
+            <div class="mockup-container">
+                <div class="mockup-bar">Drag handle + <code>orderNo</code></div>
+                <div class="mockup-body">
+                    <div class="mockup-grid-wrap">
+                        <table class="mockup-grid" style="min-width: 400px;">
+                            <thead><tr><th style="width:28px;"></th><th>Type</th><th>Description</th><th>Qty</th></tr></thead>
+                            <tbody>
+                                <tr><td><span class="mockup-drag" title="Drag">&#9776;</span></td><td><span class="mockup-badge mockup-badge-labor">Labor</span></td><td>A. Lee &mdash; Welder</td><td>8</td></tr>
+                                <tr><td><span class="mockup-drag">&#9776;</span></td><td><span class="mockup-badge mockup-badge-mat">Mat</span></td><td>Copper 2&quot;</td><td>100</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <p style="margin-top:8px;font-size:11px;color:#64748b;">Pointer / touch: drag row; keyboard: optional move-up/down buttons if a11y requires (TBD).</p>
+                </div>
+            </div>
+
+            <h3 id="s3-validate">3.5 Validation</h3>
+            <table class="schema-table">
+                <thead><tr><th>Field</th><th>Rule</th><th>Error display</th></tr></thead>
+                <tbody>
+                    <tr><td>Qty</td><td>Required; &gt; 0 for priced lines (warn at 0 if PM allows)</td><td>Red border on <code>FormControl</code> + inline text</td></tr>
+                    <tr><td>Unit cost</td><td>Required unless draft-only custom; no NaN</td><td>Inline</td></tr>
+                    <tr><td>Markup % / $</td><td>Ranges per instance; mutual precedence <strong>TBD</strong></td><td>Inline + block save if invalid</td></tr>
+                    <tr><td>Resolver</td><td>Timeout / GraphQL error</td><td>Toast optional; row banner &ldquo;Rate unavailable&rdquo;; manual unit cost enabled</td></tr>
+                    <tr><td>Save (parent)</td><td>Partial row failures</td><td>Modal or toast; failed rows highlighted</td></tr>
+                </tbody>
+            </table>
+
+            <h3 id="s3-states">3.6 Empty, loading, read-only</h3>
+            <div class="mockup-container">
+                <div class="mockup-bar">Empty state</div>
+                <div class="mockup-body">
+                    <div class="mockup-empty">
+                        <div style="font-weight:700;color:#334155;margin-bottom:6px;">No line items yet</div>
+                        <div style="font-size:11px;margin-bottom:12px;">Add labor, material, equipment, or a custom line.</div>
+                        <span class="mockup-input" style="display:inline-block;padding:8px 16px;">+ Add line</span>
+                    </div>
+                </div>
+            </div>
+            <div class="mockup-container" style="margin-top:12px;">
+                <div class="mockup-bar">Loading (resolve in flight)</div>
+                <div class="mockup-body">
+                    <div class="mockup-load-row"><span class="mockup-spin"></span> Resolving unit cost for Material row&hellip;</div>
+                    <p style="font-size:11px;color:#64748b;">Initial fetch: full-grid <code>Loader</code> until <code>estimateLineItems</code> returns.</p>
+                </div>
+            </div>
+            <div class="mockup-container" style="margin-top:12px;">
+                <div class="mockup-bar">Read-only (no edit permission or non-editable status)</div>
+                <div class="mockup-body">
+                    <div class="mockup-ro">
+                        <div class="mockup-grid-wrap">
+                            <table class="mockup-grid" style="min-width:600px;">
+                                <thead><tr><th>Type</th><th>Description</th><th>Qty</th><th>Line price</th></tr></thead>
+                                <tbody><tr><td><span class="mockup-badge mockup-badge-mat">Mat</span></td><td>Pipe</td><td>10</td><td>$120.00</td></tr></tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <p style="margin-top:8px;font-size:11px;color:#92400e;">Hide add/delete; disable inputs; optional banner: &ldquo;This estimate is read-only.&rdquo;</p>
+                </div>
+            </div>
         </div>
     </div>
     <div class="uis-section" id="s4">

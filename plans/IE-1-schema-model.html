@@ -126,6 +126,17 @@ pnpm --filter api build
 
 ---
 
+## Integration / E2E test scenarios
+
+1. **Migration + CRUD:** Apply migration; create estimate record; `createEstimateLineItem` for each `lineItemType`; `estimateLineItems` returns rows with correct `orderNo` and soft-delete respected on `deleteEstimateLineItem`.
+2. **Resolver Labor:** Seed `User`, `UserTradeLevel`, `TradeLevelRate`; call `resolveEstimateLineItemUnitCost` with `Labor` + `userId` + `tradeLevelId`; assert returned `Float` matches billable rate.
+3. **Resolver Equipment:** Seed equipment + LEM-2 rate; pass `unit: day` vs `hr`; assert different positive floats.
+4. **Resolver Material:** With LEM-3 fixture (or stub), assert material path returns catalog-aligned unit cost or documented null.
+5. **Custom:** Call resolver with `Custom`; expect null/error path; persist manual `unitCost` via `createEstimateLineItem`.
+6. **Permissions:** User without estimate edit permission receives forbidden on mutations (align with BaseModel tests).
+
+---
+
 ## Files Summary
 
 | Action | File |

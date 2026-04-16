@@ -98,6 +98,7 @@ table.schema-table code { font-family: monospace; background: #f1f5f9; padding: 
             <li><a href="#s1">Business Case</a></li>
             <li><a href="#s2">Scope</a></li>
             <li><a href="#s3">Data Model</a></li>
+            <li><a href="#s3-resolve">Resolver I/O by line type</a></li>
             <li><a href="#s4">API Surface</a></li>
             <li><a href="#s5">Change Surface</a></li>
             <li><a href="#s6">Acceptance Criteria</a></li>
@@ -202,6 +203,33 @@ model EstimateLineItem {
                     <tr><td>Custom</td><td>none</td><td>Permits &amp; fees</td><td>No resolver; manual <code>unitCost</code></td></tr>
                 </tbody>
             </table>
+
+            <h3 id="s3-resolve">Resolver input / output by line type</h3>
+            <p>GraphQL query <code>resolveEstimateLineItemUnitCost</code> returns a single <strong>Float</strong> (internal billable <strong>unit cost</strong> in instance currency). The client still receives optional <code>unit</code> string from a companion field or from the same resolver extended to a payload &mdash; if implementation stays scalar-only, <code>unit</code> is inferred from catalog defaults in IE-2 after the Float returns.</p>
+
+            <h4>Shared input base</h4>
+            <pre>input ResolveEstimateLineItemUnitCostInput {
+  estimateChangeOrderRecordId: ID!
+  lineItemType: EstimateLineItemType!
+  quantity: Float
+  unit: String
+  # Discriminated by lineItemType — only matching FKs are read:
+  userId: ID
+  tradeLevelId: ID
+  materialId: ID
+  equipmentId: ID
+}</pre>
+
+            <table class="schema-table">
+                <thead><tr><th><code>lineItemType</code></th><th>Required input fields</th><th>Server behavior</th><th>Return value</th></tr></thead>
+                <tbody>
+                    <tr><td><code>Labor</code></td><td><code>userId</code>, <code>tradeLevelId</code> (trade from <code>UserTradeLevel</code> if client omits &mdash; <strong>TBD</strong>)</td><td>Resolve active employee agreement + <code>TradeLevelRate.billableValue</code> (LEM-1).</td><td>Hourly internal unit cost (<code>Float</code>); UI sets <code>unit</code> to <code>hr</code> unless agreement defines otherwise.</td></tr>
+                    <tr><td><code>Material</code></td><td><code>materialId</code>; optional <code>quantity</code> for tiered pricing</td><td><code>MaterialAttributePrice</code> / LEM-3 sell-or-cost cell per product.</td><td>Cost per catalog UOM as <code>Float</code>; <code>unit</code> from material UOM.</td></tr>
+                    <tr><td><code>Equipment</code></td><td><code>equipmentId</code>, <code>unit</code> (<code>hr</code> | <code>day</code> | instance-specific)</td><td>Delegates to existing <code>resolveEquipmentRate</code> (LEM-2) for billing unit.</td><td>Internal rate per selected billing unit.</td></tr>
+                    <tr><td><code>Custom</code></td><td>None required</td><td>Resolver returns <strong>null</strong> or throws <code>BAD_USER_INPUT</code>; client leaves <code>unitCost</code> manual.</td><td>N/A</td></tr>
+                </tbody>
+            </table>
+            <p style="font-size:13px;color:#64748b;">Errors: missing rate data &rarr; GraphQL error with message; IE-2 shows row banner and allows manual override per <a href="uis-IE-2-line-item-editor.html#s3-validate">IE-2 validation</a>.</p>
         </div>
     </div>
     <div class="uis-section" id="s4">

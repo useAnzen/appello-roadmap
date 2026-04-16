@@ -106,6 +106,14 @@
   .mockup-add-panel { background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 12px; margin-top: 10px; font-size: 11px; }
   .mockup-add-group { font-weight: 700; color: #64748b; margin-top: 8px; margin-bottom: 4px; font-size: 10px; text-transform: uppercase; letter-spacing: 0.04em; }
   .mockup-add-item { padding: 4px 0; color: #334155; border-bottom: 1px solid #f8fafc; }
+  .mockup-shell { display: flex; gap: 14px; flex-wrap: wrap; align-items: stretch; margin: 14px 0; }
+  .mockup-sidebar { flex: 0 1 240px; min-width: 200px; background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; font-size: 11px; line-height: 1.55; color: #334155; }
+  .mockup-maincol { flex: 1; min-width: 260px; background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; font-size: 11px; line-height: 1.55; color: #334155; }
+  .mockup-radio-row { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; padding: 6px 8px; background: #f1f5f9; border-radius: 6px; font-weight: 600; color: #475569; font-size: 11px; }
+  .mockup-tag-existing { font-size: 9px; font-weight: 700; background: #dbeafe; color: #1d4ed8; padding: 1px 5px; border-radius: 3px; margin-left: 4px; vertical-align: middle; }
+  .mockup-tag-new { font-size: 9px; font-weight: 700; background: #dcfce7; color: #166534; padding: 1px 5px; border-radius: 3px; margin-left: 4px; vertical-align: middle; }
+  .journey-step { margin: 6px 0; padding-left: 8px; border-left: 3px solid #3b82f6; font-size: 13px; color: #334155; }
+  .journey-step strong { color: #0f172a; }
 </style>
 </head>
 <body>
@@ -146,6 +154,7 @@
       <li><a href="#s1">Business Case</a></li>
       <li><a href="#s2">Scope &amp; Child Specs</a></li>
       <li><a href="#s-ui">UI glossary &amp; composite reference</a></li>
+      <li><a href="#s-integ">Shell, journey, permissions &amp; decisions</a></li>
       <li><a href="#s3">Architecture Overview</a></li>
       <li><a href="#s4">Delivery Sequence</a></li>
       <li><a href="#s5">Summary Metrics</a></li>
@@ -398,6 +407,96 @@
       </div>
     </div>
     <p style="font-size:13px;color:#64748b;margin-top:12px;">PDF column visibility and client vs internal layouts: <a href="uis-IE-4-pdf-template.html">IE-4</a>. Invoice button + confirmation modal: <a href="uis-IE-5-estimate-to-invoice.html">IE-5</a> (pattern aligned with WO-7 conversion modal).</p>
+  </div>
+
+  <div class="uis-section" id="s-integ">
+    <h2>3b. Shell integration, journey &amp; governance</h2>
+    <p>Integration target: <code>EstimateChangeOrderDetails.tsx</code> (job / company / list flyout). Left column = existing document sidebar (<code>DocumentWrapperForm</code>, status, customer, Save/Cancel). Right column = <strong>Worksheet | Letter | Files</strong> radio group; <strong>Itemized</strong> replaces only the <strong>Worksheet</strong> body (account-type grid hidden); Letter and Files unchanged.</p>
+
+    <h3 id="s-integ-shell">3b.1 Full-page composition (desktop)</h3>
+    <div class="mockup-container">
+      <div class="mockup-bar"><code>EstimateChangeOrderDetails</code> &mdash; flyout / job tab (simplified)</div>
+      <div class="mockup-body">
+        <div class="mockup-shell">
+          <div class="mockup-sidebar">
+            <div style="font-weight:700;margin-bottom:8px;color:#0f172a;">Sidebar <span class="mockup-tag-existing">existing</span></div>
+            <div style="margin-bottom:6px;">&larr; Back to list</div>
+            <div style="margin-bottom:6px;">Export PDF &#9660; &nbsp; Duplicate</div>
+            <div style="margin:10px 0;padding:8px;background:#f8fafc;border-radius:6px;"># EST-2026-0142<br>Status: <strong>Draft</strong><br>Customer, dates, PO, location&hellip;</div>
+            <div style="margin-top:10px;padding:8px;background:#eff6ff;border-radius:6px;font-size:10px;">Sticky <strong>Save</strong> / Cancel when dirty</div>
+          </div>
+          <div class="mockup-maincol">
+            <div class="mockup-radio-row">Worksheet <span class="mockup-tag-existing">existing</span> &nbsp;|&nbsp; Letter &nbsp;|&nbsp; Files</div>
+            <div style="padding:10px;background:#f0fdf4;border:1px dashed #86efac;border-radius:8px;margin-bottom:8px;">
+              <strong>When <code>creationType = Itemized</code></strong> <span class="mockup-tag-new">IE-2+IE-3</span><br>
+              <span style="font-size:10px;color:#166534;">Replace <code>EstimateChangeOrderCategory</code> worksheet with <code>EstimateLineItemEditor</code> + <code>EstimateChangeOrderTotals</code> (Itemized branch) below the grid.</span>
+            </div>
+            <div style="padding:8px;background:#f8fafc;border-radius:6px;font-size:10px;color:#64748b;">Creation type control lives in header or sidebar per IE-3; line grid + totals per §3.2 above.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <h3 id="s-integ-journey">3b.2 End-to-end user journey</h3>
+    <div class="journey-step"><strong>1.</strong> Create or open estimate / CO record &rarr; set <code>creationType</code> to Itemized (or create wizard default) &mdash; <a href="uis-IE-3-totals-overhead.html">IE-3</a>.</div>
+    <div class="journey-step"><strong>2.</strong> Add lines via categorized picker (Labor / Material / Equipment / Custom) &mdash; <a href="uis-IE-2-line-item-editor.html">IE-2</a>.</div>
+    <div class="journey-step"><strong>3.</strong> Edit qty, unit, costs, markup; reorder rows &mdash; IE-2.</div>
+    <div class="journey-step"><strong>4.</strong> Review rollups; set overhead, contingency, default markup; save &mdash; IE-3.</div>
+    <div class="journey-step"><strong>5.</strong> Export client or internal PDF &mdash; <a href="uis-IE-4-pdf-template.html">IE-4</a>.</div>
+    <div class="journey-step"><strong>6.</strong> (Business) Send / negotiate &mdash; outside Appello scope; status becomes Won.</div>
+    <div class="journey-step"><strong>7.</strong> Generate Simple <code>JobBill</code> from lines + confirmation &mdash; <a href="uis-IE-5-estimate-to-invoice.html">IE-5</a>.</div>
+    <div class="journey-step"><strong>8.</strong> Open invoice in Billing tab &mdash; IE-5 post-success.</div>
+
+    <h3 id="s-integ-status">3b.3 Status-dependent features (baseline &mdash; PM may tighten)</h3>
+    <table class="glossary-table">
+      <thead><tr><th>Status (example)</th><th>Edit lines</th><th>Add / delete lines</th><th>PDF export</th><th>Generate invoice</th></tr></thead>
+      <tbody>
+        <tr><td>Draft</td><td>Yes (if edit permission)</td><td>Yes</td><td>Yes</td><td>No (not Won)</td></tr>
+        <tr><td>Sent / In review</td><td><strong>TBD</strong> (often read-only after send)</td><td><strong>TBD</strong></td><td>Yes</td><td>No</td></tr>
+        <tr><td>Won</td><td><strong>TBD</strong></td><td><strong>TBD</strong></td><td>Yes</td><td>Yes (IE-5)</td></tr>
+        <tr><td>Lost / Closed</td><td>No</td><td>No</td><td>Yes (archive)</td><td>No</td></tr>
+      </tbody>
+    </table>
+
+    <h3 id="s-integ-perm">3b.4 Permissions matrix (map to real keys in implementation)</h3>
+    <table class="glossary-table">
+      <thead><tr><th>Capability</th><th>Spec placeholder</th><th>Notes</th></tr></thead>
+      <tbody>
+        <tr><td>View estimate / CO detail</td><td><code>estimate</code> / CO view (existing)</td><td>Required to open flyout.</td></tr>
+        <tr><td>Edit worksheet / lines</td><td>Existing estimate edit permission</td><td>Reuse same gate as Full worksheet edits.</td></tr>
+        <tr><td>Export PDF</td><td>Existing PDF / export permission</td><td>IE-4 branch only when Itemized.</td></tr>
+        <tr><td>Create invoice (<code>JobBill</code>)</td><td>Billing / job bill create</td><td>IE-5; align with Simple invoice rules.</td></tr>
+        <tr><td>View wage / internal cost columns</td><td><code>viewWageDetails</code> or equivalent</td><td>If product hides unit cost without wage view.</td></tr>
+      </tbody>
+    </table>
+
+    <h3 id="s-integ-co">3b.5 Estimates vs change orders</h3>
+    <p>Both use <code>EstimateChangeOrderRecord</code>. <strong>Default UIS position:</strong> <code>Itemized</code> is allowed for <strong>both</strong> record types unless product caps to estimates-only. If CO is excluded, hide Itemized in CO create flows and guard mutations.</p>
+
+    <h3 id="s-integ-oos">3b.6 Explicit out of scope (v1 UIS)</h3>
+    <ul>
+      <li><strong>Mobile app</strong> &mdash; estimate detail is desktop flyout today; state &ldquo;desktop only&rdquo; in QA docs.</li>
+      <li><strong>Spreadsheet paste / CSV import</strong> into the grid.</li>
+      <li><strong>Batch multi-select</strong> on lines (bulk delete, bulk markup).</li>
+      <li><strong>Analytics / pipeline widgets</strong> &mdash; no IE-specific dashboard slice in v1 (existing feeds unchanged unless PM requests a <code>creationType</code> facet).</li>
+      <li><strong>List column / filter for Itemized</strong> &mdash; optional follow-up on <code>EstimateChangeOrderList</code>; not blocking core editor.</li>
+      <li><strong>Concurrent edit locking</strong> &mdash; document last-write-wins unless PM adds optimistic locking.</li>
+    </ul>
+
+    <h3 id="s-integ-pd">3b.7 Open product decisions (blockers for final UX copy)</h3>
+    <table class="glossary-table">
+      <thead><tr><th>Decision</th><th>Impacts</th><th>Owner</th></tr></thead>
+      <tbody>
+        <tr><td>Markup % vs markup $ precedence when both set</td><td>Line price formula, validation</td><td>PM + IE-2</td></tr>
+        <tr><td>Default markup: new lines only vs overwrite blank lines</td><td>IE-3 button behavior</td><td>PM + IE-3</td></tr>
+        <tr><td>PDF column toggles: instance vs record vs export modal</td><td>Schema + IE-4 settings placement</td><td>PM + IE-4</td></tr>
+        <tr><td>Duplicate invoice from same estimate</td><td>IE-5 guard + UX</td><td>PM + IE-5</td></tr>
+        <tr><td>Switching Full/BidFirst &harr; Itemized with existing data</td><td>Migration of <code>EstimateChangeOrderRecordValue</code> vs archive</td><td>PM + IE-3</td></tr>
+        <tr><td>Contingency: new fields vs memo</td><td>Prisma + totals</td><td>PM + IE-3</td></tr>
+        <tr><td>Upsert: extend <code>upsertFullEstimateChangeOrderRecord</code> vs new mutation</td><td>API surface</td><td>Eng + IE-3</td></tr>
+        <tr><td>Editable vs read-only grid by status</td><td>Permissions + UI states</td><td>PM + IE-2</td></tr>
+      </tbody>
+    </table>
   </div>
 
   <div class="uis-section" id="s3">

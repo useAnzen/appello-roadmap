@@ -83,7 +83,7 @@ body { font-family: "Inter", -apple-system, sans-serif; background: #0f172a; col
 .pick-footer:hover { background: #eff6ff; }
 .search-filter { width: 200px; padding: 8px 10px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 12px; }
 .table-wrap { overflow-x: auto; border: 1px solid #e2e8f0; border-radius: 10px; flex: 1; min-height: 120px; }
-table.grid { width: 100%; border-collapse: collapse; font-size: 11px; min-width: 1120px; }
+table.grid { width: 100%; border-collapse: collapse; font-size: 11px; min-width: 1200px; }
 table.grid th { text-align: left; padding: 8px 10px; background: #f1f5f9; border-bottom: 1px solid #e2e8f0; font-weight: 700; white-space: nowrap; color: #475569; }
 table.grid td { padding: 6px 8px; border-bottom: 1px solid #f1f5f9; vertical-align: middle; background: #fff; }
 table.grid tr.resolving td { background: #eff6ff; }
@@ -115,6 +115,17 @@ table.grid tr.resolving td { background: #eff6ff; }
 .tline.t-grand .lbl { font-weight: 800; color: #0f172a; font-size: 15px; }
 .tline.t-grand .val { font-weight: 800; font-size: 18px; }
 .tline input.oh { width: 52px; margin-left: 8px; padding: 3px 6px; border-radius: 4px; border: 1px solid #cbd5e1; font-size: 12px; }
+.tline .val.neg { color: #b45309; font-weight: 600; }
+.doc-disc-block { margin: 12px 0 14px; padding: 12px 0 0; border-top: 1px dashed #e2e8f0; text-align: left; }
+.doc-disc-block h4 { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; color: #64748b; margin-bottom: 8px; }
+.doc-disc-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 8px; font-size: 11px; }
+.doc-disc-row input[type="text"] { flex: 1; min-width: 100px; padding: 5px 8px; border: 1px solid #cbd5e1; border-radius: 6px; }
+.doc-disc-row select { padding: 5px 8px; border-radius: 6px; border: 1px solid #cbd5e1; font-size: 11px; }
+.doc-disc-row input[type="number"] { width: 72px; padding: 5px 8px; border-radius: 6px; border: 1px solid #cbd5e1; }
+.doc-disc-row .btn-rm { padding: 4px 8px; font-size: 10px; border: 1px solid #e2e8f0; border-radius: 6px; background: #fff; cursor: pointer; color: #64748b; }
+.doc-disc-row .btn-rm:hover { background: #fef2f2; color: #b91c1c; border-color: #fecaca; }
+.btn-add-disc { margin-top: 4px; padding: 6px 10px; font-size: 11px; font-weight: 600; border: 1px dashed #94a3b8; border-radius: 8px; background: #f8fafc; color: #475569; cursor: pointer; font-family: inherit; }
+.btn-add-disc:hover { background: #eff6ff; border-color: #2563eb; color: #1d4ed8; }
 .tax-note { font-size: 10px; color: #94a3b8; margin-top: 10px; line-height: 1.45; text-align: left; }
 .modal-back { display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.5); z-index: 300; align-items: center; justify-content: center; padding: 20px; }
 .modal-back.open { display: flex; }
@@ -206,6 +217,7 @@ table.grid tr.resolving td { background: #eff6ff; }
                                 <th>Unit cost</th>
                                 <th>Total cost</th>
                                 <th>Markup %</th>
+                                <th>Line disc %</th>
                                 <th>Line sell</th>
                                 <th>Tax</th>
                                 <th>Line w/ tax</th>
@@ -235,13 +247,23 @@ table.grid tr.resolving td { background: #eff6ff; }
                 <div class="totals-footer">
                     <div class="totals-wave">
                         <h3>Summary</h3>
-                        <div class="tline"><span class="lbl">Line sell (pre-tax)</span><span class="val" id="tSell">$0.00</span></div>
+                        <div class="tline"><span class="lbl">Line sell (pre-tax, gross)</span><span class="val" id="tSellGross">$0.00</span></div>
+                        <div class="tline" id="tLineDiscRow" style="display: none;"><span class="lbl">Less line-level discount</span><span class="val neg" id="tLineDisc">($0.00)</span></div>
+                        <div class="tline"><span class="lbl">Line sell (pre-tax, net)</span><span class="val" id="tSell">$0.00</span></div>
                         <div class="tline"><span class="lbl">Cost subtotal</span><span class="val" id="tCost">$0.00</span></div>
                         <div class="tline"><span class="lbl">Estimated tax</span><span class="val" id="tTax">$0.00</span></div>
                         <div class="tline"><span class="lbl">Subtotal + tax</span><span class="val" id="tSubTax">$0.00</span></div>
+                        <div class="doc-disc-block" id="docDiscBlock">
+                            <h4>Estimate-level discounts</h4>
+                            <p style="font-size:10px;color:#64748b;margin-bottom:8px;line-height:1.4;">Stacked in list order: each % applies to the balance after prior rows; fixed $ never drives the balance below zero.</p>
+                            <div id="docDiscList"></div>
+                            <button type="button" class="btn-add-disc" id="btnAddEstDisc">+ Add estimate discount</button>
+                            <div class="tline" id="tEstDiscRow" style="display: none; margin-top: 10px;"><span class="lbl">Less estimate-level discount (total)</span><span class="val neg" id="tEstDisc">($0.00)</span></div>
+                            <div class="tline" id="tAfterEstRow" style="display: none;"><span class="lbl">Net after estimate discounts</span><span class="val" id="tAfterEst">$0.00</span></div>
+                        </div>
                         <div class="tline"><span class="lbl">Overhead</span><span class="val"><input type="number" class="oh" id="overheadPct" value="10" min="0" max="100" step="1"> % &rarr; <span id="tOh">$0.00</span></span></div>
                         <div class="tline t-grand"><span class="lbl">Grand total</span><span class="val" id="tGrand">$0.00</span></div>
-                        <p class="tax-note">Tax per line (Wave-style): each row picks a rate; sell &times; rate rolls into <strong>Estimated tax</strong>. Product may later map codes to jurisdiction tables / <code>JobBill</code> tax lines.</p>
+                        <p class="tax-note">Tax per line: <strong>Estimated tax</strong> uses line sell <em>after</em> line disc %. Estimate-level discounts apply to subtotal + tax, then overhead % runs on that net (demo rule — product may configure order).</p>
                     </div>
                 </div>
                 </div>
@@ -287,6 +309,8 @@ table.grid tr.resolving td { background: #eff6ff; }
     var pendingCreation = null;
     var rows = [];
     var nextId = 1;
+    var nextEstDiscId = 1;
+    var estimateDiscounts;
     var tbody = document.getElementById("tbody");
 
     var CATALOG = [
@@ -392,9 +416,20 @@ table.grid tr.resolving td { background: #eff6ff; }
         return String(s).replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
     }
 
-    function rowLineSell(r) {
+    function rowLineSellGross(r) {
         var tc = r.qty * r.unitCost;
         return tc + tc * (r.markupPct / 100);
+    }
+
+    function lineDiscFrac(r) {
+        var v = parseFloat(r.lineDiscPct);
+        if (isNaN(v) || v <= 0) return 0;
+        if (v >= 100) return 1;
+        return v / 100;
+    }
+
+    function rowLineSell(r) {
+        return rowLineSellGross(r) * (1 - lineDiscFrac(r));
     }
 
     function rowTaxAmt(r) {
@@ -408,30 +443,111 @@ table.grid tr.resolving td { background: #eff6ff; }
         return rowLineSell(r) + rowTaxAmt(r);
     }
 
-    function recalc() {
+    function applyDocDiscountsToRunning(start) {
+        var running = start;
+        var totalCut = 0;
+        estimateDiscounts.forEach(function (d) {
+            var cut = 0;
+            if (d.mode === "amt") {
+                cut = Math.min(running, Math.max(0, parseFloat(d.value) || 0));
+            } else {
+                var p = Math.max(0, Math.min(100, parseFloat(d.value) || 0));
+                cut = running * (p / 100);
+            }
+            running -= cut;
+            totalCut += cut;
+            if (running < 0) {
+                running = 0;
+            }
+        });
+        return { after: running, totalCut: totalCut };
+    }
+
+    function getTotals() {
         var cost = 0;
-        var sell = 0;
+        var sellGross = 0;
+        var sellNet = 0;
         var tax = 0;
         rows.forEach(function (r) {
             if (r.deleted) return;
             cost += r.qty * r.unitCost;
-            sell += rowLineSell(r);
+            sellGross += rowLineSellGross(r);
+            sellNet += rowLineSell(r);
             tax += rowTaxAmt(r);
         });
-        var subTax = sell + tax;
+        var lineDiscAmt = sellGross - sellNet;
+        var subTax = sellNet + tax;
+        var doc = applyDocDiscountsToRunning(subTax);
+        var afterEst = doc.after;
         var oh = parseFloat(document.getElementById("overheadPct").value) || 0;
-        var ohAmt = subTax * (oh / 100);
-        var grand = subTax + ohAmt;
-        document.getElementById("tCost").textContent = money(cost);
-        document.getElementById("tSell").textContent = money(sell);
-        document.getElementById("tTax").textContent = money(tax);
-        document.getElementById("tSubTax").textContent = money(subTax);
-        document.getElementById("tOh").textContent = money(ohAmt);
-        document.getElementById("tGrand").textContent = money(grand);
+        var ohAmt = afterEst * (oh / 100);
+        var grand = afterEst + ohAmt;
+        return {
+            cost: cost,
+            sellGross: sellGross,
+            sellNet: sellNet,
+            tax: tax,
+            lineDiscAmt: lineDiscAmt,
+            subTax: subTax,
+            docCut: doc.totalCut,
+            afterEst: afterEst,
+            ohAmt: ohAmt,
+            grand: grand
+        };
+    }
+
+    function recalc() {
+        var t = getTotals();
+        document.getElementById("tCost").textContent = money(t.cost);
+        document.getElementById("tSellGross").textContent = money(t.sellGross);
+        document.getElementById("tSell").textContent = money(t.sellNet);
+        var ldr = document.getElementById("tLineDiscRow");
+        if (t.lineDiscAmt > 0.008) {
+            ldr.style.display = "flex";
+            document.getElementById("tLineDisc").textContent = "(" + money(t.lineDiscAmt) + ")";
+        } else {
+            ldr.style.display = "none";
+        }
+        document.getElementById("tTax").textContent = money(t.tax);
+        document.getElementById("tSubTax").textContent = money(t.subTax);
+        var edr = document.getElementById("tEstDiscRow");
+        var ear = document.getElementById("tAfterEstRow");
+        if (t.docCut > 0.008) {
+            edr.style.display = "flex";
+            ear.style.display = "flex";
+            document.getElementById("tEstDisc").textContent = "(" + money(t.docCut) + ")";
+            document.getElementById("tAfterEst").textContent = money(t.afterEst);
+        } else {
+            edr.style.display = "none";
+            ear.style.display = "none";
+        }
+        document.getElementById("tOh").textContent = money(t.ohAmt);
+        document.getElementById("tGrand").textContent = money(t.grand);
         var st = document.getElementById("selStatus").value;
         var inv = document.getElementById("btnInvoice");
         var canInv = st === "Won" && creationType === "Itemized" && rows.some(function (r) { return !r.deleted; });
         inv.disabled = !canInv;
+    }
+
+    function renderEstimateDiscounts() {
+        var list = document.getElementById("docDiscList");
+        if (!list) return;
+        list.innerHTML = "";
+        estimateDiscounts.forEach(function (d) {
+            var div = document.createElement("div");
+            div.className = "doc-disc-row";
+            div.setAttribute("data-ed-id", String(d.id));
+            var modeOpts =
+                "<option value=\"pct\"" + (d.mode === "pct" ? " selected" : "") + ">% of balance</option>" +
+                "<option value=\"amt\"" + (d.mode === "amt" ? " selected" : "") + ">Fixed $</option>";
+            div.innerHTML =
+                "<input type=\"text\" data-ed-f=\"label\" placeholder=\"Label\" value=\"" + escAttr(d.label) + "\">" +
+                "<select data-ed-f=\"mode\">" + modeOpts + "</select>" +
+                "<input type=\"number\" data-ed-f=\"value\" step=\"0.01\" min=\"0\" placeholder=\"0\" value=\"" +
+                (d.value != null && !isNaN(d.value) ? d.value : "") + "\">" +
+                "<button type=\"button\" class=\"btn-rm\" data-ed-remove=\"" + d.id + "\">Remove</button>";
+            list.appendChild(div);
+        });
     }
 
     function scoreItem(item, q) {
@@ -524,6 +640,7 @@ table.grid tr.resolving td { background: #eff6ff; }
             unit: unit,
             unitCost: unitCost,
             markupPct: item.type === "Labor" ? 10 : 12,
+            lineDiscPct: 0,
             taxRate: "0.13",
             resolving: delay,
             deleted: false
@@ -562,6 +679,7 @@ table.grid tr.resolving td { background: #eff6ff; }
             unit: "ls",
             unitCost: 0,
             markupPct: 0,
+            lineDiscPct: 0,
             taxRate: "0",
             resolving: false,
             deleted: false
@@ -639,6 +757,8 @@ table.grid tr.resolving td { background: #eff6ff; }
                 "<td><input class=\"cell-in cell-num\" type=\"number\" data-k=\"unitCost\" data-id=\"" + r.id + "\" step=\"0.01\" min=\"0\" value=\"" + r.unitCost + "\"></td>" +
                 "<td class=\"cell-num\">" + money(r.qty * r.unitCost) + "</td>" +
                 "<td><input class=\"cell-in cell-num\" type=\"number\" data-k=\"markupPct\" data-id=\"" + r.id + "\" step=\"0.1\" value=\"" + r.markupPct + "\"></td>" +
+                "<td><input class=\"cell-in cell-num\" type=\"number\" data-k=\"lineDiscPct\" data-id=\"" + r.id + "\" step=\"0.1\" min=\"0\" max=\"100\" title=\"% off this line extended sell (after markup)\" value=\"" +
+                (r.lineDiscPct != null ? r.lineDiscPct : 0) + "\"></td>" +
                 "<td class=\"cell-num\">" + (r.resolving ? "<span class=\"spin\"></span>" : money(sell)) + "</td>" +
                 "<td><select class=\"tax-sel\" data-tax=\"" + r.id + "\">" + taxOpts + "</select></td>" +
                 "<td class=\"cell-num\">" + (r.resolving ? "…" : money(wtax)) + "</td>" +
@@ -709,6 +829,11 @@ table.grid tr.resolving td { background: #eff6ff; }
         if (k === "unit") r.unit = inp.value;
         if (k === "unitCost") r.unitCost = Math.max(0, parseFloat(inp.value) || 0);
         if (k === "markupPct") r.markupPct = parseFloat(inp.value) || 0;
+        if (k === "lineDiscPct") {
+            var ld = parseFloat(inp.value);
+            if (isNaN(ld) || ld < 0) r.lineDiscPct = 0;
+            else r.lineDiscPct = Math.min(100, ld);
+        }
         render();
     }
 
@@ -721,8 +846,8 @@ table.grid tr.resolving td { background: #eff6ff; }
 
     function seedRows() {
         rows = [
-            { id: nextId++, type: "Labor", label: "A. Lee — Welder Journeyman", qty: 24, unit: "hr", unitCost: 68, markupPct: 10, taxRate: "0.13", resolving: false, deleted: false },
-            { id: nextId++, type: "Material", label: "Black iron 4\" sch 40", qty: 120, unit: "LF", unitCost: 6.1, markupPct: 12, taxRate: "0.13", resolving: false, deleted: false },
+            { id: nextId++, type: "Labor", label: "A. Lee — Welder Journeyman", qty: 24, unit: "hr", unitCost: 68, markupPct: 10, lineDiscPct: 0, taxRate: "0.13", resolving: false, deleted: false },
+            { id: nextId++, type: "Material", label: "Black iron 4\" sch 40", qty: 120, unit: "LF", unitCost: 6.1, markupPct: 12, lineDiscPct: 5, taxRate: "0.13", resolving: false, deleted: false },
             {
                 id: nextId++,
                 type: "Equipment",
@@ -731,6 +856,7 @@ table.grid tr.resolving td { background: #eff6ff; }
                 unit: "day",
                 unitCost: 225,
                 markupPct: 8,
+                lineDiscPct: 0,
                 taxRate: "0.13",
                 resolving: false,
                 deleted: false,
@@ -741,7 +867,7 @@ table.grid tr.resolving td { background: #eff6ff; }
                 ],
                 selectedRateId: "day"
             },
-            { id: nextId++, type: "Custom", label: "Engineering review (NTE)", qty: 1, unit: "ls", unitCost: 3500, markupPct: 0, taxRate: "0", resolving: false, deleted: false }
+            { id: nextId++, type: "Custom", label: "Engineering review (NTE)", qty: 1, unit: "ls", unitCost: 3500, markupPct: 0, lineDiscPct: 0, taxRate: "0", resolving: false, deleted: false }
         ];
         render();
     }
@@ -889,19 +1015,9 @@ table.grid tr.resolving td { background: #eff6ff; }
     });
 
     document.getElementById("btnInvoice").addEventListener("click", function () {
-        var sell = 0;
-        var tax = 0;
-        rows.forEach(function (r) {
-            if (!r.deleted) {
-                sell += rowLineSell(r);
-                tax += rowTaxAmt(r);
-            }
-        });
-        var subTax = sell + tax;
-        var oh = parseFloat(document.getElementById("overheadPct").value) || 0;
-        var grand = subTax + subTax * (oh / 100);
+        var t = getTotals();
         document.getElementById("invLines").textContent = String(rows.filter(function (r) { return !r.deleted; }).length);
-        document.getElementById("invTotal").textContent = money(grand);
+        document.getElementById("invTotal").textContent = money(t.grand);
         openModal(document.getElementById("modalInvoice"));
     });
 
@@ -912,6 +1028,58 @@ table.grid tr.resolving td { background: #eff6ff; }
     document.getElementById("invOk").addEventListener("click", function () {
         closeModal(document.getElementById("modalInvoice"));
         toast("Invoice created (demo).");
+    });
+
+    estimateDiscounts = [
+        { id: nextEstDiscId++, label: "Promo — repeat customer", mode: "pct", value: 2 },
+        { id: nextEstDiscId++, label: "Round-down goodwill", mode: "amt", value: 100 }
+    ];
+    renderEstimateDiscounts();
+
+    document.getElementById("docDiscBlock").addEventListener("input", function (e) {
+        var t = e.target;
+        var row = t.closest("[data-ed-id]");
+        if (!row) return;
+        var id = parseInt(row.getAttribute("data-ed-id"), 10);
+        var d = estimateDiscounts.find(function (x) {
+            return x.id === id;
+        });
+        if (!d) return;
+        var f = t.getAttribute("data-ed-f");
+        if (f === "label") d.label = t.value;
+        if (f === "value") d.value = parseFloat(t.value) || 0;
+        recalc();
+    });
+
+    document.getElementById("docDiscBlock").addEventListener("change", function (e) {
+        var t = e.target;
+        var row = t.closest("[data-ed-id]");
+        if (!row) return;
+        var id = parseInt(row.getAttribute("data-ed-id"), 10);
+        var d = estimateDiscounts.find(function (x) {
+            return x.id === id;
+        });
+        if (!d) return;
+        if (t.getAttribute("data-ed-f") === "mode") d.mode = t.value;
+        recalc();
+    });
+
+    document.getElementById("docDiscBlock").addEventListener("click", function (e) {
+        var rm = e.target.getAttribute("data-ed-remove");
+        if (!rm) return;
+        e.preventDefault();
+        var id = parseInt(rm, 10);
+        estimateDiscounts = estimateDiscounts.filter(function (x) {
+            return x.id !== id;
+        });
+        renderEstimateDiscounts();
+        recalc();
+    });
+
+    document.getElementById("btnAddEstDisc").addEventListener("click", function () {
+        estimateDiscounts.push({ id: nextEstDiscId++, label: "New discount", mode: "pct", value: 0 });
+        renderEstimateDiscounts();
+        recalc();
     });
 
     seedRows();

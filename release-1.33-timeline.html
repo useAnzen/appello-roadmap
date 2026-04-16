@@ -30,6 +30,7 @@ h1 { font-size: 30px; font-weight: 800; color: #0f172a; margin: 0 0 8px; letter-
 .badge-parallel { background: #fef3c7; color: #92400e; }
 .badge-customer { background: #f3e8ff; color: #7c3aed; }
 .badge-backend { background: #fef3c7; color: #78350f; border: 1px solid #f59e0b40; }
+.badge-estimate { background: #e0f2fe; color: #0369a1; }
 
 /* Item rows */
 .items { display: grid; grid-template-columns: 1fr; gap: 4px; }
@@ -137,13 +138,13 @@ h1 { font-size: 30px; font-weight: 800; color: #0f172a; margin: 0 0 8px; letter-
     <div class="summary-cards">
         <div class="summary-card">
             <div class="sc-label">Total Features</div>
-            <div class="sc-value">35</div>
-            <div class="sc-detail">3 LEM + 12 WO + 8 Equip + 12 Backend</div>
+            <div class="sc-value">40</div>
+            <div class="sc-detail">3 LEM + 12 WO + 5 IE + 8 Equip + 12 Backend</div>
         </div>
         <div class="summary-card">
             <div class="sc-label">Phases</div>
-            <div class="sc-value">5</div>
-            <div class="sc-detail">LEM &rarr; WO &rarr; Backend &rarr; Equip &rarr; Maint</div>
+            <div class="sc-value">6</div>
+            <div class="sc-detail">LEM &rarr; WO &rarr; IE &rarr; Backend &rarr; Equip &rarr; Maint</div>
         </div>
         <div class="summary-card">
             <div class="sc-label">Key Prerequisite</div>
@@ -162,6 +163,7 @@ h1 { font-size: 30px; font-weight: 800; color: #0f172a; margin: 0 0 8px; letter-
         <div class="legend-item"><div class="legend-dot" style="background:#dbeafe;"></div> LEM Foundation</div>
         <div class="legend-item"><div class="legend-dot" style="background:#d1fae5;"></div> Equipment Module</div>
         <div class="legend-item"><div class="legend-dot" style="background:#fce7f3;"></div> Work Orders</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#e0f2fe;"></div> Itemized Estimates</div>
         <div class="legend-item"><div class="legend-dot" style="background:#fef3c7;"></div> Can parallelize</div>
         <div class="legend-item"><div class="legend-dot" style="background:#fef3c7; border: 1px solid #f59e0b;"></div> Backend Infrastructure</div>
         <div class="legend-item"><span class="status-tag status-ready">READY</span> No blockers</div>
@@ -397,6 +399,83 @@ h1 { font-size: 30px; font-weight: 800; color: #0f172a; margin: 0 0 8px; letter-
                     <span class="item-est">3-4 days</span>
                     <span class="item-status"><span class="status-tag status-blocked">BLOCKED</span></span>
                     <span class="item-dep">WO-4, LEM-1/2</span>
+                </div>
+                <div class="item-detail"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="connector">&darr;</div>
+
+    <!-- Phase 2c: Itemized Estimates -->
+    <div class="phase">
+        <h2>
+            <span class="phase-badge badge-estimate">Phase 2c</span>
+            Itemized Estimates
+        </h2>
+        <p class="phase-desc">Line-item estimates on <code>EstimateChangeOrderRecord</code> with LEM-backed unit costs, customer PDFs, and won-estimate &rarr; Simple invoice conversion. Parent UIS: <a href="uis-IE-itemized-estimates.html" style="color:#0369a1;font-weight:600;">uis-IE-itemized-estimates.html</a>. Depends on LEM-1/2 for auto-pricing.</p>
+
+        <div class="header-row">
+            <span></span>
+            <span>ID</span>
+            <span>Feature</span>
+            <span>Estimate</span>
+            <span>Status</span>
+            <span>Depends On</span>
+        </div>
+        <div class="items">
+            <div class="item-row" data-spec="uis-IE-1-schema-model.html" data-plan="plans/IE-1-schema-model.html">
+                <div class="item-header">
+                    <span class="item-chevron">&#9654;</span>
+                    <span class="item-id">IE-1</span>
+                    <span class="item-name">EstimateLineItem Schema &amp; Model &mdash; Prisma model, GraphQL CRUD, <code>resolveEstimateLineItemUnitCost</code> from LEM rates</span>
+                    <span class="item-est">3-4 days</span>
+                    <span class="item-status"><span class="status-tag status-blocked">BLOCKED</span></span>
+                    <span class="item-dep">LEM-1, LEM-2</span>
+                </div>
+                <div class="item-detail"></div>
+            </div>
+            <div class="item-row" data-spec="uis-IE-2-line-item-editor.html" data-plan="plans/IE-2-line-item-editor.html">
+                <div class="item-header">
+                    <span class="item-chevron">&#9654;</span>
+                    <span class="item-id">IE-2</span>
+                    <span class="item-name">Line Item Editor &mdash; Repeating rows, combobox search, per-line markup; integrate into estimate detail when <code>creationType === Itemized</code></span>
+                    <span class="item-est">4-6 days</span>
+                    <span class="item-status"><span class="status-tag status-blocked">BLOCKED</span></span>
+                    <span class="item-dep">IE-1</span>
+                </div>
+                <div class="item-detail"></div>
+            </div>
+            <div class="item-row" data-spec="uis-IE-3-totals-overhead.html" data-plan="plans/IE-3-totals-overhead.html">
+                <div class="item-header">
+                    <span class="item-chevron">&#9654;</span>
+                    <span class="item-id">IE-3</span>
+                    <span class="item-name">Totals &amp; Overhead &mdash; <code>Itemized</code> creationType, upsert with nested line items, gross margin, overhead/contingency</span>
+                    <span class="item-est">2-3 days</span>
+                    <span class="item-status"><span class="status-tag status-blocked">BLOCKED</span></span>
+                    <span class="item-dep">IE-2</span>
+                </div>
+                <div class="item-detail"></div>
+            </div>
+            <div class="item-row" data-spec="uis-IE-4-pdf-template.html" data-plan="plans/IE-4-pdf-template.html">
+                <div class="item-header">
+                    <span class="item-chevron">&#9654;</span>
+                    <span class="item-id">IE-4</span>
+                    <span class="item-name">Itemized PDF &mdash; Customer line table, optional column visibility, letterhead / merge tags</span>
+                    <span class="item-est">2-3 days</span>
+                    <span class="item-status"><span class="status-tag status-blocked">BLOCKED</span></span>
+                    <span class="item-dep">IE-3</span>
+                </div>
+                <div class="item-detail"></div>
+            </div>
+            <div class="item-row" data-spec="uis-IE-5-estimate-to-invoice.html" data-plan="plans/IE-5-estimate-to-invoice.html">
+                <div class="item-header">
+                    <span class="item-chevron">&#9654;</span>
+                    <span class="item-id">IE-5</span>
+                    <span class="item-name">Estimate &rarr; Invoice &mdash; <code>createInvoiceFromEstimate</code>, Simple <code>JobBill</code> lines, confirmation modal, optional source FK</span>
+                    <span class="item-est">2-3 days</span>
+                    <span class="item-status"><span class="status-tag status-blocked">BLOCKED</span></span>
+                    <span class="item-dep">IE-3</span>
                 </div>
                 <div class="item-detail"></div>
             </div>

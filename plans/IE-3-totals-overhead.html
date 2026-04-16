@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IE-3: Totals &amp; Overhead — Implementation Plan</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+.in-iframe .top-nav { display: none !important; }
+.top-nav { position: sticky; top: 0; z-index: 100; background: #0f172a; border-bottom: 1px solid #1e293b; padding: 0 24px; display: flex; align-items: center; gap: 0; }
+.top-nav a { display: inline-flex; align-items: center; padding: 12px 18px; font-size: 13px; font-weight: 600; color: #94a3b8; text-decoration: none; border-bottom: 2px solid transparent; transition: all 0.15s; white-space: nowrap; }
+.top-nav a:hover { color: #f8fafc; background: #1e293b; }
+.top-nav .nav-logo { font-size: 11px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: #475569; padding-right: 18px; margin-right: 4px; border-right: 1px solid #1e293b; }
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Inter', -apple-system, sans-serif; background: #f8fafc; color: #0f172a; }
+.plan-wrap { max-width: 880px; margin: 0 auto; padding: 40px 24px 80px; }
+h1 { font-size: 24px; font-weight: 800; margin: 0 0 16px; }
+h2 { font-size: 18px; font-weight: 700; margin: 28px 0 12px; padding-bottom: 8px; border-bottom: 2px solid #e2e8f0; }
+h3 { font-size: 15px; font-weight: 700; margin: 20px 0 8px; padding-top: 10px; border-top: 1px solid #f1f5f9; }
+p { font-size: 14px; color: #334155; line-height: 1.7; margin: 6px 0; }
+ul, ol { padding-left: 20px; margin: 8px 0; }
+li { font-size: 14px; color: #334155; line-height: 1.7; margin: 3px 0; }
+strong { color: #0f172a; }
+code { font-family: 'SF Mono', monospace; background: #f1f5f9; padding: 1px 6px; border-radius: 4px; font-size: 12px; color: #7c3aed; }
+pre { background: #0f172a; color: #f8fafc; border-radius: 8px; padding: 16px; overflow-x: auto; font-size: 13px; line-height: 1.6; margin: 12px 0; font-family: 'SF Mono', monospace; }
+pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
+hr { border: none; border-top: 1px solid #e2e8f0; margin: 24px 0; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 12px 0; }
+th { text-align: left; padding: 8px 12px; background: #f1f5f9; border-bottom: 2px solid #e2e8f0; font-weight: 600; }
+td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
+.callout { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 14px 18px; margin: 14px 0; font-size: 13px; color: #1e40af; }
+    </style>
+</head>
+<body>
+
+<script>if(self!==top)document.documentElement.classList.add("in-iframe")</script>
+<nav class="top-nav">
+    <span class="nav-logo">Appello SDLC</span>
+    <a href="../index.html">Roadmap</a>
+    <a href="../release-1.33-timeline.html">Release 1.33</a>
+    <a href="../release-1.34-timeline.html">Release 1.34</a>
+    <a href="../master-spec-reconciliation.html">Spec Reconciliation</a>
+    <a href="../cross-release-continuity-audit.html">Continuity Audit</a>
+    <a href="../ui-interface-library.html">UI Library</a>
+</nav>
+<div class="plan-wrap" id="rendered"></div>
+
+<script type="text/plain" id="plan-md">
+# IE-3: Estimate Totals & Overhead — Implementation Plan
+
+## Overview
+
+Add `Itemized` to `EstimateChangeOrderRecord.creationType`; extend `upsertFullEstimateChangeOrderRecord` to accept nested `EstimateLineItem[]` in one transaction; update `EstimateChangeOrderTotals.tsx` for itemized subtotals, overhead, contingency, and gross margin.
+
+**Estimated effort:** 2-3 days  
+**Spec:** `uis-IE-3-totals-overhead.html`  
+**Requires:** IE-2
+
+---
+
+## Step 1: Prisma enum extension
+
+- Add `Itemized` to `EstimateChangeOrderCreationType` (or equivalent enum name in codebase).
+- Migrate.
+
+---
+
+## Step 2: API upsert
+
+**Model:** `EstimateChangeOrderRecord` (or dedicated service)
+
+- In `upsertFullEstimateChangeOrderRecord`, when payload includes line items:
+  - Replace-or-merge child `EstimateLineItem` rows by id / order.
+  - Use Prisma transaction; soft-delete removed lines.
+
+---
+
+## Step 3: Totals component
+
+**File:** `EstimateChangeOrderTotals.tsx`
+
+- If `creationType === Itemized`:
+  - Cost subtotal = sum of line `totalCost`
+  - Total markup = sum of line markup dollars
+  - Customer bid = sum of line `price` plus record-level overhead/contingency as per UIS
+  - Gross margin = `(bid - costSubtotal) / bid` when bid &gt; 0
+
+---
+
+## Step 4: Default markup action
+
+- Button or menu: "Apply default markup %" to all lines lacking explicit override (define rules in model).
+
+---
+
+## Step 5: Frontend save path
+
+- On Save from estimate detail, send full line array + totals fields in one mutation variables object.
+
+---
+
+## Checklist
+
+- [ ] Switching creation type mid-edit shows confirm if data loss
+- [ ] Totals reconcile with server response after save
+- [ ] Permissions on mutation unchanged from parent estimate
+
+---
+
+## Files Summary
+
+| Action | File |
+|--------|------|
+| MODIFY | `apps/api/prisma/schema.prisma` |
+| MODIFY | `apps/api/src/models/EstimateChangeOrderRecord.ts` (or equivalent) |
+| MODIFY | `apps/api/src/graphql/models/EstimateChangeOrderRecord.ts` |
+| MODIFY | `apps/frontend/src/components/.../EstimateChangeOrderTotals.tsx` |
+
+</script>
+
+<script src="plan-renderer.js"></script>
+<script>renderPlan();</script>
+</body>
+</html>

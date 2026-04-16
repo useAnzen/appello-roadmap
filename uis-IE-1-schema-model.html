@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IE-1: EstimateLineItem Schema &amp; Model</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+.in-iframe .top-nav { display: none !important; }
+.top-nav { position: sticky; top: 0; z-index: 100; background: #0f172a; border-bottom: 1px solid #1e293b; padding: 0 24px; display: flex; align-items: center; gap: 0; }
+.top-nav a { display: inline-flex; align-items: center; padding: 12px 18px; font-size: 13px; font-weight: 600; color: #94a3b8; text-decoration: none; border-bottom: 2px solid transparent; transition: all 0.15s; white-space: nowrap; }
+.top-nav a:hover { color: #f8fafc; background: #1e293b; }
+.top-nav .nav-logo { font-size: 11px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: #475569; padding-right: 18px; margin-right: 4px; border-right: 1px solid #1e293b; }
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Inter', -apple-system, sans-serif; background: #f1f5f9; color: #0f172a; }
+.uis-wrap { max-width: 960px; margin: 0 auto; padding: 40px 24px 80px; }
+.uis-hero { margin-bottom: 32px; }
+.uis-badges { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+.uis-badge { font-size: 11px; font-weight: 700; padding: 4px 12px; border-radius: 6px; display: inline-flex; align-items: center; gap: 5px; }
+.badge-q { background: #0f172a; color: #fff; }
+.badge-lane { background: #7c3aed; color: #fff; }
+.badge-status { background: #fef3c7; color: #92400e; }
+.badge-priority { background: #fee2e2; color: #dc2626; }
+.badge-child { background: #7c3aed; color: #fff; }
+.uis-h1 { font-size: 30px; font-weight: 800; color: #0f172a; margin: 0 0 8px; letter-spacing: -0.01em; }
+.uis-sub { font-size: 15px; color: #64748b; line-height: 1.5; margin: 0; }
+.uis-meta { display: flex; gap: 24px; flex-wrap: wrap; margin-top: 14px; font-size: 13px; color: #64748b; }
+.uis-meta strong { color: #0f172a; }
+.uis-toc { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px 28px; margin-bottom: 16px; }
+.uis-toc h3 { font-size: 13px; font-weight: 700; color: #0f172a; margin: 0 0 10px; text-transform: uppercase; letter-spacing: 0.5px; }
+.uis-toc ol { margin: 0; padding-left: 20px; }
+.uis-toc li { font-size: 14px; color: #3b82f6; margin-bottom: 4px; }
+.uis-toc a { color: #3b82f6; text-decoration: none; }
+.uis-section { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px 28px; margin-bottom: 16px; }
+.uis-section h3 { font-size: 15px; font-weight: 700; color: #0f172a; margin: 16px 0 8px; }
+.uis-section p, .uis-section li { font-size: 14px; color: #334155; line-height: 1.65; }
+.uis-section ul, .uis-section ol { padding-left: 20px; margin: 8px 0; }
+.customer-quote { background: #fef3c7; border-left: 3px solid #f59e0b; padding: 12px 16px; border-radius: 0 8px 8px 0; margin: 14px 0; font-style: italic; font-size: 14px; color: #92400e; }
+.customer-quote .attribution { font-style: normal; font-weight: 600; display: block; margin-top: 6px; }
+.scope-tag { display: inline-block; font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 5px; margin-right: 6px; }
+.scope-in { background: #dcfce7; color: #166534; }
+.scope-out { background: #fee2e2; color: #dc2626; }
+pre { background: #1e293b; color: #e2e8f0; border-radius: 8px; padding: 16px; overflow-x: auto; font-size: 12px; line-height: 1.5; font-family: monospace; margin: 12px 0; }
+table.schema-table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 12px 0; }
+table.schema-table th { text-align: left; padding: 8px 12px; background: #f8fafc; border-bottom: 2px solid #e2e8f0; font-weight: 600; }
+table.schema-table td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
+table.schema-table code { font-family: monospace; background: #f1f5f9; padding: 1px 5px; border-radius: 3px; font-size: 12px; color: #7c3aed; }
+.blast-summary { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 16px 20px; margin-bottom: 16px; }
+.blast-row { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid #f1f5f9; }
+.blast-label { font-size: 13px; color: #64748b; }
+.blast-value { font-size: 13px; font-weight: 700; color: #0f172a; }
+.action-new { background: #dcfce7; color: #166534; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 4px; }
+.action-mod { background: #fef3c7; color: #92400e; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 4px; }
+.criteria-list { list-style: none; padding: 0; }
+.criteria-list li { padding: 8px 0; border-bottom: 1px solid #f1f5f9; display: flex; gap: 10px; align-items: flex-start; font-size: 14px; color: #334155; }
+.criteria-check { width: 18px; height: 18px; border: 2px solid #cbd5e1; border-radius: 4px; flex-shrink: 0; margin-top: 1px; }
+.dep-tag { display: inline-block; font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 5px; margin-right: 6px; margin-bottom: 6px; text-decoration: none; }
+.dep-requires { background: #fef3c7; color: #92400e; }
+.dep-enables { background: #eff6ff; color: #1d4ed8; }
+.dep-none { background: #dcfce7; color: #166534; }
+.collapsible-toggle { display: flex; align-items: center; justify-content: space-between; cursor: pointer; user-select: none; font-size: 17px; font-weight: 700; color: #0f172a; margin: 0 0 14px; padding-bottom: 10px; border-bottom: 2px solid #e2e8f0; }
+.collapsible-toggle .toggle-icon { font-size: 14px; color: #94a3b8; }
+.collapsible-body { display: none; margin-top: 0; }
+.collapsible-body.open { display: block; }
+.uis-footer { text-align: center; padding: 24px; font-size: 12px; color: #94a3b8; }
+.uis-footer a { color: #3b82f6; text-decoration: none; }
+</style>
+</head>
+<body>
+<script>if(self!==top)document.documentElement.classList.add("in-iframe")</script>
+<nav class="top-nav">
+    <span class="nav-logo">Appello SDLC</span>
+    <a href="index.html">Roadmap</a>
+    <a href="release-1.33-timeline.html">Release 1.33</a>
+    <a href="release-1.34-timeline.html">Release 1.34</a>
+    <a href="master-spec-reconciliation.html">Spec Reconciliation</a>
+    <a href="ui-interface-library.html">UI Library</a>
+</nav>
+<div class="uis-wrap">
+    <div class="uis-hero">
+        <div class="uis-badges">
+            <span class="uis-badge badge-q">IE-1</span>
+            <span class="uis-badge badge-lane">CRM &amp; Sales</span>
+            <span class="uis-badge badge-status">Draft</span>
+            <span class="uis-badge badge-priority">P1</span>
+            <span class="uis-badge badge-child">Child of UIS-IE</span>
+        </div>
+        <h1 class="uis-h1">EstimateLineItem Schema &amp; Model</h1>
+        <p class="uis-sub">Introduce <code>EstimateLineItem</code> as the persisted backing store for itemized estimate rows. Nullable catalog FKs support structured picks; custom rows omit FKs. Server-side helpers resolve default unit cost from LEM rate tables.</p>
+        <div class="uis-meta">
+            <span><strong>Estimate:</strong> 3&ndash;4 days</span>
+            <span><strong>Parent:</strong> UIS-IE</span>
+        </div>
+    </div>
+    <div class="uis-toc">
+        <h3>Contents</h3>
+        <ol>
+            <li><a href="#s1">Business Case</a></li>
+            <li><a href="#s2">Scope</a></li>
+            <li><a href="#s3">Data Model</a></li>
+            <li><a href="#s4">API Surface</a></li>
+            <li><a href="#s5">Change Surface</a></li>
+            <li><a href="#s6">Acceptance Criteria</a></li>
+            <li><a href="#s7">Dependencies</a></li>
+        </ol>
+    </div>
+    <div class="uis-section" id="s1">
+        <h2 class="collapsible-toggle open" onclick="toggleSection(this)">1. Business Case <span class="toggle-icon">&#9660;</span></h2>
+        <div class="collapsible-body open">
+            <p>Itemized quoting requires rows that are not constrained to a single <code>AccountItem</code> per line. A dedicated model keeps the legacy GL worksheet intact while enabling catalog-backed pricing.</p>
+            <div class="customer-quote">
+                Structured rows must pull unit cost from rate tables so estimators are not re-keying prices.
+                <span class="attribution">&mdash; Product direction (LEM alignment)</span>
+            </div>
+        </div>
+    </div>
+    <div class="uis-section" id="s2">
+        <h2 class="collapsible-toggle open" onclick="toggleSection(this)">2. Scope <span class="toggle-icon">&#9660;</span></h2>
+        <div class="collapsible-body open">
+            <h3>In Scope</h3>
+            <ul>
+                <li><span class="scope-tag scope-in">IN</span> Prisma model <code>EstimateLineItem</code> + enum <code>EstimateLineItemType</code> (<code>Labor</code>, <code>Material</code>, <code>Equipment</code>, <code>Custom</code>)</li>
+                <li><span class="scope-tag scope-in">IN</span> Nullable <code>tradeLevelId</code>, <code>materialId</code>, <code>equipmentId</code>; required <code>estimateChangeOrderRecordId</code></li>
+                <li><span class="scope-tag scope-in">IN</span> Fields: description, quantity, unit, unitCost, totalCost, markupPercent, markupDollarValue, price, orderNo, soft delete flags</li>
+                <li><span class="scope-tag scope-in">IN</span> Model class + BaseModel list/get/create/edit patterns</li>
+                <li><span class="scope-tag scope-in">IN</span> Service <code>resolveEstimateLineItemUnitCost()</code> delegating to TradeLevelRate / Material pricing / EquipmentRateValue</li>
+            </ul>
+            <h3>Out of Scope</h3>
+            <ul>
+                <li><span class="scope-tag scope-out">OUT</span> Frontend editor (IE-2)</li>
+                <li><span class="scope-tag scope-out">OUT</span> PDF and invoice conversion (IE-4, IE-5)</li>
+            </ul>
+        </div>
+    </div>
+    <div class="uis-section" id="s3">
+        <h2 class="collapsible-toggle open" onclick="toggleSection(this)">3. Data Model <span class="toggle-icon">&#9660;</span></h2>
+        <div class="collapsible-body open">
+            <pre>enum EstimateLineItemType {
+  Labor
+  Material
+  Equipment
+  Custom
+}
+
+model EstimateLineItem {
+  id                          String   @id @db.VarChar(21)
+  instanceId                  String   @db.VarChar(21)
+  estimateChangeOrderRecordId String   @db.VarChar(21)
+  lineItemType                EstimateLineItemType
+  tradeLevelId                String?  @db.VarChar(21)
+  materialId                  String?  @db.VarChar(21)
+  equipmentId                 String?  @db.VarChar(21)
+  userId                      String?  @db.VarChar(21)
+  description                 String?  @db.VarChar(500)
+  quantity                    Decimal? @db.Decimal(10, 4)
+  unit                        String?  @db.VarChar(50)
+  unitCost                    Decimal? @db.Decimal(10, 2)
+  totalCost                   Decimal? @db.Decimal(10, 2)
+  markupPercent               Decimal? @db.Decimal(10, 2)
+  markupDollarValue           Decimal? @db.Decimal(10, 2)
+  price                       Decimal? @db.Decimal(10, 2)
+  orderNo                     Int      @default(0)
+  isDeleted                   Boolean  @default(false)
+  isArchived                  Boolean  @default(false)
+  createdAt                   DateTime @default(now())
+  updatedAt                   DateTime @updatedAt
+  EstimateChangeOrderRecord   EstimateChangeOrderRecord @relation(...)
+  TradeLevel                  TradeLevel?  @relation(...)
+  Material                    Material?    @relation(...)
+  Equipment                   Equipment?   @relation(...)
+  User                        User?        @relation(...)
+}</pre>
+            <p><strong>Note:</strong> Optional <code>userId</code> on labor rows aligns with the user-first labor rule for WO line items when the same picker is reused in IE-2.</p>
+        </div>
+    </div>
+    <div class="uis-section" id="s4">
+        <h2 class="collapsible-toggle open" onclick="toggleSection(this)">4. API Surface <span class="toggle-icon">&#9660;</span></h2>
+        <div class="collapsible-body open">
+            <pre>type EstimateLineItem { id: ID!, estimateChangeOrderRecordId: ID!, lineItemType: EstimateLineItemType!, ... }
+
+extend type Query {
+  estimateLineItems(estimateChangeOrderRecordId: ID!): [EstimateLineItem!]!
+}
+
+extend type Mutation {
+  createEstimateLineItem(data: CreateEstimateLineItemInput!): EstimateLineItem!
+  editEstimateLineItem(id: ID!, data: EditEstimateLineItemInput!): EstimateLineItem!
+  deleteEstimateLineItem(id: ID!): Boolean!
+  resolveEstimateLineItemUnitCost(input: ResolveEstimateLineItemUnitCostInput!): Float!
+}</pre>
+        </div>
+    </div>
+    <div class="uis-section" id="s5">
+        <h2 class="collapsible-toggle open" onclick="toggleSection(this)">5. Change Surface <span class="toggle-icon">&#9660;</span></h2>
+        <div class="collapsible-body open">
+            <div class="blast-summary">
+                <div class="blast-row"><span class="blast-label">New migration</span><span class="blast-value">1</span></div>
+                <div class="blast-row"><span class="blast-label">New model files</span><span class="blast-value">2+</span></div>
+                <div class="blast-row"><span class="blast-label">GraphQL registration</span><span class="blast-value">schema.ts</span></div>
+            </div>
+            <ul>
+                <li><span class="action-new">NEW</span> <code>apps/api/src/models/EstimateLineItem.ts</code></li>
+                <li><span class="action-new">NEW</span> <code>apps/api/src/graphql/models/EstimateLineItem.ts</code></li>
+                <li><span class="action-mod">MOD</span> <code>apps/api/prisma/schema.prisma</code> &mdash; model + relations on <code>EstimateChangeOrderRecord</code></li>
+                <li><span class="action-mod">MOD</span> <code>apps/api/src/graphql/schema.ts</code></li>
+            </ul>
+        </div>
+    </div>
+    <div class="uis-section" id="s6">
+        <h2 class="collapsible-toggle open" onclick="toggleSection(this)">6. Acceptance Criteria <span class="toggle-icon">&#9660;</span></h2>
+        <div class="collapsible-body open">
+            <ul class="criteria-list">
+                <li><div class="criteria-check"></div><span>Migration creates <code>EstimateLineItem</code> with indexes on <code>estimateChangeOrderRecordId</code> and <code>instanceId</code></span></li>
+                <li><div class="criteria-check"></div><span>CRUD respects BaseModel permissions scoped to estimate permissions</span></li>
+                <li><div class="criteria-check"></div><span><code>resolveEstimateLineItemUnitCost</code> returns billable rate for TradeLevel when LEM-1 data present</span></li>
+                <li><div class="criteria-check"></div><span>Equipment path calls existing <code>resolveEquipmentRate</code> (LEM-2)</span></li>
+                <li><div class="criteria-check"></div><span>Material path uses Material pricing service when LEM-3 available; otherwise returns null or catalog cell per interim rule</span></li>
+            </ul>
+        </div>
+    </div>
+    <div class="uis-section" id="s7">
+        <h2 class="collapsible-toggle open" onclick="toggleSection(this)">7. Dependencies <span class="toggle-icon">&#9660;</span></h2>
+        <div class="collapsible-body open">
+            <p><span class="dep-tag dep-requires">LEM-1</span><span class="dep-tag dep-requires">LEM-2</span></p>
+            <p><span class="dep-tag dep-enables">IE-2 Line Item Editor</span></p>
+            <p><a class="dep-tag dep-none" href="uis-IE-itemized-estimates.html">UIS-IE Parent</a></p>
+        </div>
+    </div>
+    <div class="uis-footer">IE-1 &middot; <a href="uis-IE-itemized-estimates.html">UIS-IE</a> &middot; Appello SDLC</div>
+</div>
+<script>
+function toggleSection(el) {
+    el.classList.toggle("open");
+    var body = el.nextElementSibling;
+    if (body) body.classList.toggle("open");
+}
+</script>
+</body>
+</html>

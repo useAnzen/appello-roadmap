@@ -83,7 +83,7 @@ body { font-family: "Inter", -apple-system, sans-serif; background: #0f172a; col
 .pick-footer:hover { background: #eff6ff; }
 .search-filter { width: 200px; padding: 8px 10px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 12px; }
 .table-wrap { overflow-x: auto; border: 1px solid #e2e8f0; border-radius: 10px; flex: 1; min-height: 120px; }
-table.grid { width: 100%; border-collapse: collapse; font-size: 11px; min-width: 1020px; }
+table.grid { width: 100%; border-collapse: collapse; font-size: 11px; min-width: 1120px; }
 table.grid th { text-align: left; padding: 8px 10px; background: #f1f5f9; border-bottom: 1px solid #e2e8f0; font-weight: 700; white-space: nowrap; color: #475569; }
 table.grid td { padding: 6px 8px; border-bottom: 1px solid #f1f5f9; vertical-align: middle; background: #fff; }
 table.grid tr.resolving td { background: #eff6ff; }
@@ -93,7 +93,11 @@ table.grid tr.resolving td { background: #eff6ff; }
 .b-eq { background: #fef3c7; color: #92400e; }
 .b-custom { background: #f1f5f9; color: #475569; }
 .cell-in { width: 100%; max-width: 76px; padding: 4px 6px; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 11px; }
-.cell-in.wide { max-width: 180px; }
+.cell-in.wide { max-width: 160px; }
+.desc-cell { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.row-attrs { font-size: 9px; color: #64748b; line-height: 1.35; padding: 0 2px; max-width: 220px; }
+.rate-sel { max-width: 118px; padding: 4px 6px; border-radius: 4px; border: 1px solid #cbd5e1; font-size: 10px; background: #fff; }
+.cell-muted { color: #94a3b8; font-size: 10px; text-align: center; }
 .cell-in:focus { outline: 2px solid #93c5fd; border-color: #3b82f6; }
 .cell-num { text-align: right; font-variant-numeric: tabular-nums; }
 .tax-sel { max-width: 100px; padding: 4px 6px; border-radius: 4px; border: 1px solid #cbd5e1; font-size: 10px; background: #fff; }
@@ -196,6 +200,7 @@ table.grid tr.resolving td { background: #eff6ff; }
                                 <th></th>
                                 <th>Type</th>
                                 <th>Description</th>
+                                <th>Bill as</th>
                                 <th>Qty</th>
                                 <th>Unit</th>
                                 <th>Unit cost</th>
@@ -213,7 +218,7 @@ table.grid tr.resolving td { background: #eff6ff; }
                 <div class="add-item-slot" id="addItemSlot">
                     <button type="button" class="btn-add-item" id="btnAddItem"><span class="plus">+</span> Add item</button>
                     <div class="add-item-panel" id="addItemPanel">
-                        <p class="add-item-hint">Search across <strong>labor, materials, and equipment</strong> in one field (matches name, notes, or type). Pick a row to insert below, or add a custom line.</p>
+                        <p class="add-item-hint">Search across <strong>labor, materials, and equipment</strong> in one field (matches name, notes, <strong>material specs</strong>, or type). Equipment with multiple rental windows shows a <strong>Bill as</strong> rate on the line after you add it. Pick a row to insert below, or add a custom line.</p>
                         <div class="addline-wrap">
                             <div class="smart-search-wrap">
                                 <input type="text" id="smartSearch" autocomplete="off" placeholder="Type an item name&hellip;">
@@ -288,13 +293,90 @@ table.grid tr.resolving td { background: #eff6ff; }
         { type: "Labor", label: "A. Lee — Welder Journeyman", sub: "Labor · TradeLevel billable", keys: "welder weld labor union hour", unit: "hr", cost: 68, delay: 0 },
         { type: "Labor", label: "C. Jones — Pipefitter Apprentice", sub: "Labor · Pipefitting", keys: "pipe apprentice fitter labor", unit: "hr", cost: 52, delay: 0 },
         { type: "Labor", label: "Site supervisor (included)", sub: "Labor · General", keys: "supervisor foreman general", unit: "hr", cost: 95, delay: 0 },
-        { type: "Material", label: "Black iron 4\" sch 40", sub: "Material · Black iron pipe", keys: "black iron pipe schedule carbon", unit: "LF", cost: 6.1, delay: 1 },
-        { type: "Material", label: "2\" Copper Type L", sub: "Material · Plumbing", keys: "copper water tube type l", unit: "LF", cost: 4.2, delay: 1 },
-        { type: "Material", label: "Duct liner 1\" (roll)", sub: "Material · Insulation", keys: "liner duct insulation roll", unit: "sq ft", cost: 1.85, delay: 1 },
-        { type: "Equipment", label: "Forklift 5k cap", sub: "Equipment · Daily rate", keys: "fork lift material handling daily", unit: "day", cost: 225, delay: 1 },
-        { type: "Equipment", label: "Scissor lift 19 ft", sub: "Equipment · Aerial · Hourly", keys: "scissor lift aerial boom hour", unit: "hr", cost: 85, delay: 1 },
-        { type: "Equipment", label: "Generator 25kW", sub: "Equipment · Power", keys: "generator power temp kW", unit: "day", cost: 175, delay: 1 }
+        { type: "Material", label: "Black iron 4\" sch 40", sub: "Material · Black iron pipe", keys: "black iron pipe schedule 40 sch carbon steel 4 inch", unit: "LF", cost: 6.1, delay: 1 },
+        { type: "Material", label: "2\" Copper Type L", sub: "Material · Plumbing · cold / hot water", keys: "copper water tube type l 2 inch od", unit: "LF", cost: 4.2, delay: 1 },
+        {
+            type: "Material",
+            label: "Duct liner 1\" (roll)",
+            sub: "Material · Insulation · faced",
+            keys: "liner duct insulation roll 1 inch thickness black facing nrc",
+            attrs: "1 in thick · 4 ft wide roll · black mat facing",
+            unit: "sq ft",
+            cost: 1.85,
+            delay: 1
+        },
+        {
+            type: "Material",
+            label: "PIR insulation board R-6",
+            sub: "Material · Polyiso roof deck",
+            keys: "pir polyiso iso board roof insulation r-6 r6 48 96 2 inch fsk silver gray",
+            attrs: "48×96 in · 2 in thick · FSK facing",
+            unit: "sheet",
+            cost: 89,
+            delay: 1
+        },
+        {
+            type: "Equipment",
+            label: "Forklift 5k cap",
+            sub: "Equipment · Rental · Hour / Day / Week",
+            keys: "fork lift material handling daily weekly hourly 5k",
+            rateOptions: [
+                { id: "hr", label: "Hourly", unit: "hr", cost: 85 },
+                { id: "day", label: "Daily", unit: "day", cost: 225 },
+                { id: "wk", label: "Weekly", unit: "wk", cost: 980 }
+            ],
+            delay: 1
+        },
+        {
+            type: "Equipment",
+            label: "Scissor lift 19 ft",
+            sub: "Equipment · Aerial · Hour / Day / Week",
+            keys: "scissor lift aerial boom 19 foot height",
+            rateOptions: [
+                { id: "hr", label: "Hourly", unit: "hr", cost: 95 },
+                { id: "day", label: "Daily", unit: "day", cost: 275 },
+                { id: "wk", label: "Weekly", unit: "wk", cost: 1100 }
+            ],
+            delay: 1
+        },
+        {
+            type: "Equipment",
+            label: "Generator 25kW",
+            sub: "Equipment · Power · Day default (no week tier in demo)",
+            keys: "generator power temp kW diesel",
+            rateOptions: [
+                { id: "hr", label: "Hourly", unit: "hr", cost: 45 },
+                { id: "day", label: "Daily", unit: "day", cost: 175 }
+            ],
+            delay: 1
+        }
     ];
+
+    function catalogPriceLabel(item) {
+        if (item.rateOptions && item.rateOptions.length) {
+            var costs = item.rateOptions.map(function (o) {
+                return o.cost;
+            });
+            var mn = Math.min.apply(null, costs);
+            var mx = Math.max.apply(null, costs);
+            if (mn === mx) {
+                return money(mn) + " (multi-window)";
+            }
+            return money(mn) + " – " + money(mx);
+        }
+        return money(item.cost) + " / " + item.unit;
+    }
+
+    function syncEquipmentRate(r) {
+        if (!r.rateOptions || !r.selectedRateId) return;
+        var opt = r.rateOptions.find(function (x) {
+            return x.id === r.selectedRateId;
+        });
+        if (opt) {
+            r.unit = opt.unit;
+            r.unitCost = opt.cost;
+        }
+    }
 
     var TAX_OPTS = [
         { v: "0", rate: 0, label: "Exempt" },
@@ -354,7 +436,17 @@ table.grid tr.resolving td { background: #eff6ff; }
 
     function scoreItem(item, q) {
         if (!q) return 1;
-        var hay = (item.label + " " + item.sub + " " + item.keys + " " + item.type).toLowerCase();
+        var hay = (
+            item.label +
+            " " +
+            item.sub +
+            " " +
+            item.keys +
+            " " +
+            (item.attrs || "") +
+            " " +
+            item.type
+        ).toLowerCase();
         if (hay.indexOf(q) >= 0) return 2;
         var parts = q.split(/\s+/).filter(Boolean);
         var hit = 0;
@@ -389,11 +481,17 @@ table.grid tr.resolving td { background: #eff6ff; }
             row.className = "pick-row";
             row.setAttribute("data-ci", String(CATALOG.indexOf(item)));
             var bc = item.type === "Labor" ? "b-labor" : item.type === "Material" ? "b-mat" : "b-eq";
+            var metaExtra = item.attrs ? " · " + item.attrs : "";
+            var rateMeta = item.rateOptions && item.rateOptions.length
+                ? " · " + item.rateOptions.map(function (o) {
+                    return o.label;
+                }).join(" · ")
+                : "";
             row.innerHTML =
                 "<div class=\"left\"><span class=\"badge " + bc + "\">" + item.type.substring(0, 3) + "</span> " +
                 "<div class=\"name\" style=\"display:inline;margin-left:4px\">" + escAttr(item.label) + "</div>" +
-                "<div class=\"meta\">" + escAttr(item.sub) + "</div></div>" +
-                "<div class=\"price\">" + money(item.cost) + " / " + escAttr(item.unit) + "</div>";
+                "<div class=\"meta\">" + escAttr(item.sub + metaExtra + rateMeta) + "</div></div>" +
+                "<div class=\"price\">" + catalogPriceLabel(item) + "</div>";
             row.addEventListener("mousedown", function (e) {
                 e.preventDefault();
             });
@@ -406,18 +504,43 @@ table.grid tr.resolving td { background: #eff6ff; }
 
     function addFromCatalog(item) {
         var delay = item.delay === 1;
+        var qty = item.type === "Material" ? 100 : item.type === "Equipment" ? 1 : 8;
+        var unit = item.unit;
+        var unitCost = item.cost;
+        if (item.rateOptions && item.rateOptions.length) {
+            var pref = item.rateOptions.find(function (o) {
+                return o.unit === "day" || o.id === "day";
+            });
+            var first = item.rateOptions[0];
+            var pick = pref || first;
+            unit = pick.unit;
+            unitCost = pick.cost;
+        }
         var row = {
             id: nextId++,
             type: item.type,
             label: item.label,
-            qty: item.type === "Material" ? 100 : item.type === "Equipment" ? 1 : 8,
-            unit: item.unit,
-            unitCost: item.cost,
+            qty: qty,
+            unit: unit,
+            unitCost: unitCost,
             markupPct: item.type === "Labor" ? 10 : 12,
             taxRate: "0.13",
             resolving: delay,
             deleted: false
         };
+        if (item.attrs) {
+            row.attrs = item.attrs;
+        }
+        if (item.rateOptions && item.rateOptions.length) {
+            row.rateOptions = item.rateOptions.map(function (o) {
+                return { id: o.id, label: o.label, unit: o.unit, cost: o.cost };
+            });
+            var pref2 = row.rateOptions.find(function (o) {
+                return o.unit === "day" || o.id === "day";
+            });
+            row.selectedRateId = (pref2 || row.rateOptions[0]).id;
+            syncEquipmentRate(row);
+        }
         rows.push(row);
         closeAddPanel();
         render();
@@ -479,7 +602,10 @@ table.grid tr.resolving td { background: #eff6ff; }
         tbody.innerHTML = "";
         rows.forEach(function (r) {
             if (r.deleted) return;
-            if (q && String(r.label).toLowerCase().indexOf(q) < 0) return;
+            if (q) {
+                var blob = (String(r.label) + " " + (r.attrs || "")).toLowerCase();
+                if (blob.indexOf(q) < 0) return;
+            }
             var tr = document.createElement("tr");
             if (r.resolving) tr.className = "resolving";
             var badgeClass = r.type === "Labor" ? "b-labor" : r.type === "Material" ? "b-mat" : r.type === "Equipment" ? "b-eq" : "b-custom";
@@ -489,10 +615,25 @@ table.grid tr.resolving td { background: #eff6ff; }
             var taxOpts = TAX_OPTS.map(function (o) {
                 return "<option value=\"" + o.v + "\"" + (String(r.taxRate) === o.v ? " selected" : "") + ">" + o.label + "</option>";
             }).join("");
+            var billAsCell = "";
+            if (r.rateOptions && r.rateOptions.length) {
+                var ropts = r.rateOptions.map(function (o) {
+                    return "<option value=\"" + escAttr(o.id) + "\"" + (r.selectedRateId === o.id ? " selected" : "") + ">" + escAttr(o.label) + " (" + escAttr(o.unit) + ")</option>";
+                }).join("");
+                billAsCell = "<select class=\"rate-sel\" data-rate=\"" + r.id + "\">" + ropts + "</select>";
+            } else {
+                billAsCell = "<span class=\"cell-muted\">—</span>";
+            }
+            var descBlock =
+                "<div class=\"desc-cell\">" +
+                "<input class=\"cell-in wide\" type=\"text\" data-k=\"label\" data-id=\"" + r.id + "\" value=\"" + escAttr(r.label) + "\">" +
+                (r.attrs ? "<div class=\"row-attrs\" title=\"Variant / spec (searchable in catalog)\">" + escAttr(r.attrs) + "</div>" : "") +
+                "</div>";
             tr.innerHTML =
                 "<td class=\"drag-cell\" title=\"Reorder\">&#9776;</td>" +
                 "<td><span class=\"badge " + badgeClass + "\">" + r.type.substring(0, 3) + "</span></td>" +
-                "<td><input class=\"cell-in wide\" type=\"text\" data-k=\"label\" data-id=\"" + r.id + "\" value=\"" + escAttr(r.label) + "\"></td>" +
+                "<td>" + descBlock + "</td>" +
+                "<td>" + billAsCell + "</td>" +
                 "<td><input class=\"cell-in cell-num\" type=\"number\" data-k=\"qty\" data-id=\"" + r.id + "\" step=\"0.01\" min=\"0\" value=\"" + r.qty + "\"></td>" +
                 "<td><input class=\"cell-in\" type=\"text\" data-k=\"unit\" data-id=\"" + r.id + "\" value=\"" + escAttr(r.unit) + "\"></td>" +
                 "<td><input class=\"cell-in cell-num\" type=\"number\" data-k=\"unitCost\" data-id=\"" + r.id + "\" step=\"0.01\" min=\"0\" value=\"" + r.unitCost + "\"></td>" +
@@ -513,6 +654,17 @@ table.grid tr.resolving td { background: #eff6ff; }
                 var id = parseInt(sel.getAttribute("data-tax"), 10);
                 var r = rows.find(function (x) { return x.id === id; });
                 if (r) r.taxRate = sel.value;
+                render();
+            });
+        });
+        tbody.querySelectorAll("select[data-rate]").forEach(function (sel) {
+            sel.addEventListener("change", function () {
+                var id = parseInt(sel.getAttribute("data-rate"), 10);
+                var r = rows.find(function (x) { return x.id === id; });
+                if (r) {
+                    r.selectedRateId = sel.value;
+                    syncEquipmentRate(r);
+                }
                 render();
             });
         });
@@ -571,7 +723,24 @@ table.grid tr.resolving td { background: #eff6ff; }
         rows = [
             { id: nextId++, type: "Labor", label: "A. Lee — Welder Journeyman", qty: 24, unit: "hr", unitCost: 68, markupPct: 10, taxRate: "0.13", resolving: false, deleted: false },
             { id: nextId++, type: "Material", label: "Black iron 4\" sch 40", qty: 120, unit: "LF", unitCost: 6.1, markupPct: 12, taxRate: "0.13", resolving: false, deleted: false },
-            { id: nextId++, type: "Equipment", label: "Forklift 5k cap", qty: 2, unit: "day", unitCost: 225, markupPct: 8, taxRate: "0.13", resolving: false, deleted: false },
+            {
+                id: nextId++,
+                type: "Equipment",
+                label: "Forklift 5k cap",
+                qty: 2,
+                unit: "day",
+                unitCost: 225,
+                markupPct: 8,
+                taxRate: "0.13",
+                resolving: false,
+                deleted: false,
+                rateOptions: [
+                    { id: "hr", label: "Hourly", unit: "hr", cost: 85 },
+                    { id: "day", label: "Daily", unit: "day", cost: 225 },
+                    { id: "wk", label: "Weekly", unit: "wk", cost: 980 }
+                ],
+                selectedRateId: "day"
+            },
             { id: nextId++, type: "Custom", label: "Engineering review (NTE)", qty: 1, unit: "ls", unitCost: 3500, markupPct: 0, taxRate: "0", resolving: false, deleted: false }
         ];
         render();

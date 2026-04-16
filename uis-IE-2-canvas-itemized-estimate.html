@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IE-2 Canvas — Full Itemized Estimate (Interactive)</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: "Inter", -apple-system, sans-serif; background: #0f172a; color: #0f172a; min-height: 100vh; }
+.in-iframe .top-nav,
+.in-iframe .canvas-banner { display: none !important; }
+.in-iframe .canvas-root { padding-top: 4px; }
+.top-nav { position: sticky; top: 0; z-index: 200; background: #020617; border-bottom: 1px solid #1e293b; padding: 0 16px; display: flex; align-items: center; gap: 0; flex-wrap: wrap; }
+.top-nav a { display: inline-flex; align-items: center; padding: 10px 14px; font-size: 12px; font-weight: 600; color: #94a3b8; text-decoration: none; }
+.top-nav a:hover { color: #f8fafc; background: #1e293b; }
+.top-nav .nav-logo { font-size: 10px; font-weight: 800; letter-spacing: 1.2px; text-transform: uppercase; color: #64748b; padding-right: 12px; margin-right: 4px; border-right: 1px solid #1e293b; }
+.canvas-banner { background: linear-gradient(90deg, #312e81, #1e3a5f); color: #e0e7ff; padding: 10px 20px; font-size: 12px; text-align: center; border-bottom: 1px solid #4338ca; }
+.canvas-banner strong { color: #fff; }
+.canvas-root { max-width: 1400px; margin: 0 auto; padding: 16px; }
+.shell { display: flex; gap: 0; background: #fff; border-radius: 12px; overflow: hidden; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.45); border: 1px solid #e2e8f0; min-height: 720px; }
+.sidebar { width: 260px; flex-shrink: 0; background: #f8fafc; border-right: 1px solid #e2e8f0; padding: 16px; display: flex; flex-direction: column; gap: 12px; font-size: 12px; }
+.sidebar h2 { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; color: #64748b; }
+.sidebar .pill { display: inline-block; padding: 4px 10px; border-radius: 999px; font-size: 11px; font-weight: 700; }
+.pill-draft { background: #e2e8f0; color: #475569; }
+.pill-sent { background: #dbeafe; color: #1e40af; }
+.pill-won { background: #dcfce7; color: #166534; }
+.pill-lost { background: #fee2e2; color: #b91c1c; }
+.sidebar label { display: block; font-weight: 600; color: #334155; margin-bottom: 4px; }
+.sidebar select, .sidebar input { width: 100%; padding: 8px 10px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 12px; background: #fff; }
+.sidebar .btn { width: 100%; padding: 10px; border-radius: 8px; font-weight: 700; font-size: 12px; border: none; cursor: pointer; }
+.btn-primary { background: #2563eb; color: #fff; }
+.btn-primary:disabled { background: #94a3b8; cursor: not-allowed; }
+.btn-secondary { background: #fff; color: #334155; border: 1px solid #cbd5e1; }
+.sidebar .hint { font-size: 10px; color: #94a3b8; line-height: 1.4; }
+.main { flex: 1; min-width: 0; display: flex; flex-direction: column; background: #fff; }
+.main-header { padding: 12px 16px; border-bottom: 1px solid #e2e8f0; display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.main-header .title { font-weight: 800; font-size: 15px; color: #0f172a; }
+.main-header .sub { font-size: 11px; color: #64748b; }
+.main-header .spacer { flex: 1; min-width: 8px; }
+.toolbar-btn { padding: 7px 12px; border-radius: 8px; font-size: 11px; font-weight: 600; border: 1px solid #e2e8f0; background: #fff; color: #334155; cursor: pointer; }
+.toolbar-btn:hover { background: #f1f5f9; }
+.toolbar-btn.primary { background: #2563eb; color: #fff; border-color: #2563eb; }
+.toolbar-btn.primary:disabled { background: #cbd5e1; border-color: #cbd5e1; color: #f8fafc; cursor: not-allowed; }
+.tabs { display: flex; gap: 0; padding: 0 16px; background: #f1f5f9; border-bottom: 1px solid #e2e8f0; }
+.tab { padding: 10px 18px; font-size: 12px; font-weight: 700; color: #64748b; cursor: pointer; border-bottom: 3px solid transparent; margin-bottom: -1px; }
+.tab:hover { color: #334155; }
+.tab.active { color: #2563eb; border-bottom-color: #2563eb; background: #fff; }
+.tab-body { flex: 1; padding: 16px; overflow: auto; }
+.tab-placeholder { padding: 48px; text-align: center; color: #94a3b8; font-size: 13px; }
+.creation-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 14px; }
+.creation-row label { font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; }
+.pill-select { display: flex; gap: 6px; flex-wrap: wrap; }
+.pill-opt { padding: 6px 12px; border-radius: 999px; font-size: 11px; font-weight: 600; border: 1px solid #cbd5e1; background: #fff; cursor: pointer; color: #475569; }
+.pill-opt.active { border-color: #7c3aed; background: #f5f3ff; color: #5b21b6; }
+.pill-opt.dim { opacity: 0.45; pointer-events: none; }
+.grid-toolbar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 10px; }
+.search { flex: 1; min-width: 160px; padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 12px; }
+.btn-add { padding: 8px 14px; border-radius: 8px; font-weight: 700; font-size: 12px; background: #0f172a; color: #fff; border: none; cursor: pointer; }
+.btn-add:disabled { opacity: 0.5; cursor: not-allowed; }
+.picker { display: none; position: absolute; z-index: 50; left: 16px; right: 16px; max-width: 420px; margin-top: 4px; background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; box-shadow: 0 20px 40px rgba(15, 23, 42, 0.15); max-height: 280px; overflow: auto; }
+.picker.open { display: block; }
+.picker-group { padding: 8px 12px 4px; font-size: 10px; font-weight: 800; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em; }
+.picker-item { padding: 10px 14px; font-size: 12px; cursor: pointer; border-bottom: 1px solid #f1f5f9; color: #334155; }
+.picker-item:hover { background: #eff6ff; color: #1d4ed8; }
+.picker-wrap { position: relative; }
+.table-wrap { overflow-x: auto; border: 1px solid #e2e8f0; border-radius: 10px; }
+table.grid { width: 100%; border-collapse: collapse; font-size: 11px; min-width: 920px; }
+table.grid th { text-align: left; padding: 8px 10px; background: #f1f5f9; border-bottom: 1px solid #e2e8f0; font-weight: 700; white-space: nowrap; color: #475569; }
+table.grid td { padding: 6px 8px; border-bottom: 1px solid #f1f5f9; vertical-align: middle; background: #fff; }
+table.grid tr.resolving td { background: #eff6ff; }
+.badge { display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 9px; font-weight: 800; text-transform: uppercase; }
+.b-labor { background: #dbeafe; color: #1d4ed8; }
+.b-mat { background: #dcfce7; color: #166534; }
+.b-eq { background: #fef3c7; color: #92400e; }
+.b-custom { background: #f1f5f9; color: #475569; }
+.cell-in { width: 100%; max-width: 88px; padding: 4px 6px; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 11px; }
+.cell-in.wide { max-width: 200px; }
+.cell-in:focus { outline: 2px solid #93c5fd; border-color: #3b82f6; }
+.cell-num { text-align: right; font-variant-numeric: tabular-nums; }
+.drag-cell { color: #94a3b8; cursor: grab; user-select: none; text-align: center; width: 28px; }
+.row-actions button { padding: 2px 6px; font-size: 10px; margin: 0 1px; border: 1px solid #e2e8f0; border-radius: 4px; background: #fff; cursor: pointer; }
+.row-actions button:hover { background: #f1f5f9; }
+.totals-row { display: flex; flex-wrap: wrap; gap: 16px; margin-top: 16px; align-items: flex-start; }
+.totals-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px 16px; min-width: 260px; max-width: 360px; }
+.totals-card h3 { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; color: #64748b; margin-bottom: 10px; }
+.tline { display: flex; justify-content: space-between; padding: 5px 0; font-size: 12px; border-bottom: 1px solid #e2e8f0; }
+.tline:last-child { border-bottom: none; font-weight: 800; padding-top: 8px; margin-top: 4px; border-top: 2px solid #cbd5e1; }
+.tline input.oh { width: 56px; margin-left: 8px; padding: 2px 6px; border-radius: 4px; border: 1px solid #cbd5e1; }
+.modal-back { display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.5); z-index: 300; align-items: center; justify-content: center; padding: 20px; }
+.modal-back.open { display: flex; }
+.modal { background: #fff; border-radius: 12px; padding: 20px 22px; max-width: 420px; width: 100%; box-shadow: 0 25px 50px rgba(0, 0, 0, 0.25); }
+.modal h4 { font-size: 15px; margin-bottom: 10px; }
+.modal p { font-size: 12px; color: #64748b; margin-bottom: 14px; line-height: 1.5; }
+.modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 16px; }
+.toast { position: fixed; bottom: 24px; right: 24px; background: #0f172a; color: #fff; padding: 12px 18px; border-radius: 10px; font-size: 12px; display: none; z-index: 400; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3); }
+.toast.show { display: block; }
+.spec-strip { margin-top: 12px; padding: 10px 14px; background: #1e293b; color: #cbd5e1; border-radius: 8px; font-size: 11px; display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+.spec-strip label { display: flex; align-items: center; gap: 6px; cursor: pointer; }
+.readonly-mask .cell-in, .readonly-mask .btn-add, .readonly-mask .toolbar-btn.primary { pointer-events: none; opacity: 0.65; }
+.spin { display: inline-block; width: 12px; height: 12px; border: 2px solid #e2e8f0; border-top-color: #3b82f6; border-radius: 50%; animation: sp 0.7s linear infinite; vertical-align: middle; margin-right: 4px; }
+@keyframes sp { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+<script>if (self !== top) document.documentElement.classList.add("in-iframe");</script>
+<nav class="top-nav">
+    <span class="nav-logo">Appello SDLC</span>
+    <a href="uis-IE-2-line-item-editor.html">IE-2 Spec</a>
+    <a href="uis-IE-itemized-estimates.html">UIS-IE Parent</a>
+    <a href="index.html">Roadmap</a>
+</nav>
+<div class="canvas-banner">
+    <strong>Interactive Canvas</strong> &mdash; full <code>EstimateChangeOrderDetails</code> shell with Itemized worksheet, live totals, add-line picker (demo data), tab switch, creation-type confirm, and invoice gate. For specification review only; not production UI.
+</div>
+<div class="canvas-root">
+    <div class="shell" id="shell">
+        <aside class="sidebar">
+            <h2>Record</h2>
+            <div><strong>EST-2026-0142</strong></div>
+            <div>
+                <label for="selStatus">Status</label>
+                <select id="selStatus">
+                    <option value="Draft">Draft</option>
+                    <option value="Sent">Sent</option>
+                    <option value="Won">Won</option>
+                    <option value="Lost">Lost</option>
+                </select>
+            </div>
+            <div id="statusPill" class="pill pill-draft">Draft</div>
+            <div class="hint">Customer: ACME Retail TI<br>Job: 2026-0142</div>
+            <h2 style="margin-top: 8px;">Actions</h2>
+            <button type="button" class="btn btn-secondary" id="btnSave">Save</button>
+            <p class="hint">Save is demo-only (toast). Grid state resets on full page reload.</p>
+        </aside>
+        <div class="main" id="mainCol">
+            <div class="main-header">
+                <div>
+                    <div class="title">Estimate detail</div>
+                    <div class="sub"><code>EstimateChangeOrderDetails</code> &middot; <code>creationType</code> = <span id="ctLabel">Itemized</span></div>
+                </div>
+                <span class="spacer"></span>
+                <button type="button" class="toolbar-btn" id="btnPdf">Export PDF</button>
+                <button type="button" class="toolbar-btn" id="btnDup">Duplicate</button>
+                <button type="button" class="toolbar-btn primary" id="btnInvoice" disabled>Generate invoice</button>
+            </div>
+            <div class="tabs">
+                <div class="tab active" data-tab="worksheet">Worksheet</div>
+                <div class="tab" data-tab="letter">Letter</div>
+                <div class="tab" data-tab="files">Files</div>
+            </div>
+            <div class="tab-body" id="tabWorksheet">
+                <div id="fullWorksheetBanner" style="display:none;margin-bottom:12px;padding:12px 14px;background:#fef3c7;border:1px solid #fcd34d;border-radius:8px;font-size:12px;color:#92400e;">
+                    <strong>Full / Bid first worksheet</strong> &mdash; <code>EstimateChangeOrderCategory</code> + <code>EstimateChangeOrderRecordValue</code> grid is not modeled in this canvas. Switch back to <strong>Itemized</strong> to interact with line items.
+                </div>
+                <div id="itemizedBlock">
+                <div class="creation-row">
+                    <label>Worksheet mode</label>
+                    <div class="pill-select" id="creationPills">
+                        <button type="button" class="pill-opt" data-ct="Full">Full</button>
+                        <button type="button" class="pill-opt" data-ct="BidFirst">Bid first</button>
+                        <button type="button" class="pill-opt active" data-ct="Itemized">Itemized</button>
+                    </div>
+                </div>
+                <div class="grid-toolbar">
+                    <div class="picker-wrap" style="flex: 0 0 auto;">
+                        <button type="button" class="btn-add" id="btnAddLine">+ Add line</button>
+                        <div class="picker" id="picker">
+                            <input type="text" class="search" id="pickerSearch" placeholder="Filter picks&hellip;" style="margin: 8px; width: calc(100% - 16px);">
+                            <div class="picker-group">Labor</div>
+                            <div class="picker-item" data-add="labor" data-label="A. Lee &mdash; Welder Journeyman" data-unit="hr" data-cost="68">A. Lee &mdash; Welder Journeyman</div>
+                            <div class="picker-item" data-add="labor" data-label="C. Jones &mdash; Pipefitter Apprentice" data-unit="hr" data-cost="52">C. Jones &mdash; Pipefitter Apprentice</div>
+                            <div class="picker-group">Material</div>
+                            <div class="picker-item" data-add="material" data-label="Black iron 4&quot; sch 40" data-unit="LF" data-cost="6.1" data-delay="1">Black iron 4&quot; sch 40</div>
+                            <div class="picker-group">Equipment</div>
+                            <div class="picker-item" data-add="equipment" data-label="Forklift 5k cap" data-unit="day" data-cost="225" data-delay="1">Forklift 5k cap (daily)</div>
+                            <div class="picker-group">Custom</div>
+                            <div class="picker-item" data-add="custom" data-label="Permits &amp; fees (allowance)" data-unit="ls" data-cost="2400">Custom line (manual)</div>
+                        </div>
+                    </div>
+                    <input type="search" class="search" id="gridSearch" placeholder="Search visible rows (client filter demo)&hellip;" style="max-width: 280px;">
+                </div>
+                <div class="table-wrap" id="gridWrap">
+                    <table class="grid">
+                        <thead>
+                            <tr>
+                                <th></th>
+                                <th>Type</th>
+                                <th>Description</th>
+                                <th>Qty</th>
+                                <th>Unit</th>
+                                <th>Unit cost</th>
+                                <th>Total cost</th>
+                                <th>Markup %</th>
+                                <th>Line price</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbody"></tbody>
+                    </table>
+                </div>
+                <div class="totals-row">
+                    <div class="totals-card">
+                        <h3>Totals (IE-3 preview)</h3>
+                        <div class="tline"><span>Cost subtotal</span><span class="cell-num" id="tCost">$0.00</span></div>
+                        <div class="tline"><span>Line sell subtotal</span><span class="cell-num" id="tSell">$0.00</span></div>
+                        <div class="tline"><span>Overhead</span><span><input type="number" class="oh" id="overheadPct" value="10" min="0" max="100" step="1"> % &rarr; <span class="cell-num" id="tOh">$0.00</span></span></div>
+                        <div class="tline"><span>Grand bid</span><span class="cell-num" id="tGrand">$0.00</span></div>
+                    </div>
+                    <div class="totals-card" style="max-width: 280px;">
+                        <h3>Demo controls</h3>
+                        <label style="display:flex;align-items:center;gap:8px;font-size:12px;color:#334155;">
+                            <input type="checkbox" id="chkReadonly"> Read-only grid (permission / status)
+                        </label>
+                        <p class="hint" style="margin-top:8px;">Set status to <strong>Won</strong> to enable Generate invoice. Switch to <strong>Full</strong> with lines to see archive confirm.</p>
+                    </div>
+                </div>
+                </div>
+            </div>
+            <div class="tab-body" id="tabLetter" style="display: none;">
+                <div class="tab-placeholder">Letter tab &mdash; rich text + merge tags (<code>RichTextEditor</code>). Unchanged for Itemized.</div>
+            </div>
+            <div class="tab-body" id="tabFiles" style="display: none;">
+                <div class="tab-placeholder">Files tab &mdash; attachments list. Unchanged for Itemized.</div>
+            </div>
+        </div>
+    </div>
+    <div class="spec-strip">
+        <span><strong>Canvas ID:</strong> IE2-CANVAS-001</span>
+        <span>Tab: <span id="dbgTab">worksheet</span></span>
+        <span>Rows: <span id="dbgRows">0</span></span>
+    </div>
+</div>
+
+<div class="modal-back" id="modalSwitch">
+    <div class="modal">
+        <h4 id="modalSwitchTitle">Switch worksheet mode?</h4>
+        <p id="modalSwitchBody"></p>
+        <div class="modal-actions">
+            <button type="button" class="toolbar-btn" id="modalSwitchCancel">Cancel</button>
+            <button type="button" class="toolbar-btn primary" id="modalSwitchOk">Continue</button>
+        </div>
+    </div>
+</div>
+
+<div class="modal-back" id="modalInvoice">
+    <div class="modal">
+        <h4>Create Simple invoice from estimate?</h4>
+        <p>Job: <strong>2026-0142 ACME Retail TI</strong><br>Lines: <strong id="invLines">0</strong> &middot; Total: <strong id="invTotal">$0.00</strong></p>
+        <div class="modal-actions">
+            <button type="button" class="toolbar-btn" id="invCancel">Cancel</button>
+            <button type="button" class="toolbar-btn primary" id="invOk">Create invoice</button>
+        </div>
+    </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(function () {
+    var creationType = "Itemized";
+    var pendingCreation = null;
+    var rows = [];
+    var nextId = 1;
+    var pickerOpen = false;
+    var tbody = document.getElementById("tbody");
+    var shell = document.getElementById("shell");
+
+    function money(n) {
+        return "$" + n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+    }
+
+    function escAttr(s) {
+        return String(s).replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
+    }
+
+    function rowLinePrice(r) {
+        var tc = r.qty * r.unitCost;
+        var mk = tc * (r.markupPct / 100);
+        return tc + mk;
+    }
+
+    function recalc() {
+        var cost = 0;
+        var sell = 0;
+        rows.forEach(function (r) {
+            if (r.deleted) return;
+            var tc = r.qty * r.unitCost;
+            cost += tc;
+            sell += rowLinePrice(r);
+        });
+        var oh = parseFloat(document.getElementById("overheadPct").value) || 0;
+        var ohAmt = sell * (oh / 100);
+        var grand = sell + ohAmt;
+        document.getElementById("tCost").textContent = money(cost);
+        document.getElementById("tSell").textContent = money(sell);
+        document.getElementById("tOh").textContent = money(ohAmt);
+        document.getElementById("tGrand").textContent = money(grand);
+        document.getElementById("dbgRows").textContent = String(rows.filter(function (r) { return !r.deleted; }).length);
+        var st = document.getElementById("selStatus").value;
+        var inv = document.getElementById("btnInvoice");
+        var canInv = st === "Won" && creationType === "Itemized" && rows.some(function (r) { return !r.deleted; });
+        inv.disabled = !canInv || document.getElementById("chkReadonly").checked;
+    }
+
+    function render() {
+        var q = (document.getElementById("gridSearch").value || "").toLowerCase();
+        tbody.innerHTML = "";
+        var order = 0;
+        rows.forEach(function (r, idx) {
+            if (r.deleted) return;
+            if (q && String(r.label).toLowerCase().indexOf(q) < 0) return;
+            order++;
+            var tr = document.createElement("tr");
+            if (r.resolving) tr.className = "resolving";
+            var badgeClass = r.type === "Labor" ? "b-labor" : r.type === "Material" ? "b-mat" : r.type === "Equipment" ? "b-eq" : "b-custom";
+            tr.innerHTML =
+                "<td class=\"drag-cell\" title=\"Reorder\">&#9776;</td>" +
+                "<td><span class=\"badge " + badgeClass + "\">" + r.type.substring(0, 3) + "</span></td>" +
+                "<td><input class=\"cell-in wide\" type=\"text\" data-k=\"label\" data-id=\"" + r.id + "\" value=\"" + escAttr(r.label) + "\"></td>" +
+                "<td><input class=\"cell-in cell-num\" type=\"number\" data-k=\"qty\" data-id=\"" + r.id + "\" step=\"0.01\" min=\"0\" value=\"" + r.qty + "\"></td>" +
+                "<td><input class=\"cell-in\" type=\"text\" data-k=\"unit\" data-id=\"" + r.id + "\" value=\"" + r.unit + "\"></td>" +
+                "<td><input class=\"cell-in cell-num\" type=\"number\" data-k=\"unitCost\" data-id=\"" + r.id + "\" step=\"0.01\" min=\"0\" value=\"" + r.unitCost + "\"></td>" +
+                "<td class=\"cell-num\">" + money(r.qty * r.unitCost) + "</td>" +
+                "<td><input class=\"cell-in cell-num\" type=\"number\" data-k=\"markupPct\" data-id=\"" + r.id + "\" step=\"0.1\" value=\"" + r.markupPct + "\"></td>" +
+                "<td class=\"cell-num\">" + (r.resolving ? "<span class=\"spin\"></span>&hellip;" : money(rowLinePrice(r))) + "</td>" +
+                "<td class=\"row-actions\"><button type=\"button\" data-up=\"" + r.id + "\">&uarr;</button><button type=\"button\" data-down=\"" + r.id + "\">&darr;</button><button type=\"button\" data-del=\"" + r.id + "\">Remove</button></td>";
+            tbody.appendChild(tr);
+        });
+        tbody.querySelectorAll("input[data-k]").forEach(function (inp) {
+            inp.addEventListener("input", onCellInput);
+            inp.addEventListener("change", onCellInput);
+        });
+        tbody.querySelectorAll("button[data-del]").forEach(function (b) {
+            b.addEventListener("click", function () {
+                var id = parseInt(b.getAttribute("data-del"), 10);
+                rows = rows.map(function (r) { return r.id === id ? Object.assign({}, r, { deleted: true }) : r; });
+                render();
+                recalc();
+            });
+        });
+        tbody.querySelectorAll("button[data-up]").forEach(function (b) {
+            b.addEventListener("click", function () {
+                moveRow(parseInt(b.getAttribute("data-up"), 10), -1);
+            });
+        });
+        tbody.querySelectorAll("button[data-down]").forEach(function (b) {
+            b.addEventListener("click", function () {
+                moveRow(parseInt(b.getAttribute("data-down"), 10), 1);
+            });
+        });
+        applyReadonlyClass();
+        recalc();
+    }
+
+    function moveRow(id, dir) {
+        var active = rows.map(function (r, i) { return { r: r, i: i }; }).filter(function (o) { return !o.r.deleted; });
+        var pos = active.findIndex(function (o) { return o.r.id === id; });
+        if (pos < 0) return;
+        var j = pos + dir;
+        if (j < 0 || j >= active.length) return;
+        var i1 = active[pos].i;
+        var i2 = active[j].i;
+        var t = rows[i1];
+        rows[i1] = rows[i2];
+        rows[i2] = t;
+        render();
+    }
+
+    function onCellInput(ev) {
+        var inp = ev.target;
+        var id = parseInt(inp.getAttribute("data-id"), 10);
+        var k = inp.getAttribute("data-k");
+        var r = rows.find(function (x) { return x.id === id; });
+        if (!r || r.deleted) return;
+        if (k === "label") r.label = inp.value;
+        if (k === "qty") r.qty = Math.max(0, parseFloat(inp.value) || 0);
+        if (k === "unit") r.unit = inp.value;
+        if (k === "unitCost") r.unitCost = Math.max(0, parseFloat(inp.value) || 0);
+        if (k === "markupPct") r.markupPct = parseFloat(inp.value) || 0;
+        render();
+    }
+
+    function applyReadonlyClass() {
+        var ro = document.getElementById("chkReadonly").checked;
+        document.getElementById("tabWorksheet").classList.toggle("readonly-mask", ro);
+        document.getElementById("btnAddLine").disabled = ro;
+    }
+
+    function toast(msg) {
+        var t = document.getElementById("toast");
+        t.textContent = msg;
+        t.classList.add("show");
+        setTimeout(function () { t.classList.remove("show"); }, 2200);
+    }
+
+    function seedRows() {
+        rows = [
+            { id: nextId++, type: "Labor", label: "A. Lee — Welder Journeyman", qty: 24, unit: "hr", unitCost: 68, markupPct: 10, resolving: false, deleted: false },
+            { id: nextId++, type: "Material", label: "Black iron 4\" sch 40", qty: 120, unit: "LF", unitCost: 6.1, markupPct: 12, resolving: false, deleted: false },
+            { id: nextId++, type: "Equipment", label: "Forklift 5k cap", qty: 2, unit: "day", unitCost: 225, markupPct: 8, resolving: false, deleted: false },
+            { id: nextId++, type: "Custom", label: "Engineering review (NTE)", qty: 1, unit: "ls", unitCost: 3500, markupPct: 0, resolving: false, deleted: false }
+        ];
+        render();
+    }
+
+    document.querySelectorAll(".tab").forEach(function (tab) {
+        tab.addEventListener("click", function () {
+            document.querySelectorAll(".tab").forEach(function (t) { t.classList.remove("active"); });
+            tab.classList.add("active");
+            var name = tab.getAttribute("data-tab");
+            document.getElementById("tabWorksheet").style.display = name === "worksheet" ? "block" : "none";
+            document.getElementById("tabLetter").style.display = name === "letter" ? "block" : "none";
+            document.getElementById("tabFiles").style.display = name === "files" ? "block" : "none";
+            document.getElementById("dbgTab").textContent = name;
+        });
+    });
+
+    document.getElementById("selStatus").addEventListener("change", function () {
+        var v = document.getElementById("selStatus").value;
+        var p = document.getElementById("statusPill");
+        p.textContent = v;
+        p.className = "pill pill-" + v.toLowerCase();
+        recalc();
+    });
+
+    document.getElementById("overheadPct").addEventListener("input", recalc);
+
+    document.getElementById("chkReadonly").addEventListener("change", function () {
+        applyReadonlyClass();
+        recalc();
+    });
+
+    document.getElementById("gridSearch").addEventListener("input", render);
+
+    document.getElementById("btnAddLine").addEventListener("click", function () {
+        if (document.getElementById("chkReadonly").checked) return;
+        pickerOpen = !pickerOpen;
+        document.getElementById("picker").classList.toggle("open", pickerOpen);
+    });
+
+    document.getElementById("pickerSearch").addEventListener("input", function () {
+        var q = (document.getElementById("pickerSearch").value || "").toLowerCase();
+        document.querySelectorAll(".picker-item").forEach(function (el) {
+            el.style.display = !q || el.textContent.toLowerCase().indexOf(q) >= 0 ? "" : "none";
+        });
+    });
+
+    document.querySelectorAll(".picker-item").forEach(function (el) {
+        el.addEventListener("click", function () {
+            var typeMap = { labor: "Labor", material: "Material", equipment: "Equipment", custom: "Custom" };
+            var add = el.getAttribute("data-add");
+            var delay = el.getAttribute("data-delay") === "1";
+            var row = {
+                id: nextId++,
+                type: typeMap[add],
+                label: el.getAttribute("data-label"),
+                qty: add === "custom" ? 1 : add === "equipment" ? 1 : add === "material" ? 100 : 8,
+                unit: el.getAttribute("data-unit"),
+                unitCost: parseFloat(el.getAttribute("data-cost")),
+                markupPct: add === "custom" ? 0 : 10,
+                resolving: delay,
+                deleted: false
+            };
+            rows.push(row);
+            document.getElementById("picker").classList.remove("open");
+            pickerOpen = false;
+            render();
+            if (delay) {
+                setTimeout(function () {
+                    row.resolving = false;
+                    render();
+                    toast("Resolver filled unit cost for new row.");
+                }, 900);
+            }
+        });
+    });
+
+    document.addEventListener("click", function (e) {
+        if (!e.target.closest(".picker-wrap")) {
+            document.getElementById("picker").classList.remove("open");
+            pickerOpen = false;
+        }
+    });
+
+    function openModal(el) { el.classList.add("open"); }
+    function closeModal(el) { el.classList.remove("open"); }
+
+    document.querySelectorAll("#creationPills .pill-opt").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+            var next = btn.getAttribute("data-ct");
+            if (next === creationType) return;
+            var hasLines = rows.some(function (r) { return !r.deleted; });
+            pendingCreation = next;
+            if (creationType === "Itemized" && next !== "Itemized" && hasLines) {
+                document.getElementById("modalSwitchTitle").textContent = "Leave Itemized mode?";
+                document.getElementById("modalSwitchBody").textContent = "Line items will be hidden from this worksheet. Confirm aligns with IE-3 product rules (archive vs delete).";
+                openModal(document.getElementById("modalSwitch"));
+                return;
+            }
+            if (creationType !== "Itemized" && next === "Itemized") {
+                document.getElementById("modalSwitchTitle").textContent = "Switch to Itemized?";
+                document.getElementById("modalSwitchBody").textContent = "Account-item worksheet rows stay in DB but are not shown. You can add EstimateLineItem rows here.";
+                openModal(document.getElementById("modalSwitch"));
+                return;
+            }
+            setCreation(next);
+        });
+    });
+
+    document.getElementById("modalSwitchCancel").addEventListener("click", function () {
+        pendingCreation = null;
+        closeModal(document.getElementById("modalSwitch"));
+    });
+
+    document.getElementById("modalSwitchOk").addEventListener("click", function () {
+        if (pendingCreation) setCreation(pendingCreation);
+        pendingCreation = null;
+        closeModal(document.getElementById("modalSwitch"));
+    });
+
+    function setCreation(ct) {
+        creationType = ct;
+        document.getElementById("ctLabel").textContent = ct;
+        document.querySelectorAll("#creationPills .pill-opt").forEach(function (b) {
+            b.classList.toggle("active", b.getAttribute("data-ct") === ct);
+        });
+        var worksheet = document.getElementById("tabWorksheet");
+        var banner = document.getElementById("fullWorksheetBanner");
+        var itemizedBlock = document.getElementById("itemizedBlock");
+        if (ct !== "Itemized") {
+            banner.style.display = "block";
+            if (itemizedBlock) {
+                itemizedBlock.style.opacity = "0.4";
+                itemizedBlock.style.pointerEvents = "none";
+            }
+            document.getElementById("btnAddLine").disabled = true;
+        } else {
+            banner.style.display = "none";
+            if (itemizedBlock) {
+                itemizedBlock.style.opacity = "1";
+                itemizedBlock.style.pointerEvents = "";
+            }
+            document.getElementById("btnAddLine").disabled = document.getElementById("chkReadonly").checked;
+        }
+        recalc();
+        toast("creationType set to " + ct + " (demo).");
+    }
+
+    document.getElementById("btnSave").addEventListener("click", function () {
+        toast("Save queued (demo) — " + rows.filter(function (r) { return !r.deleted; }).length + " lines.");
+    });
+
+    document.getElementById("btnPdf").addEventListener("click", function () {
+        toast("PDF export (see IE-4).");
+    });
+
+    document.getElementById("btnDup").addEventListener("click", function () {
+        toast("Duplicate estimate (product: copy line items TBD).");
+    });
+
+    document.getElementById("btnInvoice").addEventListener("click", function () {
+        var sell = 0;
+        rows.forEach(function (r) { if (!r.deleted) sell += rowLinePrice(r); });
+        var oh = parseFloat(document.getElementById("overheadPct").value) || 0;
+        var grand = sell + sell * (oh / 100);
+        document.getElementById("invLines").textContent = String(rows.filter(function (r) { return !r.deleted; }).length);
+        document.getElementById("invTotal").textContent = money(grand);
+        openModal(document.getElementById("modalInvoice"));
+    });
+
+    document.getElementById("invCancel").addEventListener("click", function () {
+        closeModal(document.getElementById("modalInvoice"));
+    });
+
+    document.getElementById("invOk").addEventListener("click", function () {
+        closeModal(document.getElementById("modalInvoice"));
+        toast("Invoice created (demo) — navigate to JobBill per IE-5.");
+    });
+
+    seedRows();
+    document.getElementById("selStatus").value = "Draft";
+})();
+</script>
+</body>
+</html>

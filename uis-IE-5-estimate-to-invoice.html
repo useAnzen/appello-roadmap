@@ -59,6 +59,13 @@ table.schema-table td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; ver
 .mockup-container { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; margin: 14px 0; }
 .mockup-bar { background: #f1f5f9; padding: 8px 14px; font-size: 12px; font-weight: 600; color: #64748b; }
 .mockup-body { padding: 16px; font-size: 13px; color: #334155; }
+.mockup-detail-bar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; padding: 10px 12px; background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; margin-bottom: 12px; }
+.mockup-btn-primary { display: inline-block; padding: 8px 16px; border-radius: 6px; font-size: 12px; font-weight: 600; background: #3b82f6; color: #fff; }
+.mockup-btn-secondary { display: inline-block; padding: 8px 16px; border-radius: 6px; font-size: 12px; font-weight: 600; background: #fff; color: #334155; border: 1px solid #e2e8f0; }
+.mockup-modal-overlay { background: rgba(15,23,42,0.35); border-radius: 8px; padding: 20px; max-width: 480px; margin-top: 12px; }
+.mockup-modal { background: #fff; border-radius: 10px; padding: 16px 18px; border: 1px solid #e2e8f0; box-shadow: 0 8px 24px rgba(0,0,0,0.12); }
+.mockup-modal h4 { font-size: 14px; font-weight: 700; margin: 0 0 10px; color: #0f172a; }
+.callout-rules { background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 10px 12px; margin-top: 12px; font-size: 12px; color: #991b1b; }
 </style>
 </head>
 <body>
@@ -92,6 +99,7 @@ table.schema-table td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; ver
         <ol>
             <li><a href="#s1">Business Case</a></li>
             <li><a href="#s2">Scope</a></li>
+            <li><a href="#s-ui">UI Concepts</a></li>
             <li><a href="#s3">Line Mapping</a></li>
             <li><a href="#s4">API Surface</a></li>
             <li><a href="#s5">Change Surface</a></li>
@@ -121,8 +129,48 @@ table.schema-table td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; ver
             </ul>
         </div>
     </div>
+    <div class="uis-section" id="s-ui">
+        <h2>3. UI Concepts</h2>
+        <p>Primary action on <code>EstimateChangeOrderDetails</code> (header or Billing area). Modal pattern mirrors <strong>WO-7</strong> <code>ConversionConfirmationModal</code> &mdash; summary first, destructive/irreversible action clearly labeled.</p>
+        <div class="mockup-container">
+            <div class="mockup-bar">Estimate detail &mdash; status Won, Itemized</div>
+            <div class="mockup-body">
+                <div class="mockup-detail-bar">
+                    <span style="font-size:12px;font-weight:600;color:#166534;">Won</span>
+                    <span style="font-size:11px;color:#64748b;">ACME TI &mdash; 6 lines &mdash; Grand bid $7,606.54</span>
+                    <span style="flex:1"></span>
+                    <span class="mockup-btn-primary">Generate invoice</span>
+                </div>
+                <p style="font-size:11px;color:#64748b;">Button hidden when not Won, zero lines, missing invoice permission, or wrong <code>creationType</code>.</p>
+            </div>
+        </div>
+        <div class="mockup-container">
+            <div class="mockup-bar">Confirmation modal (before mutation)</div>
+            <div class="mockup-body">
+                <div class="mockup-modal-overlay">
+                    <div class="mockup-modal">
+                        <h4>Create Simple invoice from estimate?</h4>
+                        <p style="font-size:12px;margin:0 0 10px;color:#64748b;">Job: <strong>2026-0142 ACME Retail TI</strong> &middot; Lines: <strong>6</strong> &middot; Total: <strong>$7,606.54</strong></p>
+                        <table class="schema-table" style="font-size:11px;">
+                            <thead><tr><th>Description</th><th>Qty</th><th>Rate</th><th>Value</th></tr></thead>
+                            <tbody>
+                                <tr><td>Jacketing &mdash; 50 LF</td><td>50</td><td>$12.50</td><td>$625.00</td></tr>
+                                <tr><td colspan="4" style="color:#94a3b8;font-style:italic;">&hellip; 4 more lines</td></tr>
+                            </tbody>
+                        </table>
+                        <p style="font-size:11px;color:#64748b;margin:10px 0;">Taxes/fees follow existing Simple <code>JobBill</code> rules.</p>
+                        <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:12px;">
+                            <span class="mockup-btn-secondary">Cancel</span>
+                            <span class="mockup-btn-primary">Create invoice</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="callout-rules"><strong>Hide / disable:</strong> Not Won &middot; No line items &middot; User lacks invoice create permission &middot; <code>creationType</code> &ne; Itemized &middot; Optional: duplicate-invoice guard (product).</div>
+    </div>
     <div class="uis-section" id="s3">
-        <h2 class="collapsible-toggle open" onclick="toggleSection(this)">3. Line Mapping <span class="toggle-icon">&#9660;</span></h2>
+        <h2 class="collapsible-toggle open" onclick="toggleSection(this)">4. Line Mapping <span class="toggle-icon">&#9660;</span></h2>
         <div class="collapsible-body open">
             <table class="schema-table">
                 <thead><tr><th>EstimateLineItem</th><th>JobBillLineItem</th></tr></thead>
@@ -136,7 +184,7 @@ table.schema-table td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; ver
         </div>
     </div>
     <div class="uis-section" id="s4">
-        <h2 class="collapsible-toggle open" onclick="toggleSection(this)">4. API Surface <span class="toggle-icon">&#9660;</span></h2>
+        <h2 class="collapsible-toggle open" onclick="toggleSection(this)">5. API Surface <span class="toggle-icon">&#9660;</span></h2>
         <div class="collapsible-body open">
             <pre>mutation CreateInvoiceFromEstimate($estimateChangeOrderRecordId: ID!) {
   createInvoiceFromEstimate(estimateChangeOrderRecordId: $estimateChangeOrderRecordId) {
@@ -149,7 +197,7 @@ table.schema-table td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; ver
         </div>
     </div>
     <div class="uis-section" id="s5">
-        <h2 class="collapsible-toggle open" onclick="toggleSection(this)">5. Change Surface <span class="toggle-icon">&#9660;</span></h2>
+        <h2 class="collapsible-toggle open" onclick="toggleSection(this)">6. Change Surface <span class="toggle-icon">&#9660;</span></h2>
         <div class="collapsible-body open">
             <ul>
                 <li><span class="action-mod">MOD</span> <code>apps/api/prisma/schema.prisma</code> &mdash; optional <code>sourceEstimateChangeOrderRecordId</code> on <code>JobBill</code></li>
@@ -161,7 +209,7 @@ table.schema-table td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; ver
         </div>
     </div>
     <div class="uis-section" id="s6">
-        <h2 class="collapsible-toggle open" onclick="toggleSection(this)">6. Acceptance Criteria <span class="toggle-icon">&#9660;</span></h2>
+        <h2 class="collapsible-toggle open" onclick="toggleSection(this)">7. Acceptance Criteria <span class="toggle-icon">&#9660;</span></h2>
         <div class="collapsible-body open">
             <ul class="criteria-list">
                 <li><div class="criteria-check"></div><span>Button only visible for Won itemized estimates with at least one line</span></li>
@@ -172,7 +220,7 @@ table.schema-table td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; ver
         </div>
     </div>
     <div class="uis-section" id="s7">
-        <h2 class="collapsible-toggle open" onclick="toggleSection(this)">7. Dependencies <span class="toggle-icon">&#9660;</span></h2>
+        <h2 class="collapsible-toggle open" onclick="toggleSection(this)">8. Dependencies <span class="toggle-icon">&#9660;</span></h2>
         <div class="collapsible-body open">
             <p><span class="dep-tag dep-requires">IE-3</span></p>
             <p><a class="dep-tag dep-none" href="uis-IE-itemized-estimates.html">UIS-IE Parent</a></p>

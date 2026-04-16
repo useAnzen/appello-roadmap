@@ -62,8 +62,26 @@ table.schema-table code { font-family: monospace; background: #f1f5f9; padding: 
 .collapsible-toggle .toggle-icon { font-size: 14px; color: #94a3b8; }
 .collapsible-body { display: none; margin-top: 0; }
 .collapsible-body.open { display: block; }
+.collapsible-toggle.open + .collapsible-body { display: block; }
 .uis-footer { text-align: center; padding: 24px; font-size: 12px; color: #94a3b8; }
 .uis-footer a { color: #3b82f6; text-decoration: none; }
+.callout { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 12px 14px; margin: 12px 0; font-size: 13px; color: #1e40af; }
+.mockup-container { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; margin: 14px 0; }
+.mockup-bar { background: #f1f5f9; padding: 8px 14px; font-size: 12px; font-weight: 600; color: #64748b; border-bottom: 1px solid #e2e8f0; }
+.mockup-body { padding: 14px 16px; font-size: 12px; color: #334155; }
+.mockup-grid-wrap { overflow-x: auto; margin: 8px 0; }
+table.mockup-grid { width: 100%; border-collapse: collapse; font-size: 11px; min-width: 880px; }
+table.mockup-grid th { text-align: left; padding: 6px 8px; background: #e2e8f0; border: 1px solid #cbd5e1; font-weight: 700; white-space: nowrap; }
+table.mockup-grid td { padding: 6px 8px; border: 1px solid #e2e8f0; background: #fff; vertical-align: middle; }
+.mockup-badge { display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 9px; font-weight: 700; text-transform: uppercase; }
+.mockup-badge-labor { background: #dbeafe; color: #1d4ed8; }
+.mockup-badge-mat { background: #dcfce7; color: #166534; }
+.mockup-badge-eq { background: #fef3c7; color: #92400e; }
+.mockup-badge-custom { background: #f1f5f9; color: #475569; }
+.mockup-input { background: #fff; border: 1px dashed #cbd5e1; border-radius: 4px; padding: 4px 6px; color: #64748b; }
+.mockup-add-panel { background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 12px; margin-top: 10px; max-width: 420px; }
+.mockup-add-group { font-weight: 700; color: #64748b; margin-top: 8px; margin-bottom: 4px; font-size: 10px; text-transform: uppercase; letter-spacing: 0.04em; }
+.mockup-add-item { padding: 3px 0; color: #334155; border-bottom: 1px solid #f8fafc; font-size: 11px; }
 </style>
 </head>
 <body>
@@ -86,7 +104,7 @@ table.schema-table code { font-family: monospace; background: #f1f5f9; padding: 
             <span class="uis-badge badge-child">Child of UIS-IE</span>
         </div>
         <h1 class="uis-h1">Itemized Line Item Editor</h1>
-        <p class="uis-sub">Repeating-row editor inside <code>EstimateChangeOrderDetails</code> when <code>creationType = Itemized</code>. Add Item opens a searchable combobox (Labor trade levels, Materials, Equipment, Custom). Per-line markup %; totals roll to IE-3. Mirrors <code>SimpleInvoice.tsx</code> row patterns (quantity, unit cost, extension).</p>
+        <p class="uis-sub">Repeating-row editor inside <code>EstimateChangeOrderDetails</code> when <code>creationType = Itemized</code>. Terms: <a href="uis-IE-itemized-estimates.html#s-ui">UIS-IE glossary</a>. Add line uses categorized search (Labor / Material / Equipment / Custom). Mirrors <code>SimpleInvoice.tsx</code> patterns; data contract in <a href="uis-IE-1-schema-model.html#s3">IE-1 field matrix</a>.</p>
         <div class="uis-meta">
             <span><strong>Estimate:</strong> 4&ndash;6 days</span>
             <span><strong>Parent:</strong> UIS-IE</span>
@@ -97,11 +115,12 @@ table.schema-table code { font-family: monospace; background: #f1f5f9; padding: 
         <ol>
             <li><a href="#s1">Business Case</a></li>
             <li><a href="#s2">Scope</a></li>
-            <li><a href="#s3">Data Model</a></li>
-            <li><a href="#s4">API Surface</a></li>
-            <li><a href="#s5">Change Surface</a></li>
-            <li><a href="#s6">Acceptance Criteria</a></li>
-            <li><a href="#s7">Dependencies</a></li>
+            <li><a href="#s3">UI Concepts</a></li>
+            <li><a href="#s4">Field &amp; column spec</a></li>
+            <li><a href="#s5">Data &amp; API</a></li>
+            <li><a href="#s6">Change Surface</a></li>
+            <li><a href="#s7">Acceptance Criteria</a></li>
+            <li><a href="#s8">Dependencies</a></li>
         </ol>
     </div>
     <div class="uis-section" id="s1">
@@ -119,11 +138,11 @@ table.schema-table code { font-family: monospace; background: #f1f5f9; padding: 
         <div class="collapsible-body open">
             <h3>In Scope</h3>
             <ul>
-                <li><span class="scope-tag scope-in">IN</span> <code>EstimateLineItemEditor.tsx</code> &mdash; table + add row + delete row</li>
-                <li><span class="scope-tag scope-in">IN</span> TableFeed or dedicated query for labor/material/equipment pick lists with search</li>
-                <li><span class="scope-tag scope-in">IN</span> Client calls <code>resolveEstimateLineItemUnitCost</code> on selection to seed unit cost and unit label</li>
-                <li><span class="scope-tag scope-in">IN</span> Wire create/edit/delete to GraphQL from IE-1</li>
-                <li><span class="scope-tag scope-in">IN</span> Integration gate: show editor when estimate <code>creationType = Itemized</code></li>
+                <li><span class="scope-tag scope-in">IN</span> <code>EstimateLineItemEditor.tsx</code> &mdash; table + add row + delete row + row order</li>
+                <li><span class="scope-tag scope-in">IN</span> TableFeed or dedicated query for labor (user + trade), material, equipment pick lists with search</li>
+                <li><span class="scope-tag scope-in">IN</span> Client calls <code>resolveEstimateLineItemUnitCost</code> on selection to seed <code>unitCost</code> and <code>unit</code></li>
+                <li><span class="scope-tag scope-in">IN</span> Wire create/edit/delete to GraphQL from IE-1 (per-row or batched when IE-3 lands)</li>
+                <li><span class="scope-tag scope-in">IN</span> Show editor when <code>creationType = Itemized</code></li>
             </ul>
             <h3>Out of Scope</h3>
             <ul>
@@ -133,58 +152,165 @@ table.schema-table code { font-family: monospace; background: #f1f5f9; padding: 
         </div>
     </div>
     <div class="uis-section" id="s3">
-        <h2 class="collapsible-toggle open" onclick="toggleSection(this)">3. Data Model <span class="toggle-icon">&#9660;</span></h2>
+        <h2 class="collapsible-toggle open" onclick="toggleSection(this)">3. UI Concepts <span class="toggle-icon">&#9660;</span></h2>
         <div class="collapsible-body open">
-            <h3>UI columns</h3>
+            <p>Primary grid and <strong>Add line</strong> combobox. Labor row shows <strong>worker + trade</strong> in the selected-item column.</p>
+
+            <div class="mockup-container">
+                <div class="mockup-bar">Line item grid &mdash; <code>EstimateLineItemEditor</code></div>
+                <div class="mockup-body">
+                    <div class="mockup-grid-wrap">
+                        <table class="mockup-grid">
+                            <thead>
+                                <tr>
+                                    <th>Type</th>
+                                    <th>Selected item / description</th>
+                                    <th>Qty</th>
+                                    <th>Unit</th>
+                                    <th>Unit cost</th>
+                                    <th>Total cost</th>
+                                    <th>Markup %</th>
+                                    <th>Markup $</th>
+                                    <th>Line price</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><span class="mockup-badge mockup-badge-labor">Labor</span></td>
+                                    <td>A. Lee &mdash; Welder Journeyman</td>
+                                    <td><span class="mockup-input">24</span></td>
+                                    <td><span class="mockup-input">hr</span></td>
+                                    <td><span class="mockup-input">$68.00</span></td>
+                                    <td>$1,632.00</td>
+                                    <td><span class="mockup-input">10</span></td>
+                                    <td><span class="mockup-input">&mdash;</span></td>
+                                    <td>$1,795.20</td>
+                                    <td style="color:#94a3b8;">&times;</td>
+                                </tr>
+                                <tr>
+                                    <td><span class="mockup-badge mockup-badge-mat">Mat</span></td>
+                                    <td>Black iron 4&quot; sch 40 (120 LF)</td>
+                                    <td><span class="mockup-input">120</span></td>
+                                    <td><span class="mockup-input">LF</span></td>
+                                    <td><span class="mockup-input">$6.10</span></td>
+                                    <td>$732.00</td>
+                                    <td><span class="mockup-input">12</span></td>
+                                    <td><span class="mockup-input">&mdash;</span></td>
+                                    <td>$819.84</td>
+                                    <td style="color:#94a3b8;">&times;</td>
+                                </tr>
+                                <tr>
+                                    <td><span class="mockup-badge mockup-badge-eq">Eq</span></td>
+                                    <td>Forklift 5k cap</td>
+                                    <td><span class="mockup-input">2</span></td>
+                                    <td><span class="mockup-input">day</span></td>
+                                    <td><span class="mockup-input">$225.00</span></td>
+                                    <td>$450.00</td>
+                                    <td><span class="mockup-input">8</span></td>
+                                    <td><span class="mockup-input">&mdash;</span></td>
+                                    <td>$486.00</td>
+                                    <td style="color:#94a3b8;">&times;</td>
+                                </tr>
+                                <tr>
+                                    <td><span class="mockup-badge mockup-badge-custom">Custom</span></td>
+                                    <td><span class="mockup-input">Engineering review (T&amp;M NTE)</span></td>
+                                    <td><span class="mockup-input">1</span></td>
+                                    <td><span class="mockup-input">ls</span></td>
+                                    <td><span class="mockup-input">$3,500.00</span></td>
+                                    <td>$3,500.00</td>
+                                    <td><span class="mockup-input">0</span></td>
+                                    <td><span class="mockup-input">$0</span></td>
+                                    <td>$3,500.00</td>
+                                    <td style="color:#94a3b8;">&times;</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <p style="margin-top:10px;font-size:11px;color:#64748b;">Footer row: cost subtotal, total markup, line sell subtotal (feeds IE-3 panel).</p>
+                </div>
+            </div>
+
+            <div class="mockup-container">
+                <div class="mockup-bar">Add line &mdash; categorized combobox + search</div>
+                <div class="mockup-body">
+                    <span class="mockup-input" style="display:block;max-width:360px;margin-bottom:8px;">Search workers, materials, equipment&hellip;</span>
+                    <div class="mockup-add-panel">
+                        <div class="mockup-add-group">Labor</div>
+                        <div class="mockup-add-item">A. Lee &mdash; Welder Journeyman</div>
+                        <div class="mockup-add-item">C. Jones &mdash; Pipefitter Apprentice</div>
+                        <div class="mockup-add-group">Material</div>
+                        <div class="mockup-add-item">Black iron 4&quot; sch 40</div>
+                        <div class="mockup-add-group">Equipment</div>
+                        <div class="mockup-add-item">Forklift 5k cap &mdash; daily rate</div>
+                        <div class="mockup-add-group">Custom</div>
+                        <div class="mockup-add-item">Blank row (manual description + costs)</div>
+                    </div>
+                </div>
+            </div>
+
+            <h3>States</h3>
+            <div class="callout"><strong>Empty:</strong> grid shows placeholder row + <strong>Add line</strong> focused. <strong>Loading:</strong> spinner on row while <code>resolveEstimateLineItemUnitCost</code> runs. <strong>Permission denied:</strong> grid read-only or hidden per existing estimate rules. <strong>Resolve failure:</strong> inline error on row; allow manual unit cost.</div>
+        </div>
+    </div>
+    <div class="uis-section" id="s4">
+        <h2 class="collapsible-toggle open" onclick="toggleSection(this)">4. Field &amp; column spec <span class="toggle-icon">&#9660;</span></h2>
+        <div class="collapsible-body open">
+            <p>Authoritative column contract. Use app <code>FormControl</code> per CLAUDE.md. Product must define markup % vs markup $ precedence when both set.</p>
             <table class="schema-table">
-                <thead><tr><th>Column</th><th>Control</th><th>Notes</th></tr></thead>
+                <thead><tr><th>Column</th><th>Control</th><th>Data field</th><th>Edit</th><th>Formula / behavior</th></tr></thead>
                 <tbody>
-                    <tr><td>Type</td><td>Badge</td><td>Derived from lineItemType</td></tr>
-                    <tr><td>Description</td><td><code>FormControl</code> select-with-input</td><td>Catalog label or free text</td></tr>
-                    <tr><td>Qty / Unit</td><td>Numeric + text</td><td>Unit prefilled from rate (hr, ea, day)</td></tr>
-                    <tr><td>Unit cost</td><td>Currency</td><td>Editable after resolve</td></tr>
-                    <tr><td>Markup %</td><td>Numeric</td><td>Default from instance or last row</td></tr>
-                    <tr><td>Price</td><td>Read-only</td><td>totalCost + markup</td></tr>
+                    <tr><td>Type</td><td>Badge (read-only)</td><td><code>lineItemType</code></td><td>No</td><td>Set when pick completes or Custom chosen.</td></tr>
+                    <tr><td>Selected item / description</td><td><code>FormControl</code> select-with-input / combobox</td><td><code>userId</code>, <code>tradeLevelId</code>, <code>materialId</code>, <code>equipmentId</code>, <code>description</code></td><td>Yes</td><td>Labor: picker sets user + trade; display concatenated. Custom: free text only.</td></tr>
+                    <tr><td>Qty</td><td>Numeric</td><td><code>quantity</code></td><td>Yes</td><td>On change, recompute <code>totalCost</code> and line price.</td></tr>
+                    <tr><td>Unit</td><td>Text / select</td><td><code>unit</code></td><td>Yes</td><td>Prefilled from resolver (hr, LF, day).</td></tr>
+                    <tr><td>Unit cost</td><td>Currency</td><td><code>unitCost</code></td><td>Yes</td><td>Seeded by resolver; estimator may override.</td></tr>
+                    <tr><td>Total cost</td><td>Currency (typically read-only)</td><td><code>totalCost</code></td><td>Derived</td><td><code>quantity &times; unitCost</code> (round per instance rules).</td></tr>
+                    <tr><td>Markup %</td><td>Percent input</td><td><code>markupPercent</code></td><td>Yes</td><td>Default from job/instance or &ldquo;Set default markup&rdquo; (IE-3).</td></tr>
+                    <tr><td>Markup $</td><td>Currency</td><td><code>markupDollarValue</code></td><td>Yes</td><td>Optional flat markup; combine rule TBD in product.</td></tr>
+                    <tr><td>Line price</td><td>Currency read-only</td><td><code>price</code></td><td>No</td><td><code>totalCost</code> + markup (from % and/or $ per product rule).</td></tr>
+                    <tr><td>Delete</td><td>Icon button</td><td>remove / <code>isDeleted</code></td><td>Yes</td><td>Confirm optional; soft-delete on save.</td></tr>
                 </tbody>
             </table>
         </div>
     </div>
-    <div class="uis-section" id="s4">
-        <h2 class="collapsible-toggle open" onclick="toggleSection(this)">4. API Surface <span class="toggle-icon">&#9660;</span></h2>
-        <div class="collapsible-body open">
-            <p>Reuse IE-1 operations. Optional <code>upsertEstimateLineItems(estimateId, items[])</code> mutation may be added in IE-3 for transactional save; IE-2 can start with per-row mutations.</p>
-        </div>
-    </div>
     <div class="uis-section" id="s5">
-        <h2 class="collapsible-toggle open" onclick="toggleSection(this)">5. Change Surface <span class="toggle-icon">&#9660;</span></h2>
+        <h2 class="collapsible-toggle open" onclick="toggleSection(this)">5. Data &amp; API <span class="toggle-icon">&#9660;</span></h2>
         <div class="collapsible-body open">
-            <div class="blast-summary">
-                <div class="blast-row"><span class="blast-label">New migration</span><span class="blast-value">1</span></div>
-                <div class="blast-row"><span class="blast-label">New model files</span><span class="blast-value">2+</span></div>
-                <div class="blast-row"><span class="blast-label">GraphQL registration</span><span class="blast-value">schema.ts</span></div>
-            </div>
-            <ul>
-                <li><span class="action-new">NEW</span> <code>apps/frontend/src/components/Estimates/EstimateLineItemEditor.tsx</code></li>
-                <li><span class="action-new">NEW</span> <code>apps/frontend/src/graphql/queries/estimateLineItems.graphql</code></li>
-                <li><span class="action-new">NEW</span> <code>apps/frontend/src/graphql/mutations/estimateLineItems.graphql</code></li>
-                <li><span class="action-mod">MOD</span> <code>EstimateChangeOrderDetails.tsx</code> &mdash; render editor when Itemized</li>
-            </ul>
+            <p>Prisma model, CRUD, and <code>resolveEstimateLineItemUnitCost</code> are defined in <a href="uis-IE-1-schema-model.html">IE-1</a>. IE-2 consumes <code>estimateLineItems(estimateChangeOrderRecordId)</code> and row mutations (or batched <code>upsert</code> once IE-3 extends the parent mutation).</p>
+            <p>Optional until IE-3: <code>upsertEstimateLineItems(estimateId, items[])</code> for transactional save with header totals.</p>
         </div>
     </div>
     <div class="uis-section" id="s6">
-        <h2 class="collapsible-toggle open" onclick="toggleSection(this)">6. Acceptance Criteria <span class="toggle-icon">&#9660;</span></h2>
+        <h2 class="collapsible-toggle open" onclick="toggleSection(this)">6. Change Surface <span class="toggle-icon">&#9660;</span></h2>
         <div class="collapsible-body open">
-            <ul class="criteria-list">
-                <li><div class="criteria-check"></div><span>User can add, edit, remove rows without full page reload</span></li>
-                <li><div class="criteria-check"></div><span>Selecting a catalog row fills unit cost via server resolve</span></li>
-                <li><div class="criteria-check"></div><span>Custom row allows manual description and costs with null catalog FKs</span></li>
-                <li><div class="criteria-check"></div><span>Per-line markup updates price column</span></li>
-                <li><div class="criteria-check"></div><span>Permissions match existing estimate edit rules</span></li>
+            <div class="blast-summary">
+                <div class="blast-row"><span class="blast-label">New frontend components</span><span class="blast-value">1+</span></div>
+                <div class="blast-row"><span class="blast-label">New GraphQL operations (frontend)</span><span class="blast-value">2+</span></div>
+                <div class="blast-row"><span class="blast-label">API / Prisma migrations</span><span class="blast-value">0</span> (IE-1)</div>
+            </div>
+            <ul>
+                <li><span class="action-new">NEW</span> <code>apps/frontend/src/components/Estimates/EstimateLineItemEditor.tsx</code> (path per repo layout)</li>
+                <li><span class="action-new">NEW</span> GraphQL query + mutation files for line items</li>
+                <li><span class="action-mod">MOD</span> <code>EstimateChangeOrderDetails.tsx</code> &mdash; render editor when <code>Itemized</code>; pass totals props to IE-3 panel</li>
             </ul>
         </div>
     </div>
     <div class="uis-section" id="s7">
-        <h2 class="collapsible-toggle open" onclick="toggleSection(this)">7. Dependencies <span class="toggle-icon">&#9660;</span></h2>
+        <h2 class="collapsible-toggle open" onclick="toggleSection(this)">7. Acceptance Criteria <span class="toggle-icon">&#9660;</span></h2>
+        <div class="collapsible-body open">
+            <ul class="criteria-list">
+                <li><div class="criteria-check"></div><span>User can add, edit, remove rows without full page reload</span></li>
+                <li><div class="criteria-check"></div><span>Selecting a catalog row fills unit cost via server resolve</span></li>
+                <li><div class="criteria-check"></div><span>Labor row ties to a specific user when product requires user-first labor</span></li>
+                <li><div class="criteria-check"></div><span>Custom row allows manual description and costs with null catalog FKs</span></li>
+                <li><div class="criteria-check"></div><span>Total cost, markup fields, and line price stay numerically consistent</span></li>
+                <li><div class="criteria-check"></div><span>Permissions match existing estimate edit rules</span></li>
+            </ul>
+        </div>
+    </div>
+    <div class="uis-section" id="s8">
+        <h2 class="collapsible-toggle open" onclick="toggleSection(this)">8. Dependencies <span class="toggle-icon">&#9660;</span></h2>
         <div class="collapsible-body open">
             <p><span class="dep-tag dep-requires">IE-1</span></p>
             <p><span class="dep-tag dep-enables">IE-3 Totals &amp; Overhead</span></p>

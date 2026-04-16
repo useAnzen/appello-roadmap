@@ -171,6 +171,37 @@ model EstimateLineItem {
   User                        User?        @relation(...)
 }</pre>
             <p><strong>Note:</strong> Optional <code>userId</code> on labor rows aligns with the user-first labor rule for WO line items when the same picker is reused in IE-2.</p>
+
+            <h3>Field &rarr; line grid (IE-2)</h3>
+            <p>Contract for the editor in <a href="uis-IE-2-line-item-editor.html">IE-2</a>. Terms match <a href="uis-IE-itemized-estimates.html#s-ui">UIS-IE glossary</a>.</p>
+            <table class="schema-table">
+                <thead><tr><th>Prisma / GraphQL field</th><th>UI column / surface</th><th>Notes</th></tr></thead>
+                <tbody>
+                    <tr><td><code>lineItemType</code></td><td>Type badge</td><td>Labor / Material / Equipment / Custom</td></tr>
+                    <tr><td><code>User</code> + <code>TradeLevel</code> + <code>description</code></td><td>Selected item / description</td><td>Labor: show worker name + trade; fallback to description. Material/Equipment: catalog label + optional description.</td></tr>
+                    <tr><td><code>materialId</code>, <code>equipmentId</code></td><td>Picker value (hidden id)</td><td>Drives resolver input; display name from join or TableFeed column.</td></tr>
+                    <tr><td><code>quantity</code></td><td>Qty</td><td>Must be &gt; 0 for sell math where applicable.</td></tr>
+                    <tr><td><code>unit</code></td><td>Unit</td><td>Prefilled from rate (hr, ea, day).</td></tr>
+                    <tr><td><code>unitCost</code></td><td>Unit cost</td><td>Seeded by <code>resolveEstimateLineItemUnitCost</code>; editable.</td></tr>
+                    <tr><td><code>totalCost</code></td><td>Total cost</td><td>Computed <code>qty &times; unitCost</code> or stored; read-only or editable per product.</td></tr>
+                    <tr><td><code>markupPercent</code></td><td>Markup %</td><td>Per line.</td></tr>
+                    <tr><td><code>markupDollarValue</code></td><td>Markup $</td><td>Per line; product defines % vs $ precedence.</td></tr>
+                    <tr><td><code>price</code></td><td>Line price</td><td>Read-only sell total after markup rules.</td></tr>
+                    <tr><td><code>orderNo</code></td><td>Row order</td><td>Drag handle or implicit; not a labeled column.</td></tr>
+                    <tr><td>(n/a)</td><td>Delete</td><td>Soft-delete on save via <code>isDeleted</code> or remove from upsert payload.</td></tr>
+                </tbody>
+            </table>
+
+            <h3>Example rows (resolver inputs)</h3>
+            <table class="schema-table">
+                <thead><tr><th>Type</th><th>FKs set</th><th>Example <code>description</code></th><th><code>resolveEstimateLineItemUnitCost</code> input</th></tr></thead>
+                <tbody>
+                    <tr><td>Labor</td><td><code>userId</code>, <code>tradeLevelId</code></td><td>J. Smith &mdash; Pipefitter Journeyman</td><td>instance + job context + userId + tradeLevelId (+ agreement context per LEM-1)</td></tr>
+                    <tr><td>Material</td><td><code>materialId</code></td><td>2&quot; Copper Type L</td><td>materialId + qty (optional) + material pricing / LEM-3</td></tr>
+                    <tr><td>Equipment</td><td><code>equipmentId</code></td><td>Scissor lift 19ft</td><td>equipmentId + unit (day/hr) per LEM-2</td></tr>
+                    <tr><td>Custom</td><td>none</td><td>Permits &amp; fees</td><td>No resolver; manual <code>unitCost</code></td></tr>
+                </tbody>
+            </table>
         </div>
     </div>
     <div class="uis-section" id="s4">

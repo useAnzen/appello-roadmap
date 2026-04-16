@@ -100,6 +100,36 @@ Use generated hooks per repo convention after schema/codegen.
 
 ---
 
+## UI / UX deliverables
+
+Implement to match `uis-IE-2-line-item-editor.html` §3–4 and parent glossary (`uis-IE-itemized-estimates.html#s-ui`).
+
+### UI build checklist (column contract)
+
+| Column | Component | Data / state | Validation |
+|--------|-----------|--------------|------------|
+| Type | Badge | `lineItemType` | Set from picker path |
+| Selected item / description | `FormControl` combobox + free text | `userId`, FKs, `description` | Labor requires user when product requires it |
+| Qty | Numeric | `quantity` | &gt; 0 |
+| Unit | Text/select | `unit` | Non-empty preferred |
+| Unit cost | Currency | `unitCost` | &gt;= 0 |
+| Total cost | Read-only (typ.) | `totalCost` | qty × unitCost |
+| Markup % | Percent | `markupPercent` | 0–100+ per product |
+| Markup $ | Currency | `markupDollarValue` | Precedence vs % (product) |
+| Line price | Read-only | `price` | Consistent with markup rules |
+| Delete | Icon | remove / soft-delete | Confirm optional |
+
+### Add-line flow
+
+- Grouped list: Labor → Material → Equipment → Custom; search filters within groups.
+- After pick: fire `resolveEstimateLineItemUnitCost`; show loading on row; on failure allow manual unit cost.
+
+### Handoff to IE-3
+
+- Emit line-derived subtotals (cost, markup dollars, sell) to `EstimateChangeOrderTotals` props or shared context for Itemized branch.
+
+---
+
 ## Checklist
 
 - [ ] Rows validate qty &gt; 0 and numeric fields

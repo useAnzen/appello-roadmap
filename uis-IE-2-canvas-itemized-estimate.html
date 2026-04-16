@@ -54,8 +54,18 @@ body { font-family: "Inter", -apple-system, sans-serif; background: #0f172a; col
 .pill-select { display: flex; gap: 6px; flex-wrap: wrap; }
 .pill-opt { padding: 6px 12px; border-radius: 999px; font-size: 11px; font-weight: 600; border: 1px solid #cbd5e1; background: #fff; cursor: pointer; color: #475569; }
 .pill-opt.active { border-color: #7c3aed; background: #f5f3ff; color: #5b21b6; }
-.grid-toolbar { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-start; margin-bottom: 12px; justify-content: space-between; }
-.addline-wrap { position: relative; flex: 1; min-width: 220px; max-width: 560px; }
+.grid-toolbar { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-bottom: 12px; justify-content: flex-end; }
+.add-item-slot { position: relative; margin-top: 12px; max-width: 580px; }
+.btn-add-item { display: inline-flex; align-items: center; gap: 8px; padding: 10px 18px; background: #2563eb; color: #fff; border: none; border-radius: 8px; font-weight: 700; font-size: 13px; cursor: pointer; font-family: inherit; }
+.btn-add-item:hover { background: #1d4ed8; }
+.btn-add-item:disabled { opacity: 0.45; cursor: not-allowed; }
+.btn-add-item .plus { font-size: 18px; font-weight: 400; line-height: 1; }
+.add-item-panel { display: none; margin-top: 12px; padding: 14px 16px 16px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; box-shadow: 0 4px 14px rgba(15, 23, 42, 0.06); }
+.add-item-panel.open { display: block; }
+.add-item-hint { font-size: 12px; color: #475569; margin-bottom: 10px; line-height: 1.45; }
+.btn-cancel-add { margin-top: 12px; padding: 0; font-size: 12px; border: none; background: transparent; color: #64748b; cursor: pointer; text-decoration: underline; font-family: inherit; }
+.btn-cancel-add:hover { color: #334155; }
+.addline-wrap { position: relative; width: 100%; max-width: 560px; }
 .smart-search-wrap { position: relative; }
 .smart-search-wrap::before { content: ""; position: absolute; left: 12px; top: 50%; transform: translateY(-50%); width: 16px; height: 16px; background: no-repeat center; opacity: 0.45; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2364748b'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z'/%3E%3C/svg%3E"); background-size: 16px 16px; pointer-events: none; }
 #smartSearch { width: 100%; padding: 10px 14px 10px 40px; border: 2px solid #cbd5e1; border-radius: 10px; font-size: 13px; background: #fff; }
@@ -123,7 +133,7 @@ table.grid tr.resolving td { background: #eff6ff; }
     <a href="index.html">Roadmap</a>
 </nav>
 <div class="canvas-banner">
-    <strong>Interactive Canvas</strong> &mdash; unified <strong>smart search</strong> across labor, material, and equipment; per-line <strong>tax</strong> (Wave-style); <strong>totals block bottom-right</strong>. Spec review only.
+    <strong>Interactive Canvas</strong> &mdash; <strong>+ Add item</strong> reveals catalog search (below the grid); unified search across labor, material, equipment; per-line tax; summary bottom-right. Spec review only.
 </div>
 <div class="canvas-root">
     <div class="shell" id="shell">
@@ -177,16 +187,6 @@ table.grid tr.resolving td { background: #eff6ff; }
                 </div>
                 <div class="worksheet-stack">
                 <div class="grid-toolbar">
-                    <div class="addline-wrap">
-                        <div class="smart-search-wrap">
-                            <input type="text" id="smartSearch" autocomplete="off" placeholder="Search labor, material, equipment, or type a name&hellip;">
-                        </div>
-                        <div class="smart-dd" id="smartDd">
-                            <div class="smart-dd-hint" id="smartDdHint">One field searches <strong>all</strong> catalog types. Results rank by match on title, subtitle, and category.</div>
-                            <div id="smartDdList"></div>
-                            <div class="pick-footer" id="pickCustom" role="button">+ Add custom line (no catalog link)</div>
-                        </div>
-                    </div>
                     <input type="search" class="search-filter" id="gridSearch" placeholder="Filter rows in grid&hellip;" title="Client-side filter on current lines">
                 </div>
                 <div class="table-wrap" id="gridWrap">
@@ -209,6 +209,23 @@ table.grid tr.resolving td { background: #eff6ff; }
                         </thead>
                         <tbody id="tbody"></tbody>
                     </table>
+                </div>
+                <div class="add-item-slot" id="addItemSlot">
+                    <button type="button" class="btn-add-item" id="btnAddItem"><span class="plus">+</span> Add item</button>
+                    <div class="add-item-panel" id="addItemPanel">
+                        <p class="add-item-hint">Search across <strong>labor, materials, and equipment</strong> in one field (matches name, notes, or type). Pick a row to insert below, or add a custom line.</p>
+                        <div class="addline-wrap">
+                            <div class="smart-search-wrap">
+                                <input type="text" id="smartSearch" autocomplete="off" placeholder="Type an item name&hellip;">
+                            </div>
+                            <div class="smart-dd" id="smartDd">
+                                <div class="smart-dd-hint" id="smartDdHint">Results combine all catalog types; ranked by relevance.</div>
+                                <div id="smartDdList"></div>
+                                <div class="pick-footer" id="pickCustom" role="button">+ Add custom line (no catalog link)</div>
+                            </div>
+                        </div>
+                        <button type="button" class="btn-cancel-add" id="btnCancelAdd">Cancel</button>
+                    </div>
                 </div>
                 <div class="totals-footer">
                     <div class="totals-wave">
@@ -402,8 +419,7 @@ table.grid tr.resolving td { background: #eff6ff; }
             deleted: false
         };
         rows.push(row);
-        document.getElementById("smartSearch").value = "";
-        setDdOpen(false);
+        closeAddPanel();
         render();
         if (delay) {
             setTimeout(function () {
@@ -427,8 +443,7 @@ table.grid tr.resolving td { background: #eff6ff; }
             resolving: false,
             deleted: false
         });
-        document.getElementById("smartSearch").value = "";
-        setDdOpen(false);
+        closeAddPanel();
         render();
         toast("Custom line added — fill description and costs.");
     }
@@ -436,6 +451,27 @@ table.grid tr.resolving td { background: #eff6ff; }
     function setDdOpen(open) {
         var dd = document.getElementById("smartDd");
         dd.classList.toggle("open", open);
+    }
+
+    function isAddPanelOpen() {
+        return document.getElementById("addItemPanel").classList.contains("open");
+    }
+
+    function openAddPanel() {
+        document.getElementById("addItemPanel").classList.add("open");
+        var ss = document.getElementById("smartSearch");
+        renderSmartDd();
+        setDdOpen(true);
+        setTimeout(function () {
+            ss.focus();
+            ss.select();
+        }, 0);
+    }
+
+    function closeAddPanel() {
+        document.getElementById("addItemPanel").classList.remove("open");
+        document.getElementById("smartSearch").value = "";
+        setDdOpen(false);
     }
 
     function render() {
@@ -567,10 +603,12 @@ table.grid tr.resolving td { background: #eff6ff; }
     var smartSearch = document.getElementById("smartSearch");
     var smartDd = document.getElementById("smartDd");
     smartSearch.addEventListener("focus", function () {
+        if (!isAddPanelOpen()) return;
         renderSmartDd();
         setDdOpen(true);
     });
     smartSearch.addEventListener("input", function () {
+        if (!isAddPanelOpen()) return;
         renderSmartDd();
         setDdOpen(true);
     });
@@ -579,8 +617,25 @@ table.grid tr.resolving td { background: #eff6ff; }
         addCustomLine();
     });
 
+    document.getElementById("btnAddItem").addEventListener("click", function (e) {
+        e.stopPropagation();
+        if (document.getElementById("btnAddItem").disabled) return;
+        if (isAddPanelOpen()) closeAddPanel();
+        else openAddPanel();
+    });
+
+    document.getElementById("btnCancelAdd").addEventListener("click", function (e) {
+        e.stopPropagation();
+        closeAddPanel();
+    });
+
     document.addEventListener("click", function (e) {
-        if (!e.target.closest(".addline-wrap")) setDdOpen(false);
+        if (!e.target.closest("#addItemSlot")) {
+            setDdOpen(false);
+            if (isAddPanelOpen()) closeAddPanel();
+        } else if (!e.target.closest(".addline-wrap")) {
+            setDdOpen(false);
+        }
     });
 
     document.getElementById("btnEditCols").addEventListener("click", function () {
@@ -631,22 +686,22 @@ table.grid tr.resolving td { background: #eff6ff; }
         });
         var banner = document.getElementById("fullWorksheetBanner");
         var itemizedBlock = document.getElementById("itemizedBlock");
-        var ss = document.getElementById("smartSearch");
+        var addBtn = document.getElementById("btnAddItem");
         if (ct !== "Itemized") {
             banner.style.display = "block";
             if (itemizedBlock) {
                 itemizedBlock.style.opacity = "0.4";
                 itemizedBlock.style.pointerEvents = "none";
             }
-            if (ss) ss.disabled = true;
-            setDdOpen(false);
+            if (addBtn) addBtn.disabled = true;
+            closeAddPanel();
         } else {
             banner.style.display = "none";
             if (itemizedBlock) {
                 itemizedBlock.style.opacity = "1";
                 itemizedBlock.style.pointerEvents = "";
             }
-            if (ss) ss.disabled = false;
+            if (addBtn) addBtn.disabled = false;
         }
         recalc();
         toast("creationType → " + ct);

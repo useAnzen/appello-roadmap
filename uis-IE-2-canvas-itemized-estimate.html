@@ -139,11 +139,20 @@ table.grid tr.resolving td { background: #eff6ff; }
 .tline.t-step .step-num { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; border-radius: 999px; background: #e0e7ff; color: #3730a3; font-size: 10px; font-weight: 800; margin-right: 8px; vertical-align: middle; }
 .section-row td.section-cell { padding: 0; background: linear-gradient(90deg, #f1f5f9, #f8fafc); border-bottom: 1px solid #cbd5e1; }
 .section-inner { display: flex; align-items: center; gap: 10px; padding: 8px 10px; }
+.section-inner.depth-1 { padding-left: 22px; }
+.section-inner.depth-2 { padding-left: 38px; }
+.section-inner.depth-3 { padding-left: 54px; }
+tr.line-depth td { background: #fcfcfd; }
+tr.line-depth .depth-pad-1 { padding-left: 18px; }
+tr.line-depth .depth-pad-2 { padding-left: 34px; }
+tr.line-depth .depth-pad-3 { padding-left: 50px; }
 .section-tag { flex-shrink: 0; font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; color: #475569; background: #fff; padding: 3px 8px; border-radius: 4px; border: 1px solid #cbd5e1; }
 .section-title-inp { flex: 1; min-width: 140px; font-weight: 700; font-size: 12px; border: 1px solid #cbd5e1; border-radius: 6px; padding: 6px 10px; background: #fff; font-family: inherit; }
 .section-actions { display: flex; gap: 4px; flex-shrink: 0; }
 .section-actions button { padding: 4px 8px; font-size: 10px; border: 1px solid #cbd5e1; border-radius: 4px; background: #fff; cursor: pointer; }
 .section-actions button:hover { background: #eff6ff; }
+.section-actions .btn-here { font-size: 9px; font-weight: 800; padding: 3px 7px; color: #1d4ed8; }
+.section-inner.section-insert-active { box-shadow: inset 0 0 0 2px #2563eb; border-radius: 8px; background: #eff6ff; }
 .modal-back { display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.5); z-index: 300; align-items: center; justify-content: center; padding: 20px; }
 .modal-back.open { display: flex; }
 .modal { background: #fff; border-radius: 12px; padding: 20px 22px; max-width: 420px; width: 100%; box-shadow: 0 25px 50px rgba(0, 0, 0, 0.25); }
@@ -165,7 +174,7 @@ table.grid tr.resolving td { background: #eff6ff; }
     <a href="index.html">Roadmap</a>
 </nav>
 <div class="canvas-banner">
-    <strong>Interactive Canvas</strong> &mdash; <strong>+ Add item</strong> catalog search; <strong>+ Section</strong> for phases/modules/trade groups; overhead control in the <strong>left rail</strong>; summary uses a numbered roll-up. Spec review only.
+    <strong>Interactive Canvas</strong> &mdash; <strong>+ Section</strong> (root) and <strong>+ Sub</strong> (nested); <strong>↑↓</strong> reorder siblings (whole subsection moves with its lines); <strong>Here</strong> sets where new catalog lines attach; <strong>+ Add item</strong> search; overhead in the <strong>left rail</strong>; numbered summary roll-up. Spec review only.
 </div>
 <div class="canvas-root">
     <div class="shell" id="shell">
@@ -253,7 +262,7 @@ table.grid tr.resolving td { background: #eff6ff; }
                 <div class="add-item-slot" id="addItemSlot">
                     <button type="button" class="btn-add-item" id="btnAddItem"><span class="plus">+</span> Add item</button>
                     <div class="add-item-panel" id="addItemPanel">
-                        <p class="add-item-hint">Search across <strong>labor, materials, and equipment</strong> in one field (matches name, notes, <strong>material specs</strong>, or type). Equipment with multiple rental windows shows a <strong>Bill as</strong> rate on the line after you add it. Pick a row to insert below, or add a custom line.</p>
+                        <p class="add-item-hint">Search across <strong>labor, materials, and equipment</strong> in one field. Click <strong>Here</strong> on a section so new lines land under that section (or they go to the worksheet root). Equipment <strong>Bill as</strong> multi-rate; material <strong>specs</strong> in search. Add a custom line from the footer below.</p>
                         <div class="addline-wrap">
                             <div class="smart-search-wrap">
                                 <input type="text" id="smartSearch" autocomplete="off" placeholder="Type an item name&hellip;">
@@ -354,6 +363,116 @@ table.grid tr.resolving td { background: #eff6ff; }
             if (isDataLine(r)) n++;
         });
         return n;
+    }
+
+    var insertLinesParentId = null;
+
+    function childrenOf(parentId) {
+        return rows
+            .filter(function (r) {
+                if (r.deleted) return false;
+                if (parentId == null) return r.parentId == null;
+                return r.parentId === parentId;
+            })
+            .sort(function (a, b) {
+                var ao = a.orderIndex != null ? a.orderIndex : a.id;
+                var bo = b.orderIndex != null ? b.orderIndex : b.id;
+                if (ao !== bo) return ao - bo;
+                return a.id - b.id;
+            });
+    }
+
+    function maxSiblingOrder(parentId) {
+        var ch = childrenOf(parentId);
+        if (ch.length === 0) return 0;
+        var mx = 0;
+        ch.forEach(function (c) {
+            var o = c.orderIndex != null ? c.orderIndex : 0;
+            if (o > mx) mx = o;
+        });
+        return mx;
+    }
+
+    function normalizeSiblingOrder(parentId) {
+        var ch = childrenOf(parentId);
+        ch.forEach(function (r, i) {
+            r.orderIndex = (i + 1) * 10;
+        });
+    }
+
+    function matchesRow(r, q) {
+        if (!q) return true;
+        if (isSectionRow(r)) return String(r.title || "").toLowerCase().indexOf(q) >= 0;
+        return (String(r.label) + " " + (r.attrs || "")).toLowerCase().indexOf(q) >= 0;
+    }
+
+    function subtreeHasMatch(sectionId, q) {
+        var ch = childrenOf(sectionId);
+        var k = 0;
+        for (; k < ch.length; k++) {
+            var c = ch[k];
+            if (matchesRow(c, q)) return true;
+            if (isSectionRow(c) && subtreeHasMatch(c.id, q)) return true;
+        }
+        return false;
+    }
+
+    function sectionShownInFilter(sectionId, q) {
+        if (!q) return true;
+        var sec = rows.find(function (x) {
+            return x.id === sectionId && !x.deleted;
+        });
+        if (!sec) return false;
+        if (matchesRow(sec, q)) return true;
+        return subtreeHasMatch(sectionId, q);
+    }
+
+    function lineShownInFilter(line, q) {
+        if (!q) return true;
+        if (matchesRow(line, q)) return true;
+        var pid = line.parentId;
+        while (pid != null) {
+            if (sectionShownInFilter(pid, q)) return true;
+            var p = rows.find(function (x) {
+                return x.id === pid;
+            });
+            if (!p) break;
+            pid = p.parentId;
+        }
+        return false;
+    }
+
+    function isRowUnderSection(row, sectionRootId) {
+        var pid = row.parentId;
+        while (pid != null) {
+            if (pid === sectionRootId) return true;
+            var p = rows.find(function (x) {
+                return x.id === pid;
+            });
+            if (!p) break;
+            pid = p.parentId;
+        }
+        return false;
+    }
+
+    function moveAmongSiblings(id, dir) {
+        var r = rows.find(function (x) {
+            return x.id === id && !x.deleted;
+        });
+        if (!r) return;
+        var pid = r.parentId == null ? null : r.parentId;
+        var sibs = childrenOf(pid);
+        var idx = sibs.findIndex(function (x) {
+            return x.id === id;
+        });
+        var j = idx + dir;
+        if (j < 0 || j >= sibs.length) return;
+        var oa = sibs[idx].orderIndex != null ? sibs[idx].orderIndex : 0;
+        var ob = sibs[j].orderIndex != null ? sibs[j].orderIndex : 0;
+        sibs[idx].orderIndex = ob;
+        sibs[j].orderIndex = oa;
+        normalizeSiblingOrder(pid);
+        render();
     }
 
     var CATALOG = [
@@ -706,7 +825,17 @@ table.grid tr.resolving td { background: #eff6ff; }
             row.selectedRateId = (pref2 || row.rateOptions[0]).id;
             syncEquipmentRate(row);
         }
+        var par = insertLinesParentId;
+        if (par != null) {
+            var pr = rows.find(function (x) {
+                return x.id === par && !x.deleted && isSectionRow(x);
+            });
+            if (!pr) par = null;
+        }
+        row.parentId = par;
+        row.orderIndex = maxSiblingOrder(par) + 10;
         rows.push(row);
+        normalizeSiblingOrder(par);
         closeAddPanel();
         render();
         if (delay) {
@@ -719,6 +848,13 @@ table.grid tr.resolving td { background: #eff6ff; }
     }
 
     function addCustomLine() {
+        var par = insertLinesParentId;
+        if (par != null) {
+            var pr = rows.find(function (x) {
+                return x.id === par && !x.deleted && isSectionRow(x);
+            });
+            if (!pr) par = null;
+        }
         rows.push({
             id: nextId++,
             kind: "line",
@@ -731,8 +867,11 @@ table.grid tr.resolving td { background: #eff6ff; }
             lineDiscPct: 0,
             taxRate: "0",
             resolving: false,
-            deleted: false
+            deleted: false,
+            parentId: par,
+            orderIndex: maxSiblingOrder(par) + 10
         });
+        normalizeSiblingOrder(par);
         closeAddPanel();
         render();
         toast("Custom line added — fill description and costs.");
@@ -767,72 +906,90 @@ table.grid tr.resolving td { background: #eff6ff; }
     function render() {
         var q = (document.getElementById("gridSearch").value || "").toLowerCase();
         tbody.innerHTML = "";
-        rows.forEach(function (r) {
-            if (r.deleted) return;
-            if (q) {
-                var blob = isSectionRow(r)
-                    ? String(r.title || "").toLowerCase()
-                    : (String(r.label) + " " + (r.attrs || "")).toLowerCase();
-                if (blob.indexOf(q) < 0) return;
-            }
-            if (isSectionRow(r)) {
-                var sctr = document.createElement("tr");
-                sctr.className = "section-row";
-                sctr.innerHTML =
-                    "<td colspan=\"14\" class=\"section-cell\">" +
-                    "<div class=\"section-inner\">" +
-                    "<span class=\"section-tag\">Section</span>" +
-                    "<input type=\"text\" class=\"section-title-inp\" data-k=\"sectionTitle\" data-id=\"" + r.id + "\" value=\"" +
-                    escAttr(r.title || "") + "\">" +
-                    "<span class=\"section-actions\">" +
-                    "<button type=\"button\" data-up=\"" + r.id + "\">&uarr;</button>" +
-                    "<button type=\"button\" data-down=\"" + r.id + "\">&darr;</button>" +
-                    "<button type=\"button\" data-del=\"" + r.id + "\">Remove</button>" +
-                    "</span></div></td>";
-                tbody.appendChild(sctr);
-                return;
-            }
-            var tr = document.createElement("tr");
-            if (r.resolving) tr.className = "resolving";
-            var badgeClass = r.type === "Labor" ? "b-labor" : r.type === "Material" ? "b-mat" : r.type === "Equipment" ? "b-eq" : "b-custom";
-            var sell = rowLineSell(r);
-            var taxAmt = rowTaxAmt(r);
-            var wtax = rowTotalWithTax(r);
-            var taxOpts = TAX_OPTS.map(function (o) {
-                return "<option value=\"" + o.v + "\"" + (String(r.taxRate) === o.v ? " selected" : "") + ">" + o.label + "</option>";
-            }).join("");
-            var billAsCell = "";
-            if (r.rateOptions && r.rateOptions.length) {
-                var ropts = r.rateOptions.map(function (o) {
-                    return "<option value=\"" + escAttr(o.id) + "\"" + (r.selectedRateId === o.id ? " selected" : "") + ">" + escAttr(o.label) + " (" + escAttr(o.unit) + ")</option>";
+
+        function depthClass(d) {
+            d = Math.min(Math.max(d, 0), 3);
+            return d === 0 ? "" : " depth-" + d;
+        }
+
+        function appendRowsForParent(parentId, depth) {
+            childrenOf(parentId).forEach(function (r) {
+                if (q) {
+                    if (isSectionRow(r)) {
+                        if (!sectionShownInFilter(r.id, q)) return;
+                    } else {
+                        if (!lineShownInFilter(r, q)) return;
+                    }
+                }
+                if (isSectionRow(r)) {
+                    var dcls = depthClass(depth);
+                    var insCls = insertLinesParentId === r.id ? " section-insert-active" : "";
+                    var tagLabel = depth > 0 ? "Subsection" : "Section";
+                    var sctr = document.createElement("tr");
+                    sctr.className = "section-row";
+                    sctr.innerHTML =
+                        "<td colspan=\"14\" class=\"section-cell\">" +
+                        "<div class=\"section-inner" + dcls + insCls + "\">" +
+                        "<span class=\"section-tag\">" + tagLabel + "</span>" +
+                        "<input type=\"text\" class=\"section-title-inp\" data-k=\"sectionTitle\" data-id=\"" + r.id + "\" value=\"" +
+                        escAttr(r.title || "") + "\">" +
+                        "<span class=\"section-actions\">" +
+                        "<button type=\"button\" class=\"btn-here\" title=\"New lines from + Add item go under this section\" data-insert-here=\"" + r.id + "\">Here</button>" +
+                        "<button type=\"button\" title=\"Add nested section\" data-nest=\"" + r.id + "\">+ Sub</button>" +
+                        "<button type=\"button\" title=\"Move block with contents among siblings\" data-up=\"" + r.id + "\">&uarr;</button>" +
+                        "<button type=\"button\" title=\"Move block with contents among siblings\" data-down=\"" + r.id + "\">&darr;</button>" +
+                        "<button type=\"button\" data-del=\"" + r.id + "\">Remove</button>" +
+                        "</span></div></td>";
+                    tbody.appendChild(sctr);
+                    appendRowsForParent(r.id, depth + 1);
+                    return;
+                }
+                var tr = document.createElement("tr");
+                var trClass = r.resolving ? "resolving" : "";
+                if (depth > 0) trClass = trClass ? trClass + " line-depth" : "line-depth";
+                if (trClass) tr.className = trClass;
+                var badgeClass = r.type === "Labor" ? "b-labor" : r.type === "Material" ? "b-mat" : r.type === "Equipment" ? "b-eq" : "b-custom";
+                var sell = rowLineSell(r);
+                var wtax = rowTotalWithTax(r);
+                var taxOpts = TAX_OPTS.map(function (o) {
+                    return "<option value=\"" + o.v + "\"" + (String(r.taxRate) === o.v ? " selected" : "") + ">" + o.label + "</option>";
                 }).join("");
-                billAsCell = "<select class=\"rate-sel\" data-rate=\"" + r.id + "\">" + ropts + "</select>";
-            } else {
-                billAsCell = "<span class=\"cell-muted\">—</span>";
-            }
-            var descBlock =
-                "<div class=\"desc-cell\">" +
-                "<input class=\"cell-in wide\" type=\"text\" data-k=\"label\" data-id=\"" + r.id + "\" value=\"" + escAttr(r.label) + "\">" +
-                (r.attrs ? "<div class=\"row-attrs\" title=\"Variant / spec (searchable in catalog)\">" + escAttr(r.attrs) + "</div>" : "") +
-                "</div>";
-            tr.innerHTML =
-                "<td class=\"drag-cell\" title=\"Reorder\">&#9776;</td>" +
-                "<td><span class=\"badge " + badgeClass + "\">" + r.type.substring(0, 3) + "</span></td>" +
-                "<td>" + descBlock + "</td>" +
-                "<td>" + billAsCell + "</td>" +
-                "<td><input class=\"cell-in cell-num\" type=\"number\" data-k=\"qty\" data-id=\"" + r.id + "\" step=\"0.01\" min=\"0\" value=\"" + r.qty + "\"></td>" +
-                "<td><input class=\"cell-in\" type=\"text\" data-k=\"unit\" data-id=\"" + r.id + "\" value=\"" + escAttr(r.unit) + "\"></td>" +
-                "<td><input class=\"cell-in cell-num\" type=\"number\" data-k=\"unitCost\" data-id=\"" + r.id + "\" step=\"0.01\" min=\"0\" value=\"" + r.unitCost + "\"></td>" +
-                "<td class=\"cell-num\">" + money(r.qty * r.unitCost) + "</td>" +
-                "<td><input class=\"cell-in cell-num\" type=\"number\" data-k=\"markupPct\" data-id=\"" + r.id + "\" step=\"0.1\" value=\"" + r.markupPct + "\"></td>" +
-                "<td><input class=\"cell-in cell-num\" type=\"number\" data-k=\"lineDiscPct\" data-id=\"" + r.id + "\" step=\"0.1\" min=\"0\" max=\"100\" title=\"% off this line extended sell (after markup)\" value=\"" +
-                (r.lineDiscPct != null ? r.lineDiscPct : 0) + "\"></td>" +
-                "<td class=\"cell-num\">" + (r.resolving ? "<span class=\"spin\"></span>" : money(sell)) + "</td>" +
-                "<td><select class=\"tax-sel\" data-tax=\"" + r.id + "\">" + taxOpts + "</select></td>" +
-                "<td class=\"cell-num\">" + (r.resolving ? "…" : money(wtax)) + "</td>" +
-                "<td class=\"row-actions\"><button type=\"button\" data-up=\"" + r.id + "\">&uarr;</button><button type=\"button\" data-down=\"" + r.id + "\">&darr;</button><button type=\"button\" data-del=\"" + r.id + "\">Remove</button></td>";
-            tbody.appendChild(tr);
-        });
+                var billAsCell = "";
+                if (r.rateOptions && r.rateOptions.length) {
+                    var ropts = r.rateOptions.map(function (o) {
+                        return "<option value=\"" + escAttr(o.id) + "\"" + (r.selectedRateId === o.id ? " selected" : "") + ">" + escAttr(o.label) + " (" + escAttr(o.unit) + ")</option>";
+                    }).join("");
+                    billAsCell = "<select class=\"rate-sel\" data-rate=\"" + r.id + "\">" + ropts + "</select>";
+                } else {
+                    billAsCell = "<span class=\"cell-muted\">—</span>";
+                }
+                var descPad = depth > 0 ? " style=\"padding-left:" + (8 + depth * 16) + "px\"" : "";
+                var descBlock =
+                    "<div class=\"desc-cell\">" +
+                    "<input class=\"cell-in wide\" type=\"text\" data-k=\"label\" data-id=\"" + r.id + "\" value=\"" + escAttr(r.label) + "\">" +
+                    (r.attrs ? "<div class=\"row-attrs\" title=\"Variant / spec (searchable in catalog)\">" + escAttr(r.attrs) + "</div>" : "") +
+                    "</div>";
+                tr.innerHTML =
+                    "<td class=\"drag-cell\" title=\"Reorder among siblings\">&#9776;</td>" +
+                    "<td><span class=\"badge " + badgeClass + "\">" + r.type.substring(0, 3) + "</span></td>" +
+                    "<td" + descPad + ">" + descBlock + "</td>" +
+                    "<td>" + billAsCell + "</td>" +
+                    "<td><input class=\"cell-in cell-num\" type=\"number\" data-k=\"qty\" data-id=\"" + r.id + "\" step=\"0.01\" min=\"0\" value=\"" + r.qty + "\"></td>" +
+                    "<td><input class=\"cell-in\" type=\"text\" data-k=\"unit\" data-id=\"" + r.id + "\" value=\"" + escAttr(r.unit) + "\"></td>" +
+                    "<td><input class=\"cell-in cell-num\" type=\"number\" data-k=\"unitCost\" data-id=\"" + r.id + "\" step=\"0.01\" min=\"0\" value=\"" + r.unitCost + "\"></td>" +
+                    "<td class=\"cell-num\">" + money(r.qty * r.unitCost) + "</td>" +
+                    "<td><input class=\"cell-in cell-num\" type=\"number\" data-k=\"markupPct\" data-id=\"" + r.id + "\" step=\"0.1\" value=\"" + r.markupPct + "\"></td>" +
+                    "<td><input class=\"cell-in cell-num\" type=\"number\" data-k=\"lineDiscPct\" data-id=\"" + r.id + "\" step=\"0.1\" min=\"0\" max=\"100\" title=\"% off this line extended sell (after markup)\" value=\"" +
+                    (r.lineDiscPct != null ? r.lineDiscPct : 0) + "\"></td>" +
+                    "<td class=\"cell-num\">" + (r.resolving ? "<span class=\"spin\"></span>" : money(sell)) + "</td>" +
+                    "<td><select class=\"tax-sel\" data-tax=\"" + r.id + "\">" + taxOpts + "</select></td>" +
+                    "<td class=\"cell-num\">" + (r.resolving ? "…" : money(wtax)) + "</td>" +
+                    "<td class=\"row-actions\"><button type=\"button\" data-up=\"" + r.id + "\">&uarr;</button><button type=\"button\" data-down=\"" + r.id + "\">&darr;</button><button type=\"button\" data-del=\"" + r.id + "\">Remove</button></td>";
+                tbody.appendChild(tr);
+            });
+        }
+
+        appendRowsForParent(null, 0);
         tbody.querySelectorAll("input[data-k]").forEach(function (inp) {
             inp.addEventListener("input", onCellInput);
             inp.addEventListener("change", onCellInput);
@@ -859,31 +1016,50 @@ table.grid tr.resolving td { background: #eff6ff; }
         tbody.querySelectorAll("button[data-del]").forEach(function (b) {
             b.addEventListener("click", function () {
                 var id = parseInt(b.getAttribute("data-del"), 10);
-                rows = rows.map(function (r) { return r.id === id ? Object.assign({}, r, { deleted: true }) : r; });
+                var victim = rows.find(function (x) {
+                    return x.id === id;
+                });
+                if (!victim) return;
+                if (isSectionRow(victim)) {
+                    rows.forEach(function (r) {
+                        if (r.deleted) return;
+                        if (r.id === id || isRowUnderSection(r, id)) {
+                            r.deleted = true;
+                        }
+                    });
+                    if (insertLinesParentId === id) insertLinesParentId = null;
+                } else {
+                    victim.deleted = true;
+                }
                 render();
             });
         });
         tbody.querySelectorAll("button[data-up]").forEach(function (b) {
-            b.addEventListener("click", function () { moveRow(parseInt(b.getAttribute("data-up"), 10), -1); });
+            b.addEventListener("click", function () {
+                moveAmongSiblings(parseInt(b.getAttribute("data-up"), 10), -1);
+            });
         });
         tbody.querySelectorAll("button[data-down]").forEach(function (b) {
-            b.addEventListener("click", function () { moveRow(parseInt(b.getAttribute("data-down"), 10), 1); });
+            b.addEventListener("click", function () {
+                moveAmongSiblings(parseInt(b.getAttribute("data-down"), 10), 1);
+            });
+        });
+        tbody.querySelectorAll("button[data-nest]").forEach(function (b) {
+            b.addEventListener("click", function (e) {
+                e.stopPropagation();
+                addNestedSection(parseInt(b.getAttribute("data-nest"), 10));
+            });
+        });
+        tbody.querySelectorAll("button[data-insert-here]").forEach(function (b) {
+            b.addEventListener("click", function (e) {
+                e.stopPropagation();
+                var sid = parseInt(b.getAttribute("data-insert-here"), 10);
+                insertLinesParentId = sid;
+                render();
+                toast("New catalog/custom lines will be added under this section until you pick another \"Here\".");
+            });
         });
         recalc();
-    }
-
-    function moveRow(id, dir) {
-        var active = rows.map(function (r, i) { return { r: r, i: i }; }).filter(function (o) { return !o.r.deleted; });
-        var pos = active.findIndex(function (o) { return o.r.id === id; });
-        if (pos < 0) return;
-        var j = pos + dir;
-        if (j < 0 || j >= active.length) return;
-        var i1 = active[pos].i;
-        var i2 = active[j].i;
-        var t = rows[i1];
-        rows[i1] = rows[i2];
-        rows[i2] = t;
-        render();
     }
 
     function onCellInput(ev) {
@@ -917,25 +1093,52 @@ table.grid tr.resolving td { background: #eff6ff; }
         setTimeout(function () { t.classList.remove("show"); }, 2200);
     }
 
+    function addNestedSection(parentSectionId) {
+        var p = rows.find(function (x) {
+            return x.id === parentSectionId && !x.deleted && isSectionRow(x);
+        });
+        if (!p) return;
+        rows.push({
+            id: nextId++,
+            kind: "section",
+            title: "New subsection",
+            parentId: parentSectionId,
+            orderIndex: maxSiblingOrder(parentSectionId) + 10,
+            deleted: false
+        });
+        normalizeSiblingOrder(parentSectionId);
+        render();
+        toast("Subsection added under \"" + (p.title || "Section") + "\".");
+    }
+
     function addSectionRow() {
         rows.push({
             id: nextId++,
             kind: "section",
             title: "New section",
+            parentId: null,
+            orderIndex: maxSiblingOrder(null) + 10,
             deleted: false
         });
+        normalizeSiblingOrder(null);
         render();
-        toast("Section added — use for phase, module, or trade package.");
+        toast("Root section added — use + Sub on any section for nesting; ↑↓ reorders within the same parent.");
     }
 
     function seedRows() {
+        var sidP1 = nextId++;
+        var sidAerial = nextId++;
+        var sidP2 = nextId++;
+        var sidAll = nextId++;
         rows = [
-            { id: nextId++, kind: "section", title: "Phase 1 — Crew & equipment", deleted: false },
+            { id: sidP1, kind: "section", title: "Phase 1 — Crew & equipment", parentId: null, orderIndex: 10, deleted: false },
             {
                 id: nextId++,
                 kind: "line",
                 type: "Labor",
                 label: "A. Lee — Welder Journeyman",
+                parentId: sidP1,
+                orderIndex: 20,
                 qty: 24,
                 unit: "hr",
                 unitCost: 68,
@@ -945,11 +1148,14 @@ table.grid tr.resolving td { background: #eff6ff; }
                 resolving: false,
                 deleted: false
             },
+            { id: sidAerial, kind: "section", title: "Package: Aerial & lifts", parentId: sidP1, orderIndex: 30, deleted: false },
             {
                 id: nextId++,
                 kind: "line",
                 type: "Equipment",
                 label: "Forklift 5k cap",
+                parentId: sidAerial,
+                orderIndex: 40,
                 qty: 2,
                 unit: "day",
                 unitCost: 225,
@@ -965,12 +1171,14 @@ table.grid tr.resolving td { background: #eff6ff; }
                 ],
                 selectedRateId: "day"
             },
-            { id: nextId++, kind: "section", title: "Phase 2 — Materials", deleted: false },
+            { id: sidP2, kind: "section", title: "Phase 2 — Materials", parentId: null, orderIndex: 50, deleted: false },
             {
                 id: nextId++,
                 kind: "line",
                 type: "Material",
                 label: "Black iron 4\" sch 40",
+                parentId: sidP2,
+                orderIndex: 60,
                 qty: 120,
                 unit: "LF",
                 unitCost: 6.1,
@@ -980,12 +1188,14 @@ table.grid tr.resolving td { background: #eff6ff; }
                 resolving: false,
                 deleted: false
             },
-            { id: nextId++, kind: "section", title: "Allowances & professional", deleted: false },
+            { id: sidAll, kind: "section", title: "Allowances & professional", parentId: null, orderIndex: 70, deleted: false },
             {
                 id: nextId++,
                 kind: "line",
                 type: "Custom",
                 label: "Engineering review (NTE)",
+                parentId: sidAll,
+                orderIndex: 80,
                 qty: 1,
                 unit: "ls",
                 unitCost: 3500,
@@ -996,6 +1206,11 @@ table.grid tr.resolving td { background: #eff6ff; }
                 deleted: false
             }
         ];
+        normalizeSiblingOrder(null);
+        normalizeSiblingOrder(sidP1);
+        normalizeSiblingOrder(sidAerial);
+        normalizeSiblingOrder(sidP2);
+        normalizeSiblingOrder(sidAll);
         render();
     }
 

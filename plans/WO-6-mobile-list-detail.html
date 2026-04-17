@@ -255,10 +255,10 @@ import { JobNotes } from "../JobViews/JobNotes";
 import { JobFiles } from "../JobViews/JobFiles";
 import { FilesProvider } from "~root/context";
 import { DataModelForm } from "../Forms/DataModelForm/DataModelForm";
-import { LaborItemsDisplay } from "./LaborItemsDisplay";
-import { MaterialItemsDisplay } from "./MaterialItemsDisplay";
-import { EquipmentItemsDisplay } from "./EquipmentItemsDisplay";
-import { SignaturesDisplay } from "./SignaturesDisplay";
+import { MobileWOLaborDisplay } from "./MobileWOLaborDisplay";
+import { MobileWOMaterialDisplay } from "./MobileWOMaterialDisplay";
+import { MobileWOEquipmentDisplay } from "./MobileWOEquipmentDisplay";
+import { MobileWOSignaturesDisplay } from "./MobileWOSignaturesDisplay";
 
 interface IWOHeaderRecord {
     fullJobNumber: string;
@@ -339,10 +339,10 @@ const WODetail: FC = () => {
                     viewSectionType="Details"
                     onEdit={canEdit ? handleEdit : undefined}
                     customColumnRender={{
-                        "wo-labor-items": () => <LaborItemsDisplay jobId={jobId} />,
-                        "wo-material-items": () => <MaterialItemsDisplay jobId={jobId} />,
-                        "wo-equipment-items": () => <EquipmentItemsDisplay jobId={jobId} />,
-                        "wo-signatures": () => <SignaturesDisplay jobId={jobId} />
+                        "wo-labor-items": () => <MobileWOLaborDisplay jobId={jobId} />,
+                        "wo-material-items": () => <MobileWOMaterialDisplay jobId={jobId} />,
+                        "wo-equipment-items": () => <MobileWOEquipmentDisplay jobId={jobId} />,
+                        "wo-signatures": () => <MobileWOSignaturesDisplay jobId={jobId} />
                     }}
                 />
             )
@@ -417,32 +417,43 @@ export { WODetail };
 
 ## Step 5: Custom Display Components
 
-The four `customColumnRender` entries handle the complex relationship fields that `DetailOverview` can't render automatically. These are the same components the desktop WO-4 detail page uses — placed in the mobile WorkOrders directory but built to be portable (no desktop/mobile-specific dependencies).
+The four `customColumnRender` entries handle the complex relationship fields that `DetailOverview` can't render automatically. These are **thin mobile wrappers** that handle GraphQL data fetching and pass `layout="card"` to the shared display components from `@useanzen/ui` (built in WO-3b Step 7).
 
-### 5a. LaborItemsDisplay
+### 5a. MobileWOLaborDisplay
 
-**Create file:** `apps/mobile/src/components/WorkOrders/LaborItemsDisplay.tsx`
+**Create file:** `apps/mobile/src/components/WorkOrders/MobileWOLaborDisplay.tsx`
 
-Queries `workOrderLaborItems(jobId)` and renders a read-only list of labor line items.
-
-```typescript
-interface ILaborItemsDisplayProps {
-    className?: string;
-    jobId: string;
-}
-```
-
-- **Structured rows** (tradeLevelRateId is set): Show trade level name, qty of workers, submitted hours
-- **Blank rows** (tradeLevelRateId is null): Show description (italic), qty of workers, submitted hours
-- Rate/cost columns: Only visible with `viewWageDetails` permission — check `hasPermissions({ user: { viewWageDetails: true } }, permissions)`
-- Subtotal row at bottom: total hours across all items
+Thin wrapper that:
+- Queries **TimeSheetRecords** for the job → groups by `workDate`, maps to `ILaborDisplayDateGroup[]` (employee name, trade level, rate label hours, cost code breakdown from `TimeSheetDetailRecordCostCode`)
+- Queries **WorkOrderLaborItems** for blank lines → maps to `IBlankLaborDisplayItem[]`
+- Checks `viewWageDetails` permission → passes `showRates`
+- Passes `layout="card"` to shared `LaborItemsDisplay` from `@useanzen/ui`
 
 ```graphql
-query GetWOLaborItems($jobId: ID!) {
+query GetWOLaborDisplay($jobId: ID!) {
+    timeSheetRecords(options: { where: { jobId: $jobId } }) {
+        id
+        workDate
+        status
+        TimeSheetDetailRecords {
+            id
+            tradeLevelId
+            secondsAtService
+            Employee { firstName lastName }
+            TradeLevelRate {
+                TradeLevel { name }
+                EmployeeAgreementRateLabel { name }
+            }
+            TimeSheetDetailRecordCostCodes {
+                id
+                costCodeId
+                CostCode { name code }
+                seconds
+            }
+        }
+    }
     workOrderLaborItems(where: { jobId: $jobId, isDeleted: false }, orderBy: { orderNo: "asc" }) {
         id
-        tradeLevelRateId
-        TradeLevelRate { id name billableValue }
         description
         qtyOfWorkers
         submittedDuration
@@ -452,61 +463,60 @@ query GetWOLaborItems($jobId: ID!) {
 }
 ```
 
-### 5b. MaterialItemsDisplay
+### 5b. MobileWOMaterialDisplay
 
-**Create file:** `apps/mobile/src/components/WorkOrders/MaterialItemsDisplay.tsx`
+**Create file:** `apps/mobile/src/components/WorkOrders/MobileWOMaterialDisplay.tsx`
 
-Queries `workOrderMaterialItems(jobId)` and renders a read-only list.
-
-```typescript
-interface IMaterialItemsDisplayProps {
-    className?: string;
-    jobId: string;
-}
-```
-
-      - **Structured rows** (materialId is set): Show material name from relation, qty, sell price (unitPrice)
-      - **Blank rows** (materialId is null): Show description (italic), qty, sell price (unitPrice)
-- Subtotal row: total dollar amount
+Thin wrapper that:
+- Queries **WorkOrderMaterialItems** → maps to `IMaterialDisplayItem[]` (structured items have Material relation + UoM; blank items have description)
+- Checks `viewWageDetails` permission → passes `showCost`
+- Passes `layout="card"` to shared `MaterialItemsDisplay`
 
 ```graphql
 query GetWOMaterialItems($jobId: ID!) {
     workOrderMaterialItems(where: { jobId: $jobId, isDeleted: false }, orderBy: { orderNo: "asc" }) {
         id
         materialId
-              Material { id name }
-              description
-              quantity
-              unitPrice
+        Material { id name MaterialGroup { unitOfMeasure } }
+        description
+        quantity
+        unitPrice
         orderNo
     }
 }
 ```
 
-### 5c. EquipmentItemsDisplay
+### 5c. MobileWOEquipmentDisplay
 
-**Create file:** `apps/mobile/src/components/WorkOrders/EquipmentItemsDisplay.tsx`
+**Create file:** `apps/mobile/src/components/WorkOrders/MobileWOEquipmentDisplay.tsx`
 
-Queries `workOrderEquipmentItems(jobId)` and renders a read-only list.
-
-```typescript
-interface IEquipmentItemsDisplayProps {
-    className?: string;
-    jobId: string;
-}
-```
-
-- **Structured rows** (equipmentId is set): Show equipment name, rate type, duration/qty
-- **Blank rows** (equipmentId is null): Show description (italic), qty, per, unit rate
-- Rate/cost info gated by `viewWageDetails` permission
-- Subtotal grouped by unit type (e.g., "8.0 hrs + 2 days")
+Thin wrapper that:
+- Queries **EquipmentTimeEntries** for the job → groups by `workDate`, maps to `IEquipmentDisplayDateGroup[]` (equipment name, rate type, per, duration, cost code breakdown)
+- Queries **WorkOrderEquipmentItems** for blank lines → maps to `IBlankEquipmentDisplayItem[]`
+- Checks `viewWageDetails` permission → passes `showRates`
+- Passes `layout="card"` to shared `EquipmentItemsDisplay`
 
 ```graphql
-query GetWOEquipmentItems($jobId: ID!) {
-    workOrderEquipmentItems(where: { jobId: $jobId, isDeleted: false }, orderBy: { orderNo: "asc" }) {
+query GetWOEquipmentDisplay($jobId: ID!) {
+    equipmentTimeEntries(where: { jobId: $jobId }) {
         id
+        workDate
+        status
         equipmentId
         Equipment { id name }
+        equipmentRateLabelId
+        EquipmentRateLabel { name }
+        per
+        submittedDuration
+        EquipmentTimeEntryCostCodes {
+            id
+            costCodeId
+            CostCode { name code }
+            duration
+        }
+    }
+    workOrderEquipmentItems(where: { jobId: $jobId, isDeleted: false }, orderBy: { orderNo: "asc" }) {
+        id
         description
         quantity
         per
@@ -516,37 +526,33 @@ query GetWOEquipmentItems($jobId: ID!) {
 }
 ```
 
-### 5d. SignaturesDisplay
+### 5d. MobileWOSignaturesDisplay
 
-**Create file:** `apps/mobile/src/components/WorkOrders/SignaturesDisplay.tsx`
+**Create file:** `apps/mobile/src/components/WorkOrders/MobileWOSignaturesDisplay.tsx`
 
-Queries the Job's polymorphic Signatures and renders a grid of signature images.
-
-```typescript
-interface ISignaturesDisplayProps {
-    className?: string;
-    jobId: string;
-}
-```
-
-- Each signature: Image thumbnail (from Asset URL), signer name (from `User` relation or `signerName` for external), `signerCompany` if present, signed timestamp, GPS coordinates
-- Empty state: "No signatures" message
-
-Uses the `Signatures` field-level resolver on Job (set up in WO-3a):
+Thin wrapper that:
+- Queries **Signatures** on the Job (via `Signatures` field-level resolver from WO-3a) → maps to `ISignatureDisplayItem[]`
+- Passes `layout="card"` to shared `SignaturesDisplay`
 
 ```graphql
 query GetWOSignatures($jobId: ID!) {
     job(id: $jobId) {
         Signatures {
             id
+            assetId
             Asset { url }
-            userId
-            User { firstName lastName }
+            signerId
+            signerModel
             signerName
+            signerEmail
             signerCompany
             signedAt
             latitude
             longitude
+            requestedById
+            RequestedBy { id firstName lastName }
+            status
+            createdAt
         }
     }
 }
@@ -634,10 +640,10 @@ Uses `job.view` permission since Work Orders are Job records. If a WO-specific p
 | CREATE | `apps/mobile/src/pages/job-sites/[id]/work-orders/[id]/index.tsx` | WO detail page routing to `WODetail` component |
 | CREATE | `apps/mobile/src/components/WorkOrders/WOListCard.tsx` | Card component: WO number, name, status badge, date, project. Navigates to detail on tap. |
 | CREATE | `apps/mobile/src/components/WorkOrders/WODetail.tsx` | `TabGroup` with Overview (`DetailOverview` + customColumnRender), Notes (`JobNotes`), Files (`JobFiles`). Header with WO number, edit button. `GET_WO_HEADER` query at bottom. |
-| CREATE | `apps/mobile/src/components/WorkOrders/LaborItemsDisplay.tsx` | Read-only labor items list. Queries `workOrderLaborItems`. Structured + blank rows. Rate gated by `viewWageDetails`. |
-| CREATE | `apps/mobile/src/components/WorkOrders/MaterialItemsDisplay.tsx` | Read-only material items list. Queries `workOrderMaterialItems`. Structured + blank rows. Subtotal. |
-| CREATE | `apps/mobile/src/components/WorkOrders/EquipmentItemsDisplay.tsx` | Read-only equipment items list. Queries `workOrderEquipmentItems`. Rate gated by `viewWageDetails`. |
-| CREATE | `apps/mobile/src/components/WorkOrders/SignaturesDisplay.tsx` | Read-only signature grid. Queries Job Signatures. Image thumbnail, signer name/company, timestamp, GPS. |
+| CREATE | `apps/mobile/src/components/WorkOrders/MobileWOLaborDisplay.tsx` | Mobile wrapper: queries TimeSheetRecords + WorkOrderLaborItems, maps to shared types, passes `layout="card"` + `showRates` to shared `LaborItemsDisplay` from `@useanzen/ui` |
+| CREATE | `apps/mobile/src/components/WorkOrders/MobileWOMaterialDisplay.tsx` | Mobile wrapper: queries WorkOrderMaterialItems, passes `layout="card"` + `showCost` to shared `MaterialItemsDisplay` |
+| CREATE | `apps/mobile/src/components/WorkOrders/MobileWOEquipmentDisplay.tsx` | Mobile wrapper: queries EquipmentTimeEntries + WorkOrderEquipmentItems, passes `layout="card"` + `showRates` to shared `EquipmentItemsDisplay` |
+| CREATE | `apps/mobile/src/components/WorkOrders/MobileWOSignaturesDisplay.tsx` | Mobile wrapper: queries Signatures, passes `layout="card"` to shared `SignaturesDisplay` |
 | MODIFY | `apps/mobile/src/components/SecondaryNavFlyout.tsx` | Add "Work Orders" entry to admin navigation section |
 </script>
 

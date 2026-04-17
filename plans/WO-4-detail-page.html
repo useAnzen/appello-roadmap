@@ -186,10 +186,10 @@ Render 2x3 grid using existing card styling patterns.
     modelName={"Job" as GqlTableDataName}
     recordId={jobId}
     customColumnRender={{
-        "wo-labor-items": () => <LaborItemsDisplay jobId={jobId} />,
-        "wo-material-items": () => <MaterialItemsDisplay jobId={jobId} />,
-        "wo-equipment-items": () => <EquipmentItemsDisplay jobId={jobId} />,
-        "wo-signatures": () => <SignaturesDisplay jobId={jobId} />
+        "wo-labor-items": () => <WOLaborDisplay jobId={jobId} />,
+        "wo-material-items": () => <WOMaterialDisplay jobId={jobId} />,
+        "wo-equipment-items": () => <WOEquipmentDisplay jobId={jobId} />,
+        "wo-signatures": () => <WOSignaturesDisplay jobId={jobId} />
     }}
     viewSectionType={"DETAILS" as GqlViewSectionType}
 />
@@ -199,57 +199,65 @@ DataModelDetails handles the standard fields (name, date of work, status, job ty
 
 ---
 
-## Step 3: Read-Only Display Components
+## Step 3: Read-Only Display Wrappers (Desktop)
 
-### 3a. LaborItemsDisplay
+The shared UI package (`@useanzen/ui`) provides read-only display components with a `layout` prop (see WO-3b Step 7). These desktop wrappers handle GraphQL data fetching and pass `layout="table"` to the shared components.
 
-**Create file:** `apps/frontend/src/components/WorkOrder/LaborItemsDisplay.tsx`
+### 3a. WOLaborDisplay
 
-Queries **two sources** and renders a combined read-only table:
+**Create file:** `apps/frontend/src/components/WorkOrder/WOLaborDisplay.tsx`
 
-1. **Structured labour:** `timeSheetRecords(jobId)` → TimeSheetDetailRecords with employee, trade level (using `detail.tradeLevelId ?? record.tradeLevelId`), rate label breakdown, and hours
-2. **Blank lines:** `workOrderLaborItems(jobId)` → WorkOrderLaborItem records
+Thin wrapper that:
+- Queries **TimeSheetRecords** for the job → groups by `workDate`, maps to `ILaborDisplayDateGroup[]`. Each entry includes: employee name, trade level (via `detail.tradeLevelId ?? record.tradeLevelId`), rate label hours breakdown (Wages 1x, 1.5x, 2x from `EmployeeAgreementRateLabel`), total hours, and cost code allocations (from `TimeSheetDetailRecordCostCode` — code, name, hours per rate label)
+- Queries **WorkOrderLaborItems** for blank lines → maps to `IBlankLaborDisplayItem[]` (description, workers, hours, rate)
+- Checks `viewWageDetails` permission → passes `showRates`
+- Passes `layout="table"` to shared `LaborItemsDisplay` — renders date-grouped tables with cost code sub-rows
 
-Display:
-- **Timesheet entries:** Show employee name, trade level, rate label hours breakdown. Grouped by employee/date.
-- **Blank rows:** Show description (italic), workers, hours, rate
-- Rate column: only visible with `viewWageDetails` permission (check `hasPermissions({ user: { viewWageDetails: true } }, permissions)`)
-- Subtotal row at bottom showing combined total hours from both sources
+```graphql
+query WOLaborForDisplay($jobId: String!) {
+    timeSheetRecords(options: { where: { filter: { fieldName: "jobId", value: $jobId } } }) {
+        data { ... on TimeSheetRecord {
+            id, workDate, status
+            TimeSheetDetailRecords {
+                id, overrideTradeLevelId, secondsAtService
+                Employee { firstName, lastName }
+                TradeLevelRate { TradeLevel { name }, EmployeeAgreementRateLabel { name } }
+                TimeSheetDetailRecordCostCodes { CostCode { code, name }, seconds }
+            }
+        }}
+    }
+    workOrderLaborItems(where: { jobId: $jobId, isDeleted: false }, orderBy: { orderNo: "asc" }) {
+        id, description, qtyOfWorkers, submittedDuration, rate
+    }
+}
+```
 
-### 3b. MaterialItemsDisplay
+### 3b. WOMaterialDisplay
 
-**Create file:** `apps/frontend/src/components/WorkOrder/MaterialItemsDisplay.tsx`
+**Create file:** `apps/frontend/src/components/WorkOrder/WOMaterialDisplay.tsx`
 
-Queries `workOrderMaterialItems(jobId)` and renders a read-only table:
+Thin wrapper that:
+- Queries **WorkOrderMaterialItems** → maps to `IMaterialDisplayItem[]` (structured items have `materialId` + Material relation; blank items have `description`)
+- Checks `viewWageDetails` permission → passes `showCost`
+- Passes `layout="table"` to shared `MaterialItemsDisplay`
 
-- Columns: Material | Qty | Sell Price | Cost | Total
-- Structured rows show material name from relation; blank rows show description in italic
-- Cost column gated by `viewWageDetails` permission
-- Subtotal row showing total dollar amount
+### 3c. WOEquipmentDisplay
 
-### 3c. EquipmentItemsDisplay
+**Create file:** `apps/frontend/src/components/WorkOrder/WOEquipmentDisplay.tsx`
 
-**Create file:** `apps/frontend/src/components/WorkOrder/EquipmentItemsDisplay.tsx`
+Thin wrapper that:
+- Queries **EquipmentTimeEntries** for the job → groups by `workDate`, maps to `IEquipmentDisplayDateGroup[]`. Each entry includes: equipment name, rate type (from `EquipmentRateLabel`), per (Hour/Day/etc.), formatted duration, and cost code allocations (from `EquipmentTimeEntryCostCode` — code, name, duration)
+- Queries **WorkOrderEquipmentItems** for blank lines → maps to `IBlankEquipmentDisplayItem[]` (description, qty, rate, total)
+- Checks `viewWageDetails` permission → passes `showRates`
+- Passes `layout="table"` to shared `EquipmentItemsDisplay` — renders date-grouped tables with cost code sub-rows
 
-Queries **two sources** and renders a combined read-only table:
+### 3d. WOSignaturesDisplay
 
-1. **Structured equipment:** `equipmentTimeEntrys(jobId)` → EquipmentTimeEntry records (from EQ-0) queried directly by `jobId`. Equipment name from relation, rate type label, duration. Rate resolved via `resolveEquipmentRate` from LEM-2.
-2. **Blank lines:** `workOrderEquipmentItems(jobId)` → WorkOrderEquipmentItem records (description, quantity, unitRate only — no equipmentId, no rate labels)
+**Create file:** `apps/frontend/src/components/WorkOrder/WOSignaturesDisplay.tsx`
 
-Display:
-- **Logged equipment:** Show equipment name, rate type, duration. Grouped by equipment/date.
-- **Blank rows:** Show description (italic), qty, rate
-- Rate/cost info gated by `viewWageDetails` permission
-- Subtotal row at bottom showing combined total from both sources
-
-### 3d. SignaturesDisplay
-
-**Create file:** `apps/frontend/src/components/WorkOrder/SignaturesDisplay.tsx`
-
-Queries `signatures(referenceModel: "Job", referenceId: jobId)` and renders a flex-wrap grid:
-
-- Each signature: image thumbnail (from Asset), signer name (from User relation or stored name), signed date/time, GPS coordinates
-- Uses existing image display patterns from the app
+Thin wrapper that:
+- Queries **Signatures** on the Job (`signatures(referenceModel: "Job", referenceId: jobId)`) → maps to `ISignatureDisplayItem[]`
+- Passes `layout="table"` to shared `SignaturesDisplay`
 
 ---
 
@@ -507,12 +515,12 @@ The Work Orders list (WO-1/WO-5) links to `/work-orders/[id]` which renders this
 - [ ] Overview tab shows 2x3 summary card grid with correct values
 - [ ] Total Value card gated by `viewWageDetails` permission
 - [ ] DataModelDetails renders standard WORK_ORDER DAA fields
-- [ ] LaborItemsDisplay queries both TimeSheetDetailRecords (structured) and WorkOrderLaborItems (blank lines)
-- [ ] LaborItemsDisplay shows timesheet entries grouped by employee/date + blank rows in a combined read-only table
-- [ ] MaterialItemsDisplay shows read-only table with costs and subtotal
-- [ ] EquipmentItemsDisplay queries both EquipmentTimeEntries (structured) and WorkOrderEquipmentItems (blank lines)
-- [ ] EquipmentItemsDisplay shows logged equipment grouped by equipment/date + blank rows in a combined read-only table
-- [ ] SignaturesDisplay shows signature images with signer name, timestamp, GPS
+- [ ] WOLaborDisplay queries TimeSheetRecords + WorkOrderLaborItems, maps to shared types, passes `layout="table"` to `LaborItemsDisplay`
+- [ ] WOLaborDisplay shows date-grouped timesheet entries + blank rows + cost code breakdown + subtotal
+- [ ] WOMaterialDisplay queries WorkOrderMaterialItems, passes `layout="table"` to `MaterialItemsDisplay` with `showCost` from `viewWageDetails`
+- [ ] WOEquipmentDisplay queries EquipmentTimeEntries + WorkOrderEquipmentItems, passes `layout="table"` to `EquipmentItemsDisplay`
+- [ ] WOEquipmentDisplay shows date-grouped equipment entries + blank rows + cost code breakdown + subtotal
+- [ ] WOSignaturesDisplay queries Signatures, passes `layout="table"` to `SignaturesDisplay`
 - [ ] Rate columns on labor and equipment gated by `viewWageDetails`
 - [ ] Invoices tab shows read-only invoice list (no create button)
 - [ ] Invoices tab reuses JobBillList component
@@ -540,10 +548,10 @@ The Work Orders list (WO-1/WO-5) links to `/work-orders/[id]` which renders this
 | CREATE | `apps/frontend/.../WorkOrderDetailPage/index.tsx` | Page shell with DetailsPageTabs, header with status badge + Print PDF + Generate Invoice |
 | CREATE | `apps/frontend/.../WorkOrderDetailPage/Tabs/Overview.tsx` | Summary cards + DataModelDetails with customColumnRender |
 | CREATE | `apps/frontend/.../WorkOrderDetailPage/Tabs/Invoices.tsx` | Reuses JobBillList with hideCreateButton |
-| CREATE | `apps/frontend/.../WorkOrder/LaborItemsDisplay.tsx` | Read-only labor table, viewWageDetails gated rates |
-| CREATE | `apps/frontend/.../WorkOrder/MaterialItemsDisplay.tsx` | Read-only material table with costs |
-| CREATE | `apps/frontend/.../WorkOrder/EquipmentItemsDisplay.tsx` | Read-only equipment table, viewWageDetails gated |
-| CREATE | `apps/frontend/.../WorkOrder/SignaturesDisplay.tsx` | Read-only signature grid |
+| CREATE | `apps/frontend/.../WorkOrder/WOLaborDisplay.tsx` | Desktop wrapper: queries TimeSheetRecords + WorkOrderLaborItems, maps to shared types, passes `layout="table"` + `showRates` to shared `LaborItemsDisplay` from `@useanzen/ui` |
+| CREATE | `apps/frontend/.../WorkOrder/WOMaterialDisplay.tsx` | Desktop wrapper: queries WorkOrderMaterialItems, passes `layout="table"` + `showCost` to shared `MaterialItemsDisplay` |
+| CREATE | `apps/frontend/.../WorkOrder/WOEquipmentDisplay.tsx` | Desktop wrapper: queries EquipmentTimeEntries + WorkOrderEquipmentItems, passes `layout="table"` + `showRates` to shared `EquipmentItemsDisplay` |
+| CREATE | `apps/frontend/.../WorkOrder/WOSignaturesDisplay.tsx` | Desktop wrapper: queries Signatures, passes `layout="table"` to shared `SignaturesDisplay` |
 | CREATE | `apps/frontend/.../DownloadablePDF/WorkOrder/WorkOrderPDF.tsx` | PDF template with custom LEM renderers |
 | CREATE | `apps/frontend/src/pages/work-orders/[id]/index.tsx` | Route page |
 | MODIFY | `apps/frontend/src/pages/api/pdf-export.ts` | Add `workOrderDetail` case |

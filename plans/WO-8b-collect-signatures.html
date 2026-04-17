@@ -54,207 +54,35 @@ td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
 
 ## Overview
 
-Two signature collection workflows for submitted work orders: **Request Signature** (send notification to internal Appello user, they open WO and sign — mirrors form ACK pattern) and **Collect In-Person** (hand device to external person who signs on-screen without an account). Both use the polymorphic `Signature` model from WO-3a and the `readOnlySummary` renderers from WO-8a.
+Two signature collection workflows for submitted work orders: **Request Signature** (send notification to internal Appello user, they open WO and sign — mirrors form ACK pattern) and **Collect In-Person** (hand device to external person who signs on-screen without an account). Both use the combined `Signature` model from WO-3a (which handles both requests and completed signatures via the `status` field) and the `readOnlySummary` renderers from WO-8a.
 
-**Estimated effort:** 3-4 days
-**Risk:** Medium — new SignatureRequest model, notification integration, device handoff UX
+**Estimated effort:** 2-3 days
+**Risk:** Low-Medium — notification integration, device handoff UX (no new model needed — uses combined Signature model from WO-3a)
 **Spec:** `tm-work-orders-uis/uis-20h-2-collect-signatures.html`
-**Requires:** WO-3a (Signature model with signerName/signerEmail/signerCompany), WO-3c (signature canvas), WO-4 (detail page), WO-8a (readOnlySummary renderers)
+**Requires:** WO-3a (combined Signature model with signerId/signerModel/status/requestedById), WO-3c (signature canvas), WO-4 (detail page), WO-8a (readOnlySummary renderers)
 
 ---
 
-## Step 1: Prisma Schema — SignatureRequest Model
+## Step 1: No New Prisma Model Needed
 
-**File:** `apps/api/prisma/schema.prisma`
+The combined `Signature` model from WO-3a handles both signature requests and completed signatures. No separate `SignatureRequest` table is needed.
 
-```prisma
-model SignatureRequest {
-    id              String    @id @db.VarChar(21)
-    isDeleted       Boolean   @default(false)
-    isArchived      Boolean   @default(false)
-    createdAt       DateTime  @default(now())
-    updatedAt       DateTime  @default(now()) @updatedAt
+**How it works:**
 
-    referenceModel  String                         // "Job"
-    referenceId     String    @db.VarChar(21)      // the WO's job ID
+- **Requesting a signature** = `createSignature` with `status: "PENDING"`, `signerModel: "User"`, `signerId: <requestedUserId>`, no `assetId`
+- **Signing (completing a request)** = `editSignature` to set `assetId`, `status: "SIGNED"`, `signedAt`, GPS coords
+- **Collecting in-person** = `createSignature` with `status: "SIGNED"`, `signerModel: "External"`, `signerName`/`signerEmail`/`signerCompany`, `assetId` attached immediately
+- **Declining** = `editSignature` to set `status: "DECLINED"`
 
-    requestedById   String    @db.VarChar(21)
-    RequestedBy     User      @relation("SignatureRequestedBy", fields: [requestedById], references: [id])
-
-    requestedUserId String    @db.VarChar(21)
-    RequestedUser   User      @relation("SignatureRequestedUser", fields: [requestedUserId], references: [id])
-
-    status          String    @default("PENDING")  // PENDING | SIGNED | DECLINED
-
-    signatureId     String?   @db.VarChar(21)
-    Signature       Signature? @relation(fields: [signatureId], references: [id])
-    signedAt        DateTime?
-
-    @@index([referenceModel, referenceId, isDeleted])
-    @@index([requestedUserId, status, isDeleted])
-}
-```
-
-### Add relations on existing models
-
-```prisma
-// On User — add two named relations:
-SignatureRequestsMade      SignatureRequest[] @relation("SignatureRequestedBy")
-SignatureRequestsReceived  SignatureRequest[] @relation("SignatureRequestedUser")
-
-// On Signature — add back-relation:
-SignatureRequests  SignatureRequest[]
-```
-
-### Migration
-
-**Create file:** `apps/api/prisma/migrations/[timestamp]_wo_8b_signature_request/migration.sql`
-
-```sql
-CREATE TABLE `SignatureRequest` (
-    `id` VARCHAR(21) NOT NULL,
-    `isDeleted` BOOLEAN NOT NULL DEFAULT false,
-    `isArchived` BOOLEAN NOT NULL DEFAULT false,
-    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-    `updatedAt` DATETIME(3) NOT NULL,
-    `referenceModel` VARCHAR(191) NOT NULL,
-    `referenceId` VARCHAR(21) NOT NULL,
-    `requestedById` VARCHAR(21) NOT NULL,
-    `requestedUserId` VARCHAR(21) NOT NULL,
-    `status` VARCHAR(191) NOT NULL DEFAULT 'PENDING',
-    `signatureId` VARCHAR(21) NULL,
-    `signedAt` DATETIME(3) NULL,
-    PRIMARY KEY (`id`),
-    INDEX `SignatureRequest_ref_idx` (`referenceModel`, `referenceId`, `isDeleted`),
-    INDEX `SignatureRequest_user_idx` (`requestedUserId`, `status`, `isDeleted`),
-    CONSTRAINT `SignatureRequest_requestedById_fkey` FOREIGN KEY (`requestedById`) REFERENCES `User`(`id`),
-    CONSTRAINT `SignatureRequest_requestedUserId_fkey` FOREIGN KEY (`requestedUserId`) REFERENCES `User`(`id`),
-    CONSTRAINT `SignatureRequest_signatureId_fkey` FOREIGN KEY (`signatureId`) REFERENCES `Signature`(`id`)
-);
-```
+The `requestedById` field (set from `context.userId()` by the resolver) tracks who initiated the signature — either the person requesting an internal user's signature or the person collecting an in-person signature.
 
 ---
 
-## Step 2: SignatureRequest Model Class + GraphQL
+## Step 2: Notification — Request + Signed
 
-### TypeScript Types
+**File:** `apps/api/src/models/Signature.ts`
 
-**Create file:** `apps/api/src/types/SignatureRequest.types.ts`
-
-```typescript
-export interface ISignatureRequest {
-    referenceModel: string;
-    referenceId: string;
-    requestedById: string;
-    requestedUserId: string;
-    status: string;
-    signatureId?: string;
-    signedAt?: Date;
-}
-```
-
-### Model Class
-
-**Create file:** `apps/api/src/models/SignatureRequest.ts`
-
-```typescript
-protected modelFields: IField<ISignatureRequest>[] = [
-    {
-        name: "referenceModel",
-        type: "string",
-        options: { isRequiredOnCreate: true, isFilterable: true, canEdit: false }
-    },
-    {
-        name: "referenceId",
-        type: "string",
-        options: { isRequiredOnCreate: true, isFilterable: true, canEdit: false }
-    },
-    {
-        name: "requestedById",
-        type: "string",
-        options: { isRequiredOnCreate: true, canEdit: false }
-    },
-    {
-        name: "requestedUserId",
-        type: "string",
-        options: { isRequiredOnCreate: true, isFilterable: true, canEdit: false }
-    },
-    {
-        name: "status",
-        type: "string",
-        options: { isFilterable: true, canEdit: true, defaultValue: "PENDING" }
-    },
-    {
-        name: "signatureId",
-        type: "string",
-        options: { canEdit: true }
-    },
-    {
-        name: "signedAt",
-        type: "datetime"
-    }
-];
-```
-
-### GraphQL Resolver
-
-**Create file:** `apps/api/src/graphql/models/SignatureRequest.ts`
-
-The base model class provides standard CRUD (`createItem`, `editItem`, `getItem`, `getList`) and filtering via `modelFields`. The GraphQL layer follows the same pattern as all other models — standard `create`/`edit` mutations that delegate to the model class methods.
-
-```graphql
-type SignatureRequest {
-    id: ID!
-    referenceModel: String!
-    referenceId: String!
-    requestedById: String!
-    RequestedBy: User
-    requestedUserId: String!
-    RequestedUser: User
-    status: String!
-    signatureId: String
-    Signature: Signature
-    signedAt: DateTime
-    createdAt: DateTime
-}
-
-input CreateSignatureRequest {
-    referenceModel: String!
-    referenceId: String!
-    requestedUserId: String!
-}
-
-input EditSignatureRequest {
-    status: String
-    signatureId: String
-    signedAt: DateTime
-}
-
-extend type Mutation {
-    createSignatureRequest(data: CreateSignatureRequest!): SignatureRequest
-    editSignatureRequest(id: ID!, data: EditSignatureRequest!): SignatureRequest
-}
-```
-
-The `createSignatureRequest` resolver sets `requestedById` from `context.userId()` before passing to `model.createItem()`. Validation (duplicate request check, already-signed check) belongs in the model class `beforeCreate` hook — not custom prisma queries in the resolver.
-
-After `createItem`, call `handleRequestNotification()`. After `editItem` when status transitions to `"SIGNED"`, call `handleSignedNotification()`. Both notification methods live on the model class (see Step 3).
-
-Register in `apps/api/src/graphql/schema.ts` (5 places) and export from `models/index.ts`.
-
-### Add SignatureRequests resolver on Job type
-
-**File:** `apps/api/src/graphql/models/Job.ts`
-
-Add `SignatureRequests: [SignatureRequest]` to the Job type definition with a standard polymorphic field-level resolver.
-
----
-
-## Step 3: Notification — Request Signature
-
-**File:** `apps/api/src/models/SignatureRequest.ts`
-
-Add `handleRequestNotification` method following the `Acknowledge.handleAckNotification` pattern:
+Add notification methods to the existing Signature model class, following the `Acknowledge.handleAckNotification` pattern:
 
 Both methods follow the `Acknowledge.handleAckNotification` pattern:
 
@@ -264,15 +92,16 @@ Both methods follow the `Acknowledge.handleAckNotification` pattern:
 4. Create notification + notification status via the existing `NotificationModel` and `NotificationStatusModel` methods
 5. Send push notification via `NotificationModel.sendPushNotification()`
 
-### `handleRequestNotification` (called after `createItem`)
+### `handleRequestNotification` (called after `createItem` when `status = "PENDING"`)
 
-- Pushes "Signature Requested" to the requested user's activity feed
-- Creates a `SIGNATURE_REQUEST` notification for the requested user
+- Resolves the signer from `signerId` (when `signerModel = "User"`)
+- Pushes "Signature Requested" to the signer's activity feed
+- Creates a `SIGNATURE_REQUEST` notification for the signer
 - Sends FCM push: `"[Requester] requested your signature on [WO Number]"`
 
-### `handleSignedNotification` (called after `editItem` when status = SIGNED)
+### `handleSignedNotification` (called after `editItem` when status transitions to `"SIGNED"`)
 
-- Sends `SIGNATURE_COMPLETED` push to the original requester: `"[Signer] signed [WO Number]"`
+- Sends `SIGNATURE_COMPLETED` push to the `requestedById` user: `"[Signer] signed [WO Number]"`
 
 ### Add Notification Types
 
@@ -282,7 +111,7 @@ Add `SIGNATURE_REQUEST` and `SIGNATURE_COMPLETED` to the `NotificationType` enum
 
 ---
 
-## Step 4: Frontend — WO Detail Signatures Section
+## Step 3: Frontend — WO Detail Signatures Section
 
 **Modify file:** WO detail overview tab (from WO-4)
 
@@ -291,31 +120,22 @@ Extend the existing signatures `customColumnRender` section to include:
 ### Query updates
 
 ```graphql
-# Add to the WO detail query:
+# Add to the WO detail query — single fragment for all signature states:
 fragment WOSignatureFields on Signature {
     id
     assetId
     Asset { url }
-    userId
-    User { id firstName lastName }
+    signerId
+    signerModel
     signerName
     signerEmail
     signerCompany
     signedAt
     latitude
     longitude
-}
-
-fragment WOSignatureRequestFields on SignatureRequest {
-    id
     requestedById
     RequestedBy { id firstName lastName }
-    requestedUserId
-    RequestedUser { id firstName lastName }
     status
-    signatureId
-    Signature { ...WOSignatureFields }
-    signedAt
     createdAt
 }
 ```
@@ -329,16 +149,16 @@ Replace the simple signature list with a full section showing:
    - "Collect In-Person" — opens the signing view (Workflow B)
    - Both buttons only visible when WO status is Submitted or later
 
-2. **Combined signature list** — merges Signature records and SignatureRequest records into a single chronological list:
-   - **Signed entries:** Show signature image thumbnail, signer name (from User or signerName), timestamp, GPS. Badge: "SIGNED" (green).
-   - **Pending requests:** Show requested user name, requested timestamp, requester name. Badge: "REQUESTED" (blue).
-   - **External signatures:** Show signerName, signerCompany if present. Badge: "SIGNED" (green), avatar uses pink (external indicator).
+2. **Signature list** — all Signature records for this WO in a single chronological list, differentiated by `status`:
+   - **Signed entries** (`status = "SIGNED"`): Show signature image thumbnail (from Asset), signer name (resolved from `signerId` when `signerModel = "User"`, or from `signerName` when `signerModel = "External"`), timestamp, GPS. Badge: "SIGNED" (green).
+   - **Pending requests** (`status = "PENDING"`): Show requested user name (resolved from `signerId`), requested timestamp (`createdAt`), requester name (`RequestedBy`). Badge: "REQUESTED" (blue).
+   - **External signatures** (`signerModel = "External"`): Show `signerName`, `signerCompany` if present. Badge: "SIGNED" (green), avatar uses pink (external indicator).
 
-3. **Pending request banner** — If the current user has a pending SignatureRequest for this WO, show a blue banner at the top of the detail page: "Your signature has been requested" with a "Sign Now" button.
+3. **Pending request banner** — If the current user has a pending Signature where `signerId = currentUser.id` and `status = "PENDING"`, show a blue banner at the top of the detail page: "Your signature has been requested" with a "Sign Now" button.
 
 ---
 
-## Step 5: Frontend — Request Signature Flyout (Workflow A)
+## Step 4: Frontend — Request Signature Flyout (Workflow A)
 
 **Create file:** `apps/frontend/src/components/WorkOrders/RequestSignatureFlyout.tsx`
 
@@ -346,8 +166,7 @@ Replace the simple signature list with a full section showing:
 interface IRequestSignatureFlyoutProps {
     className?: string;
     jobId: string;
-    existingSignatures: GqlSignature[];
-    existingRequests: GqlSignatureRequest[];
+    existingSignatures: GqlSignature[];  // all Signature records for this WO
     onRequestSent: () => void;
     onClose: () => void;
 }
@@ -357,16 +176,14 @@ interface IRequestSignatureFlyoutProps {
 
 1. Opens as a standard flyout via `openFlyout()`
 2. Contains a `CustomCombobox` searching active Users in the organization
-3. Filters out users who:
-   - Already have a Signature on this WO (`existingSignatures` with matching userId)
-   - Already have a pending SignatureRequest (`existingRequests` with status = PENDING)
-4. On "Send Request", calls `createSignatureRequest` mutation
+3. Filters out users who already have a Signature on this WO (any status — `existingSignatures` with matching `signerId` where `signerModel = "User"`)
+4. On "Send Request", calls `createSignature` mutation with `status: "PENDING"`, `signerModel: "User"`, `signerId: selectedUser.id` — no `assetId`
 5. On success, shows toast confirmation and closes flyout
 6. Parent refetches the WO detail query to update the signatures section
 
 ---
 
-## Step 6: Frontend — WO Signing View (Shared Component)
+## Step 5: Frontend — WO Signing View (Shared Component)
 
 **Create file:** `apps/frontend/src/components/WorkOrders/WOSigningView.tsx`
 
@@ -377,7 +194,7 @@ interface IWOSigningViewProps {
     className?: string;
     jobId: string;
     mode: "internal" | "external";
-    signatureRequestId?: string;  // Workflow A: to update request status on sign
+    signatureId?: string;  // Workflow A: existing PENDING Signature to complete
     onComplete: () => void;
     onCancel: () => void;
 }
@@ -406,32 +223,33 @@ const handleConfirmSignature = async () => {
     const asset = await createAsset({ ... });
     await uploadToSignedUrl(asset.uploadUrl, signatureBlob);
 
-    // 3. Create Signature record
-    const signature = await createSignature({
-        referenceModel: "Job",
-        referenceId: jobId,
-        assetId: asset.id,
-        userId: mode === "internal" ? currentUser.id : null,
-        signerName: mode === "internal"
-            ? `${currentUser.firstName} ${currentUser.lastName}`
-            : signerNameInput,
-        signerEmail: mode === "external" ? signerEmailInput : null,
-        signerCompany: mode === "external" ? signerCompanyInput : null,
-        latitude: gpsCoords?.latitude,
-        longitude: gpsCoords?.longitude,
-    });
-
-    // 4. If Workflow A, update SignatureRequest status
-    if (signatureRequestId) {
-        await editSignatureRequest({
-            id: signatureRequestId,
-            status: "SIGNED",
-            signatureId: signature.id,
-            signedAt: new Date(),
+    if (signatureId) {
+        // 3a. Workflow A — complete an existing PENDING Signature
+        await editSignature({
+            id: signatureId,
+            data: {
+                assetId: asset.id,
+                status: "SIGNED",
+                latitude: gpsCoords?.latitude,
+                longitude: gpsCoords?.longitude,
+            }
         });
-
-        // 5. Send signed confirmation notification back to requester
-        // This is handled server-side in the editSignatureRequest mutation
+        // Server-side handleSignedNotification fires on status → SIGNED
+    } else {
+        // 3b. Workflow B — create a new Signature for external signer (already SIGNED)
+        await createSignature({
+            referenceModel: "Job",
+            referenceId: jobId,
+            assetId: asset.id,
+            signerId: "external",       // or a generated ID for the external signer
+            signerModel: "External",
+            signerName: signerNameInput,
+            signerEmail: signerEmailInput || null,
+            signerCompany: signerCompanyInput || null,
+            latitude: gpsCoords?.latitude,
+            longitude: gpsCoords?.longitude,
+        });
+        // Server will set status to SIGNED and requestedById from context
     }
 
     onComplete();
@@ -440,36 +258,36 @@ const handleConfirmSignature = async () => {
 
 ### Opening the signing view
 
-- **Workflow A ("Sign Now" button):** Opens as a full-screen flyout. Passes `mode="internal"` and the `signatureRequestId`.
-- **Workflow B ("Collect In-Person" button):** Opens as a full-screen flyout. Passes `mode="external"`. No signatureRequestId.
+- **Workflow A ("Sign Now" button):** Opens as a full-screen flyout. Passes `mode="internal"` and the `signatureId` of the pending Signature record.
+- **Workflow B ("Collect In-Person" button):** Opens as a full-screen flyout. Passes `mode="external"`. No signatureId.
 
 ---
 
-## Step 7: Frontend — "Sign Now" Banner
+## Step 6: Frontend — "Sign Now" Banner
 
 **Modify file:** WO detail page (from WO-4)
 
-Add a query check on page load:
+Check the existing signatures list (already fetched for the signatures section) for a pending request targeting the current user:
 
 ```typescript
-// In the WO detail page component:
-const { data: pendingRequest } = useQuery(GET_MY_PENDING_SIGNATURE_REQUESTS);
-
-const myRequestForThisWO = pendingRequest?.myPendingSignatureRequests?.find(
-    (r) => r.referenceId === jobId
+// In the WO detail page component — derive from the already-fetched signatures:
+const myPendingSignature = signatures?.find(
+    (s) => s.signerId === currentUser.id
+        && s.signerModel === "User"
+        && s.status === "PENDING"
 );
 ```
 
-If `myRequestForThisWO` exists, render a banner at the top of the overview tab:
+If `myPendingSignature` exists, render a banner at the top of the overview tab:
 
 ```tsx
-{myRequestForThisWO && (
+{myPendingSignature && (
     <div className="signature-request-banner">
         <div>
             <strong>Your signature has been requested</strong>
-            <span>Requested by {myRequestForThisWO.RequestedBy.firstName} {myRequestForThisWO.RequestedBy.lastName}</span>
+            <span>Requested by {myPendingSignature.RequestedBy.firstName} {myPendingSignature.RequestedBy.lastName}</span>
         </div>
-        <button onClick={() => openSigningView("internal", myRequestForThisWO.id)}>
+        <button onClick={() => openSigningView("internal", myPendingSignature.id)}>
             Sign Now
         </button>
     </div>
@@ -483,31 +301,30 @@ If `myRequestForThisWO` exists, render a banner at the top of the overview tab:
 ### Workflow A: Request Signature (Internal)
 - [ ] "Request Signature" button visible on submitted WO detail page
 - [ ] User picker flyout opens with searchable team member list
-- [ ] Users with existing signatures or pending requests are filtered out
-- [ ] `createSignatureRequest` mutation creates record and sends push + in-app notification
-- [ ] Recipient sees "Your signature has been requested" banner on WO detail
+- [ ] Users with existing signatures (any status) are filtered out
+- [ ] `createSignature` with `status: "PENDING"` and `signerModel: "User"` creates record and sends push + in-app notification
+- [ ] Recipient sees "Your signature has been requested" banner on WO detail (derived from signatures list, no separate query)
 - [ ] "Sign Now" opens WOSigningView in internal mode with auto-populated signer name
-- [ ] Signing creates Signature with `userId` set
-- [ ] SignatureRequest status updated to SIGNED with signatureId linked
-- [ ] Requester receives "signed" confirmation push notification
-- [ ] Signatures section updates to show new signature
+- [ ] Signing calls `editSignature` to set `assetId`, `status: "SIGNED"`, GPS coords
+- [ ] Requester receives "signed" confirmation push notification (server-side on status transition)
+- [ ] Signatures section updates to show completed signature
 
 ### Workflow B: Collect In-Person (External)
 - [ ] "Collect In-Person" button visible on submitted WO detail page
 - [ ] WOSigningView opens in external mode with read-only WO content
 - [ ] Full Name field required, Email and Company optional
 - [ ] Signature canvas works with Clear button
-- [ ] Signing creates Signature with `userId = null`, `signerName` populated
+- [ ] Signing creates Signature with `signerModel: "External"`, `signerName` populated, `status: "SIGNED"`, `assetId` attached
 - [ ] `signerEmail` and `signerCompany` saved when provided
 - [ ] GPS coordinates captured on signature
 - [ ] After signing, returns to WO detail page
 - [ ] Signatures section shows external signature with company badge
 
 ### General
+- [ ] Both workflows use the same combined Signature model (no separate SignatureRequest table)
 - [ ] Both workflows chain correctly on a single WO (self + internal + external)
-- [ ] SignatureRequest model has proper indexes and foreign keys
 - [ ] Notification types registered (SIGNATURE_REQUEST, SIGNATURE_COMPLETED)
-- [ ] WO detail signatures section shows combined chronological list of all signatures + requests
+- [ ] WO detail signatures section shows chronological list of all signatures, differentiated by `status` field
 - [ ] No regression on WO-3c self-signing flow (step 5 of wizard)
 
 ---
@@ -516,21 +333,11 @@ If `myRequestForThisWO` exists, render a banner at the top of the overview tab:
 
 | Action | File | What to do |
 |--------|------|------------|
-| CREATE | `apps/api/prisma/schema.prisma` | Add `SignatureRequest` model, add relations on User and Signature |
-| CREATE | `apps/api/prisma/migrations/.../migration.sql` | Create `SignatureRequest` table |
-| CREATE | `apps/api/src/types/SignatureRequest.types.ts` | TypeScript interface |
-| CREATE | `apps/api/src/models/SignatureRequest.ts` | Model class with `handleRequestNotification` and `handleSignedNotification` methods |
-| CREATE | `apps/api/src/graphql/models/SignatureRequest.ts` | GraphQL type + standard create/edit mutations via model class methods |
-| MODIFY | `apps/api/src/graphql/models/Job.ts` | Add `SignatureRequests` field-level resolver |
-| MODIFY | `apps/api/src/graphql/schema.ts` | Register SignatureRequest (5 places) |
-| MODIFY | `apps/api/src/models/index.ts` | Export SignatureRequestModel |
+| MODIFY | `apps/api/src/models/Signature.ts` | Add `handleRequestNotification` and `handleSignedNotification` methods to existing Signature model |
 | MODIFY | `apps/api/src/types/Notification.types.ts` | Add `SIGNATURE_REQUEST` and `SIGNATURE_COMPLETED` notification types |
 | CREATE | `apps/frontend/src/components/WorkOrders/WOSigningView.tsx` | Shared signing component — read-only WO + signer info + canvas |
-| CREATE | `apps/frontend/src/components/WorkOrders/RequestSignatureFlyout.tsx` | User picker flyout for Workflow A |
-| MODIFY | WO detail overview tab | Extended signatures section with action buttons, combined list, pending banner |
-| CREATE | `apps/frontend/src/graphql/fragments/signatureRequest.fragment.graphql` | Fragment for signature request fields |
-| CREATE | `apps/frontend/src/graphql/mutations/signatureRequest.mutation.graphql` | Create + edit signature request mutations |
-| CREATE | `apps/frontend/src/graphql/queries/signatureRequest.query.graphql` | Queries for signature requests + pending requests |
+| CREATE | `apps/frontend/src/components/WorkOrders/RequestSignatureFlyout.tsx` | User picker flyout for Workflow A — calls `createSignature` with `status: "PENDING"` |
+| MODIFY | WO detail overview tab | Extended signatures section with action buttons, status-based list, pending banner |
 </script>
 
 <script src="plan-renderer.js"></script>

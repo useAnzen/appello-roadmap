@@ -54,12 +54,12 @@ td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
 
 ## Overview
 
-Add a `steppedForm` mode to `DataModelForm` that renders each `DocumentSection` as a wizard step with Previous/Next navigation, a step indicator, and an auto-generated Summary step. This is a generic enhancement to DataModelForm — Work Orders are the first consumer. No backend changes.
+Add a `steppedForm` mode to `DataModelForm` that renders each `DocumentSection` as a wizard step with Previous/Next navigation, a step indicator, and an auto-generated Summary step. This is a generic enhancement to DataModelForm — Work Orders are the first consumer. Also includes **mobile wrapper components** that consume the shared UI editors from WO-3b (`@useanzen/ui`) and handle mobile-specific GraphQL data fetching, passing `layout="card"` for stacked mobile layouts. No backend changes.
 
-**Estimated effort:** 3-4 days
-**Risk:** Low-Medium — modifying DataModelForm rendering, but gated behind a new prop with no impact when false
+**Estimated effort:** 5-6 days (3-4 for stepped form engine + 2 for mobile wrappers)
+**Risk:** Low-Medium — modifying DataModelForm rendering (gated behind new prop); mobile wrappers mirror desktop pattern from WO-3b
 **Spec:** `tm-work-orders-uis/uis-20h-1-stepped-form-wizard.html`
-**Requires:** WO-3a (DocumentSections for WorkOrder), WO-3b (line item editors), WO-3c (signature section)
+**Requires:** WO-3a (DocumentSections for WorkOrder), WO-3b (shared UI editors in `@useanzen/ui` + desktop wrappers), WO-3c (signature section)
 
 ---
 
@@ -362,27 +362,124 @@ When `returnToSummary` is true, the "Next Step" button label changes to "Back to
 
 ---
 
-## Step 6: Work Order Consumer Integration
+## Step 6: Mobile Wrapper Components
 
-**Modify file:** The WO create flow (where DataModelForm is opened for Work Orders)
+The shared UI editors from WO-3b (`@useanzen/ui`) are presentational — they take data as props and render UI. The mobile app needs its own **wrapper components** that handle GraphQL data fetching and pass props to the shared editors with `layout="card"`.
 
-On mobile, pass `steppedForm`:
+> **Architecture note:** The desktop wrappers are described in WO-3b Step 5. These mobile wrappers mirror the same pattern but live in `apps/mobile/` and pass `layout="card"` instead of `layout="table"`. The shared editors handle all the rendering logic (date grouping, cost code sub-rows, subtotals, add/remove rows) — the wrappers just fetch data and implement search/select callbacks.
+
+### 6a. MobileWOLaborEditor
+
+**Create file:** `apps/mobile/src/components/WorkOrders/MobileWOLaborEditor.tsx`
+
+Responsibilities:
+- **Load existing data on mount:** Query `TimeSheetRecords` for the job, group by `workDate`, map each `TimeSheetDetailRecord` to `ILaborTimeRowData`. Query `WorkOrderLaborItems` for blank lines, map to `IBlankLaborRowData[]`.
+- **Provide `availableUsers`:** Query users with scheduling permissions for the job.
+- **Implement `onUserSelect` callback:** Fetch `EmployeeAgreement` → active `EmployeeAgreementContract` for the workDate → return `{ tradeLevels, rateLabels }`.
+- **Provide `availableCostCodes`:** Query cost codes for the job.
+- **Pass `layout="card"`** to the shared `LaborItemEditor`.
+- **Expose data for save:** Via ref or callback so the parent form can collect structured + blank items on submit.
 
 ```typescript
+import { LaborItemEditor } from "@useanzen/ui";
+import type { IDateGroup, ILaborTimeRowData, IBlankLaborRowData } from "@useanzen/ui";
+
+const MobileWOLaborEditor: FC<{ jobId: string; disabled?: boolean }> = ({ jobId, disabled }) => {
+    const [dateGroups, setDateGroups] = useState<IDateGroup<ILaborTimeRowData>[]>([]);
+    const [blankItems, setBlankItems] = useState<IBlankLaborRowData[]>([]);
+
+    // GraphQL: load TimeSheetRecords + WorkOrderLaborItems on mount
+    // GraphQL: load available users + cost codes for the job
+    // Implement onUserSelect callback (EmployeeAgreement → contract → trade levels + rate labels)
+
+    return (
+        <LaborItemEditor
+            layout="card"
+            dateGroups={dateGroups}
+            onDateGroupsChange={setDateGroups}
+            blankItems={blankItems}
+            onBlankItemsChange={setBlankItems}
+            availableUsers={users}
+            availableCostCodes={costCodes}
+            onUserSelect={handleUserSelect}
+            disabled={disabled}
+        />
+    );
+};
+```
+
+```graphql
+query TimesheetRecordsForJob($jobId: String!) {
+    timeSheetRecords(options: { where: { filter: { fieldName: "jobId", value: $jobId } } }) {
+        data {
+            ... on TimeSheetRecord {
+                id
+                workDate
+                status
+                TimeSheetDetailRecords {
+                    id
+                    overrideTradeLevelId
+                    secondsAtService
+                    Employee { id, firstName, lastName }
+                    TradeLevelRate {
+                        TradeLevel { id, name }
+                        EmployeeAgreementRateLabel { id, name }
+                    }
+                }
+            }
+        }
+    }
+}
+```
+
+### 6b. MobileWOMaterialEditor
+
+**Create file:** `apps/mobile/src/components/WorkOrders/MobileWOMaterialEditor.tsx`
+
+Responsibilities:
+- **Load existing data on mount:** Query `WorkOrderMaterialItems`, map to `IMaterialRowData[]`.
+- **Implement `onMaterialSearch`:** Use `useSearchCore` (or mobile equivalent) with Solr-indexed Material catalog.
+- **Implement `onMaterialSelect`:** Fetch material details + `resolveMaterialSellPrice()` (LEM-3 cascade) → return `{ unitPrice, costPrice }`.
+- **Pass `layout="card"`** to the shared `MaterialItemEditor`.
+
+### 6c. MobileWOEquipmentEditor
+
+**Create file:** `apps/mobile/src/components/WorkOrders/MobileWOEquipmentEditor.tsx`
+
+Responsibilities:
+- **Load existing data on mount:** Query `EquipmentTimeEntries` for the job, group by `workDate`, map to `IDateGroup<IStructuredEquipmentRowData>[]`. Query `WorkOrderEquipmentItems` for blank lines.
+- **Implement `onEquipmentSearch`:** Use `useSearchCore` with Solr-indexed Equipment catalog.
+- **Implement `onEquipmentSelect`:** Fetch `EquipmentRateLabels` for the equipment's category → return `{ rateLabels }`.
+- **Provide `availableCostCodes`:** Query cost codes for the job.
+- **Pass `layout="card"`** to the shared `EquipmentItemEditor`.
+
+---
+
+## Step 7: Wire Mobile Wrappers into Stepped Form
+
+**Modify file:** The mobile WO create flow (where DataModelForm is opened)
+
+Pass `steppedForm` and the mobile wrapper components via `customFormControl`:
+
+```typescript
+import { MobileWOLaborEditor } from "~root/components/WorkOrders/MobileWOLaborEditor";
+import { MobileWOMaterialEditor } from "~root/components/WorkOrders/MobileWOMaterialEditor";
+import { MobileWOEquipmentEditor } from "~root/components/WorkOrders/MobileWOEquipmentEditor";
+
 <DataModelForm
     formType="CREATE"
     referenceModel="Job"
     subModel="WorkOrder"
-    steppedForm={isMobile}
+    steppedForm
     customFormControl={{
         "wo-labor-items": (formData, setFormData, element, error) => (
-            <LaborItemEditor formData={formData} setFormData={setFormData} element={element} error={error} />
+            <MobileWOLaborEditor jobId={jobId} />
         ),
         "wo-material-items": (formData, setFormData, element, error) => (
-            <MaterialItemEditor ... />
+            <MobileWOMaterialEditor jobId={jobId} />
         ),
         "wo-equipment-items": (formData, setFormData, element, error) => (
-            <EquipmentItemEditor ... />
+            <MobileWOEquipmentEditor jobId={jobId} />
         ),
         "wo-signatures": (formData, setFormData, element, error) => (
             <WOSignatureSection ... />
@@ -392,17 +489,13 @@ On mobile, pass `steppedForm`:
 />
 ```
 
-No `readOnlySummaryControl` needed — the Summary step renders the same form sections in disabled mode. Custom form controls receive a no-op `setFormData` and render their current state as read-only.
+No `readOnlySummaryControl` needed — the Summary step renders the same form sections in disabled mode. The shared editors accept a `disabled` prop and hide add/delete controls when true.
 
-On desktop, `steppedForm` is false — standard all-sections flyout form.
-
-### `isMobile` detection
-
-Use the existing `useIsMobile()` hook (or viewport-based check already in the codebase) to determine whether to enable stepped mode.
+On desktop, the desktop wrappers from WO-3b Step 5 are used instead (with `layout="table"`).
 
 ---
 
-## Step 7: Submit Behavior
+## Step 8: Submit Behavior
 
 The "Submit Work Order" button on the Summary step calls the same save/submit logic that exists in DataModelForm.
 
@@ -418,7 +511,7 @@ No new mutation or API work needed — the stepped form submits through the same
 
 ---
 
-## Step 8: Section State Preservation
+## Step 9: Section State Preservation
 
 When navigating between steps, section content must not be destroyed.
 
@@ -456,14 +549,24 @@ This is already handled in the Step 1 rendering branch — all sections render i
 - [ ] "Next Step" label changes to "Back to Summary" when `returnToSummary` is true
 - [ ] "Submit" on Summary runs full-form validation and saves
 
+### Mobile wrapper components
+- [ ] MobileWOLaborEditor loads TimeSheetRecords + WorkOrderLaborItems, maps to shared types, passes `layout="card"`
+- [ ] MobileWOLaborEditor implements `onUserSelect` callback (EmployeeAgreement → contract → trade levels + rate labels)
+- [ ] MobileWOMaterialEditor loads WorkOrderMaterialItems, implements `onMaterialSearch` + `onMaterialSelect` (LEM-3 cascade), passes `layout="card"`
+- [ ] MobileWOEquipmentEditor loads EquipmentTimeEntries + WorkOrderEquipmentItems, implements `onEquipmentSearch` + `onEquipmentSelect`, passes `layout="card"`
+- [ ] All mobile wrappers expose data for form save via refs or callbacks
+- [ ] All mobile wrappers pass `disabled` prop through to shared editors when Summary step renders them
+
 ### Work Order integration
-- [ ] Mobile WO create opens with `steppedForm={true}`
-- [ ] Desktop WO create opens with `steppedForm={false}` (standard form)
+- [ ] Mobile WO create opens with `steppedForm={true}` and mobile wrapper components
+- [ ] Desktop WO create opens with `steppedForm={false}` and desktop wrappers (from WO-3b)
 - [ ] All 5 WO sections render correctly as steps (Info, Labor, Materials, Equipment, Signatures)
-- [ ] Labor step renders LaborItemEditor with dual-source approach: inline time entry table (TimeSheetRecords) + blank lines (WorkOrderLaborItems)
-- [ ] Equipment step renders EquipmentItemEditor with dual-source approach: structured equipment entry (EquipmentTimeEntries) + blank lines (WorkOrderEquipmentItems)
-- [ ] Summary shows all sections disabled with current form data
+- [ ] Labor step: shared `LaborItemEditor` with `layout="card"` — date-grouped stacked cards (User + Trade Level on grid-cols-2, rate labels on grid-cols-3 + total), cost code sub-rows (border-left accent), blank lines (dashed border), combined subtotal
+- [ ] Materials step: shared `MaterialItemEditor` with `layout="card"` — structured cards (full-width combobox, fields on grid-cols-4), blank cards (description + grid-cols-3), dollar subtotal
+- [ ] Equipment step: shared `EquipmentItemEditor` with `layout="card"` — date-grouped stacked cards (full-width combobox, fields on grid-cols-3), cost code sub-rows, blank lines, combined subtotal
+- [ ] Summary shows all sections `disabled` — shared editors hide add/delete controls
 - [ ] Submit creates the Job record with status = Submitted
+- [ ] On form save: structured labour via `editFullTimeRecord`; structured equipment via `upsertManyEquipmentTimeEntries`; blank items via `upsertWorkOrderLineItems`
 - [ ] `onSaved` navigates to `/work-orders/[id]`
 
 ---
@@ -476,7 +579,10 @@ This is already handled in the Step 1 rendering branch — all sections render i
 | CREATE | `apps/frontend/src/components/Forms/DataModelForm/StepIndicator.tsx` | Horizontal dots + lines progress indicator. |
 | CREATE | `apps/frontend/src/components/Forms/DataModelForm/StepNavigation.tsx` | Previous / Next full-width buttons. "Back to Summary" label variant. |
 | CREATE | `apps/frontend/src/components/Forms/DataModelForm/SteppedFormSummary.tsx` | Renders all sections via `renderSection(section, { disabled: true })` with edit pencils per section and Submit button. |
-| MODIFY | WO create flow (mobile entry point) | Pass `steppedForm={isMobile}` to DataModelForm. |
+| CREATE | `apps/mobile/src/components/WorkOrders/MobileWOLaborEditor.tsx` | Mobile wrapper: GraphQL queries for TimeSheetRecords + users + cost codes. Implements `onUserSelect`. Passes `layout="card"` to shared `LaborItemEditor`. Save data exposed via ref. |
+| CREATE | `apps/mobile/src/components/WorkOrders/MobileWOMaterialEditor.tsx` | Mobile wrapper: GraphQL queries for WorkOrderMaterialItems. Implements `onMaterialSearch` + `onMaterialSelect` (LEM-3). Passes `layout="card"`. |
+| CREATE | `apps/mobile/src/components/WorkOrders/MobileWOEquipmentEditor.tsx` | Mobile wrapper: GraphQL queries for EquipmentTimeEntries + cost codes. Implements `onEquipmentSearch` + `onEquipmentSelect`. Passes `layout="card"`. |
+| MODIFY | Mobile WO create flow | Pass `steppedForm` + mobile wrapper components via `customFormControl`. Save handler calls mutations with data from wrappers. |
 </script>
 
 <script src="plan-renderer.js"></script>

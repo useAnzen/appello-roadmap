@@ -285,7 +285,54 @@ When querying DAAs, include the subModel filter so only the correct set shows.
 
 ---
 
-## Step 8: Classification-aware status input on Job form
+## Step 8: DocumentModelForm subModel migration + DataModelForm subModel support (ADDED — not in original plan)
+
+### Migration
+
+**File:** `apps/api/prisma/migrations/20260410200000_document_model_form_submodel/migration.sql`
+
+Adds `subModel` column to `DocumentModelForm`, updates the unique constraint to `(referenceModel, subModel, formType)`, backfills existing Job forms to `subModel = 'ProjectJob'`, creates WorkOrder forms by duplicating ProjectJob forms and remapping form elements to WorkOrder DAAs (matched by slug).
+
+### Prisma schema
+
+`DocumentModelForm.subModel` added as optional `String? @db.VarChar(191)`.
+
+###
+
+The DataModelForm and its backend `dataAttributeForms` query need `subModel` support so the WorkOrder and ProjectJob forms load the correct DAA sets. Currently the backend matches DAAs where `referenceModel = modelName OR subModel = modelName` — this returns ALL Job DAAs for both classifications.
+
+### Backend change
+
+**File:** `apps/api/src/graphql/models/DataModel/dataAttributeForms.ts`
+
+Accept optional `subModel` parameter. When provided, filter DAAs by `subModel` instead of the OR pattern:
+
+```typescript
+// When subModel is provided:
+where: { referenceModel: mapTableName, subModel: subModel }
+// When not provided (backward compat):
+where: { OR: [{ referenceModel: modelName }, { subModel: modelName }] }
+```
+
+### GraphQL change
+
+**File:** `apps/api/src/graphql/models/DataModel/DataModel.ts`
+
+Add optional `subModel` parameter to the `dataModel` query:
+
+```graphql
+dataModel(modelName: TableDataName!, options: DataModelRecordSetOptions, subModel: String): DataModel
+```
+
+### Frontend change
+
+**File:** `apps/frontend/src/components/Forms/DataModelForm/DataModelForm.tsx`
+
+Accept optional `subModel` prop and pass it through to the `dataModel` query. The `JobDataModelForm` passes `subModel` based on the job's classification context (from the list page that opened it — "ProjectJob" from Jobs, "WorkOrder" from Work Orders).
+
+---
+
+## Step 9: Classification-aware status input on Job form
 
 **File:** Job DataModelForm page (from PR #6831)
 

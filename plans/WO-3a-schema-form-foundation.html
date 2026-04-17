@@ -57,7 +57,7 @@ td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
 Create the polymorphic `Signature` model, seed DocumentAttributeAssignments for WO-specific fields, and update job number generation to be classification-aware. This establishes the foundation that WO-3b (Line Item Editors) and WO-3c (Signatures & Submission) build on. Work dates are handled by the existing JobSchedule relationship — no `dateOfWork` field needed on Job.
 
 **Estimated effort:** 3-4 days
-**Risk:** Medium — modifies Job model, new Signature model, DAA seed migration
+**Risk:** Medium — modifies Job model, new combined Signature model (handles both requests + completed signatures), DAA seed migration
 **Spec:** `tm-work-orders-uis/uis-20c-1-schema-form-foundation.html`
 **Requires:** WO-1 (JobClassification), WO-2 (Line Item Tables), PR #6831 (Job DataModel Refactor)
 
@@ -67,32 +67,37 @@ Create the polymorphic `Signature` model, seed DocumentAttributeAssignments for 
 
 **File:** `apps/api/prisma/schema.prisma`
 
+The Signature model is a combined model that handles both signature requests and completed signatures. A pending request is a Signature with `status = "PENDING"` and no `assetId`; once signed, the asset is attached and status becomes `"SIGNED"`.
+
 ```prisma
 model Signature {
-  id                String    @id @db.VarChar(21)
-  isDeleted         Boolean   @default(false)
-  isArchived        Boolean   @default(false)
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @default(now()) @updatedAt
+  id         String   @id @db.VarChar(21)
+  isDeleted  Boolean  @default(false)
+  isArchived Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @default(now()) @updatedAt
 
-  referenceModel    String
-  referenceId       String    @db.VarChar(21)
+  referenceModel String @db.VarChar(191)
+  referenceId    String @db.VarChar(191)
 
-  assetId           String    @db.VarChar(21)
-  Asset             Asset     @relation(fields: [assetId], references: [id])
+  assetId String? @db.VarChar(191)
+  Asset   Asset?  @relation(fields: [assetId], references: [id])
 
-  userId            String?   @db.VarChar(21)
-  User              User?     @relation(fields: [userId], references: [id])
+  signerId    String @db.VarChar(21)
+  signerModel String @db.VarChar(191)
 
-  signerName        String?   @db.VarChar(191)   // for external signers not in the system
-  signerEmail       String?   @db.VarChar(191)   // optional contact email
-  signerCompany     String?   @db.VarChar(191)   // optional company affiliation
+  signerName    String? @db.VarChar(191)
+  signerEmail   String? @db.VarChar(191)
+  signerCompany String? @db.VarChar(191)
 
-  signedAt          DateTime  @default(now())
-  latitude          Decimal?  @db.Decimal(10, 7)
-  longitude         Decimal?  @db.Decimal(10, 7)
+  signedAt  DateTime @default(now())
+  latitude  Decimal? @db.Decimal(10, 7)
+  longitude Decimal? @db.Decimal(10, 7)
 
-  SignatureRequests  SignatureRequest[]
+  requestedById String @db.VarChar(21)
+  RequestedBy   User   @relation("SignatureRequestedBy", fields: [requestedById], references: [id])
+
+  status String @default("PENDING") @db.VarChar(191)
 
   @@index([referenceModel, referenceId, isDeleted])
   @@index([assetId])
@@ -106,7 +111,7 @@ Add relations on existing models:
 Signatures    Signature[]
 
 // On User:
-Signatures    Signature[]
+SignaturesRequestedBy  Signature[] @relation("SignatureRequestedBy")
 ```
 
 ---
@@ -116,7 +121,7 @@ Signatures    Signature[]
 **Create file:** `apps/api/prisma/migrations/[timestamp]_wo_3a_schema_foundation/migration.sql`
 
 ```sql
--- Signature table
+-- Signature table (combined model — handles both requests and completed signatures)
 CREATE TABLE `Signature` (
   `id` VARCHAR(21) NOT NULL,
   `isDeleted` BOOLEAN NOT NULL DEFAULT false,
@@ -124,20 +129,23 @@ CREATE TABLE `Signature` (
   `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   `updatedAt` DATETIME(3) NOT NULL,
   `referenceModel` VARCHAR(191) NOT NULL,
-  `referenceId` VARCHAR(21) NOT NULL,
-  `assetId` VARCHAR(21) NOT NULL,
-  `userId` VARCHAR(21) NULL,
+  `referenceId` VARCHAR(191) NOT NULL,
+  `assetId` VARCHAR(191) NULL,
+  `signerId` VARCHAR(21) NOT NULL,
+  `signerModel` VARCHAR(191) NOT NULL,
   `signerName` VARCHAR(191) NULL,
   `signerEmail` VARCHAR(191) NULL,
   `signerCompany` VARCHAR(191) NULL,
   `signedAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   `latitude` DECIMAL(10, 7) NULL,
   `longitude` DECIMAL(10, 7) NULL,
+  `requestedById` VARCHAR(21) NOT NULL,
+  `status` VARCHAR(191) NOT NULL DEFAULT 'PENDING',
   PRIMARY KEY (`id`),
   INDEX `Signature_ref_idx` (`referenceModel`, `referenceId`, `isDeleted`),
   INDEX `Signature_assetId_idx` (`assetId`),
   CONSTRAINT `Signature_assetId_fkey` FOREIGN KEY (`assetId`) REFERENCES `Asset`(`id`),
-  CONSTRAINT `Signature_userId_fkey` FOREIGN KEY (`userId`) REFERENCES `User`(`id`)
+  CONSTRAINT `Signature_requestedById_fkey` FOREIGN KEY (`requestedById`) REFERENCES `User`(`id`)
 );
 ```
 
@@ -151,14 +159,17 @@ CREATE TABLE `Signature` (
 export interface ISignature {
     referenceModel: string;
     referenceId: string;
-    assetId: string;
-    userId?: string;
+    assetId?: string;
+    signerId: string;
+    signerModel: string;
     signerName?: string;
     signerEmail?: string;
     signerCompany?: string;
     signedAt: Date;
     latitude?: number;
     longitude?: number;
+    requestedById: string;
+    status: string;
 }
 ```
 
@@ -183,24 +194,32 @@ protected modelFields: IField<ISignature>[] = [
     {
         name: "assetId",
         type: "string",
-        options: { isRequiredOnCreate: true, canEdit: false }
+        options: { canEdit: true }
     },
     {
-        name: "userId",
+        name: "signerId",
         type: "string",
-        options: { isFilterable: true }
+        options: { isRequiredOnCreate: true, isFilterable: true, canEdit: false }
+    },
+    {
+        name: "signerModel",
+        type: "string",
+        options: { isRequiredOnCreate: true, isFilterable: true, canEdit: false }
     },
     {
         name: "signerName",
-        type: "string"
+        type: "string",
+        options: { canEdit: true }
     },
     {
         name: "signerEmail",
-        type: "string"
+        type: "string",
+        options: { canEdit: true }
     },
     {
         name: "signerCompany",
-        type: "string"
+        type: "string",
+        options: { canEdit: true }
     },
     {
         name: "signedAt",
@@ -209,11 +228,23 @@ protected modelFields: IField<ISignature>[] = [
     },
     {
         name: "latitude",
-        type: "float"
+        type: "float",
+        options: { canEdit: true }
     },
     {
         name: "longitude",
-        type: "float"
+        type: "float",
+        options: { canEdit: true }
+    },
+    {
+        name: "requestedById",
+        type: "string",
+        options: { isRequiredOnCreate: true, canEdit: false }
+    },
+    {
+        name: "status",
+        type: "string",
+        options: { isFilterable: true, canEdit: true, defaultValue: "PENDING" }
     }
 ];
 ```
@@ -229,28 +260,42 @@ type Signature {
     id: ID!
     referenceModel: String!
     referenceId: String!
-    assetId: String!
+    assetId: String
     Asset: Asset
-    userId: String
-    User: User
+    signerId: String!
+    signerModel: String!
     signerName: String
     signerEmail: String
     signerCompany: String
     signedAt: DateTime!
     latitude: Float
     longitude: Float
+    requestedById: String!
+    RequestedBy: User
+    status: String!
     createdAt: DateTime
 }
 
 input CreateSignature {
     referenceModel: String!
     referenceId: String!
-    assetId: String!
-    userId: String
+    assetId: String
+    signerId: String!
+    signerModel: String!
     signerName: String
     signerEmail: String
     signerCompany: String
     signedAt: DateTime
+    latitude: Float
+    longitude: Float
+}
+
+input EditSignature {
+    assetId: String
+    signerName: String
+    signerEmail: String
+    signerCompany: String
+    status: String
     latitude: Float
     longitude: Float
 }
@@ -261,6 +306,7 @@ extend type Query {
 
 extend type Mutation {
     createSignature(data: CreateSignature!): Signature
+    editSignature(id: ID!, data: EditSignature!): Signature
     deleteSignature(id: ID!): Boolean
 }
 ```
@@ -269,10 +315,11 @@ Resolvers:
 
 ```typescript
 Resolvers: {
-    Asset: (parent) => prisma.asset.findUnique({ where: { id: parent.assetId } }),
-    User: (parent) => parent.userId
-        ? prisma.user.findUnique({ where: { id: parent.userId } })
-        : null
+    Asset: (parent) => parent.assetId
+        ? prisma.asset.findUnique({ where: { id: parent.assetId } })
+        : null,
+    RequestedBy: (parent) =>
+        prisma.user.findUnique({ where: { id: parent.requestedById } })
 },
 Query: {
     signatures: (_, args, context) =>
@@ -287,7 +334,12 @@ Query: {
 },
 Mutation: {
     createSignature: (_, args, context) =>
-        new SignatureModel().createItem(args.data, context.userId()),
+        new SignatureModel().createItem(
+            { ...args.data, requestedById: context.userId() },
+            context.userId()
+        ),
+    editSignature: (_, args, context) =>
+        new SignatureModel().editItem(args.id, args.data, context.userId()),
     deleteSignature: (_, args, context) =>
         new SignatureModel().deleteItem(args.id, context.userId())
 }
@@ -460,9 +512,12 @@ The backend guard (WO-1, Step 5) rejects cross-classification changes at the API
 ## Verification Checklist
 
 - [ ] `Signature` table created with correct indexes and FK constraints
-- [ ] `Signature` model class with standard CRUD methods
+- [ ] `Signature` model uses combined model — `signerId`/`signerModel` (polymorphic), `requestedById`, `status` (PENDING/SIGNED/DECLINED)
+- [ ] `assetId` is nullable (pending signatures have no asset until signed)
+- [ ] `Signature` model class with standard CRUD + edit methods
 - [ ] `Signature` GraphQL resolver with `signatures(referenceModel, referenceId)` query
-- [ ] `createSignature` and `deleteSignature` mutations work
+- [ ] `createSignature`, `editSignature`, and `deleteSignature` mutations work
+- [ ] `createSignature` resolver sets `requestedById` from `context.userId()`
 - [ ] `Job.Signatures` field-level resolver returns signatures where `referenceModel = "Job"`
 - [ ] Signature resolver registered in schema.ts (5 places)
 - [ ] 5 DocumentSections created with `subModel = "WorkOrder"`

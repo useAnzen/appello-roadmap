@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WO-10: WO → Change Order Conversion — Implementation Plan</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+.in-iframe .top-nav { display: none !important; }
+.top-nav { position: sticky; top: 0; z-index: 100; background: #0f172a; border-bottom: 1px solid #1e293b; padding: 0 24px; display: flex; align-items: center; gap: 0; }
+.top-nav a { display: inline-flex; align-items: center; padding: 12px 18px; font-size: 13px; font-weight: 600; color: #94a3b8; text-decoration: none; border-bottom: 2px solid transparent; transition: all 0.15s; white-space: nowrap; }
+.top-nav a:hover { color: #f8fafc; background: #1e293b; }
+.top-nav .nav-logo { font-size: 11px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: #475569; padding-right: 18px; margin-right: 4px; border-right: 1px solid #1e293b; }
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Inter', -apple-system, sans-serif; background: #f8fafc; color: #0f172a; }
+.plan-wrap { max-width: 880px; margin: 0 auto; padding: 40px 24px 80px; }
+h1 { font-size: 24px; font-weight: 800; margin: 0 0 16px; }
+h2 { font-size: 18px; font-weight: 700; margin: 28px 0 12px; padding-bottom: 8px; border-bottom: 2px solid #e2e8f0; }
+h3 { font-size: 15px; font-weight: 700; margin: 20px 0 8px; padding-top: 10px; border-top: 1px solid #f1f5f9; }
+p { font-size: 14px; color: #334155; line-height: 1.7; margin: 6px 0; }
+ul, ol { padding-left: 20px; margin: 8px 0; }
+li { font-size: 14px; color: #334155; line-height: 1.7; margin: 3px 0; }
+strong { color: #0f172a; }
+code { font-family: 'SF Mono', monospace; background: #f1f5f9; padding: 1px 6px; border-radius: 4px; font-size: 12px; color: #7c3aed; }
+pre { background: #0f172a; color: #f8fafc; border-radius: 8px; padding: 16px; overflow-x: auto; font-size: 13px; line-height: 1.6; margin: 12px 0; font-family: 'SF Mono', monospace; }
+pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
+hr { border: none; border-top: 1px solid #e2e8f0; margin: 24px 0; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 12px 0; }
+th { text-align: left; padding: 8px 12px; background: #f1f5f9; border-bottom: 2px solid #e2e8f0; font-weight: 600; }
+td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
+.check-item { display: flex; gap: 8px; align-items: flex-start; padding: 5px 0; }
+.check-box { width: 16px; height: 16px; border: 2px solid #cbd5e1; border-radius: 3px; flex-shrink: 0; margin-top: 2px; }
+.callout { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 14px 18px; margin: 14px 0; font-size: 13px; color: #1e40af; }
+.callout strong { color: #1e3a8a; }
+.warn { background: #fef3c7; border-color: #fcd34d; color: #92400e; }
+.warn strong { color: #78350f; }
+    </style>
+</head>
+<body>
+
+<script>if(self!==top)document.documentElement.classList.add("in-iframe")</script>
+<nav class="top-nav">
+    <span class="nav-logo">Appello SDLC</span>
+    <a href="../index.html">Roadmap</a>
+    <a href="../release-1.33-timeline.html">Release 1.33</a>
+    <a href="../release-1.34-timeline.html">Release 1.34</a>
+    <a href="../master-spec-reconciliation.html">Spec Reconciliation</a>
+    <a href="../cross-release-continuity-audit.html">Continuity Audit</a>
+    <a href="ui-interface-library.html">UI Library</a>
+</nav>
+<div class="plan-wrap" id="rendered"></div>
+
+<script type="text/plain" id="plan-md">
+# WO-10: WO → Change Order Conversion — Implementation Plan
+
+## Overview
+
+Convert an Approved Work Order's line items into a Change Order (`EstimateChangeOrderRecord` of type `ChangeOrder`). Extracted from the original WO-7 so it can be delivered after we confirm how CO creation from a WO fits into existing estimate/billing/progress-report workflows.
+
+**Assumption:** One CO per Work Order. When the Job's `jobClassification` is `"WorkOrder"`, the Job's `id` acts as the `sourceWorkOrderJobId` for detection purposes (the generated CO is linked via `jobId`).
+
+**Depends on:** WO-7 (ships the shared `resolveWorkOrderLineItems` helper and the generic `WOConversionConfirmModal`)
+
+**Estimated effort:** 2-3 days
+**Risk:** Medium — modifies `EstimateChangeOrderRecordValue` schema and touches the EstimateChangeOrderDetails UI
+**Spec:** `tm-work-orders-uis/uis-20g-conversion.html`
+
+<div class="callout warn">
+<strong>Open questions to resolve before starting:</strong>
+<ul>
+<li>How does a WO-generated CO interact with existing estimate/progress-report workflows? (CO rollups into Job value, progress reporting, change-order approvals pipeline.)</li>
+<li>What status should the generated CO start in — <code>won</code> (committed work, the assumption in the original plan) or a pending/review status?</li>
+<li>Should the Job's <code>bid</code> / value roll up the generated CO automatically (<code>includeInJobValue</code> default)?</li>
+<li>Do we want a real FK on <code>EstimateChangeOrderRecord</code> like <code>sourceWorkOrderJobId</code> for clearer reporting, or is the <code>jobId</code>-and-classification heuristic sufficient?</li>
+</ul>
+</div>
+
+---
+
+## Step 1: Schema — Make accountItemId Nullable
+
+**File:** `apps/api/prisma/schema.prisma`
+
+```prisma
+// EstimateChangeOrderRecordValue — change:
+accountItemId    String?      @db.VarChar(21)    // was: String (required)
+AccountItem      AccountItem? @relation(fields: [accountItemId], references: [id])
+```
+
+**Migration:** new file under `apps/api/prisma/migrations/NNNN_eco_record_value_account_item_nullable/migration.sql`
+
+```sql
+ALTER TABLE `EstimateChangeOrderRecordValue`
+    MODIFY COLUMN `accountItemId` VARCHAR(21) NULL;
+```
+
+Backward compatible — existing records all have `accountItemId` set. Only WO-generated CO line items will have null.
+
+---
+
+## Step 2: convertWorkOrderToChangeOrder Mutation
+
+Reuses the shared `resolveWorkOrderLineItems` helper from WO-7.
+
+**File:** `apps/api/src/models/EstimateChangeOrderRecord.ts`
+
+```typescript
+public async convertWorkOrderToChangeOrder(
+    jobId: string,
+    currentUserId: string
+): Promise<FullModel<IEstimateChangeOrderRecord>> {
+    const job = await prisma.job.findUnique({
+        where: { id: jobId },
+        include: { jobStatus: true, jobType: true }
+    });
+    // ... validate job.jobStatus?.slug === "approved"
+    // ... validate job.jobType?.jobClassification === "WorkOrder"
+
+    // Guard: one CO per WO
+    const existingCO = await prisma.estimateChangeOrderRecord.findFirst({
+        where: { jobId, type: "ChangeOrder", isDeleted: false }
+    });
+    if (existingCO) {
+        throw new Error("A Change Order has already been generated for this Work Order.");
+    }
+
+    // Resolve all line items using the shared helper from WO-7
+    const resolvedItems = await resolveWorkOrderLineItems(jobId);
+
+    // Calculate total bid — the final dollar value presented to the client
+    const totalBid = resolvedItems.reduce((sum, item) => sum + item.value, 0);
+
+    // Generate CO number (existing helper on EstimateChangeOrderRecord model)
+    const estimateNumber = await this.generateEstimateNumber(jobId, "ChangeOrder");
+
+    // TBD: starting status — see open questions. Using "won" for now.
+    const wonStatus = await prisma.propertyValue.findFirst({
+        where: { propertyName: "estimateChangeOrderRecordStatus", slug: "won" }
+    });
+
+    const co = await this.createItem(
+        {
+            type: "ChangeOrder",
+            title: `Work Order ${job?.fullJobNumber ?? ""}`.trim(),
+            description: `Generated from Work Order ${job?.fullJobNumber ?? ""}`.trim(),
+            estimateNumber,
+            fullEstimateNumber: estimateNumber,
+            jobId,
+            statusId: wonStatus?.id,
+            bid: totalBid,
+            lineItemsTurnedOn: true,
+            creationType: "Full"
+        },
+        currentUserId
+    );
+
+    for (const item of resolvedItems) {
+        await prisma.estimateChangeOrderRecordValue.create({
+            data: {
+                id: nanoid(),
+                estimateChangeOrderRecordId: co.id,
+                description: item.description,
+                estimate: item.value,
+                numeric: item.numericHours,
+                accountItemId: null  // no account hierarchy for WO-generated COs
+            }
+        });
+    }
+
+    return co;
+}
+```
+
+### GraphQL
+
+**File:** `apps/api/src/graphql/models/EstimateChangeOrderRecord.ts`
+
+```graphql
+extend type Mutation {
+    convertWorkOrderToChangeOrder(jobId: ID!): EstimateChangeOrderRecord
+}
+```
+
+Thin resolver — delegates to `new EstimateChangeOrderRecordModel().convertWorkOrderToChangeOrder(jobId, userId)`.
+
+---
+
+## Step 3: Update EstimateChangeOrderDetails for Null accountItemId
+
+**File:** `apps/frontend/src/components/DetailsPage/EstimateChangeOrderDetails/` (or wherever the CO detail renders line items)
+
+The CO detail page currently groups line items by AccountItem in a hierarchy. When `accountItemId` is null (WO-generated COs), it needs a fallback flat-table rendering.
+
+### Approach
+
+Check if ANY line item on the CO has `accountItemId = null`. If so, render all line items as a flat table instead of the account hierarchy:
+
+```typescript
+const hasAccountlessItems = lineItems.some((item) => !item.accountItemId);
+
+if (hasAccountlessItems) {
+    // Flat table: Description | Estimate ($) | Hours
+    return <FlatLineItemTable lineItems={lineItems} />;
+} else {
+    // Existing account hierarchy rendering
+    return <AccountHierarchyView lineItems={lineItems} />;
+}
+```
+
+The flat table shows:
+- Description column (from `description`)
+- Estimate column (from `estimate` — dollar value)
+- Hours column (from `numeric` — only shown if > 0, blank for materials)
+
+This is a minimal change — the existing hierarchy view continues to work for all traditional COs. Only WO-generated COs (where all items have null accountItemId) get the flat view.
+
+---
+
+## Step 4: Frontend — WO Detail "Convert to CO" Button
+
+**File:** `apps/frontend/src/components/DetailsPage/WorkOrderDetailPage/index.tsx`
+
+Extends the WO-7 header with a second button.
+
+```typescript
+const isApproved = job?.jobStatus?.slug === "approved";
+const hasExistingCO = (changeOrders ?? []).some((co) => co.type === "ChangeOrder");
+
+{isApproved && !hasExistingCO && (
+    <Button
+        color="white"
+        onClick={() => openModal(
+            <WOConversionConfirmModal
+                type="changeOrder"
+                jobId={jobId}
+                onConfirm={handleConvertToCO}
+            />
+        )}
+    >
+        Convert to CO
+    </Button>
+)}
+```
+
+The `WOConversionConfirmModal` introduced in WO-7 already accepts a `jobId` and a single `onConfirm`. This step adds a `type: "invoice" | "changeOrder"` prop so the modal copy can differ (e.g., "This will create a Change Order with X line items...") and the parent passes the corresponding mutation.
+
+---
+
+## Verification Checklist
+
+- [ ] `accountItemId` nullable on `EstimateChangeOrderRecordValue` (migration applied, no existing data affected)
+- [ ] `convertWorkOrderToChangeOrder` reuses `resolveWorkOrderLineItems` from WO-7 — no duplicated rate resolution
+- [ ] Guard: generating a second CO for the same WO throws an error
+- [ ] CO line items: `accountItemId = null`, `description`, `estimate`, `numeric` set correctly
+- [ ] CO `bid` = sum of all line item `estimate` values
+- [ ] CO created with the agreed-upon starting status (see open questions)
+- [ ] `EstimateChangeOrderDetails` renders flat table when any line item has null `accountItemId`
+- [ ] Flat table shows Description, Estimate ($), Hours (blank for materials where numeric = 0)
+- [ ] "Convert to CO" button visible on WO detail when status = Approved AND no existing CO
+- [ ] "Convert to CO" button hidden/disabled when a CO already exists for this WO
+- [ ] Confirmation modal (from WO-7) shows line item count + total value, with copy tailored to "Change Order"
+- [ ] After CO: parent navigates to the new CO detail page
+- [ ] Existing EstimateChangeOrderRecords with `accountItemId` set render unchanged (no regression in account hierarchy view)
+- [ ] Invoice generation (WO-7) still works independently on the same WO — both conversions can be done on the same WO
+
+---
+
+## Files Summary
+
+| Action | File | What to do |
+|--------|------|------------|
+| MODIFY | `apps/api/prisma/schema.prisma` | Make `accountItemId` nullable on EstimateChangeOrderRecordValue |
+| CREATE | `apps/api/prisma/migrations/NNNN_.../migration.sql` | ALTER TABLE to allow NULL |
+| MODIFY | `apps/api/src/models/EstimateChangeOrderRecord.ts` | Add `convertWorkOrderToChangeOrder` method (reuses WO-7 helper) |
+| MODIFY | `apps/api/src/graphql/models/EstimateChangeOrderRecord.ts` | Add `convertWorkOrderToChangeOrder` mutation — thin resolver |
+| MODIFY | `WorkOrderDetailPage/index.tsx` | Add Convert to CO header button (visible when Approved + no existing CO) |
+| MODIFY | `WorkOrder/WOConversionConfirmModal.tsx` | Extend with `type` prop — tailor copy for invoice vs. CO |
+| MODIFY | `EstimateChangeOrderDetails` component | Handle null accountItemId — flat line item table fallback |
+
+---
+
+## Depends on WO-7
+
+WO-7 ships:
+- `resolveWorkOrderLineItems` (shared helper in `apps/api/src/models/WorkOrderConversion.ts`)
+- `calculateQuantity` utility (in `apps/api/src/lib/equipment/calculateQuantity.ts`)
+- `WOConversionConfirmModal` (generic modal component)
+
+WO-10 extends all three without duplicating logic. If WO-7 is in review, WO-10 can branch from it rather than `main` so the shared pieces are available.
+</script>
+
+<script src="plan-renderer.js"></script>
+<script>renderPlan();</script>
+</body>
+</html>

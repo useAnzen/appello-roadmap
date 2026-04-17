@@ -287,19 +287,20 @@ tr.line-depth .depth-pad-3 { padding-left: 50px; }
                         <div class="sum-flow-title">How this adds up</div>
                         <div class="tline t-step"><span class="lbl"><span class="step-num">1</span>Extended sell (lines, after line %)</span><span class="val" id="tSell">$0.00</span></div>
                         <div class="tline t-step"><span class="lbl"><span class="step-num">2</span>Cost subtotal</span><span class="val" id="tCost">$0.00</span></div>
-                        <div class="tline t-step"><span class="lbl"><span class="step-num">3</span>Estimated tax</span><span class="val" id="tTax">$0.00</span></div>
-                        <div class="tline t-step"><span class="lbl"><span class="step-num">4</span>Subtotal (sell + tax)</span><span class="val" id="tSubTax">$0.00</span></div>
                         <div class="doc-disc-block" id="docDiscBlock">
                             <h4>Estimate-level discounts</h4>
-                            <p style="font-size:10px;color:#64748b;margin-bottom:8px;line-height:1.4;">Stacked top-to-bottom: each <strong>%</strong> row applies to the balance left after the rows above it; each <strong>Fixed $</strong> row cannot take the balance below zero.</p>
+                            <p style="font-size:10px;color:#64748b;margin-bottom:8px;line-height:1.4;">Applied to <strong>pre-tax</strong> extended sell (step 1). Stacked: each <strong>%</strong> uses the running pre-tax balance; each <strong>Fixed $</strong> cannot take it below zero. Tax (steps 4–5) is then computed on each line&rsquo;s share of the discounted sell (proportional split; mixed rates).</p>
                             <div id="docDiscList"></div>
                             <button type="button" class="btn-add-disc" id="btnAddEstDisc">+ Add estimate discount</button>
-                            <div class="tline" id="tEstDiscRow" style="display: none; margin-top: 10px;"><span class="lbl">Less estimate-level discount (total)</span><span class="val neg" id="tEstDisc">($0.00)</span></div>
+                            <div class="tline" id="tEstDiscRow" style="display: none; margin-top: 10px;"><span class="lbl">Less estimate-level discount (pre-tax)</span><span class="val neg" id="tEstDisc">($0.00)</span></div>
                         </div>
-                        <div class="tline t-step"><span class="lbl"><span class="step-num">5</span>Balance before overhead</span><span class="val" id="tAfterEst">$0.00</span></div>
-                        <div class="tline t-step"><span class="lbl"><span class="step-num">6</span>Overhead (<span id="tOhPctLbl">10</span>%)</span><span class="val" id="tOh">$0.00</span></div>
+                        <div class="tline t-step"><span class="lbl"><span class="step-num">3</span>Taxable sell after estimate discounts</span><span class="val" id="tSellAfterDoc">$0.00</span></div>
+                        <div class="tline t-step"><span class="lbl"><span class="step-num">4</span>Estimated tax</span><span class="val" id="tTax">$0.00</span></div>
+                        <div class="tline t-step"><span class="lbl"><span class="step-num">5</span>Subtotal (discounted sell + tax)</span><span class="val" id="tSubTax">$0.00</span></div>
+                        <div class="tline t-step"><span class="lbl"><span class="step-num">6</span>Balance before overhead</span><span class="val" id="tAfterEst">$0.00</span></div>
+                        <div class="tline t-step"><span class="lbl"><span class="step-num">7</span>Overhead (<span id="tOhPctLbl">10</span>%)</span><span class="val" id="tOh">$0.00</span></div>
                         <div class="tline t-grand"><span class="lbl">Grand total</span><span class="val" id="tGrand">$0.00</span></div>
-                        <p class="tax-note">Tax uses each line&rsquo;s sell <em>after</em> line disc %. Overhead % is edited in the <strong>left sidebar</strong> (Worksheet totals). Order of operations here is a <strong>prototype</strong> — IE-1 should lock accounting rules.</p>
+                        <p class="tax-note"><strong>Order:</strong> line % &rarr; line sell; <strong>estimate-level discounts on pre-tax sell</strong>; then tax on each line&rsquo;s <em>discounted</em> share (proportional split of the estimate discount; grid tax / w-tax match that). Overhead % in the <strong>left sidebar</strong>. IE-1 may refine (e.g. jurisdictional rules).</p>
                     </div>
                 </div>
                 </div>
@@ -348,6 +349,7 @@ tr.line-depth .depth-pad-3 { padding-left: 50px; }
     var nextEstDiscId = 1;
     var estimateDiscounts;
     var tbody = document.getElementById("tbody");
+    var __rowTaxAfterDoc = {};
 
     function isSectionRow(r) {
         return r && r.kind === "section";
@@ -632,30 +634,44 @@ tr.line-depth .depth-pad-3 { padding-left: 50px; }
         var cost = 0;
         var sellGross = 0;
         var sellNet = 0;
-        var tax = 0;
+        var parts = [];
         rows.forEach(function (r) {
             if (!isDataLine(r)) return;
             cost += r.qty * r.unitCost;
             sellGross += rowLineSellGross(r);
-            sellNet += rowLineSell(r);
-            tax += rowTaxAmt(r);
+            var b = rowLineSell(r);
+            sellNet += b;
+            var rate = parseFloat(r.taxRate);
+            if (isNaN(rate)) rate = 0;
+            parts.push({ id: r.id, base: b, rate: rate });
         });
         var lineDiscAmt = sellGross - sellNet;
-        var subTax = sellNet + tax;
-        var doc = applyDocDiscountsToRunning(subTax);
-        var afterEst = doc.after;
+        var docPre = applyDocDiscountsToRunning(sellNet);
+        var sellAfterDoc = docPre.after;
+        var docCut = sellNet - sellAfterDoc;
+        __rowTaxAfterDoc = {};
+        var tax = 0;
+        parts.forEach(function (p) {
+            var alloc = sellNet > 0.00001 ? docCut * (p.base / sellNet) : 0;
+            var baseAfter = Math.max(0, p.base - alloc);
+            var tx = baseAfter * p.rate;
+            __rowTaxAfterDoc[p.id] = { baseAfter: baseAfter, tax: tx };
+            tax += tx;
+        });
+        var subTax = sellAfterDoc + tax;
         var oh = parseFloat(document.getElementById("overheadPct").value) || 0;
-        var ohAmt = afterEst * (oh / 100);
-        var grand = afterEst + ohAmt;
+        var ohAmt = subTax * (oh / 100);
+        var grand = subTax + ohAmt;
         return {
             cost: cost,
             sellGross: sellGross,
             sellNet: sellNet,
+            sellAfterDoc: sellAfterDoc,
             tax: tax,
             lineDiscAmt: lineDiscAmt,
             subTax: subTax,
-            docCut: doc.totalCut,
-            afterEst: afterEst,
+            docCut: docCut,
+            afterEst: subTax,
             ohAmt: ohAmt,
             grand: grand
         };
@@ -673,6 +689,8 @@ tr.line-depth .depth-pad-3 { padding-left: 50px; }
         } else {
             ldr.style.display = "none";
         }
+        var sad = document.getElementById("tSellAfterDoc");
+        if (sad) sad.textContent = money(t.sellAfterDoc);
         document.getElementById("tTax").textContent = money(t.tax);
         document.getElementById("tSubTax").textContent = money(t.subTax);
         document.getElementById("tAfterEst").textContent = money(t.afterEst);
@@ -904,6 +922,7 @@ tr.line-depth .depth-pad-3 { padding-left: 50px; }
     }
 
     function render() {
+        getTotals();
         var q = (document.getElementById("gridSearch").value || "").toLowerCase();
         tbody.innerHTML = "";
 
@@ -950,7 +969,8 @@ tr.line-depth .depth-pad-3 { padding-left: 50px; }
                 if (trClass) tr.className = trClass;
                 var badgeClass = r.type === "Labor" ? "b-labor" : r.type === "Material" ? "b-mat" : r.type === "Equipment" ? "b-eq" : "b-custom";
                 var sell = rowLineSell(r);
-                var wtax = rowTotalWithTax(r);
+                var alloc = __rowTaxAfterDoc[r.id];
+                var wtax = alloc ? alloc.baseAfter + alloc.tax : rowTotalWithTax(r);
                 var taxOpts = TAX_OPTS.map(function (o) {
                     return "<option value=\"" + o.v + "\"" + (String(r.taxRate) === o.v ? " selected" : "") + ">" + o.label + "</option>";
                 }).join("");

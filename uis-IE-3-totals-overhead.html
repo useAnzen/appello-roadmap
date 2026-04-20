@@ -73,6 +73,9 @@ table.schema-table code { font-family: monospace; background: #f1f5f9; padding: 
 .mockup-select { background: #fff; border: 1px solid #cbd5e1; border-radius: 6px; padding: 6px 10px; font-size: 12px; color: #0f172a; display: inline-block; margin: 4px 8px 4px 0; }
 .mockup-btn { display: inline-block; padding: 6px 12px; border-radius: 6px; font-size: 11px; font-weight: 600; background: #f1f5f9; border: 1px solid #e2e8f0; color: #334155; margin-top: 8px; }
 .callout-warn { background: #fef3c7; border: 1px solid #fcd34d; border-radius: 8px; padding: 10px 12px; margin: 10px 0; font-size: 12px; color: #92400e; }
+.decision { background: #fef3c7; border: 2px solid #f59e0b; border-radius: 10px; padding: 18px 22px; margin: 14px 0; }
+.decision h4 { color: #92400e; margin: 0 0 8px; font-size: 14px; }
+.decision p, .decision li { font-size: 13px; color: #92400e; }
 .mockup-stack { display: flex; flex-direction: column; gap: 10px; }
 .mockup-grid-placeholder { min-height: 56px; background: #fff; border: 1px dashed #cbd5e1; border-radius: 8px; padding: 10px; font-size: 10px; color: #64748b; }
 .mockup-placement-row { display: flex; flex-wrap: wrap; gap: 14px; align-items: flex-start; }
@@ -102,8 +105,8 @@ table.schema-table code { font-family: monospace; background: #f1f5f9; padding: 
             <span class="uis-badge badge-priority">P1</span>
             <span class="uis-badge badge-child">Child of UIS-IE</span>
         </div>
-        <h1 class="uis-h1">Totals, Overhead &amp; Itemized creationType</h1>
-        <p class="uis-sub">Extend <code>EstimateChangeOrderRecordCreationType</code> with <code>Itemized</code>. Roll up <code>EstimateLineItem</code> costs and prices into <code>EstimateChangeOrderTotals</code>; keep record-level overhead and estimate markup in sync with line-derived subtotals. Optional contingency fields (reuse or add nullable decimals on ECO record).</p>
+        <h1 class="uis-h1">Totals &amp; Overhead (Itemized)</h1>
+        <p class="uis-sub">Totals engine and overhead UI for <code>creationType = Itemized</code> estimates. Rolls up line cost / sell / tax / discount into <code>EstimateChangeOrderTotals</code>; applies estimate-level discount stack with proportional tax split; computes overhead, grand total, gross margin. The <code>Itemized</code> enum value itself lives in <a href="uis-IE-1-schema-model.html">IE-1</a> (consolidating all schema work); this spec is totals + UI + the transactional upsert surface.</p>
         <div class="uis-meta">
             <span><strong>Estimate:</strong> 2&ndash;3 days</span>
             <span><strong>Parent:</strong> UIS-IE</span>
@@ -115,7 +118,7 @@ table.schema-table code { font-family: monospace; background: #f1f5f9; padding: 
             <li><a href="#s1">Business Case</a></li>
             <li><a href="#s2">Scope</a></li>
             <li><a href="#s3ui">UI Concepts</a></li>
-            <li><a href="#s3ui-place">Placement, edit states &amp; switching</a></li>
+            <li><a href="#s3ui-edit">Edit states &amp; default markup flow</a></li>
             <li><a href="#s3">Data Model</a></li>
             <li><a href="#s4">API Surface</a></li>
             <li><a href="#s5">Change Surface</a></li>
@@ -132,34 +135,53 @@ table.schema-table code { font-family: monospace; background: #f1f5f9; padding: 
     <div class="uis-section" id="s2">
         <h2 class="collapsible-toggle open" onclick="toggleSection(this)">2. Scope <span class="toggle-icon">&#9660;</span></h2>
         <div class="collapsible-body open">
+            <div class="decision">
+                <h4>Decision: creationType is immutable &mdash; no mode switching</h4>
+                <p>Full / BidFirst worksheets and Itemized line items carry fundamentally different data shapes (see IE-1&#39;s creationType branching note). A <code>Full</code> worksheet&#39;s <code>EstimateChangeOrderRecordValue</code> rows cannot be meaningfully mapped onto <code>ItemizedEstimateChangeOrderRecordLineItem</code>, nor vice versa &mdash; there&#39;s no shared concept of &ldquo;line&rdquo; between GL-scoped totals and a resolved catalog row. Once an estimate is created as one type it stays that type for life; if a user wants to switch, they delete the estimate and create a new one with the desired <code>creationType</code>.</p>
+                <p>Enforcement is handled upstream in <a href="uis-IE-1-schema-model.html">IE-1</a>: <code>EstimateChangeOrderRecord.creationType</code> carries <code>canEdit: false</code>, and a gate validator rejects line-item writes when the parent ECR isn&#39;t <code>Itemized</code>. IE-3 therefore has no &ldquo;switch mode&rdquo; UX, no confirm dialog, no data-migration logic &mdash; it simply reads <code>creationType</code> and renders.</p>
+            </div>
+            <div class="decision">
+                <h4>Business Question for Corey / Chris: Contingency fields</h4>
+                <p><code>EstimateChangeOrderRecord</code> today has <code>overheadMarkup</code>, <code>overheadDollarValue</code>, <code>markupDollarValue</code>, <code>estimateMarkup</code>, and <code>subsidy</code>. Roadmap language for IE-3 refers to &ldquo;overhead / contingency&rdquo; but no <code>contingency*</code> field exists.</p>
+                <p><strong>Part 1 &mdash; Where does it live schema-wise:</strong></p>
+                <ul>
+                    <li><strong>Add <code>contingencyPercent</code> + <code>contingencyDollarValue</code></strong> (mirrors the <code>overhead*</code> pair). Cleanest audit trail; one extra migration field. <strong>Recommended.</strong></li>
+                    <li><strong>Fold into <code>subsidy</code></strong> (reuse existing column). No schema change, but conflates two semantically different concepts &mdash; subsidy tends to read as &ldquo;external funding source reducing the price,&rdquo; contingency reads as &ldquo;reserved margin for unknowns.&rdquo; Future reporting will want them separate.</li>
+                </ul>
+                <p><strong>Part 2 &mdash; Per estimate or per line item:</strong></p>
+                <ul>
+                    <li><strong>Per estimate</strong> (on <code>EstimateChangeOrderRecord</code>). Single contingency number applied to the whole estimate post-sell. Simpler UX (one input on the sidebar next to overhead %), matches most SMB estimating tools. <strong>Recommended for v1.</strong></li>
+                    <li><strong>Per line item</strong> (on <code>ItemizedEstimateChangeOrderRecordLineItem</code>). Each line carries its own contingency % / $, letting estimators mark riskier work (rough-in, unknowns) with more padding than straightforward scope. Truer to how trades think about risk, but a bigger UI surface &mdash; adds two more columns or a sub-row to the IE-2 grid, and IE-3&#39;s rollup has to sum per-line contingency separately from any estimate-wide contingency.</li>
+                    <li><strong>Both</strong> (per-line as an optional override, per-estimate as a floor). Most expressive; most UI. Probably overkill for v1 but worth asking about.</li>
+                </ul>
+                <p>Need confirms on both parts before finalizing the data model / UI. Spec and plan below are drafted assuming <strong>per-estimate, dedicated fields</strong>. If the answer flips to per-line, the fields belong in IE-1&#39;s model (additive migration) and IE-2 grows a Contingency column / sub-row.</p>
+            </div>
             <h3>In Scope</h3>
             <ul>
-                <li><span class="scope-tag scope-in">IN</span> Prisma enum extension <code>Itemized</code> on <code>EstimateChangeOrderRecordCreationType</code></li>
-                <li><span class="scope-tag scope-in">IN</span> <code>EstimateChangeOrderTotals.tsx</code> branch for Itemized: line sum, overhead, markup, grand total, gross margin %</li>
-                <li><span class="scope-tag scope-in">IN</span> <code>upsertFullEstimateChangeOrderRecord</code> accepts line item payload; transactional save</li>
-                <li><span class="scope-tag scope-in">IN</span> Optional <code>contingencyPercent</code> / <code>contingencyDollarValue</code> on record if not already modeled</li>
+                <li><span class="scope-tag scope-in">IN</span> <code>EstimateChangeOrderTotals.tsx</code> (Itemized branch): numbered rollup matching the IE-2 canvas &mdash; line sell before discounts, <strong>line discounts subtotal</strong> (sum of every per-line <code>DiscountAssignment</code> amount), line sell after line discounts, cost subtotal, <strong>estimate-level discount subtotal</strong> (sum of the estimate-level stack; always rendered on its own row, never merged with line-level discounts), taxable sell after all discounts, <strong>tax subtotal rolled up from lines</strong> (sum of per-line cached <code>taxValue</code>; this is a weighted average of per-line rates, <em>not</em> a document-level tax control), subtotal, overhead, contingency, grand total, gross margin %. Tax and discount rollup rows are always distinct and labeled so the reader can tell which level the money came from.</li>
+                <li><span class="scope-tag scope-in">IN</span> Reusable totals engine module (pure functions) consumed by the totals panel, PDF (IE-4), and invoice conversion (IE-5) so the math is written once</li>
+                <li><span class="scope-tag scope-in">IN</span> Overhead % edit UI on the left sidebar (live re-calc on change; persist with record save)</li>
+                <li><span class="scope-tag scope-in">IN</span> Estimate-level discount stack control in the totals panel &mdash; consumes SD-1&#39;s <code>DiscountAssignment</code> against <code>referenceModel = "EstimateChangeOrderRecord"</code></li>
+                <li><span class="scope-tag scope-in">IN</span> Section / subsection rollups &mdash; numbered subtotals per node, computed at read time by walking the IE-1 tree (<code>parentId</code>)</li>
+                <li><span class="scope-tag scope-in">IN</span> Transactional upsert surface: either extend <code>upsertFullEstimateChangeOrderRecord</code> or add dedicated <code>upsertItemizedEstimateChangeOrderRecord</code> that writes the ECR header + full line-item tree + tax M2M + discount assignments in one transaction</li>
+                <li><span class="scope-tag scope-in">IN</span> Contingency fields on <code>EstimateChangeOrderRecord</code> (pending callout above) &mdash; <code>contingencyPercent</code> + <code>contingencyDollarValue</code>, nullable</li>
+                <li><span class="scope-tag scope-in">IN</span> Default markup % flow (&ldquo;Set default markup&rdquo; affordance next to the grid or totals panel) with product-chosen scope rule (only-unset / all / new-only)</li>
             </ul>
             <h3>Out of Scope</h3>
             <ul>
-                <li><span class="scope-tag scope-out">OUT</span> PDF layout (IE-4)</li>
-                <li><span class="scope-tag scope-out">OUT</span> Invoice mutation (IE-5)</li>
+                <li><span class="scope-tag scope-out">OUT</span> <code>Itemized</code> enum value addition &mdash; owned by <a href="uis-IE-1-schema-model.html">IE-1</a> so all schema work ships together</li>
+                <li><span class="scope-tag scope-out">OUT</span> <code>creationType</code> immutability + creation-type gate &mdash; <a href="uis-IE-1-schema-model.html">IE-1</a> (<code>canEdit: false</code> + line-item gate validator)</li>
+                <li><span class="scope-tag scope-out">OUT</span> Line-item model, tax M2M, line-item validators &mdash; <a href="uis-IE-1-schema-model.html">IE-1</a></li>
+                <li><span class="scope-tag scope-out">OUT</span> Discount model and attach / detach / suggest resolvers &mdash; <a href="uis-SD-1-sales-discount-model.html">SD-1</a></li>
+                <li><span class="scope-tag scope-out">OUT</span> Line editor (cascades, sub-rows, section tree controls) &mdash; <a href="uis-IE-2-line-item-editor.html">IE-2</a></li>
+                <li><span class="scope-tag scope-out">OUT</span> PDF layout &mdash; IE-4</li>
+                <li><span class="scope-tag scope-out">OUT</span> Invoice mutation &mdash; IE-5</li>
             </ul>
         </div>
     </div>
     <div class="uis-section" id="s3ui">
         <h2>3. UI Concepts</h2>
         <p><code>EstimateChangeOrderTotals.tsx</code> (or adjacent panel) beside the line grid from <a href="uis-IE-2-line-item-editor.html">IE-2</a>. Glossary: <a href="uis-IE-itemized-estimates.html#s-ui">UIS-IE</a>.</p>
-
-        <div class="mockup-container">
-            <div class="mockup-bar">Creation type &mdash; estimate header</div>
-            <div class="mockup-body">
-                <span style="font-size:11px;color:#64748b;">Worksheet mode</span>
-                <span class="mockup-select">Itemized</span>
-                <span class="mockup-select" style="opacity:0.45">Full</span>
-                <span class="mockup-select" style="opacity:0.45">Bid first</span>
-                <div class="callout-warn">Switching away from <strong>Itemized</strong> with existing line items shows confirm dialog (data loss / archive behavior per product).</div>
-            </div>
-        </div>
 
         <div class="mockup-container">
             <div class="mockup-bar"><code>EstimateChangeOrderTotals</code> &mdash; Itemized branch</div>
@@ -169,40 +191,29 @@ table.schema-table code { font-family: monospace; background: #f1f5f9; padding: 
                         <div style="font-size:10px;font-weight:700;color:#64748b;text-transform:uppercase;margin-bottom:6px;">Rollups from lines</div>
                         <div class="mockup-totals-row"><span>Cost subtotal</span><span>$6,314.00</span></div>
                         <div class="mockup-totals-row"><span>Total markup</span><span>$601.04</span></div>
-                        <div class="mockup-totals-row"><span>Line sell subtotal</span><span>$6,915.04</span></div>
-                        <div class="mockup-totals-row"><span>Overhead %</span><span><span class="mockup-select" style="padding:2px 6px;">10%</span> &rarr; $691.50</span></div>
+                        <div class="mockup-totals-row"><span>Line sell (before discounts)</span><span>$6,915.04</span></div>
+                        <div class="mockup-totals-row"><span>Line discounts <span style="font-size:10px;color:#64748b;">(sum of per-line)</span></span><span>&minus;$245.20</span></div>
+                        <div class="mockup-totals-row"><span>Line sell after line discounts</span><span>$6,669.84</span></div>
+                        <div style="font-size:10px;font-weight:700;color:#64748b;text-transform:uppercase;margin:10px 0 6px;">Estimate-level</div>
+                        <div class="mockup-totals-row"><span>Estimate-level discount <span style="font-size:10px;color:#64748b;">(stack total)</span></span><span>&minus;$333.49</span></div>
+                        <div class="mockup-totals-row"><span>Taxable sell (after all discounts)</span><span>$6,336.35</span></div>
+                        <div class="mockup-totals-row"><span>Tax <span style="font-size:10px;color:#64748b;">(&Sigma; per-line <code>taxValue</code>, weighted avg 4.8%)</span></span><span>$304.14</span></div>
+                        <div class="mockup-totals-row"><span>Overhead</span><span><span class="mockup-select" style="padding:2px 6px;">10%</span> &rarr; $666.98</span></div>
                         <div class="mockup-totals-row"><span>Contingency</span><span>$0.00</span></div>
-                        <div class="mockup-totals-row"><span>Grand bid / customer total</span><span>$7,606.54</span></div>
-                        <div class="mockup-totals-row"><span>Gross margin %</span><span>17.0%</span></div>
+                        <div class="mockup-totals-row" style="font-weight:700;border-top:1px solid #cbd5e1;margin-top:4px;padding-top:4px;"><span>Grand total</span><span>$7,307.47</span></div>
+                        <div class="mockup-totals-row"><span>Gross margin %</span><span>13.6%</span></div>
                     </div>
                     <div>
                         <span class="mockup-btn">Set default markup %</span>
-                        <p style="font-size:11px;color:#64748b;margin-top:8px;max-width:220px;">Applies to <strong>new</strong> lines or lines without explicit override (rule TBD). Placed next to totals for discoverability.</p>
+                        <p style="font-size:11px;color:#64748b;margin-top:8px;max-width:240px;">Opens the modal in §3.3. Reads and writes <code>ECR.estimateMarkup</code> &mdash; same column that already feeds Full / BidFirst estimates, reused here as the seed for new Itemized lines. On Itemized records, the existing <code>estimateMarkup</code> header input is <strong>hidden</strong>; this modal is the only surface for the value.</p>
                     </div>
                 </div>
             </div>
         </div>
 
-        <h3 id="s3ui-place">3.1 Panel placement vs line grid</h3>
-        <p>Default layout: <strong>stack</strong> &mdash; <code>EstimateLineItemEditor</code> full width, then <code>EstimateChangeOrderTotals</code> (Itemized branch) directly <strong>below</strong> the grid, right-aligned card (max-width) on wide viewports. Alternative (TBD): totals as a <strong>sticky right column</strong> beside the grid on xl breakpoints.</p>
-        <div class="mockup-container">
-            <div class="mockup-bar">Worksheet column &mdash; vertical stack</div>
-            <div class="mockup-body">
-                <div class="mockup-stack">
-                    <div class="mockup-grid-placeholder"><strong>IE-2</strong> line grid (scrolls horizontally if many columns)</div>
-                    <div class="mockup-placement-row">
-                        <div style="flex:1;min-width:120px;font-size:10px;color:#64748b;">Optional: &ldquo;Set default markup %&rdquo; can move to grid toolbar (same row as Add line).</div>
-                        <div class="mockup-totals" style="margin:0;">
-                            <div style="font-size:10px;font-weight:700;color:#64748b;text-transform:uppercase;margin-bottom:6px;">Totals (this spec)</div>
-                            <div class="mockup-totals-row"><span>Line sell subtotal</span><span>$6,915.04</span></div>
-                            <div class="mockup-totals-row"><span>Grand total</span><span>$7,606.54</span></div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
+        <p style="font-size:13px;color:#64748b;">Placement of the totals panel relative to the line grid is owned by IE-2 (the editor shell decides where its neighbors mount). IE-2&#39;s canvas renders this panel directly below the grid, right-aligned; see <a href="uis-IE-2-line-item-editor.html#s3-shell">IE-2 §3.1</a>.</p>
 
-        <h3 id="s3ui-edit">3.2 Edit states (overhead, contingency)</h3>
+        <h3 id="s3ui-edit">3.1 Edit states (overhead, contingency)</h3>
         <table class="schema-table">
             <thead><tr><th>Control</th><th>On change</th><th>Persist</th></tr></thead>
             <tbody>
@@ -213,67 +224,104 @@ table.schema-table code { font-family: monospace; background: #f1f5f9; padding: 
         </table>
         <p style="font-size:13px;color:#64748b;">Dirty state: totals inputs participate in document dirty tracking; disabling Save until valid.</p>
 
-        <h3 id="s3ui-switch">3.3 Switching <code>creationType</code> (Full / BidFirst &harr; Itemized)</h3>
-        <div class="switch-frames">
-            <div class="frame-box">
-                <strong>Before</strong> &mdash; <code>Full</code> worksheet<br>
-                <span style="color:#64748b;">Eight <code>EstimateChangeOrderRecordValue</code> rows grouped by <code>AccountItem</code> visible in grid.</span>
+        <h3 id="s3ui-default">3.2 Default markup flow</h3>
+        <p>Clicking <strong>Set default markup %</strong> opens a modal with a single numeric input prefilled from <code>ECR.estimateMarkup</code> and <strong>two explicit action buttons</strong>. This replaces the earlier "pick one of three product rules" approach &mdash; both actions are always available, user chooses intent at click time:</p>
+        <ul>
+            <li><strong>Update default for future lines</strong> &mdash; writes the new value to <code>ECR.estimateMarkup</code>. Existing lines are untouched; newly added lines after this point will seed their <code>markupPercent</code> from the new value.</li>
+            <li><strong>Apply default to all lines now</strong> &mdash; writes <code>ECR.estimateMarkup</code> <em>and</em> bulk-overwrites every existing priced line&#39;s <code>markupPercent</code> with the new value (Custom lines included; Section rows unaffected). The line&#39;s <code>taxValue</code> snapshot recomputes for every affected line because <code>price</code> changes.</li>
+        </ul>
+        <p style="font-size:13px;color:#64748b;">The modal never <em>only</em> bulk-applies without also updating the default &mdash; keeping the two in lockstep means future lines don&#39;t silently revert to an older seed after a bulk-apply.</p>
+        <div class="mockup-modal" style="max-width:380px;">
+            <div style="font-weight:700;margin-bottom:10px;color:#0f172a;font-size:13px;">Set default markup %</div>
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">
+                <span style="font-size:11px;color:#475569;">Markup</span>
+                <span class="mockup-select" style="padding:4px 10px;">12 %</span>
             </div>
-            <div class="frame-box">
-                <strong>After confirm</strong> &mdash; <code>Itemized</code><br>
-                <span style="color:#64748b;">Account-item grid hidden. Empty <code>EstimateLineItem</code> editor shown. Legacy worksheet rows remain in DB but <strong>not</strong> shown (or archived per PM &mdash; see parent product decisions).</span>
+            <div style="font-size:10px;color:#64748b;margin-bottom:12px;line-height:1.5;">Prefilled from <code>ECR.estimateMarkup</code>. Seeds new priced lines at insert time &mdash; doesn&rsquo;t auto-propagate to existing lines unless you explicitly apply below.</div>
+            <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:10px;">
+                <span class="mockup-btn" style="background:#2563eb;color:#fff;border-color:#2563eb;text-align:center;">Update default for future lines</span>
+                <span class="mockup-btn" style="background:#fff;text-align:center;">Apply default to all lines now</span>
+            </div>
+            <div style="display:flex;justify-content:flex-end;">
+                <span class="mockup-btn" style="background:#fff;">Cancel</span>
             </div>
         </div>
-        <div class="frame-arrow">&#8595;</div>
-        <div class="mockup-container">
-            <div class="mockup-bar">Confirm dialog (pattern: WO-7 style conversion modal)</div>
-            <div class="mockup-body">
-                <div class="callout-warn" style="margin:0;">Switching to Itemized will hide the account-item worksheet from this estimate. Line items you add here are separate from COGS worksheet rows. [ Cancel ] [ Continue ]</div>
+        <p style="font-size:13px;color:#64748b;margin-top:10px;"><strong>Confirmation on bulk-apply:</strong> because &ldquo;Apply to all&rdquo; overwrites user overrides, the second button shows a secondary confirm (&ldquo;Overwrite markup on N existing lines?&rdquo;) before writing. Cancel on that secondary returns to the modal with no changes persisted.</p>
+        <div class="mockup-modal" style="max-width:340px;border-color:#dc2626;">
+            <div style="font-weight:700;margin-bottom:8px;color:#dc2626;font-size:13px;">Overwrite markup on 7 existing lines?</div>
+            <div style="font-size:11px;color:#334155;margin-bottom:10px;line-height:1.5;">Sets every priced line&rsquo;s <code>markupPercent</code> to <strong>12%</strong>, overwriting any per-line overrides you&rsquo;ve made. This can&rsquo;t be undone.</div>
+            <div style="display:flex;gap:6px;justify-content:flex-end;">
+                <span class="mockup-btn" style="background:#fff;">Cancel</span>
+                <span class="mockup-btn" style="background:#dc2626;color:#fff;border-color:#dc2626;">Overwrite</span>
             </div>
-        </div>
-
-        <h3 id="s3ui-default">3.4 Default markup flow</h3>
-        <p><strong>Primary pattern:</strong> click <strong>Set default markup %</strong> &rarr; small modal or flyout with numeric <code>FormControl</code> &rarr; confirm. <strong>Which rows:</strong> product picks one &mdash; (A) only lines with markup still at sentinel / null, (B) all lines, (C) new lines only going forward. Document choice in <a href="uis-IE-itemized-estimates.html#s-integ-pd">UIS-IE product decisions</a>.</p>
-        <div class="mockup-modal">
-            <div style="font-weight:700;margin-bottom:8px;color:#0f172a;">Set default markup</div>
-            <div style="margin-bottom:8px;"><span class="mockup-select" style="padding:4px 10px;">12 %</span></div>
-            <div style="font-size:10px;color:#64748b;margin-bottom:10px;">Applies per product rule (see matrix).</div>
-            <span class="mockup-btn">Apply</span> <span class="mockup-btn" style="background:#fff;">Cancel</span>
         </div>
     </div>
     <div class="uis-section" id="s3">
         <h2 class="collapsible-toggle open" onclick="toggleSection(this)">4. Data Model <span class="toggle-icon">&#9660;</span></h2>
         <div class="collapsible-body open">
-            <pre>enum EstimateChangeOrderRecordCreationType {
-  BidFirst
-  Full
-  Itemized
+            <p>The <code>Itemized</code> value on <code>EstimateChangeOrderRecordCreationType</code> and the <code>canEdit: false</code> immutability on <code>creationType</code> both live in <a href="uis-IE-1-schema-model.html">IE-1</a> &mdash; all schema work for itemized estimates ships in a single IE-1 migration. IE-3 adds only the contingency fields below (assuming the Business Question callout in §2 lands on "add fields").</p>
+            <h3>Existing field, new meaning: <code>EstimateChangeOrderRecord.estimateMarkup</code></h3>
+            <p>The existing <code>estimateMarkup</code> column is <strong>semantically overloaded</strong> by creationType and we&#39;re intentionally reusing it rather than adding a parallel field:</p>
+            <ul>
+                <li><strong><code>Full</code> / <code>BidFirst</code>:</strong> applied multiplier on the document total (existing behavior &mdash; unchanged).</li>
+                <li><strong><code>Itemized</code>:</strong> per-line seed for new <code>markupPercent</code> at insert time; never applied to Itemized totals directly (each line&#39;s own <code>markupPercent</code> drives sell).</li>
+            </ul>
+            <p>Both flavors continue to seed from <code>Instance.defaultEstimateMarkup</code> / <code>Instance.defaultChangeOrderMarkup</code> at ECR creation (existing <code>beforeCreate</code> hook &mdash; no new logic needed). Discipline to keep the overload safe:</p>
+            <ul>
+                <li>Schema comment on <code>estimateMarkup</code> in <code>schema.prisma</code> documenting both meanings</li>
+                <li>Top-of-file comment in <code>itemizedTotalsEngine.ts</code> noting that <code>ECR.estimateMarkup</code> is <strong>not</strong> consulted on the Itemized math path &mdash; it only governs new-line seeding (IE-2)</li>
+                <li>Same note at IE-4 (PDF) and IE-5 (invoice) integration points</li>
+            </ul>
+            <p>On Itemized records, the existing <code>estimateMarkup</code> header input in <code>EstimateChangeOrderDetails</code> is <strong>hidden</strong>. The only edit surface is IE-3&#39;s &ldquo;Set default markup %&rdquo; modal (§3.3).</p>
+            <pre>// Add to the existing EstimateChangeOrderRecord model (pending confirmation):
+model EstimateChangeOrderRecord {
+  // ... existing fields ...
+  contingencyPercent      Decimal?  @db.Decimal(10, 2)
+  contingencyDollarValue  Decimal?  @db.Decimal(10, 2)
 }</pre>
-            <p>Optional nullable <code>contingencyPercent</code> / <code>contingencyDollarValue</code> on <code>EstimateChangeOrderRecord</code> if not present; otherwise fold contingency into existing memo fields until schema approved.</p>
+            <p>If the Business Question resolves the other way (fold into <code>subsidy</code>), this section becomes a no-op and IE-3 is frontend-only.</p>
         </div>
     </div>
     <div class="uis-section" id="s4">
         <h2 class="collapsible-toggle open" onclick="toggleSection(this)">5. API Surface <span class="toggle-icon">&#9660;</span></h2>
         <div class="collapsible-body open">
-            <pre>input UpsertItemizedEstimateInput {
-  estimateChangeOrderRecordId: ID!
-  creationType: EstimateChangeOrderRecordCreationType!
-  lineItems: [UpsertEstimateLineItemInput!]!
+            <pre>input UpsertItemizedEstimateChangeOrderRecordInput {
+  estimateChangeOrderRecordId: ID!   # creationType is NOT passed — immutable (IE-1)
+
+  # Header fields
   overheadMarkup: Float
+  overheadDollarValue: Float
   estimateMarkup: Float
+  markupDollarValue: Float
+  contingencyPercent: Float
+  contingencyDollarValue: Float
   bid: Float
+
+  # Full tree write — sections + lines + tax set + line-level discount set.
+  # parentId / orderNo drive hierarchy; implementation walks depth-first
+  # and issues creates/edits/deletes + connectTaxTypes + attach/detach discount
+  # within one Prisma $transaction.
+  lineItemTree: [UpsertItemizedEstimateChangeOrderRecordLineItemInput!]!
+
+  # Estimate-level discount stack (SD-1 DiscountAssignment).
+  estimateDiscountAssignments: [UpsertEstimateDiscountAssignmentInput!]
 }</pre>
-            <p>Either extend <code>upsertFullEstimateChangeOrderRecord</code> with optional <code>lineItems</code> or add dedicated <code>upsertItemizedEstimate</code> mutation (implementation plan picks one).</p>
+            <p>Two implementation options (plan will pick): (a) extend <code>upsertFullEstimateChangeOrderRecord</code> with the above fields when <code>creationType = Itemized</code>; (b) add a dedicated <code>upsertItemizedEstimateChangeOrderRecord</code> mutation. Option (b) reads cleaner given the shape is so different from the Full worksheet&#39;s <code>EstimateChangeOrderRecordValue</code> rollup.</p>
+            <p>Queries: IE-3&#39;s totals panel reads the tree via IE-1&#39;s <code>itemizedEstimateChangeOrderRecordLineItems</code> and estimate-level discounts via SD-1&#39;s <code>discountsForEntity("EstimateChangeOrderRecord", id)</code>. No new read queries needed.</p>
         </div>
     </div>
     <div class="uis-section" id="s5">
         <h2 class="collapsible-toggle open" onclick="toggleSection(this)">6. Change Surface <span class="toggle-icon">&#9660;</span></h2>
         <div class="collapsible-body open">
             <ul>
-                <li><span class="action-mod">MOD</span> <code>apps/api/prisma/schema.prisma</code></li>
-                <li><span class="action-mod">MOD</span> <code>EstimateChangeOrderRecord.ts</code> (model + GraphQL)</li>
-                <li><span class="action-mod">MOD</span> <code>EstimateChangeOrderTotals.tsx</code></li>
-                <li><span class="action-mod">MOD</span> <code>EstimateChangeOrderDetails.tsx</code> (save payload)</li>
+                <li><span class="action-mod">MOD</span> <code>apps/api/prisma/schema.prisma</code> &mdash; <code>contingencyPercent</code> / <code>contingencyDollarValue</code> on <code>EstimateChangeOrderRecord</code> (pending §2 callout)</li>
+                <li><span class="action-mod">MOD</span> <code>apps/api/src/models/EstimateChangeOrderRecord.ts</code> &mdash; new upsert method that writes header + tree + tax + discount atomically</li>
+                <li><span class="action-mod">MOD</span> <code>apps/api/src/graphql/models/EstimateChangeOrderRecord.ts</code> &mdash; new <code>upsertItemizedEstimateChangeOrderRecord</code> mutation registration</li>
+                <li><span class="action-new">NEW</span> <code>apps/api/src/models/itemizedTotalsEngine.ts</code> &mdash; pure-function totals module (line sell, aggregated tax with proportional split, section rollups, grand total, gross margin) reused by the totals panel, PDF (IE-4), and invoice conversion (IE-5)</li>
+                <li><span class="action-mod">MOD</span> <code>EstimateChangeOrderTotals.tsx</code> &mdash; Itemized branch consumes <code>itemizedTotalsEngine</code>, renders numbered rollup matching the IE-2 canvas</li>
+                <li><span class="action-mod">MOD</span> <code>EstimateChangeOrderDetails.tsx</code> &mdash; save payload wired to the new upsert mutation when <code>creationType = Itemized</code>; existing <code>estimateMarkup</code> header input hidden on Itemized records (guard the JSX block with <code>creationType !== "Itemized"</code>)</li>
+                <li><span class="action-new">NEW</span> <code>SetDefaultMarkupModal.tsx</code> &mdash; numeric input + two action buttons (&ldquo;Update default for future lines&rdquo; and &ldquo;Apply default to all lines now&rdquo;) + bulk-apply confirmation dialog</li>
+                <li><span class="action-mod">MOD</span> <code>apps/api/prisma/schema.prisma</code> &mdash; add a doc-comment on <code>EstimateChangeOrderRecord.estimateMarkup</code> documenting the creationType-dependent dual meaning (zero-cost discipline to preserve readability)</li>
             </ul>
         </div>
     </div>
@@ -281,19 +329,32 @@ table.schema-table code { font-family: monospace; background: #f1f5f9; padding: 
         <h2 class="collapsible-toggle open" onclick="toggleSection(this)">7. Acceptance Criteria <span class="toggle-icon">&#9660;</span></h2>
         <div class="collapsible-body open">
             <ul class="criteria-list">
-                <li><div class="criteria-check"></div><span>Itemized totals panel shows cost subtotal, markup total, price subtotal, overhead, grand total</span></li>
-                <li><div class="criteria-check"></div><span>Saving estimate persists line items and header fields atomically</span></li>
-                <li><div class="criteria-check"></div><span>Switching creation type away from Itemized hides line editor with confirm if rows exist</span></li>
-                <li><div class="criteria-check"></div><span>Gross margin % matches defined formula</span></li>
+                <li><div class="criteria-check"></div><span>Itemized totals panel renders a numbered rollup matching the IE-2 canvas: extended sell after line-level discounts &rarr; cost subtotal &rarr; estimate-level discount stack &rarr; taxable sell after estimate discounts &rarr; aggregated tax per <code>TaxType</code> &rarr; subtotal &rarr; overhead &rarr; contingency &rarr; grand total &rarr; gross margin %</span></li>
+                <li><div class="criteria-check"></div><span>Tax aggregation groups lines by <code>TaxType</code>; compound taxes apply to base + sum(non-compound) per the IE-1 / <code>SimpleInvoice.tsx</code> rule</span></li>
+                <li><div class="criteria-check"></div><span><strong>Line discounts rollup</strong> (sum of per-line <code>DiscountAssignment</code> amounts) and <strong>estimate-level discount rollup</strong> (sum of the stack against <code>EstimateChangeOrderRecord</code>) appear as <em>two distinct rows</em> in the totals panel &mdash; never merged. Each row is always rendered (shows $0.00 when empty) so the reader can always tell which level the discount came from.</span></li>
+                <li><div class="criteria-check"></div><span><strong>Tax rollup is always derived from lines</strong>: panel shows the sum of per-line cached <code>taxValue</code> with a weighted-average rate annotation. There is no estimate-level tax control; tax never originates outside the line grid.</span></li>
+                <li><div class="criteria-check"></div><span>Estimate-level discounts apply in <code>orderNo</code> order to the pre-tax sell; each line&#39;s taxable base shifts by its proportional share of the estimate-level discount; aggregated tax reflects the shifted bases</span></li>
+                <li><div class="criteria-check"></div><span>Section / subsection rollups computed at read time by walking IE-1&#39;s <code>parentId</code> tree &mdash; no stored subtotals</span></li>
+                <li><div class="criteria-check"></div><span>Overhead % edit on the sidebar re-computes the panel live; persists on record Save</span></li>
+                <li><div class="criteria-check"></div><span>Transactional upsert writes header + tree + line tax sets + line discount assignments + estimate-level discount assignments in one Prisma <code>$transaction</code>; partial failure rolls everything back</span></li>
+                <li><div class="criteria-check"></div><span>Gross margin % matches the agreed formula (document in plan once chosen)</span></li>
+                <li><div class="criteria-check"></div><span>Totals engine is a pure-function module importable by PDF (IE-4) and invoice conversion (IE-5) without duplicating math</span></li>
+                <li><div class="criteria-check"></div><span>Contingency fields (if added per §2 callout) round-trip through the upsert and surface in the totals panel</span></li>
+                <li><div class="criteria-check"></div><span>No &ldquo;switch creation type&rdquo; UI, no confirm dialog, no data-migration logic exists in IE-3 &mdash; the path is gated by IE-1&#39;s <code>canEdit: false</code> + gate validator</span></li>
+                <li><div class="criteria-check"></div><span><code>EstimateChangeOrderDetails</code> hides the existing <code>estimateMarkup</code> header input on Itemized records; no UI path exists to edit it outside the &ldquo;Set default markup %&rdquo; modal</span></li>
+                <li><div class="criteria-check"></div><span>&ldquo;Set default markup %&rdquo; modal prefills from <code>ECR.estimateMarkup</code>; two distinct actions are both visible (<strong>Update default for future lines</strong>, <strong>Apply default to all lines now</strong>); bulk-apply shows a secondary confirmation before overwriting</span></li>
+                <li><div class="criteria-check"></div><span>&ldquo;Update default for future lines&rdquo; writes <code>ECR.estimateMarkup</code> only; no existing lines are touched</span></li>
+                <li><div class="criteria-check"></div><span>&ldquo;Apply default to all lines now&rdquo; writes <code>ECR.estimateMarkup</code> and bulk-overwrites every priced line&#39;s <code>markupPercent</code>; each affected line&#39;s <code>taxValue</code> snapshot recomputes (IE-1 invariant); Section rows are unaffected</span></li>
+                <li><div class="criteria-check"></div><span><code>ECR.estimateMarkup</code> is not consulted by <code>itemizedTotalsEngine</code> &mdash; verified by inspecting the module (explicit top-of-file comment + a unit test confirming changing <code>estimateMarkup</code> without touching any line&#39;s <code>markupPercent</code> does not shift the computed grand total on an Itemized record)</span></li>
             </ul>
         </div>
     </div>
     <div class="uis-section" id="s7">
         <h2 class="collapsible-toggle open" onclick="toggleSection(this)">8. Dependencies <span class="toggle-icon">&#9660;</span></h2>
         <div class="collapsible-body open">
-            <p><span class="dep-tag dep-requires">IE-2</span></p>
+            <p><span class="dep-tag dep-requires">IE-1</span><span class="dep-tag dep-requires">SD-1</span><span class="dep-tag dep-requires">IE-2</span></p>
             <p><span class="dep-tag dep-enables">IE-4 PDF</span> <span class="dep-tag dep-enables">IE-5 Invoice</span></p>
-            <p><a class="dep-tag dep-none" href="uis-IE-itemized-estimates.html">UIS-IE Parent</a></p>
+            <p style="font-size:13px;color:#64748b;">IE-3 consumes the <code>Itemized</code> enum value and line-item tree from IE-1, the discount data model from SD-1, and the editor UI from IE-2. IE-3 itself adds: contingency fields (pending §2 callout), the totals engine, the totals panel UI, and the transactional upsert surface. IE-4 and IE-5 import the totals engine directly so the math is written once.</p>
         </div>
     </div>
     <div class="uis-footer">IE-3 &middot; <a href="uis-IE-itemized-estimates.html">UIS-IE</a> &middot; Appello SDLC</div>

@@ -94,7 +94,7 @@ table.schema-table td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; ver
             <span class="uis-badge badge-child">Child of UIS-IE</span>
         </div>
         <h1 class="uis-h1">Itemized Estimate PDF</h1>
-        <p class="uis-sub">Branch the existing estimate PDF pipeline when <code>creationType = Itemized</code>: render <code>EstimateLineItem</code> rows in a client-facing table. Support &ldquo;display to client&rdquo; toggles for unit cost, markup, and internal notes (Buildertrend-style).</p>
+        <p class="uis-sub">Branch the existing estimate PDF pipeline when <code>creationType = Itemized</code>: reuse the current letterhead, merge-tag letter, totals block, and signature footer, and swap only the breakdown area for the itemized section / line tree. <strong>Client-facing only</strong> &mdash; markup %, markup $, and unit cost are never rendered.</p>
         <div class="uis-meta">
             <span><strong>Estimate:</strong> 2&ndash;3 days</span>
             <span><strong>Parent:</strong> UIS-IE</span>
@@ -105,10 +105,9 @@ table.schema-table td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; ver
         <ol>
             <li><a href="#s1">Business Case</a></li>
             <li><a href="#s2">Scope</a></li>
-            <li><a href="#s3">UI / PDF Layout</a></li>
+            <li><a href="#s3">PDF Layout</a></li>
+            <li><a href="#s3-breakdown">Itemized breakdown area</a></li>
             <li><a href="#s3-fullpage">Full page &amp; pagination</a></li>
-            <li><a href="#s3b">PDF display settings</a></li>
-            <li><a href="#s3b-place">Settings placement</a></li>
             <li><a href="#s4">Change Surface</a></li>
             <li><a href="#s5">Acceptance Criteria</a></li>
             <li><a href="#s6">Dependencies</a></li>
@@ -117,7 +116,7 @@ table.schema-table td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; ver
     <div class="uis-section" id="s1">
         <h2 class="collapsible-toggle open" onclick="toggleSection(this)">1. Business Case <span class="toggle-icon">&#9660;</span></h2>
         <div class="collapsible-body open">
-            <p>Customers expect a printable quote that matches the on-screen itemized grid. Internal PDFs may show cost and markup; customer PDFs often hide margin columns.</p>
+            <p>Customers expect a printable proposal that mirrors the itemized breakdown they&rsquo;ll see discussed on-screen &mdash; sectioned, priced at the line level, with tax and any discounts applied transparently. This PDF is the external approval artifact, so it must never expose internal margin data (unit cost, markup %, markup $).</p>
         </div>
     </div>
     <div class="uis-section" id="s2">
@@ -125,69 +124,90 @@ table.schema-table td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; ver
         <div class="collapsible-body open">
             <h3>In Scope</h3>
             <ul>
-                <li><span class="scope-tag scope-in">IN</span> PDF branch for Itemized in <code>EstimateChangeOrderPDF.tsx</code> (or sibling component)</li>
-                <li><span class="scope-tag scope-in">IN</span> Line table: Description, Qty, Unit, Unit Price, Line Total (configurable)</li>
-                <li><span class="scope-tag scope-in">IN</span> Instance or per-estimate flags for column visibility</li>
-                <li><span class="scope-tag scope-in">IN</span> Wire <code>pdf-export.ts</code> case to pass itemized flag + column options</li>
+                <li><span class="scope-tag scope-in">IN</span> Branch <code>EstimateChangeOrderPDF.tsx</code> to render an itemized breakdown area when <code>creationType = Itemized</code>. All other PDF chrome (logo, header, recipient block, merge-tag letter, terms, signature block, footer) is reused unchanged.</li>
+                <li><span class="scope-tag scope-in">IN</span> Itemized breakdown section: numbered section / subsection rows, line rows grouped under their section, stacked tax sub-rows + stacked discount sub-rows per line, section subtotals, estimate-level totals block.</li>
+                <li><span class="scope-tag scope-in">IN</span> Columns: <strong>Description</strong>, <strong>Qty</strong>, <strong>Unit</strong>, <strong>Unit price</strong>, <strong>Line total</strong>. No toggles.</li>
+                <li><span class="scope-tag scope-in">IN</span> Totals block sourced from the same <code>itemizedTotalsEngine</code> (IE-3). Rows (always rendered in order, even at $0.00 so the breakdown stays legible): line sell before discounts &rarr; <strong>line discounts subtotal</strong> (sum of per-line) &rarr; line sell after line discounts &rarr; <strong>estimate-level discount subtotal</strong> (stack total, distinct from line discounts) &rarr; overhead &rarr; <strong>tax subtotal</strong> (sum of per-line cached <code>taxValue</code>, labeled as weighted average) &rarr; grand total.</li>
+                <li><span class="scope-tag scope-in">IN</span> Wire <code>pdf-export.ts</code> to pass <code>creationType</code> + the itemized tree/totals payload into the PDF component.</li>
             </ul>
             <h3>Out of Scope</h3>
             <ul>
-                <li><span class="scope-tag scope-out">OUT</span> Invoice PDF (existing Job bill PDFs)</li>
+                <li><span class="scope-tag scope-out">OUT</span> Any &ldquo;internal&rdquo; or costed PDF variant. Cost, markup %, and markup $ are <em>never</em> rendered on this PDF.</li>
+                <li><span class="scope-tag scope-out">OUT</span> Per-export / per-estimate column visibility toggles. The itemized layout is fixed.</li>
+                <li><span class="scope-tag scope-out">OUT</span> Invoice PDF (existing Job bill PDFs).</li>
+                <li><span class="scope-tag scope-out">OUT</span> Worksheet / BidFirst / Full PDFs &mdash; those continue to use the existing pipeline untouched.</li>
             </ul>
         </div>
     </div>
     <div class="uis-section" id="s3">
-        <h2 class="collapsible-toggle open" onclick="toggleSection(this)">3. UI / PDF Layout <span class="toggle-icon">&#9660;</span></h2>
+        <h2 class="collapsible-toggle open" onclick="toggleSection(this)">3. PDF Layout <span class="toggle-icon">&#9660;</span></h2>
         <div class="collapsible-body open">
-            <p>Column names align with <a href="uis-IE-itemized-estimates.html#s-ui">UIS-IE glossary</a>: customer-facing <strong>Unit price</strong> = line price &divide; qty; <strong>Line total</strong> = line price.</p>
+            <p>Only the breakdown area changes. Everything else on the PDF &mdash; letterhead, proposal header, recipient block, merge-tag letter, terms block, signature block, footer &mdash; is the existing <code>EstimateChangeOrderPDF.tsx</code> output reused verbatim. The itemized branch renders when <code>creationType = Itemized</code>; Full / BidFirst continue to hit the existing worksheet breakdown.</p>
+            <p>Column vocabulary aligns with the IE-2 editor and the <a href="uis-IE-itemized-estimates.html#s-ui">UIS-IE glossary</a>: <strong>Unit price</strong> = line price &divide; qty (already includes any per-line markup); <strong>Line total</strong> = line price. Cost, markup %, and markup $ are <em>not columns</em> on this PDF under any configuration.</p>
+
+            <h3 id="s3-breakdown">3.1 Itemized breakdown area</h3>
+            <p>Structure mirrors the editor grid from <a href="uis-IE-2-line-item-editor.html">IE-2</a>: section / subsection header rows (numbered via depth-first walk), line rows grouped beneath their parent section, stacked tax sub-rows and discount sub-rows indented beneath each line, and a section subtotal row. Section numbering is computed at render time &mdash; not persisted.</p>
             <div class="mockup-container">
-                <div class="mockup-bar">PDF: Client view (proposal)</div>
+                <div class="mockup-bar">PDF: Itemized breakdown (client-facing)</div>
                 <div class="mockup-body">
                     <table class="schema-table">
-                        <thead><tr><th>Description</th><th>Qty</th><th>Unit</th><th>Unit price</th><th>Line total</th></tr></thead>
+                        <thead><tr><th style="width:44%;">Description</th><th style="text-align:right;">Qty</th><th>Unit</th><th style="text-align:right;">Unit price</th><th style="text-align:right;">Line total</th></tr></thead>
                         <tbody>
-                            <tr><td>Jacketing &mdash; 50 LF</td><td>50</td><td>LF</td><td>$12.50</td><td>$625.00</td></tr>
-                            <tr><td>Pipefitter labor (24 hr)</td><td>24</td><td>hr</td><td>$74.80</td><td>$1,795.20</td></tr>
+                            <tr style="background:#f8fafc;"><td colspan="5" style="font-weight:700;">1. Mechanical rough-in</td></tr>
+                            <tr><td style="padding-left:24px;">Jacketing install</td><td style="text-align:right;">50</td><td>LF</td><td style="text-align:right;">$12.50</td><td style="text-align:right;">$625.00</td></tr>
+                            <tr><td style="padding-left:48px;font-size:11px;color:#64748b;" colspan="4">&nbsp;&nbsp;GST 5%</td><td style="text-align:right;font-size:11px;color:#64748b;">$31.25</td></tr>
+                            <tr><td style="padding-left:48px;font-size:11px;color:#64748b;" colspan="4">&nbsp;&nbsp;Early-bird discount 10%</td><td style="text-align:right;font-size:11px;color:#64748b;">&minus;$62.50</td></tr>
+                            <tr><td style="padding-left:24px;">Pipefitter labor</td><td style="text-align:right;">24</td><td>hr</td><td style="text-align:right;">$74.80</td><td style="text-align:right;">$1,795.20</td></tr>
+                            <tr><td style="padding-left:48px;font-size:11px;color:#64748b;" colspan="4">&nbsp;&nbsp;GST 5%</td><td style="text-align:right;font-size:11px;color:#64748b;">$89.76</td></tr>
+                            <tr style="background:#f8fafc;"><td colspan="5" style="font-weight:700;">1.1 Fittings &amp; hangers</td></tr>
+                            <tr><td style="padding-left:24px;">Threaded rod, 3/8&Prime;</td><td style="text-align:right;">120</td><td>EA</td><td style="text-align:right;">$4.20</td><td style="text-align:right;">$504.00</td></tr>
+                            <tr><td style="padding-left:48px;font-size:11px;color:#64748b;" colspan="4">&nbsp;&nbsp;GST 5%</td><td style="text-align:right;font-size:11px;color:#64748b;">$25.20</td></tr>
+                            <tr><td colspan="4" style="font-weight:600;text-align:right;">Section 1 subtotal</td><td style="text-align:right;font-weight:600;">$2,924.20</td></tr>
+                            <tr style="background:#f8fafc;"><td colspan="5" style="font-weight:700;">2. Equipment</td></tr>
+                            <tr><td style="padding-left:24px;">Scissor lift rental w/ operator</td><td style="text-align:right;">3</td><td>day</td><td style="text-align:right;">$540.00</td><td style="text-align:right;">$1,620.00</td></tr>
+                            <tr><td style="padding-left:48px;font-size:11px;color:#64748b;" colspan="4">&nbsp;&nbsp;GST 5%</td><td style="text-align:right;font-size:11px;color:#64748b;">$81.00</td></tr>
+                            <tr><td colspan="4" style="font-weight:600;text-align:right;">Section 2 subtotal</td><td style="text-align:right;font-weight:600;">$1,620.00</td></tr>
                         </tbody>
                     </table>
-                    <p style="margin-top:10px;font-size:12px;color:#64748b;">Unit cost and markup columns hidden for client PDF when toggles off.</p>
-                </div>
-            </div>
-            <div class="mockup-container">
-                <div class="mockup-bar">PDF: Internal / costed view</div>
-                <div class="mockup-body">
-                    <table class="schema-table">
-                        <thead><tr><th>Description</th><th>Qty</th><th>Unit</th><th>Unit cost</th><th>Total cost</th><th>Markup %</th><th>Markup $</th><th>Line price</th></tr></thead>
-                        <tbody>
-                            <tr><td>Jacketing &mdash; 50 LF</td><td>50</td><td>LF</td><td>$8.20</td><td>$410.00</td><td>52%</td><td>$215.00</td><td>$625.00</td></tr>
-                            <tr><td>Pipefitter labor</td><td>24</td><td>hr</td><td>$68.00</td><td>$1,632.00</td><td>10%</td><td>$163.20</td><td>$1,795.20</td></tr>
-                        </tbody>
-                    </table>
+                    <p style="margin-top:10px;font-size:12px;color:#64748b;">Tax and discount rows are rendered inline beneath each line, one sub-row per applied tax / discount, matching the IE-2 editor layout. No unit cost, markup %, or markup $ columns appear under any setting.</p>
                 </div>
             </div>
 
-            <h3 id="s3-fullpage">3.1 Full client PDF page (single-page composition)</h3>
-            <p>Letterhead, job / customer block, optional quote letter (merge tags from existing letter editor), line table, totals aligned with <a href="uis-IE-3-totals-overhead.html">IE-3</a>, notes / terms footer, page number.</p>
+            <h3 id="s3-fullpage">3.2 Full page composition (single page)</h3>
+            <p>Chrome is reused from the existing PDF; only the breakdown area in the middle changes. Totals block at the bottom of the breakdown is sourced from the shared <code>itemizedTotalsEngine</code> (<a href="uis-IE-3-totals-overhead.html">IE-3</a>) &mdash; same engine the on-screen totals panel reads from, so PDF totals and screen totals cannot diverge.</p>
             <div class="pdf-page">
                 <div class="pdf-logo">[Logo]</div>
                 <div class="pdf-meta">
                     <span><strong>Proposal</strong> EST-2026-0142 &middot; Apr 12, 2026</span>
                     <span>ACME Retail TI &middot; 123 Main St</span>
                 </div>
-                <div class="pdf-letter">Dear Customer,&nbsp;&hellip; (letter body / merge tags)</div>
+                <div class="pdf-letter">Dear Customer,&nbsp;&hellip; (merge-tag letter body, unchanged)</div>
                 <div class="pdf-table-wrap">
                     <table class="schema-table" style="font-size:8px;margin:0;">
-                        <thead><tr><th>Description</th><th>Qty</th><th>Unit</th><th>Unit price</th><th>Line total</th></tr></thead>
+                        <thead><tr><th>Description</th><th style="text-align:right;">Qty</th><th>Unit</th><th style="text-align:right;">Unit price</th><th style="text-align:right;">Line total</th></tr></thead>
                         <tbody>
-                            <tr><td>Jacketing &mdash; 50 LF</td><td>50</td><td>LF</td><td>$12.50</td><td>$625.00</td></tr>
-                            <tr><td>Pipefitter labor</td><td>24</td><td>hr</td><td>$74.80</td><td>$1,795.20</td></tr>
+                            <tr style="background:#f8fafc;"><td colspan="5" style="font-weight:700;">1. Mechanical rough-in</td></tr>
+                            <tr><td style="padding-left:16px;">Jacketing install</td><td style="text-align:right;">50</td><td>LF</td><td style="text-align:right;">$12.50</td><td style="text-align:right;">$625.00</td></tr>
+                            <tr><td style="padding-left:32px;color:#64748b;" colspan="4">GST 5%</td><td style="text-align:right;color:#64748b;">$31.25</td></tr>
+                            <tr><td style="padding-left:32px;color:#64748b;" colspan="4">Early-bird discount 10%</td><td style="text-align:right;color:#64748b;">&minus;$62.50</td></tr>
+                            <tr><td style="padding-left:16px;">Pipefitter labor</td><td style="text-align:right;">24</td><td>hr</td><td style="text-align:right;">$74.80</td><td style="text-align:right;">$1,795.20</td></tr>
+                            <tr><td style="padding-left:32px;color:#64748b;" colspan="4">GST 5%</td><td style="text-align:right;color:#64748b;">$89.76</td></tr>
+                            <tr><td colspan="4" style="text-align:right;font-weight:600;">Section 1 subtotal</td><td style="text-align:right;font-weight:600;">$2,478.71</td></tr>
+                            <tr style="background:#f8fafc;"><td colspan="5" style="font-weight:700;">2. Equipment</td></tr>
+                            <tr><td style="padding-left:16px;">Scissor lift rental w/ operator</td><td style="text-align:right;">3</td><td>day</td><td style="text-align:right;">$540.00</td><td style="text-align:right;">$1,620.00</td></tr>
+                            <tr><td style="padding-left:32px;color:#64748b;" colspan="4">GST 5%</td><td style="text-align:right;color:#64748b;">$81.00</td></tr>
+                            <tr><td colspan="4" style="text-align:right;font-weight:600;">Section 2 subtotal</td><td style="text-align:right;font-weight:600;">$1,620.00</td></tr>
                         </tbody>
                     </table>
                 </div>
                 <div class="pdf-totals">
-                    <div class="pdf-totals-row"><span>Line sell subtotal</span><span>$2,420.20</span></div>
-                    <div class="pdf-totals-row"><span>Overhead (10%)</span><span>$242.02</span></div>
-                    <div class="pdf-totals-row" style="font-weight:800;padding-top:4px;"><span>Grand total</span><span>$2,662.22</span></div>
+                    <div class="pdf-totals-row"><span>Line sell (before discounts)</span><span>$4,544.20</span></div>
+                    <div class="pdf-totals-row"><span>Line discounts <span style="color:#64748b;">(sum of per-line)</span></span><span>&minus;$62.50</span></div>
+                    <div class="pdf-totals-row"><span>Line sell after line discounts</span><span>$4,481.70</span></div>
+                    <div class="pdf-totals-row"><span>Estimate-level discount (5%)</span><span>&minus;$224.09</span></div>
+                    <div class="pdf-totals-row"><span>Overhead (10%)</span><span>$425.76</span></div>
+                    <div class="pdf-totals-row"><span>Tax <span style="color:#64748b;">(&Sigma; per-line, weighted avg 5.0%)</span></span><span>$212.88</span></div>
+                    <div class="pdf-totals-row" style="font-weight:800;padding-top:4px;border-top:1px solid #cbd5e1;margin-top:4px;"><span>Grand total</span><span>$4,896.25</span></div>
                 </div>
                 <div class="pdf-footer">
                     <span>Authorized signature: ______________________</span>
@@ -195,51 +215,37 @@ table.schema-table td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; ver
                 </div>
             </div>
 
-            <h3>3.2 Multi-page behavior</h3>
-            <p>When line items overflow the printable region: <strong>repeat table header</strong> on each page; <strong>totals and signature block</strong> appear on the <strong>last</strong> page only (or repeat subtotal per page &mdash; <strong>TBD</strong>). PDF engine (@react-pdf or current pipeline) must support page breaks on row boundaries.</p>
-        </div>
-    </div>
-    <div class="uis-section" id="s3b">
-        <h2 class="collapsible-toggle open" onclick="toggleSection(this)">4. PDF display settings (UI) <span class="toggle-icon">&#9660;</span></h2>
-        <div class="collapsible-body open">
-            <p>Buildertrend-style toggles for what appears on the <strong>client</strong> PDF. Internal PDF can default to full column set.</p>
-            <div class="mockup-settings">
-                <div style="font-size:10px;font-weight:700;color:#64748b;text-transform:uppercase;margin-bottom:8px;">Export / template options</div>
-                <label><span class="mockup-cb"></span> Show quantity on client PDF</label>
-                <label><span class="mockup-cb"></span> Show unit column on client PDF</label>
-                <label><span class="mockup-cb"></span> Show unit cost (internal only; never default on for client)</label>
-                <label><span class="mockup-cb"></span> Show markup % / $ on client PDF</label>
-            </div>
-            <p class="tbd-note"><strong>TBD (product):</strong> Persist toggles on instance defaults, per-estimate override, or PDF modal only &mdash; spec UI stands regardless.</p>
-
-            <h3 id="s3b-place">4.1 Where settings live (placement options)</h3>
-            <p>Engineering picks one primary surface; document in implementation PR.</p>
-            <div class="placement-opt"><strong>A. Export PDF modal / flyout</strong> &mdash; User chooses Client vs Internal + column toggles each time they export. Best when sales wants per-send flexibility.</div>
-            <div class="placement-opt"><strong>B. Estimate record settings</strong> &mdash; Toggles stored on <code>EstimateChangeOrderRecord</code> (or JSON options column); PDF uses last saved values.</div>
-            <div class="placement-opt"><strong>C. Instance defaults</strong> &mdash; Admin sets defaults; estimate can override (combines A+B).</div>
+            <h3>3.3 Multi-page behavior</h3>
+            <p>When the breakdown overflows the printable region: <strong>repeat the table header</strong> on each page; keep line + its tax / discount sub-rows together (never split a line from its sub-rows); the <strong>totals block and signature</strong> appear on the <strong>last page only</strong>. Page break handling is the same primitive used by the existing worksheet PDF &mdash; no new engine.</p>
         </div>
     </div>
     <div class="uis-section" id="s4">
-        <h2 class="collapsible-toggle open" onclick="toggleSection(this)">5. Change Surface <span class="toggle-icon">&#9660;</span></h2>
+        <h2 class="collapsible-toggle open" onclick="toggleSection(this)">4. Change Surface <span class="toggle-icon">&#9660;</span></h2>
         <div class="collapsible-body open">
             <ul>
-                <li><span class="action-mod">MOD</span> <code>apps/frontend/src/components/DownloadablePDF/EstimateChangeOrder/EstimateChangeOrderPDF.tsx</code></li>
-                <li><span class="action-mod">MOD</span> <code>apps/frontend/src/pages/api/pdf-export.ts</code></li>
+                <li><span class="action-mod">MOD</span> <code>apps/frontend/src/components/DownloadablePDF/EstimateChangeOrder/EstimateChangeOrderPDF.tsx</code> &mdash; add conditional branch: when <code>creationType === Itemized</code>, render the new itemized breakdown component in place of the worksheet breakdown. All surrounding chrome is unchanged.</li>
+                <li><span class="action-mod">NEW</span> <code>apps/frontend/src/components/DownloadablePDF/EstimateChangeOrder/ItemizedBreakdown.tsx</code> &mdash; new component rendering section / subsection header rows, line rows with stacked tax &amp; discount sub-rows, and section subtotals using <code>@react-pdf</code> primitives.</li>
+                <li><span class="action-mod">MOD</span> <code>apps/frontend/src/pages/api/pdf-export.ts</code> &mdash; pass <code>creationType</code> + itemized tree + totals payload (from the shared <code>itemizedTotalsEngine</code>) into the PDF component.</li>
             </ul>
         </div>
     </div>
     <div class="uis-section" id="s5">
-        <h2 class="collapsible-toggle open" onclick="toggleSection(this)">6. Acceptance Criteria <span class="toggle-icon">&#9660;</span></h2>
+        <h2 class="collapsible-toggle open" onclick="toggleSection(this)">5. Acceptance Criteria <span class="toggle-icon">&#9660;</span></h2>
         <div class="collapsible-body open">
             <ul class="criteria-list">
-                <li><div class="criteria-check"></div><span>Itemized estimates generate PDF with correct line count and totals</span></li>
-                <li><div class="criteria-check"></div><span>Client mode hides cost/markup columns per configuration</span></li>
-                <li><div class="criteria-check"></div><span>Full / BidFirst estimates still use existing worksheet PDF (no regression)</span></li>
+                <li><div class="criteria-check"></div><span>Itemized estimates render a PDF where the breakdown area matches the IE-2 editor: section / subsection headers with depth-first numbering, line rows grouped under their section, tax sub-rows + discount sub-rows stacked beneath each line, section subtotals.</span></li>
+                <li><div class="criteria-check"></div><span>Columns are exactly: Description, Qty, Unit, Unit price, Line total. No cost, markup %, or markup $ column appears under any configuration.</span></li>
+                <li><div class="criteria-check"></div><span>Letterhead, recipient block, merge-tag letter, terms, signature block, and footer are pixel-identical to the existing worksheet PDF (same source components).</span></li>
+                <li><div class="criteria-check"></div><span>Totals block is computed by the shared <code>itemizedTotalsEngine</code> (IE-3) &mdash; PDF totals match on-screen totals to the cent.</span></li>
+                <li><div class="criteria-check"></div><span>Totals block surfaces <strong>line discounts</strong> (sum of per-line discount amounts) and <strong>estimate-level discount</strong> (stack total) as <em>two distinct rows</em>, never merged. Each row always renders, even at $0.00.</span></li>
+                <li><div class="criteria-check"></div><span>Tax row is always labeled as a rollup from lines (sum of per-line <code>taxValue</code>) with a weighted-average rate annotation. There is no estimate-level tax line on the PDF; all tax originates from the line grid.</span></li>
+                <li><div class="criteria-check"></div><span>Multi-page: table header repeats, a line and its tax / discount sub-rows never split across pages, totals block + signature appear on the last page only.</span></li>
+                <li><div class="criteria-check"></div><span>Full / BidFirst estimates continue to use the existing worksheet PDF path with no regression.</span></li>
             </ul>
         </div>
     </div>
     <div class="uis-section" id="s6">
-        <h2 class="collapsible-toggle open" onclick="toggleSection(this)">7. Dependencies <span class="toggle-icon">&#9660;</span></h2>
+        <h2 class="collapsible-toggle open" onclick="toggleSection(this)">6. Dependencies <span class="toggle-icon">&#9660;</span></h2>
         <div class="collapsible-body open">
             <p><span class="dep-tag dep-requires">IE-3</span></p>
             <p><span class="dep-tag dep-enables">Customer quoting workflow</span></p>

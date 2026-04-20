@@ -17,6 +17,7 @@ body { font-family: 'Inter', -apple-system, sans-serif; background: #f8fafc; col
 h1 { font-size: 24px; font-weight: 800; margin: 0 0 16px; }
 h2 { font-size: 18px; font-weight: 700; margin: 28px 0 12px; padding-bottom: 8px; border-bottom: 2px solid #e2e8f0; }
 h3 { font-size: 15px; font-weight: 700; margin: 20px 0 8px; padding-top: 10px; border-top: 1px solid #f1f5f9; }
+h4 { font-size: 14px; font-weight: 700; margin: 14px 0 6px; }
 p { font-size: 14px; color: #334155; line-height: 1.7; margin: 6px 0; }
 ul, ol { padding-left: 20px; margin: 8px 0; }
 li { font-size: 14px; color: #334155; line-height: 1.7; margin: 3px 0; }
@@ -28,7 +29,10 @@ hr { border: none; border-top: 1px solid #e2e8f0; margin: 24px 0; }
 table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 12px 0; }
 th { text-align: left; padding: 8px 12px; background: #f1f5f9; border-bottom: 2px solid #e2e8f0; font-weight: 600; }
 td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
+.check-item { display: flex; gap: 8px; align-items: flex-start; padding: 5px 0; }
+.check-box { width: 16px; height: 16px; border: 2px solid #cbd5e1; border-radius: 3px; flex-shrink: 0; margin-top: 2px; }
 .callout { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 14px 18px; margin: 14px 0; font-size: 13px; color: #1e40af; }
+.callout strong { color: #1e3a8a; }
     </style>
 </head>
 <body>
@@ -50,127 +54,678 @@ td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
 
 ## Overview
 
-Build `EstimateLineItemEditor.tsx` (repeating rows, combobox search, per-line markup) and integrate into `EstimateChangeOrderDetails.tsx` when `creationType === Itemized`. Depends on IE-1 GraphQL.
+Build the hierarchical line item editor (`EstimateLineItemEditor.tsx`) consumed by `EstimateChangeOrderDetails` when `creationType = Itemized`. No new backend work — IE-2 is a pure frontend consumer of IE-1 (line items) and SD-1 (discounts).
 
-**Estimated effort:** 4-6 days  
-**Spec:** `uis-IE-2-line-item-editor.html`  
-**Requires:** IE-1
+**Estimated effort:** 5-7 days
+**Risk:** Medium — tree rendering + nested stacked sub-rows is non-trivial React state work
+**Spec:** `tm-work-orders-uis/uis-IE-2-line-item-editor.html`
+**Canvas reference:** `tm-work-orders-uis/uis-IE-2-canvas-itemized-estimate.html` (interactive prototype — treat as the behavioral contract)
+**Requires:** IE-1 (line item model + resolver + CRUD), SD-1 (`Discount` + `DiscountAssignment` + suggestions), LEM-1 (labor rates), LEM-2 (equipment rates)
+**Enables:** IE-3 (totals / overhead / grand total), IE-4 (PDF), IE-5 (invoice conversion)
 
----
+### Key design decisions (mirrors spec §2 / §3)
 
-## Step 1: GraphQL queries (frontend)
-
-- Add or extend `.graphql` for `estimateLineItems` list by `estimateChangeOrderRecordId`.
-- Add mutation for `resolveEstimateLineItemUnitCost` (lazy on combobox select) or embed resolved values in create flow.
-
-Use generated hooks per repo convention after schema/codegen.
-
----
-
-## Step 2: `EstimateLineItemEditor.tsx`
-
-**Location:** `apps/frontend/src/components/.../EstimateLineItemEditor.tsx`
-
-- Mirror `SimpleInvoice.tsx` row pattern: local state array, add row, delete row, reorder (`orderNo`).
-- Columns: type badge, description (combobox), qty, unit, unit cost, total cost, markup %, markup $, price, delete.
-- On type + entity selection: call pricing resolver; set `unit`, `unitCost`, recompute `totalCost` and `price`.
-- Default markup from job/instance settings (read from existing estimate context props).
-
----
-
-## Step 3: Combobox data sources
-
-- Labor: TableFeed or existing trade-level picker filtered by job permissions.
-- Material / Equipment: same patterns as WO line item pickers; respect scoped TableFeed where required.
+- **No mode toggle.** Editor mounts only when `creationType = Itemized`. `Full` and `BidFirst` ECRs render the legacy GL worksheet — no user-facing switch ever. The two paths are schema-divergent (IE-1's `ItemizedEstimateChangeOrderRecordLineItem` vs the existing `EstimateChangeOrderRecordValue`).
+- **Type-first add flow.** Clicking `+ Add item` inserts a blank row with a Type dropdown (Labor / Material / Equipment / Custom). Other cells stay disabled until Type is picked. Once picked, a type-specific progressive cascade renders inline on the row and resolves a single rate-level row:
+    - **Labor:** `TradeLevel` → `EmployeeAgreementRateLabel` → `TradeLevelRate`
+    - **Material:** `Material` → X → Y → (Z when defined) → `MaterialAttributePrice`
+    - **Equipment:** `Equipment` → `Per` → `RateLabel` → Operator Included → `EquipmentRateValue`
+    - **Custom:** free-text description
+- **No manual rate override.** On catalog-linked rows (Labor/Mat/Eq), `unit`, `unitCost`, `totalCost`, and `price` render as read-only. Corrections happen at the rate source, not on the line. Custom lines are the only path for manual values.
+- **Immutability after first save.** `lineItemType` and `nodeType` are `canEdit: false` in IE-1. The UI presents them as badges/read-only; delete + re-add is the change path. Catalog link is similarly locked after first save.
+- **Stacked tax + discount sub-rows per line.** Mirrors `apps/frontend/src/components/DetailsPage/JobDetailsPage/Tabs/Billing/SimpleInvoice.tsx` lines 335–491: a dropdown + amount + remove per entry, with `+ Add Another…` on its own line. IE-1's M2M `TaxType` relation absorbs tax stacking; SD-1's `DiscountAssignment` absorbs discount stacking.
+- **Suggested discounts + ad-hoc inline.** The line's discount picker merges SD-1's `suggestedDiscountsForLine` (Job ∪ Company, de-duped, filtered to non-ad-hoc and in effective window) with an "Ad-hoc" option that captures a `%` / `$` toggle + value and calls SD-1's `createAdHocDiscountAndAttach`.
+- **Estimate-level discount stack.** Same sub-row UX in the totals strip against `referenceModel = "EstimateChangeOrderRecord"`; `orderNo` drives application order. IE-3 owns the math; IE-2 just stores.
+- **Markup seeding from `ECR.estimateMarkup`.** New priced lines seed their `markupPercent` from the ECR's existing `estimateMarkup` column at insert time. The column is semantically overloaded by creationType: on Full / BidFirst it's an applied multiplier on the document total; on Itemized it's a per-line seed that never drives Itemized totals directly (line-level `markupPercent` does). No new column — reuses the existing Instance → ECR seeding cascade (`Instance.defaultEstimateMarkup` / `defaultChangeOrderMarkup` → `ECR.estimateMarkup` at ECR create). Later changes to the ECR seed do **not** retroactively re-price existing lines; the explicit "Apply to all lines now" bulk action in IE-3's default-markup modal is the only way to propagate.
+- **Section tree with per-section controls.** Each section row carries inline `+ Sub` / `+ Line` / `↑ ↓` / delete buttons. Root-level `+ Section` / `+ Line` live on the worksheet toolbar. Depth cap 3 enforced against IE-1's `MAX_TREE_DEPTH` — `+ Sub` disables when adding would exceed.
+- **Local tree state, save-through-parent-form.** The editor holds the in-progress tree in local state (same pattern as `SimpleInvoice.tsx`'s `lineItems` record) and commits via IE-1 mutations on parent-form save. Until IE-3's `upsertItemizedEstimateChangeOrderRecordLineItems` lands, save walks the tree and fires individual `createItem` / `editItem` / `deleteItem` calls.
 
 ---
 
-## Step 4: Integration
+## Step 1: Component architecture
 
-**File:** `EstimateChangeOrderDetails.tsx`
+Decompose the editor into files that mirror the canvas's logical pieces. Each component owns a thin slice; state lives at the top.
 
-- When `creationType` is `Itemized`, render `EstimateLineItemEditor` above or beside existing lump-sum UI (hide lump path for itemized).
-- Wire save to parent form state; actual persist batching belongs in IE-3 `upsert` extension.
+```
+apps/frontend/src/components/Estimates/LineItems/
+├── EstimateLineItemEditor.tsx        # root; owns the tree state + parent-form glue
+├── SectionRow.tsx                     # section header row (title + + Sub / + Line / ↑↓ / delete)
+├── LineRow.tsx                        # priced line row (main cells + Tax/Discount sub-rows)
+├── AddLineCascade.tsx                 # Type dropdown + per-type cascade renderer
+│   ├── LaborCascade.tsx               # TradeLevel → RateLabel (+ optional user)
+│   ├── MaterialCascade.tsx            # Material → X → Y (→ Z)
+│   ├── EquipmentCascade.tsx           # Equipment → Per → RateLabel → Operator
+│   └── CustomCascade.tsx              # free-text description input
+├── LineTaxSubRow.tsx                  # stacked TaxType picker + remove + add-another
+├── LineDiscountSubRow.tsx             # stacked Discount picker (suggested + ad-hoc) + remove + add-another
+├── EstimateDiscountStack.tsx          # estimate-level discount list (totals strip)
+├── hooks/
+│   ├── useEstimateLineItemTree.ts     # tree state + mutations + dirty tracking
+│   ├── useResolveUnitCost.ts          # wraps resolveItemizedLineItemUnitCost
+│   └── useSuggestedDiscounts.ts       # wraps suggestedDiscountsForLine
+└── types.ts                           # local form types (wraps Prisma types)
+```
 
----
-
-## Step 5: QA
-
-- Empty state, single row, many rows, permission-denied pickers, loading on resolve.
-
----
-
-## UI / UX deliverables
-
-Implement to match `uis-IE-2-line-item-editor.html` §3–4 and parent glossary (`uis-IE-itemized-estimates.html#s-ui`).
-
-### UI build checklist (column contract)
-
-| Column | Component | Data / state | Validation |
-|--------|-----------|--------------|------------|
-| Type | Badge | `lineItemType` | Set from picker path |
-| Selected item / description | `FormControl` combobox + free text | `userId`, FKs, `description` | Labor requires user when product requires it |
-| Qty | Numeric | `quantity` | &gt; 0 |
-| Unit | Text/select | `unit` | Non-empty preferred |
-| Unit cost | Currency | `unitCost` | &gt;= 0 |
-| Total cost | Read-only (typ.) | `totalCost` | qty × unitCost |
-| Markup % | Percent | `markupPercent` | 0–100+ per product |
-| Markup $ | Currency | `markupDollarValue` | Precedence vs % (product) |
-| Line price | Read-only | `price` | Consistent with markup rules |
-| Delete | Icon | remove / soft-delete | Confirm optional |
-
-### Add-line flow
-
-- Grouped list: Labor → Material → Equipment → Custom; search filters within groups.
-- After pick: fire `resolveEstimateLineItemUnitCost`; show loading on row; on failure allow manual unit cost.
-
-### Handoff to IE-3
-
-- Emit line-derived subtotals (cost, markup dollars, sell) to `EstimateChangeOrderTotals` props or shared context for Itemized branch.
+One component per file per the project's CLAUDE.md rule. Cascade sub-components stay under 50 lines each so they can live as siblings.
 
 ---
 
-## Checklist
+## Step 2: GraphQL operations
 
-- [ ] Rows validate qty &gt; 0 and numeric fields
-- [ ] Labor lines always tie to a **user** where the product rule requires worker-linked time (follow `.cursorrules` labor constraint)
-- [ ] No `console.log`
-- [ ] Loading / error on query and resolve mutation
+No new backend work. Add frontend query/mutation files and generate hooks via `pnpm run codegen`.
+
+### 2a. From IE-1
+
+**Queries** (`apps/frontend/src/graphql/queries/itemizedEstimateLineItems.graphql`):
+
+```graphql
+query ItemizedEstimateChangeOrderRecordLineItems($options: GetListOptions) {
+  itemizedEstimateChangeOrderRecordLineItems(options: $options) {
+    ... on ItemizedEstimateChangeOrderRecordLineItem {
+      id
+      nodeType
+      parentId
+      estimateChangeOrderRecordId
+      lineItemType
+      priceReferenceModel
+      priceReferenceId
+      userId
+      description
+      quantity
+      unit
+      unitCost
+      totalCost
+      markupPercent
+      markupDollarValue
+      price
+      taxValue
+      orderNo
+      TaxType { id abbreviation rate isCompound }
+    }
+  }
+}
+
+query ResolveItemizedLineItemUnitCost($input: ResolveItemizedLineItemUnitCostInput!) {
+  resolveItemizedLineItemUnitCost(input: $input)
+}
+```
+
+**Mutations** (`apps/frontend/src/graphql/mutations/itemizedEstimateLineItems.graphql`):
+
+Wire every operation from IE-1's surface — `createItem` / `createMany` / `editItem` / `editMany` / `deleteItem` / `deleteMany` / `archiveMany` / `restoreMany`. Full generated hooks are the consumer contract for the save path.
+
+### 2b. From SD-1
+
+**Queries:**
+
+```graphql
+query SuggestedDiscountsForLine($itemizedEstimateChangeOrderRecordLineItemId: ID!) {
+  suggestedDiscountsForLine(
+    itemizedEstimateChangeOrderRecordLineItemId: $itemizedEstimateChangeOrderRecordLineItemId
+  ) {
+    id name type value effectiveFrom effectiveTo
+  }
+}
+
+query DiscountsForEntity($referenceModel: String!, $referenceId: ID!) {
+  discountsForEntity(referenceModel: $referenceModel, referenceId: $referenceId) {
+    id orderNo discountId
+    Discount { id name type value isAdHoc effectiveFrom effectiveTo }
+  }
+}
+```
+
+**Mutations:** `attachDiscount`, `detachDiscount`, `createAdHocDiscountAndAttach`, `reorderDiscountAssignments`, `promoteAdHocDiscount`.
+
+### 2c. Catalog pickers for cascades
+
+No new queries — use existing TableFeed surfaces for each catalog:
+
+| Cascade step | Query |
+|---|---|
+| Labor → TradeLevel | Existing `TradeLevel` TableFeed (Settings → Trades) |
+| Labor → EmployeeAgreementRateLabel | Active `EmployeeAgreementRateLabel` rows for the instance's default contract (filtered server-side by whether a `TradeLevelRate` exists for the picked trade) |
+| Labor worker | `useGetTableDataRecordSetQuery` (User) filtered to active users |
+| Material → Material | Material TableFeed |
+| Material attributes | Per-material `MaterialAttributePrice` attribute value query — returns available X / Y / Z values already on priced cells (avoids showing combinations with no price) |
+| Equipment → Equipment | Equipment TableFeed |
+| Equipment → Per / RateLabel / Operator | `EquipmentRateValue` rows for the picked equipment's category, grouped by `Per` + `RateLabel` + operator flag |
+| TaxType (sub-row) | Existing `taxTypes` query (already used by `SimpleInvoice.tsx`) |
+
+> **If any of those "available values" queries doesn't exist yet, add it alongside the cascade component that needs it.** Prefer server-side filtering over loading the whole matrix and filtering client-side — for large material catalogs this matters.
 
 ---
 
-## Integration / E2E test scenarios
+## Step 3: Local form types
 
-1. Open Itemized estimate → empty grid → **Add line** → add one row per type → Save → reload → four rows persist with correct `lineItemType` and FKs.
-2. **Labor:** Pick user from TableFeed → resolver fills unit cost → change qty → line price updates; reload matches.
-3. **Material:** Search catalog → select → unit + unit cost populated.
-4. **Equipment:** Select equipment → choose billing unit hr/day → rate matches LEM-2 expectation.
-5. **Custom:** Add custom row only; save with manual cost; no resolver call (or error ignored).
-6. **Reorder:** Drag row 1 below row 3 → Save → `orderNo` order matches UI.
-7. **Read-only:** User with view-only estimate permission sees grid without add/delete (or hidden per product).
-8. **Validation:** Set qty to 0 → Save blocked with inline errors.
+**File:** `apps/frontend/src/components/Estimates/LineItems/types.ts`
+
+```typescript
+import type {
+    ItemizedEstimateChangeOrderRecordLineItem as IApiLineItem,
+    EstimateLineItemType,
+    PriceReferenceModel,
+    LineItemNodeType,
+    TaxType,
+    Discount
+} from "~root/graphql/generated/graphql";
+
+/** Form-local extension of the persisted line item. */
+export interface ILineFormValue extends Partial<IApiLineItem> {
+    // Tracked locally so the cascade can round-trip without hitting the server on every pick:
+    _tradeLevelId?: string | null;
+    _rateLabelId?: string | null;
+    _materialId?: string | null;
+    _xValueId?: string | null;
+    _yValueId?: string | null;
+    _zValueId?: string | null;
+    _equipmentId?: string | null;
+    _ratePer?: string | null;
+    _operatorIncluded?: boolean;
+
+    // Discount assignments rendered in the sub-row — hydrated from SD-1.
+    // _rid is a stable client id so React keys survive server id arrival.
+    discountAssignments: Array<{
+        _rid: string;
+        id?: string;
+        discountId?: string | null;
+        isAdHoc: boolean;
+        type: "Percent" | "FixedAmount";
+        value: number;
+        name: string;
+        orderNo: number;
+    }>;
+
+    // Dirty tracking for efficient save diffs.
+    _dirty?: "new" | "edit" | "delete" | null;
+}
+```
 
 ---
 
-## Per-type implementation steps (add flows)
+## Step 4: Root editor + state hook
 
-| Type | Component / hook | Steps |
-|------|------------------|-------|
-| **Labor** | `useGetTableDataRecordSetQuery` (`GqlTableDataName` user) + trade display from selected user’s `UserTradeLevel` | (1) Add-line popover Labor section. (2) On user select, derive primary trade level for display; allow trade override if PM requires. (3) Call `resolveEstimateLineItemUnitCost` with `userId` + `tradeLevelId`. (4) Insert row in local state. |
-| **Material** | Material catalog query / TableFeed Materials | (1) Debounced search. (2) On select, set `materialId`, fire resolver, set `unit` + `unitCost`. |
-| **Equipment** | Equipment picker + `FormControl` for billing unit | (1) Pick `equipmentId`. (2) User selects hr/day. (3) Resolver with `equipmentId` + `unit`. (4) Insert row. |
-| **Custom** | No TableFeed | (1) Choose Custom → append blank row with `lineItemType: Custom`. (2) User fills description, qty, unit, unit cost; compute price locally until save. |
+**File:** `apps/frontend/src/components/Estimates/LineItems/EstimateLineItemEditor.tsx`
+
+Mounts on `creationType = Itemized`. Owns the tree, exposes a save method to the parent form.
+
+```tsx
+import { FC, useMemo } from "react";
+import { ClassNames } from "@useanzen/shared-utils";
+import { SectionRow } from "./SectionRow";
+import { LineRow } from "./LineRow";
+import { useEstimateLineItemTree } from "./hooks/useEstimateLineItemTree";
+
+interface IEstimateLineItemEditorProps {
+    estimateChangeOrderRecordId: string;
+    isEditMode: boolean;
+    className?: string | ClassNames;
+}
+
+const EstimateLineItemEditor: FC<IEstimateLineItemEditorProps> = ({
+    estimateChangeOrderRecordId,
+    isEditMode,
+    className = ""
+}) => {
+    // State
+    const {
+        tree,
+        addRootSection,
+        addRootLine,
+        addSectionChild,
+        addLineChild,
+        editRow,
+        deleteRow,
+        moveRow,
+        maxTreeDepth
+    } = useEstimateLineItemTree({ estimateChangeOrderRecordId });
+
+    // Constants
+    const flatRendered = useMemo(() => flattenForRender(tree), [tree]);
+
+    return (
+        <div className={new ClassNames("w-full").add(className).list()}>
+            <div className="flex items-center justify-between gap-2 p-2 mb-2 bg-gray-50 rounded">
+                <div className="flex gap-2">
+                    <button type="button" onClick={addRootSection} disabled={!isEditMode}>+ Section</button>
+                    <button type="button" onClick={addRootLine} disabled={!isEditMode}>+ Line</button>
+                </div>
+                <input type="search" placeholder="Filter rows / sections…" />
+            </div>
+            <table>
+                <thead>{/* column headers per §4 field spec */}</thead>
+                <tbody>
+                    {flatRendered.map((node) =>
+                        node.kind === "section" ? (
+                            <SectionRow
+                                key={node.id}
+                                section={node}
+                                isEditMode={isEditMode}
+                                maxTreeDepth={maxTreeDepth}
+                                onEdit={editRow}
+                                onAddSub={addSectionChild}
+                                onAddLine={addLineChild}
+                                onMove={moveRow}
+                                onDelete={deleteRow}
+                            />
+                        ) : (
+                            <LineRow
+                                key={node.id}
+                                line={node}
+                                isEditMode={isEditMode}
+                                onEdit={editRow}
+                                onDelete={deleteRow}
+                            />
+                        )
+                    )}
+                </tbody>
+            </table>
+        </div>
+    );
+};
+
+export { EstimateLineItemEditor };
+```
+
+### 4a. `useEstimateLineItemTree` hook
+
+**File:** `apps/frontend/src/components/Estimates/LineItems/hooks/useEstimateLineItemTree.ts`
+
+Responsibilities:
+
+- Load initial tree via `itemizedEstimateChangeOrderRecordLineItems(options: { where: { estimateChangeOrderRecordId } })` and hydrate each line's `discountAssignments` via `discountsForEntity` (parallel fetch).
+- Maintain the tree as a flat array with `parentId` / `orderNo` (same shape the canvas uses; easier for diffing than a recursive tree).
+- Expose mutation methods that update local state optimistically and flag rows with `_dirty`.
+- Enforce tree depth cap: expose `maxTreeDepth = 3` and a `canAddSubAt(parentSectionId)` helper used by `SectionRow` to disable `+ Sub`.
+- **Save method** (called by parent-form `onSubmit`):
+    1. Validate every dirty row via the same rules in IE-1's `validatePayload` (client-side pre-check for snappy errors; server is still authoritative).
+    2. Walk dirty rows: `create` → `edit` → `delete` in order.
+    3. For each written line, sync its tax set (diff `taxTypeIds`) and discount set (diff via SD-1 `attachDiscount` / `detachDiscount` / `createAdHocDiscountAndAttach`).
+    4. Refetch the tree from server; reconcile client ids.
+- **No** auto-save on every keystroke — batched on parent save (matches `SimpleInvoice.tsx`'s pattern).
+
+---
+
+## Step 5: `SectionRow` — section header + controls
+
+**File:** `apps/frontend/src/components/Estimates/LineItems/SectionRow.tsx`
+
+```tsx
+import { FC, memo, useCallback } from "react";
+import { ClassNames } from "@useanzen/shared-utils";
+import { IconTrash } from "@useanzen/ui";
+import { FormControl } from "~root/components/Forms/_FormControls/FormControl";
+
+interface ISectionRowProps {
+    section: { id: string; title: string; parentId: string | null; depth: number };
+    isEditMode: boolean;
+    maxTreeDepth: number;
+    onEdit: (id: string, patch: { title: string }) => void;
+    onAddSub: (parentId: string) => void;
+    onAddLine: (parentId: string) => void;
+    onMove: (id: string, delta: -1 | 1) => void;
+    onDelete: (id: string) => void;
+}
+
+const SectionRow: FC<ISectionRowProps> = ({
+    section, isEditMode, maxTreeDepth, onEdit, onAddSub, onAddLine, onMove, onDelete
+}) => {
+    // Constants
+    const canGoDeeper = section.depth < maxTreeDepth;
+    const depthClass = `depth-${Math.min(3, section.depth)}`;
+
+    // Functions
+    const handleDelete = useCallback(() => {
+        if (confirm("Delete this section and all its children?")) onDelete(section.id);
+    }, [onDelete, section.id]);
+
+    return (
+        <tr className="section-row">
+            <td colSpan={11}>
+                <div className={new ClassNames("section-inner").add(depthClass).list()}>
+                    <span className="section-tag">{section.depth === 1 ? "Section" : "Sub"}</span>
+                    <FormControl
+                        name={`section-${section.id}-title`}
+                        value={section.title}
+                        onChange={(e: ChangeEvent<HTMLInputElement>) =>
+                            onEdit(section.id, { title: e.target.value })
+                        }
+                        disabled={!isEditMode}
+                    />
+                    <div className="section-actions">
+                        <button type="button" onClick={() => onMove(section.id, -1)} disabled={!isEditMode}>↑</button>
+                        <button type="button" onClick={() => onMove(section.id, 1)} disabled={!isEditMode}>↓</button>
+                        <button
+                            type="button"
+                            onClick={() => onAddSub(section.id)}
+                            disabled={!isEditMode || !canGoDeeper}
+                            title={canGoDeeper ? "Add subsection" : "Depth cap reached"}
+                        >
+                            + Sub
+                        </button>
+                        <button type="button" onClick={() => onAddLine(section.id)} disabled={!isEditMode}>
+                            + Line
+                        </button>
+                        <button type="button" onClick={handleDelete} disabled={!isEditMode}>
+                            <IconTrash />
+                        </button>
+                    </div>
+                </div>
+            </td>
+        </tr>
+    );
+};
+
+export { SectionRow: memo(SectionRow) };
+```
+
+---
+
+## Step 6: `LineRow` — priced row + sub-rows
+
+**File:** `apps/frontend/src/components/Estimates/LineItems/LineRow.tsx`
+
+Responsibility: render the main priced cells + the two sub-rows (tax, discount). Delegates the cascade UI to `AddLineCascade`. All cascade picks call back through `onEdit(id, patch)` which the root hook funnels into IE-1's `resolveItemizedLineItemUnitCost` when the cascade is complete.
+
+Key rules from §4:
+
+- **Type** — blank row: `FormControl type="select"` with `EstimateLineItemType` options. Once set: read-only badge (`canEdit: false` in IE-1).
+- **Selected item / description** — rendered by `AddLineCascade` while the cascade is incomplete; collapses to a read-only summary once the rate-level row is resolved. Custom is always free-text.
+- **Qty / Markup %  / Markup $** — inputs, always editable.
+- **Unit / Unit cost** — editable only when `lineItemType === "Custom"`; read-only otherwise.
+- **Total cost / Line price** — always derived, never input.
+- **Delete** — soft-delete; confirm optional.
+
+Below the main `<tr>`, the component renders two more `<tr>` elements:
+
+```tsx
+<>
+    <tr className="line-row">{/* main cells */}</tr>
+    <LineTaxSubRow line={line} isEditMode={isEditMode} onEdit={onEdit} />
+    <LineDiscountSubRow line={line} isEditMode={isEditMode} onEdit={onEdit} />
+</>
+```
+
+---
+
+## Step 7: `AddLineCascade` — progressive dropdowns
+
+**File:** `apps/frontend/src/components/Estimates/LineItems/AddLineCascade.tsx`
+
+Dispatches to the right sub-component based on `line.lineItemType`. Whenever a cascade completes and the resolver returns a `unitCost`, the wrapper **also** seeds the line's `markupPercent` from `ECR.estimateMarkup` if the line's markup hasn't already been explicitly touched — one-shot at first resolution, not on every change (so re-opening the cascade doesn't blow away a user's override).
+
+```tsx
+switch (line.lineItemType) {
+    case "Labor":     return <LaborCascade line={line} onEdit={onEdit} />;
+    case "Material":  return <MaterialCascade line={line} onEdit={onEdit} />;
+    case "Equipment": return <EquipmentCascade line={line} onEdit={onEdit} />;
+    case "Custom":    return <CustomCascade line={line} onEdit={onEdit} />;
+    default:          return <TypeDropdown line={line} onEdit={onEdit} />;
+}
+```
+
+### 7a. `LaborCascade`
+
+Two `FormControl type="select"` fields side-by-side:
+
+- `TradeLevel` dropdown (active trades).
+- `EmployeeAgreementRateLabel` dropdown — disabled until `TradeLevel` is picked; options filtered to labels that have a `TradeLevelRate` row for the picked trade + default agreement.
+
+After both are picked, calls `useResolveUnitCost({ lineItemType: "Labor", priceReferenceModel: "TradeLevelRate", priceReferenceId: <resolved tradeLevelRateId>, userId })` to seed `unit` = `hr` and `unitCost`. When complete, cascade collapses to `"<TradeLevel.name> · <RateLabel.name>"` read-only summary + an inline optional Worker picker (`TaskFeed`-backed User dropdown, Labor-only).
+
+### 7b. `MaterialCascade`
+
+Four (or three) dropdowns:
+
+- `Material`, then X, then Y, then Z (only rendered when the picked material defines a Z axis).
+- Each subsequent dropdown is disabled until the previous is picked, and its options are filtered server-side to values that exist on a `MaterialAttributePrice` row (avoids surfacing combinations with no price).
+- After the final pick, calls `useResolveUnitCost` with `priceReferenceModel: "MaterialAttributePrice"` + the resolved `MaterialAttributePrice.id`.
+
+### 7c. `EquipmentCascade`
+
+Three dropdowns + one checkbox:
+
+- `Equipment` → `Per` (`EquipmentRatePer` — HOUR / DAY / WEEK / …) → `Rate Type` (`EquipmentRateLabel`) → Operator Included (`FormControl type="checkbox"`).
+- Each subsequent control filtered to values present on `EquipmentRateValue` rows for the chosen upstream picks.
+- After the four are set, calls `useResolveUnitCost` with `priceReferenceModel: "EquipmentRateValue"` + the resolved id.
+
+### 7d. `CustomCascade`
+
+A single `FormControl type="text"` bound to `line.description`. No resolver call. `priceReferenceModel` and `priceReferenceId` remain null. `unit` and `unitCost` become editable on the parent row.
+
+---
+
+## Step 8: `LineTaxSubRow` — stacked tax picker
+
+**File:** `apps/frontend/src/components/Estimates/LineItems/LineTaxSubRow.tsx`
+
+Pattern: `SimpleInvoice.tsx` lines 335–491. One `<tr className="tax-row">` with `<td colSpan>`; inside, a right-aligned inline flex column of entries plus a right-aligned "+ Add Another Tax Rate" button on its own line.
+
+Each entry:
+
+```tsx
+<div className="sub-item">
+    <FormControl
+        type="select"
+        value={taxTypeId}
+        options={availableTaxTypes.map((t) => ({
+            label: `${t.abbreviation} — ${t.rate}%${t.isCompound ? " (compound)" : ""}`,
+            value: t.id
+        }))}
+        onChange={(opt) => onEditTax(line.id, /* fromId */ taxTypeId, /* toId */ opt.value)}
+    />
+    <span className="sub-amt">{formatValueAsCurrency(amountForEntry, true)}</span>
+    <Button onClick={() => onRemoveTax(line.id, taxTypeId)} noStyles><IconTrash /></Button>
+</div>
+```
+
+Rules:
+
+- Same `TaxType` cannot stack twice on one line — dropdown filters out already-picked ids.
+- Amount computation lives in a small pure helper (shared with IE-3's totals) — does not mutate state.
+- Compound ordering: non-compound taxes stack on base first; compound applies to `base + sum(non-compound taxes)`.
+- **Add-another button** disabled when no un-picked `TaxType` remains.
+- Change to the set triggers a re-compute of the line's `taxValue` in the local form state (optimistic); server canonical recompute happens at save time via IE-1's `recomputeTaxValue` hook.
+
+---
+
+## Step 9: `LineDiscountSubRow` — stacked discount picker
+
+**File:** `apps/frontend/src/components/Estimates/LineItems/LineDiscountSubRow.tsx`
+
+Same shape as the tax sub-row but each entry carries three modes:
+
+1. **Suggested** (from SD-1 `suggestedDiscountsForLine`): dropdown shows named discounts with `— 7.5%` or `— $250` label and `(Company)` / `(Job)` source tag; picking one sets `discountId` + freezes the type/value to the discount's definition.
+2. **Ad-hoc** (selecting "Enter ad-hoc…" from the dropdown): reveals inline `%` / `$` toggle + value input. On blur / commit, calls SD-1's `createAdHocDiscountAndAttach` to persist both the `Discount` row (with `isAdHoc: true`) and the assignment in one call. Before server commit (e.g., while the line itself is still unsaved), a placeholder local record holds the data.
+3. **Existing assignment** being edited: user can swap the dropdown to a different discount (detach old, attach new — two mutations) or change the ad-hoc value inline (edit the `Discount` row).
+
+Rules:
+
+- Same `Discount` cannot attach twice on one line (SD-1 unique constraint).
+- Removing an entry detaches via `detachDiscount` (soft-delete the assignment; the `Discount` row is left alone unless `isAdHoc`).
+- Amount display: `Percent → lineSellBeforeDiscount × value / 100`; `FixedAmount → value`.
+
+---
+
+## Step 10: `EstimateDiscountStack` — totals panel
+
+**File:** `apps/frontend/src/components/Estimates/LineItems/EstimateDiscountStack.tsx`
+
+Renders the estimate-level discount list in the totals strip. Same UX as `LineDiscountSubRow` but scoped to `referenceModel = "EstimateChangeOrderRecord"` + `referenceId = estimateChangeOrderRecordId`. IE-3 owns the total math; IE-2 just exposes the attach / detach / reorder UI.
+
+Add-another button calls `attachDiscount` or `createAdHocDiscountAndAttach`; the component fetches `discountsForEntity` on mount and refreshes after every mutation.
+
+---
+
+## Step 11: Integration with `EstimateChangeOrderDetails`
+
+**File:** `apps/frontend/src/pages/…/EstimateChangeOrderDetails.tsx` (or equivalent — confirm path at implementation time)
+
+```tsx
+// Inside the Worksheet tab body:
+{estimate.creationType === "Itemized" ? (
+    <EstimateLineItemEditor
+        estimateChangeOrderRecordId={estimate.id}
+        isEditMode={canEdit}
+    />
+) : (
+    <LegacyWorksheet /* existing GL worksheet unchanged */ />
+)}
+```
+
+No radio toggle, no radio group, no prompt to switch modes. `creationType` is decided on creation (IE-3) and never changes.
+
+---
+
+## Step 12: Validation
+
+Client-side validation runs on keystroke/blur for snappy feedback; IE-1 is still authoritative on save. Mirror IE-1's `validatePayload` rules:
+
+| Rule | UI treatment |
+|---|---|
+| Blank-row Type unset | Other cells disabled; save blocked |
+| Labor cascade incomplete (missing TradeLevel or RateLabel) | Save blocked; open picker flags the unset step |
+| Material cascade incomplete | Same |
+| Equipment cascade incomplete | Same |
+| Custom without `description` / `quantity` / `unit` / `unitCost` | Inline red border on missing fields |
+| `Qty ≤ 0` on priced row | Inline error |
+| `userId` on non-Labor line | Ad-hoc UI shouldn't allow this; defensive validation if data arrives weird |
+| Duplicate TaxType on one line | `+ Add Another Tax Rate` disabled when exhausted; the picker filters |
+| Duplicate Discount on one line | Dropdown filters already-attached |
+| Depth cap exceeded on `+ Sub` | Button disabled with tooltip "Depth cap reached" |
+| Section title empty | Inline error on save |
+| Resolver error on catalog line | Row banner "Rate unavailable — fix at source"; **no fallback to manual** (use Custom for manual entries) |
+
+---
+
+## Step 13: TypeScript + build
+
+```bash
+pnpm run codegen
+pnpm --filter frontend build
+```
+
+---
+
+## Handoff to IE-3
+
+IE-3 consumes from IE-2's tree:
+
+- **Subtotals by branch** — IE-3 reads the tree via `itemizedEstimateChangeOrderRecordLineItems` and walks `parentId` for section rollups. IE-2 does not persist section subtotals.
+- **Estimate-level discount list** — `discountsForEntity("EstimateChangeOrderRecord", <id>)` is IE-3's input for the "step 2 → step 3" math (line % → line sell → estimate-level on pre-tax → proportional tax split).
+- **Tax aggregates** — IE-3 reads each line's cached `taxValue` (IE-1 snapshot) + its `TaxType[]` set, aggregates by `TaxType`, re-computes under proportional discount split.
+- **Overhead %** — stays on `EstimateChangeOrderRecord.overheadMarkup` (existing). IE-3 owns policy for how overhead is applied (pre-/post-tax, per line, etc.).
+- **`creationType = Itemized`** — IE-3 adds this enum value and the gate; IE-2's `EstimateLineItemEditor` should compile against it.
+
+---
+
+## Verification Checklist
+
+- [ ] `EstimateLineItemEditor` renders only when `estimate.creationType === "Itemized"`; no mode toggle control anywhere
+- [ ] `pnpm run codegen` generates hooks for the IE-1 + SD-1 operations used
+- [ ] Blank line → Type dropdown visible; other cells disabled
+- [ ] Labor cascade: `TradeLevel` → `EmployeeAgreementRateLabel` → resolver seeds `unit` + `unitCost`; optional Worker picker appears post-cascade
+- [ ] Material cascade: `Material` → X → Y → (Z when defined) → resolver seeds values
+- [ ] Equipment cascade: `Equipment` → `Per` → `RateLabel` → Operator → resolver seeds values
+- [ ] Custom: free-text description; `unit` + `unitCost` editable; `priceReferenceModel`/`Id` null
+- [ ] Cascade steps disable until the previous is picked; options filtered to values with live rate rows
+- [ ] Once a catalog-linked row resolves, `unit`, `unitCost`, `totalCost`, and `price` render as read-only (no inputs)
+- [ ] On Custom rows, `unit` and `unitCost` are editable inputs
+- [ ] New priced line's `markupPercent` seeds from `ECR.estimateMarkup` after the cascade resolves (one-shot; doesn't overwrite an explicit user-entered value)
+- [ ] Changing `ECR.estimateMarkup` after lines exist (via IE-3's modal "Update default for future lines") does **not** retroactively change existing lines' `markupPercent`
+- [ ] Type badge is read-only after first save; no affordance to change in-place
+- [ ] Catalog link (cascade picks) is locked after first save; UI offers delete + re-add as the change path
+- [ ] Tax sub-row stacks multiple `TaxType` entries per line, with a dropdown + computed amount + remove per entry and a right-aligned `+ Add Another Tax Rate` button on its own line
+- [ ] Tax add-another button disables when all `TaxType` options are exhausted
+- [ ] Compound tax computation matches `SimpleInvoice.tsx` (compound applies on `base + sum(non-compound)`)
+- [ ] Discount sub-row stacks multiple `DiscountAssignment` entries with the same pattern
+- [ ] Discount picker shows suggested (Job ∪ Company, de-duped, in-window, non-ad-hoc) + "Enter ad-hoc" option
+- [ ] Ad-hoc entry exposes `%` / `$` toggle + value input and commits via `createAdHocDiscountAndAttach`
+- [ ] Removing a discount calls `detachDiscount` (soft-delete the assignment); does not delete the underlying reusable `Discount`
+- [ ] Estimate-level discount stack renders in the totals strip with the same UX; `referenceModel = "EstimateChangeOrderRecord"`
+- [ ] Section rows render `+ Sub` / `+ Line` / `↑ ↓` / delete inline on the section header
+- [ ] Root toolbar renders `+ Section` / `+ Line`
+- [ ] `+ Sub` disables with tooltip when adding would exceed IE-1's `MAX_TREE_DEPTH`
+- [ ] Section delete cascades over the whole subtree (confirm dialog)
+- [ ] Section reorder (↑ ↓) moves the entire subtree with its children
+- [ ] Filter search hides non-matching rows + sub-rows
+- [ ] Save path batches dirty rows: creates → edits → deletes → tax diff → discount diff
+- [ ] Validation blocks save on incomplete cascades, `qty ≤ 0`, empty Custom fields, empty section title
+- [ ] Resolver error on a catalog row shows "Rate unavailable" banner and blocks save; does **not** enable manual override
+- [ ] Read-only mode (no edit permission) hides add/delete buttons and disables all inputs
+- [ ] `pnpm --filter frontend build` passes with no type errors
+
+---
+
+## Integration / E2E Test Scenarios
+
+1. **Mount gate.** Open an ECR with `creationType = BidFirst` → legacy worksheet renders, no editor. Open one with `creationType = Itemized` → editor renders, no mode toggle visible.
+2. **Initial load.** ECR with pre-existing tree (mix of sections, subsections, lines) → editor hydrates with correct ordering, tax/discount sub-rows populated.
+3. **Blank Type state.** Click `+ Line` on root → blank row appears with Type dropdown; Qty / Markup / delete cells disabled or greyed.
+4. **Labor cascade.** Pick `Labor` → TradeLevel dropdown renders. Pick Welder Journeyman → RateLabel dropdown activates. Pick Standard → resolver fires → `unit = "hr"`, `unitCost = 68.00` appear (read-only). Optional Worker picker appears → pick A. Lee → description updates.
+5. **Material cascade with Z.** Pick `Material` → pick Drywall sheet → X (4×8) → Y (Fire-rated) → Z (5/8") → resolver fires → `unitCost = 17.90`, unit = "sheet".
+6. **Material cascade without Z.** Pick Black iron pipe → X (4") → Y (Sch 40) → (no Z step) → resolver fires.
+7. **Equipment cascade.** Pick Scissor lift → Per (Day) → Rate Type (Standard) → Operator toggled off → resolver fires → `unitCost = 275`, unit = "day".
+8. **Custom row.** Pick Custom → description input appears; type "Permits & fees"; set qty / unit / unit cost manually → line price computes; no resolver call.
+8b. **Markup seeding.** Seed an ECR with `estimateMarkup = 12`. Add a new Labor line and complete the cascade → line's `markupPercent` is 12 after resolution. Manually change it to 15 on the grid. Re-open the cascade to pick a different TradeLevel → `markupPercent` stays 15 (user override preserved).
+8c. **Markup seed does not propagate.** Two existing Labor lines on an ECR with `estimateMarkup = 12` carry `markupPercent = 12` each. Change `ECR.estimateMarkup` to 18 via IE-3's modal "Update default for future lines" action. Existing two lines keep `markupPercent = 12`. Add a third Labor line → it seeds at 18.
+9. **Immutability — type.** Save a Labor line; attempt to switch the type dropdown (should not be present as a dropdown — it's a badge). Only `×` delete is offered.
+10. **Immutability — catalog link.** Save a Material line; the cascade is collapsed to a summary. Confirm there's no in-place edit affordance; delete + re-add is the only change path.
+11. **Read-only fields on catalog row.** Labor / Material / Equipment row cells for `unit` / `unitCost` / `totalCost` / `price` are `<span>` elements, not `<input>`.
+12. **Editable fields on Custom row.** Custom row `unit` and `unitCost` are `<input>`.
+13. **Tax stack.** Add a line; add GST → amount = base × 5%; add PST-BC → amount = base × 7%; add QST-QC (compound) → amount = (base + non-compound taxes) × 9.975%. Remove one → amounts recompute.
+14. **Tax dedupe.** Try to add GST twice → dropdown of the second entry doesn't offer GST; `+ Add Another Tax Rate` disables when all taxes are picked.
+15. **Discount suggested pick.** Seed Job-level `Contractor rate 7.5%`; open discount picker on a line → entry appears under "Job" source; pick it → `discountAssignments` gains one entry; amount = line sell × 7.5%.
+16. **Discount ad-hoc.** On another line, pick "Enter ad-hoc" → `%` / `$` toggle + value input appear; enter 3% → commit calls `createAdHocDiscountAndAttach` → entry persists and shows "-$X.XX" amount.
+17. **Discount ad-hoc promotion (manual).** SD-1's `promoteAdHocDiscount` isn't surfaced in IE-2 v1; confirm this is a future-UX concern, not a blocker.
+18. **Discount dedupe.** Attach `Contractor rate`; try to add it again → dropdown filters it out.
+19. **Estimate-level discount.** Add an estimate discount "Early-bird 2%" via the totals panel → appears in stack; removing a line-level discount on any line does not affect this one.
+20. **Section + Line.** Click `+ Section` on toolbar → new section at root with editable title. Click `+ Line` inside the section → new blank line appears as a child; its parentId is the section id.
+21. **Section + Sub.** Inside a section, `+ Sub` → new subsection; inside the subsection, another `+ Sub` renders a depth-3 row; on that one, `+ Sub` button is disabled.
+22. **Section reorder with subtree.** Section A has 2 children; reorder A down below Section B → both children move with A.
+23. **Section delete cascade.** Delete a subsection containing 3 lines → confirm dialog shows "Delete section and 3 child items?" → accept → all 4 rows disappear from the UI and become `isDeleted: true` on save.
+24. **Save flow.** Make a mixed batch (new section, new line, edit on existing line, delete on another) → parent Save → single sequence of mutations (create, edit, delete, tax diff, discount diff) → tree refetches → UI reconciles ids.
+25. **Resolver error on catalog.** Force `resolveItemizedLineItemUnitCost` to fail → row shows "Rate unavailable" banner; save blocked; no manual override offered.
+26. **Read-only mode.** Open estimate as a user without edit permission → `+ Section` / `+ Line` / row inputs / section action buttons all disabled; sub-rows render but no "Add Another" / remove buttons.
+27. **Filter.** Type "welder" into the filter → rows whose line description or section title contain "welder" remain; others hide (including their sub-rows).
 
 ---
 
 ## Files Summary
 
-| Action | File |
-|--------|------|
-| CREATE | `apps/frontend/src/components/.../EstimateLineItemEditor.tsx` |
-| MODIFY | `apps/frontend/src/pages/.../EstimateChangeOrderDetails.tsx` (or equivalent) |
-| MODIFY | `apps/frontend/src/graphql/queries/...` |
-| MODIFY | `apps/frontend/src/graphql/mutations/...` |
+| Action | File | What to do |
+|--------|------|------------|
+| CREATE | `apps/frontend/src/components/Estimates/LineItems/EstimateLineItemEditor.tsx` | Root component; tree render + toolbar |
+| CREATE | `apps/frontend/src/components/Estimates/LineItems/SectionRow.tsx` | Section header row + `+ Sub` / `+ Line` / reorder / delete |
+| CREATE | `apps/frontend/src/components/Estimates/LineItems/LineRow.tsx` | Priced line row + Tax / Discount sub-rows |
+| CREATE | `apps/frontend/src/components/Estimates/LineItems/AddLineCascade.tsx` | Dispatcher by `lineItemType` |
+| CREATE | `apps/frontend/src/components/Estimates/LineItems/LaborCascade.tsx` | TradeLevel → RateLabel + optional user |
+| CREATE | `apps/frontend/src/components/Estimates/LineItems/MaterialCascade.tsx` | Material → X → Y → (Z) |
+| CREATE | `apps/frontend/src/components/Estimates/LineItems/EquipmentCascade.tsx` | Equipment → Per → RateLabel → Operator |
+| CREATE | `apps/frontend/src/components/Estimates/LineItems/CustomCascade.tsx` | Free-text description input |
+| CREATE | `apps/frontend/src/components/Estimates/LineItems/LineTaxSubRow.tsx` | Stacked TaxType picker |
+| CREATE | `apps/frontend/src/components/Estimates/LineItems/LineDiscountSubRow.tsx` | Stacked Discount picker (suggested + ad-hoc) |
+| CREATE | `apps/frontend/src/components/Estimates/LineItems/EstimateDiscountStack.tsx` | Estimate-level discount stack (totals strip) |
+| CREATE | `apps/frontend/src/components/Estimates/LineItems/hooks/useEstimateLineItemTree.ts` | Tree state + dirty tracking + save |
+| CREATE | `apps/frontend/src/components/Estimates/LineItems/hooks/useResolveUnitCost.ts` | Wraps `resolveItemizedLineItemUnitCost` |
+| CREATE | `apps/frontend/src/components/Estimates/LineItems/hooks/useSuggestedDiscounts.ts` | Wraps `suggestedDiscountsForLine` |
+| CREATE | `apps/frontend/src/components/Estimates/LineItems/types.ts` | Form-local types |
+| CREATE | `apps/frontend/src/graphql/queries/itemizedEstimateLineItems.graphql` | List + resolve |
+| CREATE | `apps/frontend/src/graphql/mutations/itemizedEstimateLineItems.graphql` | Full CRUD from IE-1 |
+| CREATE | `apps/frontend/src/graphql/queries/discounts.graphql` | `suggestedDiscountsForLine` + `discountsForEntity` |
+| CREATE | `apps/frontend/src/graphql/mutations/discounts.graphql` | `attachDiscount` / `detachDiscount` / `createAdHocDiscountAndAttach` / `reorderDiscountAssignments` |
+| MODIFY | `apps/frontend/src/pages/…/EstimateChangeOrderDetails.tsx` | Render `EstimateLineItemEditor` when `creationType === "Itemized"`; no mode toggle |
+
+---
+
+## Out of Scope (handled elsewhere)
+
+- **IE-1** — all line-item schema, validation, resolver, CRUD mutations, tax snapshot caching, section/node-tree model, `canEdit: false` enforcement.
+- **SD-1** — `Discount` + `DiscountAssignment` schema, CRUD, suggestion resolver, ad-hoc promotion mutation.
+- **IE-3** — `Itemized` creationType enum addition, creation-type gate, totals engine (line % → line sell → estimate-level on pre-tax → proportional tax split), overhead policy, grand total, gross margin %, contingency.
+- **IE-4** — PDF rendering of the itemized tree.
+- **IE-5** — invoice conversion copying `DiscountAssignment` rows and line items onto `JobBill` / `JobBillLineItem`.
+- **Discount Library UX** — settings page listing reusable `Discount` rows; IE-2 consumes SD-1's CRUD but does not render a management UI for it.
 
 </script>
 

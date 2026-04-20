@@ -94,7 +94,7 @@ table.schema-table td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; ver
             <span class="uis-badge badge-child">Child of UIS-IE</span>
         </div>
         <h1 class="uis-h1">Itemized Estimate &rarr; Simple Invoice</h1>
-        <p class="uis-sub"><code>createInvoiceFromEstimate(estimateChangeOrderRecordId)</code> creates a <code>JobBill</code> with <code>template: Simple</code> and one <code>JobBillLineItem</code> per <code>EstimateLineItem</code>. Optional <code>sourceEstimateChangeOrderRecordId</code> on <code>JobBill</code> for traceability. Confirmation modal before create (same UX pattern as WO-7).</p>
+        <p class="uis-sub"><code>createInvoiceFromEstimate(estimateChangeOrderRecordId)</code> creates a <code>JobBill</code> with <code>template: Simple</code> and one <code>JobBillLineItem</code> per <code>EstimateLineItem</code>. Both sides are linked in one transaction: <code>JobBill.sourceEstimateChangeOrderRecordId</code> and <code>EstimateChangeOrderRecord.generatedJobBillId</code> &mdash; so the estimate flips from <strong>Generate invoice</strong> to <strong>View invoice</strong> and a second invoice cannot be created. Won is resolved via <code>instance.estimateChangeOrderWonStatusId</code>; the button is hidden for users without <code>JobBill</code> create permission. Confirmation modal before create (same UX pattern as WO-7).</p>
         <div class="uis-meta">
             <span><strong>Estimate:</strong> 2&ndash;3 days</span>
             <span><strong>Parent:</strong> UIS-IE</span>
@@ -126,21 +126,32 @@ table.schema-table td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; ver
             <h3>In Scope</h3>
             <ul>
                 <li><span class="scope-tag scope-in">IN</span> Mutation + model method on <code>JobBill</code> or <code>EstimateChangeOrderRecord</code></li>
-                <li><span class="scope-tag scope-in">IN</span> Button on estimate detail when <code>type = Estimate</code>, <code>creationType = Itemized</code>, status = Won</li>
+                <li><span class="scope-tag scope-in">IN</span> Button on estimate detail when <code>type = Estimate</code>, <code>creationType = Itemized</code>, <code>statusId === instance.estimateChangeOrderWonStatusId</code>, user has <strong>create <code>JobBill</code></strong> permission, and <em>no</em> invoice has been generated yet</li>
                 <li><span class="scope-tag scope-in">IN</span> Confirmation modal: line count, grand total, job selection (default estimate job)</li>
+                <li><span class="scope-tag scope-in">IN</span> Persist the generated <code>JobBill</code> link back on the estimate (<code>generatedJobBillId</code>) so the button flips to a <strong>View invoice</strong> link on subsequent visits</li>
             </ul>
             <h3>Out of Scope</h3>
             <ul>
                 <li><span class="scope-tag scope-out">OUT</span> Progress-based invoice generation (existing flow)</li>
                 <li><span class="scope-tag scope-out">OUT</span> Automatic tax jurisdiction resolution beyond existing job bill tax UX</li>
+                <li><span class="scope-tag scope-out">OUT</span> Generating multiple invoices from the same estimate (single-shot only; once <code>generatedJobBillId</code> is set the action is gone)</li>
             </ul>
         </div>
     </div>
     <div class="uis-section" id="s-ui">
         <h2>3. UI Concepts</h2>
         <p>Primary action on <code>EstimateChangeOrderDetails</code> (header or Billing area). Modal pattern mirrors <strong>WO-7</strong> <code>ConversionConfirmationModal</code> &mdash; summary first, destructive/irreversible action clearly labeled.</p>
+        <p><strong>Visibility rules (all must be true to render the primary button):</strong></p>
+        <ul>
+            <li><code>type = Estimate</code> and <code>creationType = Itemized</code></li>
+            <li><code>statusId === instance.estimateChangeOrderWonStatusId</code> (the instance-configured Won status, <em>not</em> a hardcoded enum)</li>
+            <li>User has create <code>JobBill</code> permission</li>
+            <li><code>generatedJobBillId</code> is <code>null</code> (no invoice has been generated yet)</li>
+            <li>At least one line item exists</li>
+        </ul>
+        <p>When <code>generatedJobBillId</code> is set, the action is replaced with a <strong>View invoice</strong> link pointing to that <code>JobBill</code> &mdash; see 3.4.</p>
         <div class="mockup-container">
-            <div class="mockup-bar">Estimate detail &mdash; status Won, Itemized</div>
+            <div class="mockup-bar">Estimate detail &mdash; status Won, Itemized, no invoice yet</div>
             <div class="mockup-body">
                 <div class="mockup-detail-bar">
                     <span style="font-size:12px;font-weight:600;color:#166534;">Won</span>
@@ -148,7 +159,7 @@ table.schema-table td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; ver
                     <span style="flex:1"></span>
                     <span class="mockup-btn-primary">Generate invoice</span>
                 </div>
-                <p style="font-size:11px;color:#64748b;">Button hidden when not Won, zero lines, missing invoice permission, or wrong <code>creationType</code>.</p>
+                <p style="font-size:11px;color:#64748b;">Button hidden when status &ne; <code>instance.estimateChangeOrderWonStatusId</code>, zero lines, user lacks <code>JobBill</code> create permission, <code>creationType</code> &ne; Itemized, or an invoice has already been generated.</p>
             </div>
         </div>
         <div class="mockup-container">
@@ -174,7 +185,7 @@ table.schema-table td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; ver
                 </div>
             </div>
         </div>
-        <div class="callout-rules"><strong>Hide / disable:</strong> Not Won &middot; No line items &middot; User lacks invoice create permission &middot; <code>creationType</code> &ne; Itemized &middot; Optional: duplicate-invoice guard (product).</div>
+        <div class="callout-rules"><strong>Hide:</strong> <code>statusId</code> &ne; <code>instance.estimateChangeOrderWonStatusId</code> &middot; No line items &middot; User lacks <code>JobBill</code> create permission &middot; <code>creationType</code> &ne; Itemized &middot; <code>generatedJobBillId</code> already set (show <strong>View invoice</strong> instead, per 3.4).</div>
 
         <h3 id="s-ui-context">3.1 Generate invoice in full detail header</h3>
         <p>Place <strong>Generate invoice</strong> alongside existing estimate actions (e.g. Export PDF, Duplicate, status controls) in <code>EstimateChangeOrderDetails</code> header / toolbar &mdash; not buried in Billing tab only.</p>
@@ -201,45 +212,85 @@ table.schema-table td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; ver
         </div>
 
         <h3 id="s-ui-error">3.3 Error state</h3>
-        <p>On GraphQL / network failure: keep modal open (or return to detail); show <strong>inline error</strong> in modal footer + <strong>Retry</strong> button. Do not clear line selection. Log server message for support.</p>
+        <p>Because the button is already gated on permission, Won status, itemized <code>creationType</code>, and absence of a prior invoice, the remaining failure surface is narrow &mdash; effectively GraphQL/network faults or a server-side race (e.g. another user just generated an invoice for the same estimate). On failure: keep the modal open, show an <strong>inline error</strong> in the modal footer with a <strong>Retry</strong> button, and log the server message for support. Do not clear the summary.</p>
         <div class="mockup-modal-overlay" style="margin-top:0;">
             <div class="mockup-modal">
                 <h4>Create Simple invoice from estimate?</h4>
-                <div class="mockup-error-banner" style="margin:0 0 10px;">Request failed: insufficient billing permission. [ Retry ]</div>
+                <div class="mockup-error-banner" style="margin:0 0 10px;">Couldn&rsquo;t create invoice &mdash; please try again. [ Retry ]</div>
                 <div style="display:flex;gap:10px;justify-content:flex-end;"><span class="mockup-btn-secondary">Close</span></div>
             </div>
         </div>
+        <p style="font-size:12px;color:#64748b;margin-top:8px;"><em>Note:</em> &ldquo;insufficient billing permission&rdquo; is <strong>not</strong> a reachable error here &mdash; the button is hidden for users without create <code>JobBill</code> permission. If the server ever returns that code it&rsquo;s a bug, not a user-facing state.</p>
 
-        <h3 id="s-ui-dup">3.4 Duplicate invoice guard (optional product)</h3>
-        <p>If PM <strong>blocks</strong> a second invoice from the same estimate: render primary button as <strong>disabled</strong>, tooltip &ldquo;An invoice already exists for this estimate.&rdquo;, and text link <strong>View existing invoice</strong> (opens <code>JobBill</code>). If PM <strong>allows</strong> duplicates, show secondary confirm in modal instead.</p>
+        <h3 id="s-ui-dup">3.4 After invoice generated &mdash; View invoice link</h3>
+        <p>Once <code>generatedJobBillId</code> is set on the estimate, the primary action is replaced with a <strong>View invoice</strong> link that deep-links to the associated <code>JobBill</code> detail. This is the permanent state for that estimate &mdash; a second invoice cannot be generated (see Scope). The link shows the invoice number sourced from the linked <code>JobBill</code>.</p>
         <div class="mockup-detail-bar">
-            <span class="mockup-btn-disabled" title="Invoice INV-9081 already linked">Generate invoice</span>
-            <span style="font-size:11px;color:#64748b;">View <a href="#" style="color:#2563eb;">INV-9081</a></span>
+            <span style="font-size:12px;font-weight:600;color:#166534;">Won</span>
+            <span style="font-size:11px;color:#64748b;">ACME TI &mdash; 6 lines &mdash; Invoice generated</span>
+            <span style="flex:1"></span>
+            <a href="#" style="padding:8px 16px;border-radius:6px;font-size:12px;font-weight:600;background:#fff;color:#2563eb;border:1px solid #bfdbfe;text-decoration:none;">View invoice INV-9081 &rarr;</a>
         </div>
+        <p style="font-size:12px;color:#64748b;margin-top:8px;">Rendered in place of <strong>Generate invoice</strong> in every surface that exposes the action (header toolbar + Billing area).</p>
     </div>
     <div class="uis-section" id="s3">
         <h2 class="collapsible-toggle open" onclick="toggleSection(this)">4. Line Mapping <span class="toggle-icon">&#9660;</span></h2>
         <div class="collapsible-body open">
+            <p>Each leaf <code>ItemizedEstimateChangeOrderRecordLineItem</code> (<code>nodeType = "LineItem"</code>) becomes one <code>JobBillLineItem</code>. Section / SubSection parent nodes are skipped &mdash; Simple bills are flat. Per-line tax and discount <strong>carry over as a verbatim snapshot</strong> (IE-1 designs <code>taxValue</code> as a point-in-time snapshot; SD-1 lists <code>JobBill</code> / <code>JobBillLineItem</code> in the <code>DiscountAssignment</code> allowlist specifically for this conversion).</p>
             <table class="schema-table">
-                <thead><tr><th>EstimateLineItem</th><th>JobBillLineItem</th></tr></thead>
+                <thead><tr><th>Source on <code>ItemizedEstimateChangeOrderRecordLineItem</code></th><th>Target on <code>JobBillLineItem</code></th><th>Notes</th></tr></thead>
                 <tbody>
-                    <tr><td>description</td><td>description</td></tr>
-                    <tr><td>quantity</td><td>quantity</td></tr>
-                    <tr><td>price / quantity (or stored unit sell)</td><td>rate</td></tr>
-                    <tr><td>price</td><td>value</td></tr>
+                    <tr><td>description</td><td>description</td><td>Direct copy</td></tr>
+                    <tr><td>quantity</td><td>quantity</td><td>Numeric</td></tr>
+                    <tr><td>unitSell</td><td>rate</td><td>Client-facing unit price (IE-1)</td></tr>
+                    <tr><td>quantity &times; unitSell</td><td>value</td><td>Re-derived</td></tr>
+                    <tr><td>taxValue</td><td>taxValue</td><td><strong>Verbatim copy of IE-1 snapshot</strong> &mdash; not recomputed</td></tr>
+                    <tr><td>TaxType[] (M2M)</td><td>TaxType[] (M2M)</td><td>Connect the same <code>TaxType.id</code> set &mdash; preserves stacked / compound tax</td></tr>
+                    <tr><td>DiscountAssignment rows (referenceModel = ItemizedEstimateChangeOrderRecordLineItem)</td><td>New DiscountAssignment rows (referenceModel = JobBillLineItem)</td><td>Same <code>discountId</code>, cloned not moved</td></tr>
                 </tbody>
             </table>
+            <h3>Estimate-level discount stack</h3>
+            <p>Top-level <code>DiscountAssignment</code> rows attached to the <code>EstimateChangeOrderRecord</code> are cloned onto the new <code>JobBill</code> with <code>referenceModel = "JobBill"</code> and the same <code>discountId</code> values &mdash; preserving both the ordering and the exact stack the customer agreed to.</p>
         </div>
     </div>
     <div class="uis-section" id="s4">
         <h2 class="collapsible-toggle open" onclick="toggleSection(this)">5. API Surface <span class="toggle-icon">&#9660;</span></h2>
         <div class="collapsible-body open">
+            <p>Server enforces the same gates the UI uses &mdash; anything else is a bug:</p>
+            <ul>
+                <li>Estimate <code>statusId === instance.estimateChangeOrderWonStatusId</code></li>
+                <li><code>creationType = Itemized</code>, <code>type = Estimate</code></li>
+                <li>User has create <code>JobBill</code> permission</li>
+                <li>Estimate <code>generatedJobBillId</code> is <code>null</code> (prevents races on concurrent click)</li>
+                <li>At least one line item</li>
+            </ul>
+            <p>On success the resolver writes <code>generatedJobBillId</code> on the estimate <em>and</em> <code>sourceEstimateChangeOrderRecordId</code> on the bill in the same transaction.</p>
             <pre>mutation CreateInvoiceFromEstimate($estimateChangeOrderRecordId: ID!) {
   createInvoiceFromEstimate(estimateChangeOrderRecordId: $estimateChangeOrderRecordId) {
     success
     jobBillId
     invoiceNumber
     message
+  }
+}
+
+# Read shape used by EstimateChangeOrderDetails to decide Generate vs View
+query EstimateInvoiceState($id: ID!) {
+  estimateChangeOrderRecord(id: $id) {
+    id
+    statusId
+    creationType
+    generatedJobBillId
+    generatedJobBill {
+      id
+      invoiceNumber
+    }
+  }
+  instance {
+    id
+    estimateChangeOrderWonStatusId
+  }
+  currentUserPermissions {
+    canCreateJobBill
   }
 }</pre>
         </div>
@@ -248,11 +299,12 @@ table.schema-table td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; ver
         <h2 class="collapsible-toggle open" onclick="toggleSection(this)">6. Change Surface <span class="toggle-icon">&#9660;</span></h2>
         <div class="collapsible-body open">
             <ul>
-                <li><span class="action-mod">MOD</span> <code>apps/api/prisma/schema.prisma</code> &mdash; optional <code>sourceEstimateChangeOrderRecordId</code> on <code>JobBill</code></li>
-                <li><span class="action-mod">MOD</span> <code>JobBill.ts</code> model &mdash; <code>createInvoiceFromEstimate</code></li>
-                <li><span class="action-mod">MOD</span> <code>JobBill.ts</code> GraphQL resolver</li>
+                <li><span class="action-mod">MOD</span> <code>apps/api/prisma/schema.prisma</code> &mdash; optional <code>sourceEstimateChangeOrderRecordId</code> on <code>JobBill</code>; optional <code>generatedJobBillId</code> on <code>EstimateChangeOrderRecord</code> (nullable 1:1 link to the generated bill)</li>
+                <li><span class="action-mod">MOD</span> <code>JobBill.ts</code> model &mdash; <code>createInvoiceFromEstimate</code> (single transaction: create bill + lines, set both link columns, enforce all gates incl. Won-status check against <code>instance.estimateChangeOrderWonStatusId</code> and existing-invoice guard)</li>
+                <li><span class="action-mod">MOD</span> <code>JobBill.ts</code> GraphQL resolver &mdash; mutation + expose <code>sourceEstimateChangeOrderRecord</code> relation</li>
+                <li><span class="action-mod">MOD</span> <code>EstimateChangeOrderRecord.ts</code> GraphQL resolver &mdash; expose <code>generatedJobBillId</code> + <code>generatedJobBill</code> relation</li>
                 <li><span class="action-new">NEW</span> <code>EstimateInvoiceConfirmModal.tsx</code> (or reuse pattern from WO conversion modal)</li>
-                <li><span class="action-mod">MOD</span> <code>EstimateChangeOrderDetails.tsx</code></li>
+                <li><span class="action-mod">MOD</span> <code>EstimateChangeOrderDetails.tsx</code> &mdash; swap primary action between <strong>Generate invoice</strong> and <strong>View invoice</strong> based on <code>generatedJobBillId</code>; hide entirely when any other gate fails</li>
             </ul>
         </div>
     </div>
@@ -260,10 +312,14 @@ table.schema-table td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; ver
         <h2 class="collapsible-toggle open" onclick="toggleSection(this)">7. Acceptance Criteria <span class="toggle-icon">&#9660;</span></h2>
         <div class="collapsible-body open">
             <ul class="criteria-list">
-                <li><div class="criteria-check"></div><span>Button only visible for Won itemized estimates with at least one line</span></li>
+                <li><div class="criteria-check"></div><span>Button only visible when <code>statusId === instance.estimateChangeOrderWonStatusId</code>, <code>creationType = Itemized</code>, user has create <code>JobBill</code> permission, <code>generatedJobBillId</code> is null, and at least one line exists</span></li>
+                <li><div class="criteria-check"></div><span>Won status is resolved from the <code>Instance</code> &mdash; never hardcoded</span></li>
+                <li><div class="criteria-check"></div><span>Users without create <code>JobBill</code> permission never see the button, and the resolver rejects the mutation if somehow invoked &mdash; UI must not surface &ldquo;insufficient billing permission&rdquo; errors</span></li>
                 <li><div class="criteria-check"></div><span>Created bill total matches sum of line prices (+ taxes per existing Simple rules)</span></li>
                 <li><div class="criteria-check"></div><span>Navigates to bill detail after success</span></li>
-                <li><div class="criteria-check"></div><span>Source estimate ID stored on JobBill when column exists</span></li>
+                <li><div class="criteria-check"></div><span>On success, both <code>JobBill.sourceEstimateChangeOrderRecordId</code> and <code>EstimateChangeOrderRecord.generatedJobBillId</code> are written in the same transaction</span></li>
+                <li><div class="criteria-check"></div><span>After generation, <strong>Generate invoice</strong> is replaced in every surface (header toolbar + Billing area) with a <strong>View invoice INV-XXXX</strong> deep link to the generated <code>JobBill</code></span></li>
+                <li><div class="criteria-check"></div><span>A second click during a concurrent race (e.g. two tabs) is rejected by the server guard on <code>generatedJobBillId</code> and surfaces the generic inline retry error</span></li>
             </ul>
         </div>
     </div>

@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SD-1: Sales Discount Model</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+.in-iframe .top-nav { display: none !important; }
+.top-nav { position: sticky; top: 0; z-index: 100; background: #0f172a; border-bottom: 1px solid #1e293b; padding: 0 24px; display: flex; align-items: center; gap: 0; }
+.top-nav a { display: inline-flex; align-items: center; padding: 12px 18px; font-size: 13px; font-weight: 600; color: #94a3b8; text-decoration: none; border-bottom: 2px solid transparent; transition: all 0.15s; white-space: nowrap; }
+.top-nav a:hover { color: #f8fafc; background: #1e293b; }
+.top-nav .nav-logo { font-size: 11px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: #475569; padding-right: 18px; margin-right: 4px; border-right: 1px solid #1e293b; }
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Inter', -apple-system, sans-serif; background: #f1f5f9; color: #0f172a; }
+.uis-wrap { max-width: 960px; margin: 0 auto; padding: 40px 24px 80px; }
+.uis-hero { margin-bottom: 32px; }
+.uis-badges { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+.uis-badge { font-size: 11px; font-weight: 700; padding: 4px 12px; border-radius: 6px; display: inline-flex; align-items: center; gap: 5px; }
+.badge-q { background: #0f172a; color: #fff; }
+.badge-lane { background: #7c3aed; color: #fff; }
+.badge-status { background: #fef3c7; color: #92400e; }
+.badge-priority { background: #fee2e2; color: #dc2626; }
+.badge-foundation { background: #1d4ed8; color: #fff; }
+.uis-h1 { font-size: 30px; font-weight: 800; color: #0f172a; margin: 0 0 8px; letter-spacing: -0.01em; }
+.uis-sub { font-size: 15px; color: #64748b; line-height: 1.5; margin: 0; }
+.uis-meta { display: flex; gap: 24px; flex-wrap: wrap; margin-top: 14px; font-size: 13px; color: #64748b; }
+.uis-meta strong { color: #0f172a; }
+.uis-toc { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px 28px; margin-bottom: 16px; }
+.uis-toc h3 { font-size: 13px; font-weight: 700; color: #0f172a; margin: 0 0 10px; text-transform: uppercase; letter-spacing: 0.5px; }
+.uis-toc ol { margin: 0; padding-left: 20px; }
+.uis-toc li { font-size: 14px; color: #3b82f6; margin-bottom: 4px; }
+.uis-toc a { color: #3b82f6; text-decoration: none; }
+.uis-section { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px 28px; margin-bottom: 16px; }
+.uis-section h3 { font-size: 15px; font-weight: 700; color: #0f172a; margin: 16px 0 8px; }
+.uis-section p, .uis-section li { font-size: 14px; color: #334155; line-height: 1.65; }
+.uis-section ul, .uis-section ol { padding-left: 20px; margin: 8px 0; }
+.customer-quote { background: #fef3c7; border-left: 3px solid #f59e0b; padding: 12px 16px; border-radius: 0 8px 8px 0; margin: 14px 0; font-style: italic; font-size: 14px; color: #92400e; }
+.customer-quote .attribution { font-style: normal; font-weight: 600; display: block; margin-top: 6px; }
+.decision { background: #fef3c7; border: 2px solid #f59e0b; border-radius: 10px; padding: 18px 22px; margin: 14px 0; }
+.decision h4 { color: #92400e; margin: 0 0 8px; font-size: 14px; }
+.decision p, .decision li { font-size: 13px; color: #92400e; }
+.phase-note { background: #eff6ff; border: 1px solid #bfdbfe; border-left: 4px solid #2563eb; border-radius: 8px; padding: 14px 18px; margin: 0 0 20px; }
+.phase-note h4 { color: #1e3a8a; margin: 0 0 6px; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; }
+.phase-note p { font-size: 13px; color: #1e40af; line-height: 1.6; margin: 4px 0; }
+.phase-note strong { color: #1e3a8a; }
+.scope-tag { display: inline-block; font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 5px; margin-right: 6px; }
+.scope-in { background: #dcfce7; color: #166534; }
+.scope-out { background: #fee2e2; color: #dc2626; }
+pre { background: #1e293b; color: #e2e8f0; border-radius: 8px; padding: 16px; overflow-x: auto; font-size: 12px; line-height: 1.5; font-family: monospace; margin: 12px 0; }
+table.schema-table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 12px 0; }
+table.schema-table th { text-align: left; padding: 8px 12px; background: #f8fafc; border-bottom: 2px solid #e2e8f0; font-weight: 600; }
+table.schema-table td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
+table.schema-table code { font-family: monospace; background: #f1f5f9; padding: 1px 5px; border-radius: 3px; font-size: 12px; color: #7c3aed; }
+.blast-summary { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 16px 20px; margin-bottom: 16px; }
+.blast-row { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid #f1f5f9; }
+.blast-label { font-size: 13px; color: #64748b; }
+.blast-value { font-size: 13px; font-weight: 700; color: #0f172a; }
+.action-new { background: #dcfce7; color: #166534; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 4px; }
+.action-mod { background: #fef3c7; color: #92400e; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 4px; }
+.criteria-list { list-style: none; padding: 0; }
+.criteria-list li { padding: 8px 0; border-bottom: 1px solid #f1f5f9; display: flex; gap: 10px; align-items: flex-start; font-size: 14px; color: #334155; }
+.criteria-check { width: 18px; height: 18px; border: 2px solid #cbd5e1; border-radius: 4px; flex-shrink: 0; margin-top: 1px; }
+.dep-tag { display: inline-block; font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 5px; margin-right: 6px; margin-bottom: 6px; text-decoration: none; }
+.dep-requires { background: #fef3c7; color: #92400e; }
+.dep-enables { background: #eff6ff; color: #1d4ed8; }
+.dep-none { background: #dcfce7; color: #166534; }
+.collapsible-toggle { display: flex; align-items: center; justify-content: space-between; cursor: pointer; user-select: none; font-size: 17px; font-weight: 700; color: #0f172a; margin: 0 0 14px; padding-bottom: 10px; border-bottom: 2px solid #e2e8f0; }
+.collapsible-toggle .toggle-icon { font-size: 14px; color: #94a3b8; }
+.collapsible-body { display: none; margin-top: 0; }
+.collapsible-body.open { display: block; }
+.uis-footer { text-align: center; padding: 24px; font-size: 12px; color: #94a3b8; }
+.uis-footer a { color: #3b82f6; text-decoration: none; }
+</style>
+</head>
+<body>
+<script>if(self!==top)document.documentElement.classList.add("in-iframe")</script>
+<nav class="top-nav">
+    <span class="nav-logo">Appello SDLC</span>
+    <a href="index.html">Roadmap</a>
+    <a href="release-1.33-timeline.html">Release 1.33</a>
+    <a href="release-1.34-timeline.html">Release 1.34</a>
+    <a href="master-spec-reconciliation.html">Spec Reconciliation</a>
+    <a href="ui-interface-library.html">UI Library</a>
+</nav>
+<div class="uis-wrap">
+    <div class="uis-hero">
+        <div class="uis-badges">
+            <span class="uis-badge badge-q">SD-1</span>
+            <span class="uis-badge badge-lane">CRM &amp; Sales</span>
+            <span class="uis-badge badge-foundation">Foundation</span>
+            <span class="uis-badge badge-status">Draft</span>
+            <span class="uis-badge badge-priority">P1</span>
+        </div>
+        <h1 class="uis-h1">Sales Discount Model</h1>
+        <p class="uis-sub">Introduce a reusable <code>Discount</code> entity and a polymorphic <code>DiscountAssignment</code> join (mirroring <code>PurchaseOrder</code> / <code>PurchaseOrderAssignment</code>) so sell-side discounts can be authored once and attached to any of: <code>Company</code>, <code>Job</code>, <code>EstimateChangeOrderRecord</code>, <code>ItemizedEstimateChangeOrderRecordLineItem</code>, <code>JobBill</code>, and <code>JobBillLineItem</code>. Foundation for IE-2's per-line and estimate-level discount UX, and for company-standing customer-rate tracking.</p>
+        <div class="uis-meta">
+            <span><strong>Estimate:</strong> 3&ndash;4 days</span>
+            <span><strong>Lane:</strong> CRM &amp; Sales</span>
+            <span><strong>Blocks:</strong> IE-1, IE-2, IE-3, IE-5</span>
+        </div>
+    </div>
+
+    <div class="phase-note">
+        <h4>Phase 1 scope &mdash; ad-hoc only</h4>
+        <p>For the initial release, <strong>every <code>Discount</code> will be created ad-hoc inline</strong> from the IE-2 per-line or estimate-level picker (&ldquo;Enter ad-hoc&rdquo; &rarr; % / $ toggle + value). No management UIs ship in this phase for Company-standing rates, Job-wide arrangements, or reusable discount catalogs.</p>
+        <p>The polymorphic <code>DiscountAssignment</code> (supporting <code>Company</code>, <code>Job</code>, <code>EstimateChangeOrderRecord</code>, <code>ItemizedEstimateChangeOrderRecordLineItem</code>, <code>JobBill</code>, <code>JobBillLineItem</code>) is scaffolded now so future phases can layer admin surfaces on top without another migration: a Company-standing discount editor, a Job-level override, bulk promo management, <code>suggestedDiscountsForLine</code> hitting real catalogs instead of always returning ad-hoc. <strong>Model and resolvers ship now; the UIs for anything other than ad-hoc come later.</strong></p>
+    </div>
+
+    <div class="uis-toc">
+        <h3>Contents</h3>
+        <ol>
+            <li><a href="#s1">Business Case</a></li>
+            <li><a href="#s2">Scope</a></li>
+            <li><a href="#s3">Data Model</a></li>
+            <li><a href="#s4">Resolution &amp; cascade behavior</a></li>
+            <li><a href="#s5">API Surface</a></li>
+            <li><a href="#s6">Change Surface</a></li>
+            <li><a href="#s7">Acceptance Criteria</a></li>
+            <li><a href="#s8">Dependencies</a></li>
+        </ol>
+    </div>
+
+    <div class="uis-section" id="s1">
+        <h2 class="collapsible-toggle open" onclick="toggleSection(this)">1. Business Case <span class="toggle-icon">&#9660;</span></h2>
+        <div class="collapsible-body open">
+            <p>Construction and trade customers routinely carry standing discount arrangements &mdash; contractor rates, repeat-customer percentages, volume tiers, negotiated-per-project overrides, seasonal promotions. Today there is nowhere to record these as first-class data, so estimators retype them into free-text fields on every estimate. Two problems follow:</p>
+            <ul>
+                <li>No consistency (the &ldquo;BigCo 7.5%&rdquo; turns into &ldquo;BigCo 7%&rdquo; the next time because someone mistyped)</li>
+                <li>No reporting (&ldquo;what did customer discounts cost us last quarter?&rdquo; is unanswerable)</li>
+            </ul>
+            <p>IE-2&#39;s canvas also introduces two stackable discount concepts on an itemized estimate: per-line <strong>%</strong> discounts and estimate-level <strong>%</strong> / <strong>Fixed $</strong> discounts (applied to pre-tax sell, with tax re-split proportionally). Rather than bake these into <code>ItemizedEstimateChangeOrderRecordLineItem</code> as scalar fields, we introduce a shared <code>Discount</code> entity with a polymorphic attachment so the same record can attach to a company standing rate, a single estimate, a single line, a job bill, or a job-wide arrangement.</p>
+            <div class="customer-quote">
+                We have contractor rates that apply to every job we send BigCo &mdash; we shouldn&#39;t have to re-apply 7.5% on every line or every estimate. And some one-off trade promos apply only for a few weeks.
+                <span class="attribution">&mdash; Customer interviews, construction estimators</span>
+            </div>
+            <p><strong>Scope note vs MAT-9.</strong> <a href="uis-MAT-9-discount-management.html">MAT-9</a> covers <em>buy-side</em> supplier discounts (<code>DistributorDiscount</code> &mdash; what we pay vendors, with Global / Category / Product scopes). SD-1 is <em>sell-side</em> &mdash; what customers pay us. Different side of the transaction, different model.</p>
+        </div>
+    </div>
+
+    <div class="uis-section" id="s2">
+        <h2 class="collapsible-toggle open" onclick="toggleSection(this)">2. Scope <span class="toggle-icon">&#9660;</span></h2>
+        <div class="collapsible-body open">
+            <h3>In Scope</h3>
+            <ul>
+                <li><span class="scope-tag scope-in">IN</span> Prisma model <code>Discount</code> + enum <code>DiscountType</code> (<code>Percent</code>, <code>FixedAmount</code>) with name, description, value, optional <code>effectiveFrom</code> / <code>effectiveTo</code>, and <code>isAdHoc</code> flag</li>
+                <li><span class="scope-tag scope-in">IN</span> Prisma model <code>DiscountAssignment</code> with polymorphic <code>referenceModel</code> + <code>referenceId</code>, <code>discountId</code>, and <code>orderNo</code> for stack ordering</li>
+                <li><span class="scope-tag scope-in">IN</span> Validator enforcing <code>referenceModel</code> is one of the supported enum values, and that <code>referenceId</code> resolves to a live row in that table</li>
+                <li><span class="scope-tag scope-in">IN</span> Resolver <code>discountsForEntity(referenceModel, referenceId)</code> returning active assignments + hydrated <code>Discount</code></li>
+                <li><span class="scope-tag scope-in">IN</span> Resolver <code>suggestedDiscountsForLine(lineItemId)</code> &mdash; unions discounts attached to the line&#39;s Job AND the Job&#39;s Company, de-duped by <code>discountId</code>, filters out <code>isAdHoc = true</code> and expired-by-date rows</li>
+                <li><span class="scope-tag scope-in">IN</span> Mutations: create / edit / archive / delete for <code>Discount</code>; attach / detach for <code>DiscountAssignment</code>; a convenience <code>createAdHocDiscountAndAttach</code> that creates an <code>isAdHoc = true</code> record and assignment in one call</li>
+                <li><span class="scope-tag scope-in">IN</span> BaseAuditableModel subclasses for both models with standard lifecycle hooks</li>
+                <li><span class="scope-tag scope-in">IN</span> GraphQL type registration following CLAUDE.md "Registering New GraphQL Files"</li>
+            </ul>
+            <h3>Out of Scope</h3>
+            <ul>
+                <li><span class="scope-tag scope-out">OUT</span> UI for managing the Discount library (a settings page listing reusable discounts) &mdash; belongs in a later UX spec; SD-1 exposes the CRUD, UX spec consumes it</li>
+                <li><span class="scope-tag scope-out">OUT</span> The discount application math (how a discount folds into totals, proportional tax split, compound ordering with multiple discounts) &mdash; belongs in IE-3's totals engine</li>
+                <li><span class="scope-tag scope-out">OUT</span> Auto-cascade behavior &mdash; a <code>Discount</code> attached to a <code>Company</code> does <strong>not</strong> auto-apply when a new estimate is created. It appears as a pickable option per IE-2 UX; user chooses to attach.</li>
+                <li><span class="scope-tag scope-out">OUT</span> Buy-side / supplier discounts &mdash; owned by <a href="uis-MAT-9-discount-management.html">MAT-9</a></li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="uis-section" id="s3">
+        <h2 class="collapsible-toggle open" onclick="toggleSection(this)">3. Data Model <span class="toggle-icon">&#9660;</span></h2>
+        <div class="collapsible-body open">
+            <pre>enum DiscountType {
+  Percent       // value = percentage (e.g. 5.00 = 5%)
+  FixedAmount   // value = currency amount (e.g. 100.00 = $100)
+}
+
+model Discount {
+  id            String       @id @db.VarChar(21)
+  isDeleted     Boolean      @default(false)
+  isArchived    Boolean      @default(false)
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @default(now()) @updatedAt
+
+  name          String       @db.VarChar(191)    // "Contractor rate", "Repeat customer", ...
+  description   String?      @db.Text
+  type          DiscountType
+  value         Decimal      @db.Decimal(10, 2)
+
+  // When true, hidden from the suggestion picker. Used for inline one-offs
+  // that a user typed directly on a line ("5% here only"). Still tracked
+  // and auditable; can be promoted to a reusable Discount later.
+  isAdHoc       Boolean      @default(false)
+
+  // Nullable = open-ended. Used to auto-retire seasonal promos or
+  // pre-schedule a contract rate that kicks in on a future date.
+  effectiveFrom DateTime?
+  effectiveTo   DateTime?
+
+  DiscountAssignments DiscountAssignment[]
+
+  @@index([isAdHoc, isArchived, isDeleted])
+}
+
+model DiscountAssignment {
+  id             String   @id @db.VarChar(21)
+  isDeleted      Boolean  @default(false)
+  isArchived     Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @default(now()) @updatedAt
+
+  // Polymorphic pointer to the attached entity. Validated in app code —
+  // no DB FK because referenceModel names many tables.
+  referenceModel String   @db.VarChar(191)
+  referenceId    String   @db.VarChar(21)
+
+  // Stack order when multiple discounts attach to the same reference.
+  orderNo        Int      @default(0)
+
+  discountId     String   @db.VarChar(21)
+  Discount       Discount @relation(fields: [discountId], references: [id])
+
+  @@unique([referenceModel, referenceId, discountId])
+  @@index([referenceModel, referenceId])
+  @@index([discountId])
+}</pre>
+            <h3>Supported <code>referenceModel</code> values (v1)</h3>
+            <ul>
+                <li><code>Company</code> &mdash; a customer&#39;s standing discount (surfaces in IE-2 picker for any estimate to that customer)</li>
+                <li><code>Job</code> &mdash; project-specific negotiated rate</li>
+                <li><code>EstimateChangeOrderRecord</code> &mdash; document-level / estimate-wide discount (stacks via <code>orderNo</code>)</li>
+                <li><code>ItemizedEstimateChangeOrderRecordLineItem</code> &mdash; per-line % discount</li>
+                <li><code>JobBill</code> &mdash; invoice-level discount</li>
+                <li><code>JobBillLineItem</code> &mdash; per-invoice-line discount</li>
+            </ul>
+            <p>New reference types are additive &mdash; no migration, just one new string. A dedicated <code>DISCOUNT_REFERENCE_MODELS</code> const in <code>apps/api/src/types</code> gates the allowed values at the app layer.</p>
+
+            <h3>Why polymorphic vs hard FKs</h3>
+            <p>Mirrors <code>PurchaseOrder</code> / <code>PurchaseOrderAssignment</code>. A hard-FK-per-reference-type design would mean <code>companyId</code>, <code>jobId</code>, <code>estimateChangeOrderRecordId</code>, <code>itemizedLineItemId</code>, <code>jobBillId</code>, <code>jobBillLineItemId</code> columns all nullable, exactly one populated per row &mdash; every new reference type becomes a schema migration. Polymorphic trades the DB-level FK for one app-layer validator and absorbs new reference types trivially.</p>
+
+            <h3>Ad-hoc vs named discounts</h3>
+            <p>When a user types &ldquo;5%&rdquo; directly on a line in IE-2, that still becomes a <code>Discount</code> row (with <code>isAdHoc = true</code>) + a <code>DiscountAssignment</code>. This keeps one query path for &ldquo;all discounts on line X&rdquo; and lets reporting treat them uniformly. The UI filters <code>isAdHoc</code> out of the suggestion picker so the library stays clean, and the model exposes a <code>promoteAdHocDiscount(id, name)</code> mutation if a user later wants to save the ad-hoc as reusable.</p>
+        </div>
+    </div>
+
+    <div class="uis-section" id="s4">
+        <h2 class="collapsible-toggle open" onclick="toggleSection(this)">4. Resolution &amp; cascade behavior <span class="toggle-icon">&#9660;</span></h2>
+        <div class="collapsible-body open">
+            <h3>&ldquo;Suggested discounts for a line&rdquo;</h3>
+            <p>IE-2&#39;s per-line picker shows a union of:</p>
+            <ol>
+                <li>Discounts assigned to the line&#39;s parent <code>Job</code> (via <code>DiscountAssignment</code> where <code>referenceModel = "Job"</code>, <code>referenceId = line.Estimate.jobId</code>).</li>
+                <li>Discounts assigned to that Job&#39;s <code>Company</code> (via <code>DiscountAssignment</code> where <code>referenceModel = "Company"</code>, <code>referenceId = line.Estimate.Job.companyId</code>).</li>
+            </ol>
+            <p>De-duped by <code>discountId</code>. Filtered to active assignments (<code>isDeleted = false</code>, <code>isArchived = false</code>) whose <code>Discount</code> is also active and whose <code>effectiveFrom</code> / <code>effectiveTo</code> window includes today (or is open). Filtered to <code>isAdHoc = false</code>.</p>
+            <p><strong>Attachment is explicit.</strong> Suggestions are pickable, not auto-applied. A company-wide 7.5% shows up as an option on every line for estimates to that company; the estimator clicks to attach, and it becomes a <code>DiscountAssignment</code> scoped to the specific line.</p>
+
+            <h3>Application math lives in IE-3</h3>
+            <p>SD-1 stores discounts; it does not compute totals. IE-3&#39;s totals engine consumes <code>DiscountAssignment</code> rows for an estimate and its lines, applies them in the <a href="uis-IE-2-canvas-itemized-estimate.html">IE-2 canvas</a>&#39;s ordering (line % &rarr; line sell; estimate-level on pre-tax; tax on discounted share), and produces subtotals. SD-1 exposes the raw data; it does not opine on how it&#39;s summed.</p>
+
+            <h3>Expiry handling</h3>
+            <p>Queries that resolve active discounts filter out rows whose <code>effectiveTo &lt; now</code> or whose <code>effectiveFrom &gt; now</code>. An existing <code>DiscountAssignment</code> on a past estimate still resolves its discount as of the date the estimate was authored &mdash; resolution is <em>point-in-time by write date of the assignment</em> for estimate pricing, never live. (Invoice-side recompute follows the same rule; estimates are snapshot documents.)</p>
+        </div>
+    </div>
+
+    <div class="uis-section" id="s5">
+        <h2 class="collapsible-toggle open" onclick="toggleSection(this)">5. API Surface <span class="toggle-icon">&#9660;</span></h2>
+        <div class="collapsible-body open">
+            <pre>type Discount {
+  id: ID!
+  name: String!
+  description: String
+  type: DiscountType!
+  value: Float!
+  isAdHoc: Boolean!
+  effectiveFrom: DateTime
+  effectiveTo: DateTime
+  DiscountAssignments: [DiscountAssignment!]!
+  isDeleted: Boolean
+  isArchived: Boolean
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+type DiscountAssignment {
+  id: ID!
+  referenceModel: String!
+  referenceId: ID!
+  orderNo: Int!
+  discountId: ID!
+  Discount: Discount!
+}
+
+extend type Query {
+  discount(id: ID!): Discount
+  discounts(options: GetListOptions): GetListResult
+  discountsForEntity(referenceModel: String!, referenceId: ID!): [DiscountAssignment!]!
+  suggestedDiscountsForLine(
+    itemizedEstimateChangeOrderRecordLineItemId: ID!
+  ): [Discount!]!
+}
+
+# Full BaseAuditableModel CRUD surface on Discount and DiscountAssignment.
+extend type Mutation {
+  createDiscount(...): Discount
+  editDiscount(...): Discount
+  archiveDiscount(id: ID!): Boolean
+  restoreDiscount(id: ID!): Boolean
+  deleteDiscount(id: ID!): Boolean
+
+  attachDiscount(input: AttachDiscountInput!): DiscountAssignment
+  detachDiscount(id: ID!): Boolean
+  reorderDiscountAssignments(
+    referenceModel: String!, referenceId: ID!, orderedAssignmentIds: [ID!]!
+  ): [DiscountAssignment!]!
+
+  # Convenience: create an ad-hoc Discount + assignment in one op.
+  createAdHocDiscountAndAttach(input: CreateAdHocDiscountInput!): DiscountAssignment
+
+  # Convenience: flip isAdHoc to false and give it a name.
+  promoteAdHocDiscount(id: ID!, name: String!): Discount
+}</pre>
+        </div>
+    </div>
+
+    <div class="uis-section" id="s6">
+        <h2 class="collapsible-toggle open" onclick="toggleSection(this)">6. Change Surface <span class="toggle-icon">&#9660;</span></h2>
+        <div class="collapsible-body open">
+            <div class="blast-summary">
+                <div class="blast-row"><span class="blast-label">New migration</span><span class="blast-value">1</span></div>
+                <div class="blast-row"><span class="blast-label">New model files</span><span class="blast-value">2</span></div>
+                <div class="blast-row"><span class="blast-label">New GraphQL resolvers</span><span class="blast-value">2</span></div>
+                <div class="blast-row"><span class="blast-label">GraphQL registration</span><span class="blast-value">schema.ts</span></div>
+            </div>
+            <ul>
+                <li><span class="action-new">NEW</span> <code>apps/api/src/models/Discount.ts</code></li>
+                <li><span class="action-new">NEW</span> <code>apps/api/src/models/DiscountAssignment.ts</code></li>
+                <li><span class="action-new">NEW</span> <code>apps/api/src/graphql/models/Discount.ts</code></li>
+                <li><span class="action-new">NEW</span> <code>apps/api/src/graphql/models/DiscountAssignment.ts</code></li>
+                <li><span class="action-mod">MOD</span> <code>apps/api/prisma/schema.prisma</code> &mdash; <code>DiscountType</code> enum + two models</li>
+                <li><span class="action-mod">MOD</span> <code>apps/api/src/graphql/schema.ts</code> &mdash; register both resolvers</li>
+                <li><span class="action-new">NEW</span> <code>apps/api/src/types/Discount.types.ts</code> &mdash; const arrays for <code>DiscountType</code> and <code>DISCOUNT_REFERENCE_MODELS</code></li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="uis-section" id="s7">
+        <h2 class="collapsible-toggle open" onclick="toggleSection(this)">7. Acceptance Criteria <span class="toggle-icon">&#9660;</span></h2>
+        <div class="collapsible-body open">
+            <ul class="criteria-list">
+                <li><div class="criteria-check"></div><span>Migration creates <code>Discount</code> and <code>DiscountAssignment</code> with all indexes and the <code>(referenceModel, referenceId, discountId)</code> unique constraint</span></li>
+                <li><div class="criteria-check"></div><span>CRUD for <code>Discount</code> respects BaseAuditableModel permissions; soft-delete cascades disable assignments from the resolvers</span></li>
+                <li><div class="criteria-check"></div><span><code>attachDiscount</code> rejects writes whose <code>referenceModel</code> is not in the approved allowlist</span></li>
+                <li><div class="criteria-check"></div><span><code>attachDiscount</code> rejects writes whose <code>referenceId</code> does not resolve to a live row in the table named by <code>referenceModel</code></span></li>
+                <li><div class="criteria-check"></div><span>Same <code>Discount</code> cannot attach twice to the same reference (unique constraint enforces)</span></li>
+                <li><div class="criteria-check"></div><span><code>discountsForEntity</code> returns active, non-archived assignments whose parent <code>Discount</code> is active and within its effective window</span></li>
+                <li><div class="criteria-check"></div><span><code>suggestedDiscountsForLine</code> unions Job-level and Company-level discounts for the line&#39;s job, de-dupes by <code>discountId</code>, excludes <code>isAdHoc</code>, filters by effective date</span></li>
+                <li><div class="criteria-check"></div><span><code>createAdHocDiscountAndAttach</code> writes an <code>isAdHoc = true</code> discount and its assignment in one transaction</span></li>
+                <li><div class="criteria-check"></div><span><code>promoteAdHocDiscount</code> flips <code>isAdHoc = false</code> and requires a non-empty <code>name</code></span></li>
+                <li><div class="criteria-check"></div><span><code>reorderDiscountAssignments</code> mutates <code>orderNo</code> atomically across all provided ids for a given reference</span></li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="uis-section" id="s8">
+        <h2 class="collapsible-toggle open" onclick="toggleSection(this)">8. Dependencies <span class="toggle-icon">&#9660;</span></h2>
+        <div class="collapsible-body open">
+            <p><span class="dep-tag dep-none">No blockers</span></p>
+            <p><span class="dep-tag dep-enables">IE-1 line-item model</span><span class="dep-tag dep-enables">IE-2 line editor</span><span class="dep-tag dep-enables">IE-3 totals engine</span><span class="dep-tag dep-enables">IE-5 invoice conversion</span></p>
+            <p>SD-1 must ship <strong>before</strong> IE-1 so IE-1 can declare <code>DiscountAssignment</code> as a relation target without guessing at the shape. MAT-9 (<code>DistributorDiscount</code>) is an unrelated buy-side concept and does not block or conflict with SD-1.</p>
+        </div>
+    </div>
+
+    <div class="uis-footer">SD-1 &middot; Foundation for Itemized Estimates &middot; Appello SDLC</div>
+</div>
+<script>
+function toggleSection(el) {
+    el.classList.toggle("open");
+    var body = el.nextElementSibling;
+    if (body) body.classList.toggle("open");
+}
+</script>
+</body>
+</html>

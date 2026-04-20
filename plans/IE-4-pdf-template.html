@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>IE-4: Itemized PDF — Implementation Plan</title>
+    <title>IE-4: Itemized Estimate PDF — Implementation Plan</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
 .in-iframe .top-nav { display: none !important; }
@@ -17,6 +17,7 @@ body { font-family: 'Inter', -apple-system, sans-serif; background: #f8fafc; col
 h1 { font-size: 24px; font-weight: 800; margin: 0 0 16px; }
 h2 { font-size: 18px; font-weight: 700; margin: 28px 0 12px; padding-bottom: 8px; border-bottom: 2px solid #e2e8f0; }
 h3 { font-size: 15px; font-weight: 700; margin: 20px 0 8px; padding-top: 10px; border-top: 1px solid #f1f5f9; }
+h4 { font-size: 14px; font-weight: 700; margin: 14px 0 6px; }
 p { font-size: 14px; color: #334155; line-height: 1.7; margin: 6px 0; }
 ul, ol { padding-left: 20px; margin: 8px 0; }
 li { font-size: 14px; color: #334155; line-height: 1.7; margin: 3px 0; }
@@ -28,7 +29,10 @@ hr { border: none; border-top: 1px solid #e2e8f0; margin: 24px 0; }
 table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 12px 0; }
 th { text-align: left; padding: 8px 12px; background: #f1f5f9; border-bottom: 2px solid #e2e8f0; font-weight: 600; }
 td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
+.check-item { display: flex; gap: 8px; align-items: flex-start; padding: 5px 0; }
+.check-box { width: 16px; height: 16px; border: 2px solid #cbd5e1; border-radius: 3px; flex-shrink: 0; margin-top: 2px; }
 .callout { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 14px 18px; margin: 14px 0; font-size: 13px; color: #1e40af; }
+.callout strong { color: #1e3a8a; }
     </style>
 </head>
 <body>
@@ -50,83 +54,590 @@ td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
 
 ## Overview
 
-Branch `EstimateChangeOrderPDF.tsx` (or shared PDF module) for `creationType === Itemized`: render customer-facing line table with optional columns (qty, unit price, internal cost hidden by default). Persist column visibility in estimate PDF settings JSON if product requires.
+Branch `EstimateChangeOrderPDF.tsx` when `creationType === "Itemized"`: reuse the existing PDF chrome (letterhead, recipient block, merge-tag letter, terms, signature, footer) and swap only the body breakdown — the current `EstimateWorksheet` categorized table is replaced by a new `ItemizedBreakdown` component that renders the IE-1 section/line tree with stacked tax and discount sub-rows, section subtotals, and a totals block driven by IE-3's shared `itemizedTotalsEngine`.
 
-**Estimated effort:** 2-3 days  
-**Spec:** `uis-IE-4-pdf-template.html`  
-**Requires:** IE-3
+This PDF is **client-facing only**. Unit cost, markup %, and markup $ are never rendered under any configuration — there is no internal variant and no column toggles.
 
----
+**Estimated effort:** 2–3 days
+**Risk:** Low — uses the same PDF rendering primitives (plain JSX + `styles` from `@useanzen/ui`, served via `ReactDOMServer.renderToString`) as `EstimateWorksheet`. No new PDF engine. Math is delegated to IE-3's engine, so there's nothing to reconcile.
+**Spec:** `uis-IE-4-pdf-template.html`
+**Requires:** IE-1, IE-3 (totals engine), SD-1 (discount model for estimate-level stack)
 
-## Step 1: Data load for PDF route
+### Key design decisions
 
-- Ensure PDF data loader includes `EstimateLineItem[]` ordered by `orderNo`.
-- Strip server-only fields from client bundle if PDF is generated server-side only.
-
----
-
-## Step 2: PDF table layout
-
-- Columns: Description, Qty, Unit, Unit Price (customer), Line Total.
-- Optional internal columns behind instance flag (never default on client PDF).
+- **Chrome reused verbatim.** `EstimateChangeOrderPDF.tsx` keeps calling `<PDFHeader>` + body + `<PDFFooter>`. Only the body component changes based on `creationType`.
+- **Totals come from `itemizedTotalsEngine`** — the same pure-function module IE-3 uses for the on-screen totals panel. PDF totals and screen totals cannot diverge because they share the math.
+- **Client-only columns.** Description, Qty, Unit, Unit price, Line total — fixed. No toggles, no per-export options, no instance defaults for what to show. Markup and cost never leave the internal UI.
+- **Section numbering computed at render time** by walking `parentId` via the engine's `nodeRollups` map. Not persisted.
+- **Tax and discount rollups are always distinct rows** in the totals block: line discounts (Σ per-line), estimate-level discount (stack total), and tax (Σ per-line `taxValue`, weighted average). All three render even at $0.00. This matches the semantics fixed in IE-2 / IE-3.
+- **Multi-page behavior reuses existing PDF primitives.** A line and its tax/discount sub-rows stay together on one page (rendered as a single keep-together group); the totals block + signature appear on the last page only.
 
 ---
 
-## Step 3: `pdf-export.ts`
+## Step 1: Extend the PDF data loader
 
-- Register route or template key for itemized estimate PDF.
-- Reuse `InvoicePDFHeader` / letterhead components per existing estimate PDF.
+**Modify:** `apps/frontend/src/pages/api/pdf-export.ts` (the `estimateChangeOrder` case around line 1012 where `generateEstimateChangeOrderPdfDoc` is called).
+
+The existing GraphQL fetch pulls `EstimateChangeOrderRecord` + its `Values` for the worksheet view. For Itemized records we also need the line-item tree (as a flat list — not nested), each line's tax set, each line's discount assignments, and the estimate-level discount assignments.
+
+<div class="callout"><strong>Tree shape:</strong> IE-1 exposes <code>itemizedEstimateChangeOrderRecordLineItems</code> as a <em>flat list</em> with <code>parentId</code> + <code>nodeType</code> + <code>orderNo</code>. The GraphQL type has no <code>Children</code> field — the client reconstructs the tree by walking <code>parentId</code>. This is the same contract IE-2's editor uses (IE-2 plan §2a, §3 "Maintain the tree as a flat array with parentId / orderNo"). Do not attempt recursive sub-selections; there is no such relation on the GraphQL type.<br><br><strong>Discount shape:</strong> SD-1 does <em>not</em> expose discount assignments as sub-selections on a line or on the ECR. They live behind <code>discountsForEntity(referenceModel, referenceId)</code>, which must be called once per entity. IE-2 hydrates per-line discounts via parallel fetch after loading the tree; IE-4 does the same.</div>
+
+### 1a. Step one — fetch the flat tree + ECR header
+
+Reuse IE-1's existing query (same one IE-2 uses — do not duplicate it). Filter by `estimateChangeOrderRecordId`:
+
+```graphql
+query EstimateChangeOrderPdfItemized($id: ID!, $listOptions: GetListOptions!) {
+    estimateChangeOrderRecord(id: $id) {
+        id
+        creationType
+        estimateMarkup
+        overheadMarkup
+        contingencyPercent
+        contingencyDollarValue
+    }
+    # Flat list — all nodes (Section + LineItem) for this ECR, ordered by orderNo.
+    # Tree is reconstructed client-side by walking parentId.
+    itemizedEstimateChangeOrderRecordLineItems(options: $listOptions) {
+        ... on ItemizedEstimateChangeOrderRecordLineItem {
+            id
+            nodeType               # "Section" | "LineItem" — discriminator
+            parentId               # null for root nodes
+            orderNo
+            estimateChangeOrderRecordId
+            lineItemType
+            description
+            quantity
+            unit
+            unitCost
+            markupPercent
+            markupDollarValue
+            price
+            totalCost
+            taxValue               # cached per-line snapshot
+            TaxType { id abbreviation rate isCompound }
+        }
+    }
+}
+```
+
+`listOptions` = `{ where: { estimateChangeOrderRecordId: <id>, isDeleted: false, isArchived: false }, orderBy: [{ fieldName: "orderNo", value: "asc" }] }`. Field selection matches IE-2's query (`apps/frontend/src/graphql/queries/itemizedEstimateLineItems.graphql`) — if IE-2 has already shipped that file, import and reuse it instead of re-declaring; add a PDF-specific query only if the field set needs to diverge.
+
+Sections have `nodeType = "Section"` and carry a title/label in `description` (or whichever field IE-1 chose — confirm against IE-1's final schema); `lineItemType`, `unitCost`, `price`, etc., are all null on Section rows. `LineItem` rows have `nodeType = "LineItem"` and carry the priced fields. Both live in the same flat result set.
+
+### 1b. Step two — hydrate discounts in parallel
+
+After the tree comes back, fire parallel `discountsForEntity` calls — one per line (for per-line discounts) plus one for the ECR (for the estimate-level stack):
+
+```ts
+const lineIds = tree
+    .filter((n) => n.nodeType === "LineItem")
+    .map((n) => n.id);
+
+const [estimateDiscounts, perLineDiscounts] = await Promise.all([
+    runGql(DISCOUNTS_FOR_ENTITY, {
+        referenceModel: "EstimateChangeOrderRecord",
+        referenceId: estimateChangeOrderRecord.id
+    }),
+    Promise.all(
+        lineIds.map((lineId) =>
+            runGql(DISCOUNTS_FOR_ENTITY, {
+                referenceModel: "ItemizedEstimateChangeOrderRecordLineItem",
+                referenceId: lineId
+            }).then((r) => [lineId, r.discountsForEntity] as const)
+        )
+    ).then((entries) => new Map(entries))
+]);
+```
+
+`DISCOUNTS_FOR_ENTITY` is the same query IE-2 uses:
+
+```graphql
+query DiscountsForEntity($referenceModel: String!, $referenceId: ID!) {
+    discountsForEntity(referenceModel: $referenceModel, referenceId: $referenceId) {
+        id
+        orderNo
+        discountId
+        Discount { id name type value }
+    }
+}
+```
+
+<div class="callout"><strong>Round-trip cost:</strong> N parallel calls for N lines. For typical estimates (≤50 priced lines) this is fine. If a PDF export on a very large estimate (hundreds of lines) becomes slow, the follow-up is a batched SD-1 resolver — <code>discountsForLineItems(lineIds: [ID!]!)</code> — filed against SD-1. Don't ship that on the IE-4 path; keep the PDF consumer aligned with IE-2's editor.</div>
+
+Skip both Step 1a and Step 1b entirely when `creationType !== "Itemized"`. The worksheet path is byte-for-byte unchanged.
+
+### 1c. Compute totals server-side before render
+
+Fold the per-line discount map into each line when building the engine input, so the engine sees each line with its discount list attached:
+
+```ts
+import { computeItemizedTotals } from "@useanzen/shared-utils/estimates/itemizedTotalsEngine";
+
+const pricedLines = tree.filter((n) => n.nodeType === "LineItem");
+
+const engineLines = pricedLines.map((line) => ({
+    id: line.id,
+    parentId: line.parentId,
+    nodeType: "LineItem" as const,
+    quantity: line.quantity,
+    totalCost: line.totalCost,
+    markupPercent: line.markupPercent,
+    markupDollarValue: line.markupDollarValue,
+    price: line.price,
+    taxTypes: (line.TaxType ?? []).map((t) => ({
+        id: t.id, rate: t.rate, isCompound: t.isCompound
+    })),
+    lineDiscounts: (perLineDiscounts.get(line.id) ?? []).map((da) => ({
+        id: da.id,
+        type: da.Discount.type,        // "Percent" | "FixedAmount"
+        value: Number(da.Discount.value),
+        orderNo: da.orderNo
+    }))
+}));
+
+const totals = computeItemizedTotals({
+    lines: engineLines,
+    estimateDiscounts: estimateDiscounts.map((da) => ({
+        id: da.id,
+        type: da.Discount.type,
+        value: Number(da.Discount.value),
+        orderNo: da.orderNo
+    })),
+    overheadPercent: Number(estimate.overheadMarkup ?? 0),
+    contingencyPercent: Number(estimate.contingencyPercent ?? 0),
+    contingencyDollarValue: Number(estimate.contingencyDollarValue ?? 0)
+});
+```
+
+Pass `tree`, `estimateDiscounts`, `perLineDiscounts` (the Map keyed by lineId), and `totals` down to `generateEstimateChangeOrderPdfDoc`. Section rows (filtered out above) go straight to the PDF component — they need no engine input, only the walker.
 
 ---
 
-## Step 4: Settings UI (if in scope)
+## Step 2: Branch the PDF shell
 
-- Checkbox group on estimate detail or template admin: show qty, show unit, show markup (internal PDF only).
+**Modify:** `apps/frontend/src/components/DownloadablePDF/EstimateChangeOrder/EstimateChangeOrderPDF.tsx`
+
+The shell currently hands the body off to `<EstimateWorksheet>` unconditionally. Add a `creationType` check and route Itemized records to the new `<ItemizedBreakdown>`:
+
+```tsx
+interface IEstimateChangeOrderPDFProps {
+    estimateChangeOrder: GqlEstimateChangeOrderRecord;
+    instanceSettings: GqlInstanceSetting & { signedAppLogo: string; signedMobileLogo: string };
+    includeInDownload: boolean;
+    accountDetails: GqlAccountType[];
+    excludeSections: PDFSections;
+    // NEW — only populated for Itemized records
+    itemizedTree?: GqlItemizedLineItem[];                    // flat list (Sections + LineItems), ordered by orderNo
+    perLineDiscounts?: Map<string, GqlDiscountAssignment[]>; // lineId → assignments
+    estimateDiscounts?: GqlDiscountAssignment[];             // stack against the ECR
+    totals?: IItemizedTotalsOutput;
+}
+
+const EstimateChangeOrderPDF: FC<IEstimateChangeOrderPDFProps> = ({
+    estimateChangeOrder,
+    instanceSettings,
+    includeInDownload,
+    accountDetails,
+    excludeSections,
+    itemizedTree,
+    estimateDiscounts,
+    totals
+}) => {
+    if (!includeInDownload) return <></>;
+
+    const isItemized = estimateChangeOrder.creationType === "Itemized";
+
+    return (
+        <>
+            <PDFHeader instanceSetting={instanceSettings} />
+            <div style={{ position: "relative", display: "flex", flexDirection: "column", fontFamily: "Inter", color: "#2A3747" }}>
+                {isItemized ? (
+                    <ItemizedBreakdown
+                        estimate={estimateChangeOrder}
+                        tree={itemizedTree ?? []}
+                        perLineDiscounts={perLineDiscounts ?? new Map()}
+                        estimateDiscounts={estimateDiscounts ?? []}
+                        totals={totals!}
+                        activeInstance={instanceSettings}
+                    />
+                ) : (
+                    <EstimateWorksheet
+                        estimate={estimateChangeOrder}
+                        accountDetails={accountDetails}
+                        activeInstance={instanceSettings}
+                    />
+                )}
+            </div>
+            {!excludeSections?.footer && <PDFFooter instanceSettings={instanceSettings} />}
+        </>
+    );
+};
+```
+
+Also extend `generateEstimateChangeOrderPdfDoc` to accept and forward the three new args. The existing worksheet path keeps the same signature behavior when those args are absent (Full / BidFirst).
 
 ---
 
-## UI / UX deliverables
+## Step 3: `ItemizedBreakdown` component
 
-Match `uis-IE-4-pdf-template.html` §3–4 (client vs internal tables + toggle mockup).
+**Create:** `apps/frontend/src/components/DownloadablePDF/EstimateChangeOrder/ItemizedBreakdown.tsx`
 
-### PDF column matrix
+Mirrors the IE-2 canvas visual structure. Renders sections (with depth-first numbering), lines grouped under their section, tax/discount sub-rows stacked beneath each line, section subtotals, and the totals block.
 
-| Mode | Typical columns |
-|------|------------------|
-| Client | Description, Qty, Unit, **Unit price**, **Line total** |
-| Internal | + Unit cost, Total cost, Markup %, Markup $, Line price |
+### 3a. Component shape
 
-### Toggle matrix
+```tsx
+interface IItemizedBreakdownProps {
+    estimate: GqlEstimateChangeOrderRecord;
+    tree: GqlItemizedLineItem[];                         // flat: Sections + LineItems mixed, ordered by orderNo
+    perLineDiscounts: Map<string, GqlDiscountAssignment[]>;
+    estimateDiscounts: GqlDiscountAssignment[];
+    totals: IItemizedTotalsOutput;
+    activeInstance: GqlInstanceSetting;
+}
 
-| Toggle | Affects client PDF | Default |
-|--------|-------------------|---------|
-| Show quantity | Yes | On |
-| Show unit | Yes | On |
-| Show unit cost | Yes (if ever allowed) | **Off** |
-| Show markup | Yes | **Off** |
+const ItemizedBreakdown: FC<IItemizedBreakdownProps> = ({
+    tree,
+    perLineDiscounts,
+    totals,
+    estimateDiscounts
+}) => {
+    const nodes = buildOrderedWalk(tree);  // flat→DFS, returns [{ row, depth, sectionLabel, closesSections }]
 
-### Regression
+    return (
+        <div style={styles.pdf.breakdownWrap}>
+            <table style={styles.pdf.table}>
+                <thead>
+                    <tr>
+                        <th style={styles.pdf.thDescription}>Description</th>
+                        <th style={styles.pdf.thNumber}>Qty</th>
+                        <th style={styles.pdf.thText}>Unit</th>
+                        <th style={styles.pdf.thNumber}>Unit price</th>
+                        <th style={styles.pdf.thNumber}>Line total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {nodes.map((node) =>
+                        node.row.nodeType === "Section" ? (
+                            <SectionHeaderRow
+                                key={node.row.id}
+                                label={node.sectionLabel}
+                                title={node.row.title}
+                                depth={node.depth}
+                            />
+                        ) : (
+                            <LineRowGroup
+                                key={node.row.id}
+                                line={node.row}
+                                depth={node.depth}
+                                discounts={perLineDiscounts.get(node.row.id) ?? []}
+                            />
+                        )
+                    )}
+                    {totals.nodeRollups.size > 0 && <SectionSubtotalRows rollups={totals.nodeRollups} />}
+                </tbody>
+            </table>
+            <ItemizedTotalsBlock totals={totals} estimateDiscounts={estimateDiscounts} />
+        </div>
+    );
+};
+```
 
-- `BidFirst` / `Full` worksheet estimates: existing PDF path unchanged.
+`buildOrderedWalk` is the critical tree-reconstruction helper. Input is the flat list (Sections + LineItems mixed, ordered by `orderNo`). Output is a flat render sequence with depth + section labels attached:
+
+```ts
+interface IWalkNode {
+    row: GqlItemizedLineItem;
+    depth: number;              // 0 for root, 1 for subsection, 2 for sub-subsection
+    sectionLabel?: string;      // "1", "1.1", "2" — only on Section rows
+    closesSections: string[];   // sectionIds that should emit a subtotal row *after* this node
+}
+
+function buildOrderedWalk(flat: GqlItemizedLineItem[]): IWalkNode[] {
+    // 1. Index children by parentId (null key = root).
+    const childrenByParent = new Map<string | null, GqlItemizedLineItem[]>();
+    for (const node of flat) {
+        const key = node.parentId ?? null;
+        if (!childrenByParent.has(key)) childrenByParent.set(key, []);
+        childrenByParent.get(key)!.push(node);
+    }
+    // 2. Within each parent bucket, sort by orderNo (defensive — GraphQL already returns ordered).
+    for (const bucket of childrenByParent.values()) {
+        bucket.sort((a, b) => (a.orderNo ?? 0) - (b.orderNo ?? 0));
+    }
+    // 3. DFS from root (parentId === null), assigning depth-first section labels.
+    const out: IWalkNode[] = [];
+    const visit = (parentId: string | null, depth: number, prefix: string) => {
+        const siblings = childrenByParent.get(parentId) ?? [];
+        let sectionCounter = 0;
+        siblings.forEach((row) => {
+            if (row.nodeType === "Section") {
+                sectionCounter += 1;
+                const label = prefix ? `${prefix}.${sectionCounter}` : `${sectionCounter}`;
+                out.push({ row, depth, sectionLabel: label, closesSections: [] });
+                visit(row.id, depth + 1, label);
+                // Tag the last-emitted node as the one that closes this section.
+                if (out.length > 0) out[out.length - 1].closesSections.push(row.id);
+            } else {
+                out.push({ row, depth, closesSections: [] });
+            }
+        });
+    };
+    visit(null, 0, "");
+    return out;
+}
+```
+
+The engine's `nodeRollups` map already emits matching section labels via the same DFS — the component can either re-derive here (shown) or read from the engine output. Prefer re-derive in the PDF so the component stays a pure function of its props. Section subtotal rows are emitted right after a node whose `closesSections` array is non-empty (one subtotal row per closed sectionId, in order).
+
+### 3b. Row primitives
+
+All rendered as `<tr>` so the browser's PDF print pipeline handles page flow naturally.
+
+```tsx
+const SectionHeaderRow: FC<{ label: string; title: string; depth: number }> = ({ label, title, depth }) => (
+    <tr style={{ ...styles.pdf.sectionHeader, paddingLeft: 12 * depth }}>
+        <td colSpan={5} style={styles.pdf.sectionHeaderCell}>
+            <strong>{label}. {title}</strong>
+        </td>
+    </tr>
+);
+
+const LineRowGroup: FC<{
+    line: GqlItemizedLineItem;
+    depth: number;
+    discounts: GqlDiscountAssignment[];      // from perLineDiscounts.get(line.id) ?? []
+}> = ({ line, depth, discounts }) => {
+    const unitPrice = Number(line.price ?? 0) / Math.max(Number(line.quantity ?? 1), 1);
+    return (
+        <>
+            <tr style={styles.pdf.lineRow}>
+                <td style={{ paddingLeft: 12 * (depth + 1) }}>{line.description}</td>
+                <td style={styles.pdf.num}>{formatNumber(line.quantity)}</td>
+                <td>{line.unit ?? ""}</td>
+                <td style={styles.pdf.num}>{formatCurrency(unitPrice)}</td>
+                <td style={styles.pdf.num}>{formatCurrency(line.price ?? 0)}</td>
+            </tr>
+            {(line.TaxType ?? []).map((t) => (
+                <tr key={t.id} style={styles.pdf.subRow}>
+                    <td colSpan={4} style={{ paddingLeft: 12 * (depth + 2), color: "#64748b" }}>
+                        {t.abbreviation} {t.rate}%{t.isCompound ? " (compound)" : ""}
+                    </td>
+                    <td style={{ ...styles.pdf.num, color: "#64748b" }}>
+                        {formatCurrency(computeLineTaxShare(line, t))}
+                    </td>
+                </tr>
+            ))}
+            {discounts
+                .slice()
+                .sort((a, b) => (a.orderNo ?? 0) - (b.orderNo ?? 0))
+                .map((da) => (
+                    <tr key={da.id} style={styles.pdf.subRow}>
+                        <td colSpan={4} style={{ paddingLeft: 12 * (depth + 2), color: "#64748b" }}>
+                            {da.Discount.name || "Discount"} {formatDiscountRate(da.Discount)}
+                        </td>
+                        <td style={{ ...styles.pdf.num, color: "#64748b" }}>
+                            −{formatCurrency(computeLineDiscountShare(line, da))}
+                        </td>
+                    </tr>
+                ))}
+        </>
+    );
+};
+```
+
+`computeLineTaxShare` / `computeLineDiscountShare` are thin helpers that read from the engine's per-line breakdown (expose it via the engine's output if not already — otherwise recompute with the same formulas in the helper). Prefer expose-over-recompute so the engine remains the single source of truth.
+
+### 3c. Section subtotal rows
+
+Render one subtotal row per section at the end of that section's block. The engine's `nodeRollups` map already holds `lineSellSubtotal` per section:
+
+```tsx
+<tr style={styles.pdf.sectionSubtotal}>
+    <td colSpan={4} style={{ textAlign: "right", fontWeight: 600 }}>
+        Section {rollup.label} subtotal
+    </td>
+    <td style={{ ...styles.pdf.num, fontWeight: 600 }}>
+        {formatCurrency(rollup.lineSellSubtotal)}
+    </td>
+</tr>
+```
+
+Interleave subtotals during the walk rather than appending at the end — emit the subtotal row when DFS leaves a section. The engine's output is keyed by `sectionId` so the walker can look up as it closes each node.
 
 ---
 
-## Checklist
+## Step 4: Totals block
 
-- [ ] Multi-page table breaks cleanly
-- [ ] Totals match IE-3 calculation to the cent
-- [ ] Regression: non-itemized estimate PDF unchanged
+**Create (in same file):** `ItemizedTotalsBlock` sub-component.
+
+The PDF totals block must match the IE-3 totals panel semantics: the three rollup rows (line discounts, estimate-level discount, tax weighted-average) are always rendered, even at $0.00.
+
+```tsx
+const ItemizedTotalsBlock: FC<{ totals: IItemizedTotalsOutput; estimateDiscounts: GqlDiscountAssignment[] }> = ({
+    totals
+}) => {
+    const weightedAvgTaxPct =
+        totals.taxableSellAfterEstimateDiscounts > 0
+            ? (totals.taxTotal / totals.taxableSellAfterEstimateDiscounts) * 100
+            : 0;
+
+    return (
+        <div style={styles.pdf.totalsBlock}>
+            <PdfTotalsRow label="Line sell (before discounts)" value={totals.lineSellBeforeDiscounts} />
+            <PdfTotalsRow
+                label="Line discounts (Σ per-line)"
+                value={-totals.lineDiscountTotal}
+                tone="negative"
+                alwaysRender
+            />
+            <PdfTotalsRow label="Line sell after line discounts" value={totals.lineSellAfterLineDiscounts} />
+            <PdfTotalsRow
+                label="Estimate-level discount (stack total)"
+                value={-totals.estimateDiscountTotal}
+                tone="negative"
+                alwaysRender
+            />
+            <PdfTotalsRow label="Overhead" value={totals.overheadAmount} />
+            <PdfTotalsRow
+                label={`Tax (Σ per-line, weighted avg ${weightedAvgTaxPct.toFixed(2)}%)`}
+                value={totals.taxTotal}
+                alwaysRender
+            />
+            {totals.contingencyAmount > 0 && (
+                <PdfTotalsRow label="Contingency" value={totals.contingencyAmount} />
+            )}
+            <PdfTotalsRow label="Grand total" value={totals.grandTotal} emphasis />
+        </div>
+    );
+};
+```
+
+`PdfTotalsRow` is a small presentational component — one `<div>` with flex between-ends, inline styles. `alwaysRender` forces the row even when `value === 0` so the three rollups stay visible and labeled regardless of state. `tone="negative"` applies red color (matches the canvas `.val.neg`).
+
+<div class="callout"><strong>Contract with IE-3:</strong> This component consumes <code>IItemizedTotalsOutput</code> directly. If the engine's output shape changes, both the totals panel and this component move together. Keeping them both downstream of a single module is the whole reason the engine lives in <code>@useanzen/shared-utils</code>.</div>
+
+---
+
+## Step 5: Multi-page behavior
+
+`ReactDOMServer.renderToString` produces HTML that the PDF service converts to pages. The existing worksheet relies on CSS page-break behavior; adopt the same approach:
+
+- **Repeat table header.** Use `<thead>` (already in Step 3a) — browser-level PDF renderers repeat `<thead>` rows on every page by default; no extra CSS needed.
+- **Keep line + sub-rows together.** Wrap each `LineRowGroup`'s rows in a `<tbody>` with `style={{ pageBreakInside: "avoid", breakInside: "avoid" }}`. Browser splits on `<tbody>` boundaries, so tax/discount sub-rows never separate from their parent line.
+- **Totals block + signature on last page only.** The totals block sits after the `<table>` — it flows naturally onto the last page. Signature block comes from `PDFFooter` (unchanged).
+- **Section headers don't orphan.** Wrap each section header row with its first child line's `<tbody>` or give the section header `style={{ pageBreakAfter: "avoid" }}` so it never renders as the last row on a page.
+
+No new library; no `@react-pdf`. The existing PDF pipeline handles it.
+
+---
+
+## Step 6: Wire `pdf-export.ts`
+
+**Modify:** `apps/frontend/src/pages/api/pdf-export.ts`
+
+Pass the new args into `generateEstimateChangeOrderPdfDoc`:
+
+```ts
+const isItemized = estimateChangeOrderRecord.creationType === "Itemized";
+
+const itemizedData = isItemized
+    ? await fetchItemizedPdfData(estimateChangeOrderRecord.id, axiosConfig)
+    : null;
+
+const totals = isItemized && itemizedData
+    ? computeItemizedTotals(toEngineInput(estimateChangeOrderRecord, itemizedData))
+    : undefined;
+
+htmlString = generateEstimateChangeOrderPdfDoc(
+    estimateChangeOrderRecord,
+    { ...activeInstanceSettings.data.data.activeInstanceSetting, signedAppLogo: logoDataUrl, signedMobileLogo: ... },
+    req.body.includeInDownload.includes("worksheet"),
+    gqlResponse.data.data.accountTypes.data,
+    excludeSections,
+    itemizedData?.tree,
+    itemizedData?.perLineDiscounts,
+    itemizedData?.estimateDiscounts,
+    totals
+);
+```
+
+`fetchItemizedPdfData` is a small helper in the same file (or a sibling `itemizedPdfData.ts`) that:
+
+1. Runs the Step 1a query to get the flat `tree` + ECR header.
+2. Fires the Step 1b parallel `discountsForEntity` calls — one per LineItem row plus one for the ECR.
+3. Returns `{ tree, perLineDiscounts, estimateDiscounts }` where `perLineDiscounts: Map<string, GqlDiscountAssignment[]>` is keyed by line id.
+
+Keep it isolated so the worksheet path doesn't pay any of that cost.
+
+---
+
+## Step 7: TypeScript + codegen
+
+- `pnpm run codegen` — regenerates the GraphQL types for the new itemized fetch, making `GqlItemizedLineItem` / `GqlDiscountAssignment` available to the PDF components.
+- `pnpm --filter frontend build` — validates the branched `EstimateChangeOrderPDF.tsx`, the new `ItemizedBreakdown.tsx`, and the updated `pdf-export.ts`.
+- `pnpm --filter api build` — no-op for this plan; included only because GraphQL fragment changes sometimes surface here too.
+
+---
+
+## Verification Checklist
+
+- [ ] PDF data loader fetches the flat line-item tree via `itemizedEstimateChangeOrderRecordLineItems` (no recursive sub-selection — IE-1 does not expose one); worksheet path unchanged
+- [ ] Per-line discounts fetched via parallel `discountsForEntity(referenceModel: "ItemizedEstimateChangeOrderRecordLineItem", referenceId: <lineId>)` calls, matching IE-2's editor pattern
+- [ ] Estimate-level discounts fetched via a single `discountsForEntity(referenceModel: "EstimateChangeOrderRecord", referenceId: <ecrId>)` call
+- [ ] `buildOrderedWalk` reconstructs the tree from `parentId` + `nodeType` + `orderNo`, producing depth-first section labels and `closesSections` markers for subtotal placement
+- [ ] `computeItemizedTotals` runs server-side before `ReactDOMServer.renderToString` so totals arrive as finished numbers
+- [ ] `EstimateChangeOrderPDF.tsx` renders `<ItemizedBreakdown>` when `creationType === "Itemized"` and `<EstimateWorksheet>` otherwise; same `PDFHeader` + `PDFFooter` wrap for both
+- [ ] `ItemizedBreakdown` renders section header rows with depth-first numbering (`1`, `1.1`, `2`)
+- [ ] Line rows render Description / Qty / Unit / Unit price / Line total — **no cost, markup %, or markup $ column under any condition**
+- [ ] Each line's tax entries render as sub-rows beneath it (one `<tr>` per `TaxType`)
+- [ ] Each line's discount assignments render as sub-rows beneath it (one `<tr>` per `DiscountAssignment`)
+- [ ] Section subtotals render at the close of each section's block
+- [ ] Totals block always renders **Line discounts (Σ per-line)** and **Estimate-level discount (stack total)** as two distinct rows, even at $0.00, and never merges them
+- [ ] Totals block always renders **Tax (Σ per-line, weighted avg X.XX%)** with the weighted-average annotation derived from `taxTotal / taxableSellAfterEstimateDiscounts`
+- [ ] PDF grand total matches the on-screen totals panel grand total to the cent (same engine, same inputs)
+- [ ] Multi-page: `<thead>` repeats on every page; each `<tbody>` wrapping a line + its sub-rows uses `breakInside: "avoid"` so they never split
+- [ ] Totals block + signature appear on the last page only
+- [ ] Full / BidFirst PDF path byte-identical before and after (snapshot or manual diff of a known record)
+- [ ] `pnpm run codegen` regenerates types without error
+- [ ] `pnpm --filter frontend build` passes
 
 ---
 
 ## Integration / E2E test scenarios
 
-1. Itemized estimate with known lines → **Client PDF** → assert columns (no unit cost / markup when toggles off) and row count.
-2. Same record → **Internal PDF** → assert extended columns present.
-3. Toggle **show unit** off on client → regenerate PDF → Unit column absent.
-4. **Multi-page:** Seed 40+ short lines → PDF renders &gt;1 page → table header repeats; grand total on last page only.
-5. **Regression:** `Full` worksheet estimate PDF unchanged (pixel or snapshot diff optional).
-6. **Totals parity:** PDF grand total matches IE-3 panel value for same record.
+1. **Itemized estimate renders.** Seed an Itemized ECR with 2 sections, 1 subsection, 4 priced lines (mix of Labor, Material, Equipment), some with tax, some with line-level discounts, plus 1 estimate-level discount. Export PDF → grand total matches the on-screen totals panel value exactly.
+2. **Section numbering.** ECR with nested structure: Root → §1 "Mechanical" (2 lines + §1.1 "Fittings" with 2 lines) → §2 "Equipment" (1 line). PDF renders headers "1. Mechanical", "1.1 Fittings", "2. Equipment".
+3. **Line tax sub-rows.** A line with GST 5% + QST-QC 9.975% (compound) renders two sub-rows beneath it; sub-row amounts match what IE-3's engine produces for those compound semantics.
+4. **Line discount sub-row.** A line with an "Early-bird 10%" `DiscountAssignment` renders one red sub-row labeled "Early-bird 10%" showing −$X.
+5. **No markup on PDF.** Any ECR, any line with `markupPercent > 0` → PDF output contains no "Markup", "Cost", or "Internal" strings anywhere; column count is always 5.
+6. **Line discounts rollup visible.** Total line-level discount across lines = $X → totals block row "Line discounts (Σ per-line)" shows −$X in red.
+7. **Estimate-level discount rollup visible and distinct.** An ECR with both per-line discounts ($X total) and an estimate-level stack ($Y total) renders two separate rows: line discounts −$X, estimate-level discount −$Y. The two numbers never combine into one row.
+8. **Rollups always render at $0.00.** ECR with no discounts at all → both discount rollup rows still appear in the totals block, showing −$0.00.
+9. **Tax weighted-average.** ECR with line A (price $100, GST 5%) and line B (price $100, no tax) → tax total = $5.00 on taxable base $200 → totals block tax row reads "Tax (Σ per-line, weighted avg 2.50%)".
+10. **Tax rollup always renders.** ECR with no tax-type assignments on any line → tax row still appears showing $0.00 with "weighted avg 0.00%".
+11. **Totals parity.** Same ECR loaded in editor and exported to PDF → grand total on PDF equals grand total shown in IE-3's totals panel, byte-for-byte.
+12. **Multi-page.** Seed 60 priced lines across 3 sections. Export → PDF has ≥2 pages; table header repeats on page 2; no line is split from its tax/discount sub-rows across a page boundary; totals block appears only on the final page.
+13. **Long line description keep-together.** Line with a multi-line wrapped description + 2 tax sub-rows + 2 discount sub-rows positioned near a page boundary → entire group flows to the next page together, does not split.
+14. **Regression — Full worksheet PDF unchanged.** Export a Full estimate (creationType = "Full") before and after this change → snapshot diff zero.
+15. **Regression — BidFirst worksheet PDF unchanged.** Same as above for BidFirst.
+16. **Data gate — non-Itemized skips itemized fetch.** Export a Full estimate → the itemized GraphQL query is not issued; no added network round-trip.
+16b. **Tree reconstruction — flat list.** Given a flat response of 6 nodes — Section A (orderNo 0), LineItem A.1 (parent=A, orderNo 0), Subsection A.a (parent=A, orderNo 1), LineItem A.a.1 (parent=A.a), Section B (orderNo 1), LineItem B.1 (parent=B) — `buildOrderedWalk` produces the expected DFS sequence and section labels ("1", "1.1", "2"). No nested GraphQL sub-selection was used.
+16c. **Per-line discount hydration.** ECR with 5 LineItems, 2 of which carry discount assignments → 6 parallel `discountsForEntity` calls fire (5 per-line + 1 ECR); `perLineDiscounts` Map has 5 keys (3 empty arrays, 2 populated); PDF renders discount sub-rows only under the 2 lines that have them.
+17. **Merge-tag letter still renders.** Itemized ECR with a populated letter body (merge tags) → letter body appears above the breakdown exactly as on Full PDFs.
+18. **Footer / signature block.** Itemized PDF's footer matches the Full PDF's footer pixel-for-pixel (same `PDFFooter` component).
+19. **Empty estimate.** Itemized ECR with zero lines → PDF renders an empty breakdown with totals all $0.00; grand total $0.00; no crashes.
+20. **Archived line filtered.** Soft-deleted / archived lines (`isDeleted = true`) don't render and don't contribute to totals. (Engine already filters these, but verify the PDF path inherits the behavior.)
+
+---
+
+## Handoff notes
+
+- **Shared with IE-3.** The totals engine is already built and unit-tested in IE-3. This plan only *consumes* it. If an edge case in the engine surfaces while doing the PDF, file it against IE-3 — don't fork logic into the PDF.
+- **Shared with IE-5 (invoice conversion).** IE-5 will also read from the itemized tree to construct `JobBillLineItem` rows and will invoke `computeItemizedTotals` for a conversion sanity check. No coupling between IE-4 and IE-5 beyond that shared engine.
+- **PDF sub-row visual treatment.** Matches the on-screen IE-2 editor: indented (`paddingLeft` = 12px × depth), gray (`#64748b`), smaller if needed. Aim for parity with the IE-4 spec mockup, not with the editor exactly — PDF readers value density differently than screen readers.
+- **"Settings placement" from the original spec is gone.** No per-export, per-estimate, or instance-level toggles exist for this PDF. If product later wants one (e.g., "show tax detail per line" vs "rolled up only"), add it as a follow-up, not part of IE-4.
 
 ---
 
@@ -134,8 +645,11 @@ Match `uis-IE-4-pdf-template.html` §3–4 (client vs internal tables + toggle m
 
 | Action | File |
 |--------|------|
-| MODIFY | `apps/frontend/src/.../EstimateChangeOrderPDF.tsx` (path per repo) |
-| MODIFY | `apps/frontend/src/lib/pdf-export.ts` (or equivalent) |
+| MODIFY | `apps/frontend/src/pages/api/pdf-export.ts` — fetch itemized tree + estimate discounts when `creationType = Itemized`; compute totals via engine; forward to `generateEstimateChangeOrderPdfDoc` |
+| MODIFY | `apps/frontend/src/components/DownloadablePDF/EstimateChangeOrder/EstimateChangeOrderPDF.tsx` — branch body on `creationType`; forward new props to `ItemizedBreakdown` |
+| CREATE | `apps/frontend/src/components/DownloadablePDF/EstimateChangeOrder/ItemizedBreakdown.tsx` — section walker, line row group with tax/discount sub-rows, section subtotals, `ItemizedTotalsBlock`, `PdfTotalsRow` |
+
+No backend changes. No new packages. No migrations.
 
 </script>
 

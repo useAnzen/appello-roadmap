@@ -124,7 +124,7 @@ table.mockup-grid td { padding: 6px 8px; border: 1px solid #e2e8f0; background: 
             <span class="uis-badge badge-child">Child of UIS-IE</span>
         </div>
         <h1 class="uis-h1">Itemized Line Item Editor</h1>
-        <p class="uis-sub">Repeating-row editor inside <code>EstimateChangeOrderDetails</code> when <code>creationType = Itemized</code>. Terms: <a href="uis-IE-itemized-estimates.html#s-ui">UIS-IE glossary</a>. Add line uses categorized search (Labor / Material / Equipment / Custom). Mirrors <code>SimpleInvoice.tsx</code> patterns; data contract in <a href="uis-IE-1-schema-model.html#s3">IE-1 field matrix</a>.</p>
+        <p class="uis-sub">Hierarchical line-item editor (sections + subsections + priced lines) inside <code>EstimateChangeOrderDetails</code>, mounted only when <code>creationType = Itemized</code>. Blank rows start with a <strong>Type</strong> dropdown; picking a type reveals a type-specific progressive cascade that resolves a rate-level row (or falls back to a Custom free-text line). Per-line stacked Tax and Discount sub-rows, mirroring <code>SimpleInvoice.tsx</code> (<code>apps/frontend/src/components/DetailsPage/JobDetailsPage/Tabs/Billing/SimpleInvoice.tsx</code> lines 335&ndash;491). Data contract in <a href="uis-IE-1-schema-model.html#s3">IE-1 field matrix</a>; discount data model in <a href="uis-SD-1-sales-discount-model.html">SD-1</a>.</p>
         <div class="uis-meta">
             <span><strong>Estimate:</strong> 4&ndash;6 days</span>
             <span><strong>Parent:</strong> UIS-IE</span>
@@ -160,27 +160,35 @@ table.mockup-grid td { padding: 6px 8px; border: 1px solid #e2e8f0; background: 
         <div class="collapsible-body open">
             <h3>In Scope</h3>
             <ul>
-                <li><span class="scope-tag scope-in">IN</span> <code>EstimateLineItemEditor.tsx</code> &mdash; table + add row + delete row + row order</li>
-                <li><span class="scope-tag scope-in">IN</span> TableFeed or dedicated query for labor (user + trade), material, equipment pick lists with search</li>
-                <li><span class="scope-tag scope-in">IN</span> Client calls <code>resolveEstimateLineItemUnitCost</code> on selection to seed <code>unitCost</code> and <code>unit</code></li>
-                <li><span class="scope-tag scope-in">IN</span> Wire create/edit/delete to GraphQL from IE-1 (per-row or batched when IE-3 lands)</li>
-                <li><span class="scope-tag scope-in">IN</span> Show editor when <code>creationType = Itemized</code></li>
+                <li><span class="scope-tag scope-in">IN</span> <code>EstimateLineItemEditor.tsx</code> + row / section / cascade sub-components. Mounts <strong>only</strong> when <code>EstimateChangeOrderRecord.creationType = Itemized</code> &mdash; no mode toggle.</li>
+                <li><span class="scope-tag scope-in">IN</span> Blank-row <strong>Type</strong> dropdown (Labor / Material / Equipment / Custom) with type-specific progressive cascades: Labor (<code>TradeLevel</code> &rarr; <code>EmployeeAgreementRateLabel</code>, + optional worker), Material (<code>Material</code> &rarr; X &rarr; Y &rarr; Z-when-defined), Equipment (<code>Equipment</code> &rarr; <code>Per</code> &rarr; <code>Rate Type</code> &rarr; Operator Included), Custom (free-text description)</li>
+                <li><span class="scope-tag scope-in">IN</span> Each completed cascade resolves a single rate-level row (<code>TradeLevelRate</code> / <code>MaterialAttributePrice</code> / <code>EquipmentRateValue</code>) and calls IE-1&#39;s <code>resolveItemizedLineItemUnitCost</code> to seed <code>unit</code> + <code>unitCost</code>. Catalog-linked rows render <code>unit</code> / <code>unitCost</code> / <code>totalCost</code> / <code>price</code> as read-only.</li>
+                <li><span class="scope-tag scope-in">IN</span> Per-line stacked <strong>Tax Rate(s)</strong> sub-row (dropdown + amount + remove per entry, with &ldquo;+ Add Another Tax Rate&rdquo;); consumes IE-1&#39;s M2M <code>TaxType</code> relation. Mirrors the pattern in <code>apps/frontend/src/components/DetailsPage/JobDetailsPage/Tabs/Billing/SimpleInvoice.tsx</code> (lines 335&ndash;491).</li>
+                <li><span class="scope-tag scope-in">IN</span> Per-line stacked <strong>Discount(s)</strong> sub-row: picker offers SD-1 <code>suggestedDiscountsForLine</code> (Job &cup; Company, de-duped) + an Ad-hoc entry option (<strong>%</strong> / <strong>$</strong> toggle + value). Wires IE-1&#39;s line to SD-1&#39;s <code>attachDiscount</code> / <code>detachDiscount</code> / <code>createAdHocDiscountAndAttach</code>.</li>
+                <li><span class="scope-tag scope-in">IN</span> Estimate-level discount stack in the totals strip (same sub-row UX; <code>referenceModel = "EstimateChangeOrderRecord"</code>; <code>orderNo</code> drives application order). The totals strip (rendered by IE-3&#39;s <code>EstimateChangeOrderTotals</code>) MUST surface <strong>line discounts subtotal</strong> and <strong>estimate-level discount subtotal</strong> as two distinct rows &mdash; never merged &mdash; so the reader can always tell which level the money came from. Tax is always labeled as a sum-from-lines rollup (weighted average of per-line rates); there is no estimate-level tax control.</li>
+                <li><span class="scope-tag scope-in">IN</span> Seed a new priced line&#39;s <code>markupPercent</code> from <code>ECR.estimateMarkup</code> at insert time. The field is semantically overloaded by design: on Full / BidFirst it&#39;s an applied multiplier; on Itemized it&#39;s a per-line seed that&#39;s never applied directly to totals (line-level <code>markupPercent</code> drives sell). Changing the seed later does <strong>not</strong> retroactively re-price existing lines &mdash; that&#39;s a deliberate bulk action via IE-3&#39;s &ldquo;Set default markup %&rdquo; modal.</li>
+                <li><span class="scope-tag scope-in">IN</span> Nested section tree &mdash; per-section <strong>+ Sub</strong> / <strong>+ Line</strong> / <strong>↑ ↓</strong> / delete controls; root-level <strong>+ Section</strong> / <strong>+ Line</strong> on the worksheet toolbar; depth cap 3 enforced against IE-1&#39;s <code>MAX_TREE_DEPTH</code></li>
+                <li><span class="scope-tag scope-in">IN</span> Wire CRUD (create / createMany / edit / editMany / delete / deleteMany / archive / restore) to IE-1&#39;s GraphQL surface (per-row now; batched <code>upsert</code> once IE-3 extends the parent mutation)</li>
+                <li><span class="scope-tag scope-in">IN</span> Client-side filter (search box) across section titles and line descriptions</li>
             </ul>
             <h3>Out of Scope</h3>
             <ul>
-                <li><span class="scope-tag scope-out">OUT</span> Record-level overhead rollups (IE-3)</li>
-                <li><span class="scope-tag scope-out">OUT</span> PDF / invoice (IE-4, IE-5)</li>
+                <li><span class="scope-tag scope-out">OUT</span> <code>Discount</code> / <code>DiscountAssignment</code> data model &mdash; SD-1</li>
+                <li><span class="scope-tag scope-out">OUT</span> <code>ItemizedEstimateChangeOrderRecordLineItem</code> data model, enums, validators &mdash; IE-1</li>
+                <li><span class="scope-tag scope-out">OUT</span> <code>Itemized</code> creationType enum addition and the creation-type gate &mdash; IE-3</li>
+                <li><span class="scope-tag scope-out">OUT</span> Totals math (line % &rarr; line sell &rarr; estimate-level on pre-tax &rarr; proportional tax split), overhead %, gross margin, contingency &mdash; IE-3</li>
+                <li><span class="scope-tag scope-out">OUT</span> PDF / invoice conversion &mdash; IE-4, IE-5</li>
             </ul>
         </div>
     </div>
     <div class="uis-section" id="s3">
         <h2 class="collapsible-toggle open" onclick="toggleSection(this)">3. UI Concepts <span class="toggle-icon">&#9660;</span></h2>
         <div class="collapsible-body open">
-            <p>Primary grid and <strong>Add line</strong> combobox. Labor row shows <strong>worker + trade</strong> in the selected-item column.</p>
+            <p>A hierarchical grid of sections, subsections, and priced line items. New lines are added via a <strong>blank-row Type dropdown</strong> followed by a type-specific progressive cascade that resolves a rate-level row (<code>TradeLevelRate</code> / <code>MaterialAttributePrice</code> / <code>EquipmentRateValue</code>) or falls back to a free-text Custom row. Each priced row pairs with right-aligned stacked sub-rows for Tax Rate(s) and Discount(s); the totals strip below the grid holds the estimate-level discount stack.</p>
 
             <h3 id="s3-canvas">3.0 Interactive Canvas &mdash; full itemized estimate</h3>
             <div class="ie2-canvas-callout">
-                <strong>Canvas prototype</strong> (single HTML app): full <code>EstimateChangeOrderDetails</code> shell; <strong>+ Section</strong> / <strong>+ Sub</strong> nested groupers; <strong>↑↓</strong> sibling reorder (block moves with subtree); <strong>Here</strong> targets new lines. Summary: <strong>discounts before tax</strong> (line % then estimate-level on pre-tax sell, then tax on proportionally discounted line bases for mixed rates); numbered roll-up + gross/line disc disclosure; <strong>overhead %</strong> in the left sidebar. Equipment <strong>Bill as</strong>; material <strong>specs</strong> (IE-1 for jurisdictional rules).
+                <strong>Canvas prototype</strong> (single HTML app): editor mounts on <code>creationType = Itemized</code> with no mode toggle; <strong>+ Section</strong> / <strong>+ Line</strong> at root and per-section <strong>+ Sub</strong> / <strong>+ Line</strong>; blank-row Type dropdown + per-type progressive cascade (Labor / Material / Equipment); per-line stacked Tax + Discount sub-rows; estimate-level discount stack in totals; numbered roll-up with proportional tax split; overhead in the left sidebar.
                 <div style="margin-top:10px;">
                     <a href="uis-IE-2-canvas-itemized-estimate.html" target="_blank" rel="noopener">Open Canvas in new tab &rarr;</a>
                 </div>
@@ -260,75 +268,119 @@ table.mockup-grid td { padding: 6px 8px; border: 1px solid #e2e8f0; background: 
                             </tbody>
                         </table>
                     </div>
-                    <p style="margin-top:10px;font-size:11px;color:#64748b;">Footer row: cost subtotal, total markup, line sell subtotal (feeds IE-3 panel).</p>
+                    <p style="margin-top:10px;font-size:11px;color:#64748b;">Each priced row expands (on focus / always-visible per product) to show stacked <strong>Tax Rate(s)</strong> and <strong>Discount(s)</strong> sub-rows (see §3.3 and §4; pattern mirrors <code>SimpleInvoice.tsx</code>). Footer row: cost subtotal, total markup, tax subtotal per rate, discount subtotal, line sell subtotal (feeds IE-3 panel).</p>
                 </div>
             </div>
 
             <div class="mockup-container">
-                <div class="mockup-bar">Add line &mdash; categorized combobox + search</div>
+                <div class="mockup-bar">Add line &mdash; Type dropdown first, then type-specific cascade on the row</div>
                 <div class="mockup-body">
-                    <span class="mockup-input" style="display:block;max-width:360px;margin-bottom:8px;">Search workers, materials, equipment&hellip;</span>
-                    <div class="mockup-add-panel">
-                        <div class="mockup-add-group">Labor</div>
-                        <div class="mockup-add-item">A. Lee &mdash; Welder Journeyman</div>
-                        <div class="mockup-add-item">C. Jones &mdash; Pipefitter Apprentice</div>
-                        <div class="mockup-add-group">Material</div>
-                        <div class="mockup-add-item">Black iron 4&quot; sch 40</div>
-                        <div class="mockup-add-group">Equipment</div>
-                        <div class="mockup-add-item">Forklift 5k cap &mdash; daily rate</div>
-                        <div class="mockup-add-group">Custom</div>
-                        <div class="mockup-add-item">Blank row (manual description + costs)</div>
+                    <p style="font-size:12px;color:#334155;margin-bottom:8px;">Click <strong>+ Add item</strong> &rarr; blank row appears. <strong>Type</strong> dropdown is the first cell; other cells disabled until picked. Once picked, the cascade for that type renders inline on the row (see §3.2).</p>
+                    <div class="mockup-add-panel" style="max-width:420px;">
+                        <div class="mockup-add-group">Blank row &mdash; Type dropdown</div>
+                        <div class="mockup-add-item"><code>Labor</code> &rarr; then pick <code>TradeLevel</code> &rarr; <code>EmployeeAgreementRateLabel</code> (+ optional Worker)</div>
+                        <div class="mockup-add-item"><code>Material</code> &rarr; then pick <code>Material</code> &rarr; <code>X</code> &rarr; <code>Y</code> (&rarr; <code>Z</code> if defined)</div>
+                        <div class="mockup-add-item"><code>Equipment</code> &rarr; then pick <code>Equipment</code> &rarr; <code>Per</code> &rarr; <code>Rate Type</code> &rarr; Operator</div>
+                        <div class="mockup-add-item"><code>Custom</code> &rarr; blank row, manual description + costs (no catalog link)</div>
                     </div>
                 </div>
             </div>
 
-            <h3 id="s3-shell">3.1 Worksheet in <code>EstimateChangeOrderDetails</code> (right pane)</h3>
-            <p>Integration anchor: main column shows <strong>Worksheet | Letter | Files</strong>; when Worksheet + <code>creationType = Itemized</code>, render <code>EstimateLineItemEditor</code> below the radio group. Sidebar (left) unchanged.</p>
+            <h3 id="s3-shell">3.1 Mount in <code>EstimateChangeOrderDetails</code> (right pane)</h3>
+            <p>IE-2 mounts <strong>only</strong> when <code>EstimateChangeOrderRecord.creationType = Itemized</code>. No Worksheet / Itemized mode toggle &mdash; the two paths carry fundamentally different data (see IE-1 / IE-3 creationType discriminator) and never switch in either direction. <code>Full</code> and <code>BidFirst</code> records keep the legacy GL worksheet; <code>Itemized</code> records render the <code>EstimateLineItemEditor</code> described here. Sidebar (left) unchanged.</p>
+            <p>IE-3&#39;s <code>EstimateChangeOrderTotals</code> (Itemized branch) mounts directly below the grid within the same Worksheet tab &mdash; right-aligned card on wide viewports. IE-2 owns this placement since the editor shell hosts both components; IE-3 owns the totals panel&#39;s internals.</p>
             <div class="mockup-container">
-                <div class="mockup-bar">Right column only &mdash; radio + itemized body</div>
+                <div class="mockup-bar">Right column only &mdash; itemized body (creationType = Itemized)</div>
                 <div class="mockup-body">
                     <div class="mockup-page-shell">
                         <div class="mockup-page-sidebar">Sidebar<br>(existing form, save)</div>
                         <div class="mockup-page-main">
                             <div style="padding:6px 8px;background:#f1f5f9;border-radius:6px;font-weight:700;font-size:11px;margin-bottom:8px;color:#475569;">Worksheet &nbsp;|&nbsp; Letter &nbsp;|&nbsp; Files</div>
-                            <div style="font-size:10px;color:#166534;background:#f0fdf4;border:1px dashed #86efac;padding:6px;border-radius:6px;margin-bottom:8px;"><strong>IE-2</strong> line grid + add combobox live here. <strong>IE-3</strong> totals card stacks below grid (see IE-3 spec).</div>
-                            <div style="font-size:10px;color:#64748b;">Letter / Files tabs do not mount the line editor.</div>
+                            <div style="font-size:10px;color:#166534;background:#f0fdf4;border:1px dashed #86efac;padding:6px;border-radius:6px;margin-bottom:8px;"><strong>IE-2</strong> line grid lives on the <strong>Worksheet</strong> tab. <strong>IE-3</strong> totals card stacks below grid.</div>
+                            <div style="font-size:10px;color:#64748b;">Letter / Files tabs do not mount the line editor. Mode is driven entirely by <code>creationType</code>; no user-facing toggle.</div>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <h3 id="s3-flows">3.2 Per-type add flows (after pick)</h3>
+            <h3 id="s3-flows">3.2 Add-line flow (progressive dropdowns)</h3>
+            <p>Clicking <strong>+ Add item</strong> inserts a blank row with a <strong>Type</strong> dropdown (<code>Labor</code> / <code>Material</code> / <code>Equipment</code> / <code>Custom</code>). Once the type is picked, additional dropdowns cascade on the same row until enough selections nail down a specific rate-level row &mdash; at which point the resolver fires and the <code>unit</code> / <code>unitCost</code> back-fill, and <code>markupPercent</code> seeds from <code>ECR.estimateMarkup</code> (the same Instance default that feeds Full / BidFirst estimates). The final catalog cascade determines <code>priceReferenceModel</code> + <code>priceReferenceId</code> (see IE-1 §3). No unified search across types &mdash; the type picker disambiguates up front.</p>
             <div class="flow-grid">
                 <div class="flow-card">
                     <strong>Labor</strong> <span class="mockup-badge mockup-badge-labor">Labor</span>
-                    <div class="flow-step">1. Open <strong>Add line</strong> &rarr; Labor group.<br>2. <code>useGetTableDataRecordSetQuery</code> (User) &rarr; pick worker.<br>3. Show primary <code>UserTradeLevel</code>; unit + <code>unitCost</code> from <code>TradeLevelRate.billableValue</code> via resolver.<br>4. Row inserted; qty editable.</div>
+                    <div class="flow-step">
+                        <strong>Cascade:</strong> Type &rarr; <code>TradeLevel</code> &rarr; <code>EmployeeAgreementRateLabel</code><br>
+                        1. Pick <code>TradeLevel</code>.<br>
+                        2. Pick <code>EmployeeAgreementRateLabel</code> (filtered to labels active on the chosen trade + the default employee agreement).<br>
+                        3. The pair resolves a unique <code>TradeLevelRate</code>; its <code>billableValue</code> seeds <code>unitCost</code>, <code>unit</code> defaults to <code>hr</code>.<br>
+                        4. <strong>Optional</strong> <code>userId</code> slot on the row (Labor only, per IE-1) &mdash; pick a worker later if you want this specific person&#39;s agreement applied; otherwise the contract base rate stands.<br>
+                        5. <code>priceReferenceModel = TradeLevelRate</code>, <code>priceReferenceId = &lt;TradeLevelRate.id&gt;</code>.
+                    </div>
                 </div>
                 <div class="flow-card">
                     <strong>Material</strong> <span class="mockup-badge mockup-badge-mat">Mat</span>
-                    <div class="flow-step">1. Search material catalog.<br>2. On select, resolver fills <code>unit</code> + <code>unitCost</code> (<code>MaterialAttributePrice</code> / LEM-3 when present).<br>3. Description = material display name + optional note.</div>
+                    <div class="flow-step">
+                        <strong>Cascade:</strong> Type &rarr; <code>Material</code> &rarr; <code>X</code> attribute &rarr; <code>Y</code> attribute (&rarr; <code>Z</code> attribute if material defines a third axis)<br>
+                        1. Pick <code>Material</code>.<br>
+                        2. Pick <code>X</code> attribute value; options filtered to values present on that material&#39;s <code>MaterialAttributePrice</code> rows.<br>
+                        3. Pick <code>Y</code> attribute value; options filtered by the <code>X</code> pick.<br>
+                        4. (Optional) <code>Z</code> attribute when the material defines one &mdash; resolves the final <code>MaterialAttributePrice</code> row.<br>
+                        5. <code>unit</code> = material UOM; <code>unitCost</code> = <code>MaterialAttributePrice.value</code> for the chosen (X, Y, Z) cell.<br>
+                        6. <code>priceReferenceModel = MaterialAttributePrice</code>, <code>priceReferenceId = &lt;MaterialAttributePrice.id&gt;</code>.
+                    </div>
                 </div>
                 <div class="flow-card">
                     <strong>Equipment</strong> <span class="mockup-badge mockup-badge-eq">Eq</span>
-                    <div class="flow-step">1. Pick equipment record.<br>2. Billing unit selector: <strong>hr</strong> or <strong>day</strong> (per product).<br>3. <code>resolveEquipmentRate</code> seeds cost.<br>4. Row shows equipment name + unit.</div>
+                    <div class="flow-step">
+                        <strong>Cascade:</strong> Type &rarr; <code>Equipment</code> &rarr; <code>Per</code> (<code>EquipmentRatePer</code>) &rarr; <code>Rate Type</code> (<code>EquipmentRateLabel</code>) &rarr; Operator Included<br>
+                        1. Pick <code>Equipment</code>.<br>
+                        2. Pick <code>Per</code> billing period (Hour / Day / Week / Month / Year) &mdash; options from active <code>EquipmentRateSchedule</code> for the equipment&#39;s category.<br>
+                        3. Pick <code>Rate Type</code> (<code>EquipmentRateLabel</code> &mdash; e.g. Standard, Prevailing Wage, After Hours).<br>
+                        4. <strong>Operator Included</strong> toggle (drives the with/without-operator rate split on <code>EquipmentRateValue</code> when present).<br>
+                        5. The four picks resolve a unique <code>EquipmentRateValue</code>; <code>baseValue</code> seeds <code>unitCost</code>, <code>unit</code> derives from the <code>Per</code> choice.<br>
+                        6. <code>priceReferenceModel = EquipmentRateValue</code>, <code>priceReferenceId = &lt;EquipmentRateValue.id&gt;</code>.
+                    </div>
                 </div>
                 <div class="flow-card">
                     <strong>Custom</strong> <span class="mockup-badge mockup-badge-custom">Custom</span>
-                    <div class="flow-step">1. Choose Custom &rarr; blank row.<br>2. All FKs null; user types description, qty, unit, unit cost manually.<br>3. No resolver call until optional &ldquo;Suggest rate&rdquo; (out of v1 unless PM adds).</div>
+                    <div class="flow-step">
+                        <strong>Cascade:</strong> Type &rarr; free-text description<br>
+                        1. Pick <code>Custom</code> &rarr; blank row.<br>
+                        2. <code>description</code>, <code>quantity</code>, <code>unit</code>, <code>unitCost</code> all manual.<br>
+                        3. <code>priceReferenceModel</code> and <code>priceReferenceId</code> remain null.<br>
+                        4. No resolver call.
+                    </div>
                 </div>
             </div>
+            <p style="font-size:13px;color:#64748b;">Unit cost becomes editable for override once the resolver seeds it (all four types). The cascade dropdowns on the row are re-openable until the row is saved; once saved, swapping the catalog link is governed by the same rule as <code>lineItemType</code> &mdash; delete and re-add (see §3.3).</p>
 
             <h3 id="s3-interact">3.3 Row interactions</h3>
             <table class="schema-table">
                 <thead><tr><th>Cell / control</th><th>Click</th><th>Tab / Enter</th><th>Escape</th><th>Post-create edit</th></tr></thead>
                 <tbody>
                     <tr><td>Qty, Unit, Unit cost, Markup fields</td><td>Focus inline <code>FormControl</code></td><td>Tab moves left-to-right; Enter commits cell (same as blur)</td><td>Revert if dirty (optional) or blur without commit per app pattern</td><td>Always editable when row editable</td></tr>
-                    <tr><td>Type badge</td><td>No action</td><td>Skip in tab order</td><td>&mdash;</td><td><strong>No</strong> type change after create (delete + re-add)</td></tr>
-                    <tr><td>Selected item / description</td><td>Labor/Mat/Eq: open picker to replace linked entity <strong>TBD</strong>; Custom: text edit</td><td>Enter opens picker when supported</td><td>Close picker</td><td>Product: allow swap of user/material/equipment vs lock after first save</td></tr>
+                    <tr><td>Type badge (<code>lineItemType</code>)</td><td>No action</td><td>Skip in tab order</td><td>&mdash;</td><td><strong>Immutable</strong> after create (enforced by <code>canEdit: false</code> on IE-1&#39;s <code>lineItemType</code>; UI offers delete + re-add)</td></tr>
+                    <tr><td>Selected item / description</td><td>Labor / Mat / Eq: read-only (shows the resolved cascade picks); Custom: inline text edit</td><td>Custom only &mdash; Tab advances; Enter commits</td><td>&mdash;</td><td>Catalog link is <strong>locked</strong> after first save; to change, delete + re-add (same rule as type)</td></tr>
+                    <tr><td>Tax Rate(s) sub-row</td><td>Row footer strip (matches <code>SimpleInvoice.tsx</code> §line 335&ndash;491 pattern): each tax shown as a dropdown + computed amount + remove icon; <strong>+ Add Another Tax Rate</strong> button appends a new slot</td><td>Tab into dropdown; Enter selects</td><td>&mdash;</td><td>Yes &mdash; stack multiple <code>TaxType</code> rows per line; IE-1&#39;s M2M relation absorbs it; <code>taxValue</code> recomputes on every change</td></tr>
+                    <tr><td>Discount(s) sub-row</td><td>Same pattern as Tax Rate(s) &mdash; each <code>DiscountAssignment</code> shown as dropdown (suggested + &ldquo;Enter ad-hoc&rdquo;) + computed amount + remove; <strong>+ Add Another Discount</strong> appends</td><td>Tab / Enter as above</td><td>&mdash;</td><td>Yes &mdash; stack multiple SD-1 <code>DiscountAssignment</code> rows per line; <code>taxValue</code> recomputes since tax base shifts</td></tr>
                     <tr><td>Line price</td><td>Read-only</td><td>Skip</td><td>&mdash;</td><td>Never direct edit</td></tr>
-                    <tr><td>Delete</td><td>Remove row (confirm if PM wants)</td><td>Activates button when focused</td><td>&mdash;</td><td>Yes</td></tr>
+                    <tr><td>Delete</td><td>Remove row (confirm if PM wants)</td><td>Activates button when focused</td><td>&mdash;</td><td>Yes (soft-delete)</td></tr>
                 </tbody>
             </table>
+
+            <h4 style="margin-top:14px;">Section / subsection row controls</h4>
+            <p>Section rows have inline controls attached to the section header strip (replacing the earlier &ldquo;Here&rdquo; indirection &mdash; explicit buttons read cleaner):</p>
+            <table class="schema-table">
+                <thead><tr><th>Control</th><th>Effect</th><th>Enabled when</th></tr></thead>
+                <tbody>
+                    <tr><td><strong>+ Line</strong></td><td>Inserts a blank priced row as a direct child of this section; Type dropdown opens on the new row (per §3.2)</td><td>Always (section is alive + depth of resulting line &le; IE-1&#39;s tree depth cap)</td></tr>
+                    <tr><td><strong>+ Sub</strong></td><td>Inserts a new child section under this one; name editable inline</td><td>Section depth &lt; cap (per IE-1, parent of the new subsection must already be &lt; depth-2 so that new depth &le; depth-3)</td></tr>
+                    <tr><td><strong>&uarr; &darr;</strong></td><td>Reorder siblings within the same <code>parentId</code>; whole subtree (section + children) moves together</td><td>Section is not alone as the only sibling</td></tr>
+                    <tr><td><strong>Title</strong> (inline edit)</td><td>Updates section <code>description</code></td><td>Write permission</td></tr>
+                    <tr><td><strong>Delete</strong></td><td>Soft-deletes the section and all descendants (confirm dialog lists the affected count)</td><td>Write permission</td></tr>
+                </tbody>
+            </table>
+            <p style="font-size:13px;color:#64748b;">Root-level <strong>+ Section</strong> and <strong>+ Line</strong> buttons live on the worksheet toolbar for the top of the tree (parent = null).</p>
 
             <h3 id="s3-reorder">3.4 Reorder</h3>
             <div class="mockup-container">
@@ -351,10 +403,17 @@ table.mockup-grid td { padding: 6px 8px; border: 1px solid #e2e8f0; background: 
             <table class="schema-table">
                 <thead><tr><th>Field</th><th>Rule</th><th>Error display</th></tr></thead>
                 <tbody>
+                    <tr><td>Type dropdown</td><td>Required on new row before any other column becomes editable</td><td>Dropdown highlighted; other cells disabled until picked</td></tr>
+                    <tr><td>Labor cascade</td><td>Both <code>TradeLevel</code> and <code>EmployeeAgreementRateLabel</code> must be picked before the resolver fires / the row saves</td><td>Incomplete cascade blocks save; inline picker dropdown stays open on the unset step</td></tr>
+                    <tr><td>Material cascade</td><td><code>Material</code> + <code>X</code> + <code>Y</code> required (and <code>Z</code> if the material defines one) to resolve a <code>MaterialAttributePrice</code></td><td>Blocks save; inline</td></tr>
+                    <tr><td>Equipment cascade</td><td><code>Equipment</code> + <code>Per</code> + <code>RateLabel</code> + Operator required to resolve an <code>EquipmentRateValue</code></td><td>Blocks save; inline</td></tr>
+                    <tr><td>Custom</td><td><code>description</code>, <code>quantity</code>, <code>unit</code>, <code>unitCost</code> all required; <code>priceReferenceModel</code> / <code>priceReferenceId</code> must stay null (enforced by IE-1&#39;s validator)</td><td>Inline</td></tr>
                     <tr><td>Qty</td><td>Required; &gt; 0 for priced lines (warn at 0 if PM allows)</td><td>Red border on <code>FormControl</code> + inline text</td></tr>
-                    <tr><td>Unit cost</td><td>Required unless draft-only custom; no NaN</td><td>Inline</td></tr>
+                    <tr><td>Unit cost</td><td>Labor / Mat / Eq: resolved by the cascade (not user-entered). Custom: required, no NaN.</td><td>Inline (Custom only)</td></tr>
                     <tr><td>Markup % / $</td><td>Ranges per instance; mutual precedence <strong>TBD</strong></td><td>Inline + block save if invalid</td></tr>
-                    <tr><td>Resolver</td><td>Timeout / GraphQL error</td><td>Toast optional; row banner &ldquo;Rate unavailable&rdquo;; manual unit cost enabled</td></tr>
+                    <tr><td>Tax Rate(s)</td><td>Each slot requires a selected <code>TaxType</code>; cannot stack the same <code>TaxType</code> twice on one line</td><td>Row banner + disabled &ldquo;+ Add Another Tax Rate&rdquo; when no un-picked options remain</td></tr>
+                    <tr><td>Discount(s)</td><td>Each slot requires a <code>Discount</code> (reusable) or ad-hoc value &gt; 0; cannot stack the same <code>Discount</code> twice (SD-1 unique constraint)</td><td>Row banner + disabled add button</td></tr>
+                    <tr><td>Resolver</td><td>Timeout / GraphQL error on catalog-linked row</td><td>Row banner &ldquo;Rate unavailable &mdash; fix at source&rdquo;; save blocked. <strong>No fallback to manual unit cost</strong> &mdash; catalog-linked lines cannot be manually overridden (use Custom for manual entries).</td></tr>
                     <tr><td>Save (parent)</td><td>Partial row failures</td><td>Modal or toast; failed rows highlighted</td></tr>
                 </tbody>
             </table>
@@ -366,7 +425,7 @@ table.mockup-grid td { padding: 6px 8px; border: 1px solid #e2e8f0; background: 
                     <div class="mockup-empty">
                         <div style="font-weight:700;color:#334155;margin-bottom:6px;">No line items yet</div>
                         <div style="font-size:11px;margin-bottom:12px;">Add labor, material, equipment, or a custom line.</div>
-                        <span class="mockup-input" style="display:inline-block;padding:8px 16px;">+ Add line</span>
+                        <span class="mockup-input" style="display:inline-block;padding:8px 16px;">+ Add item</span>
                     </div>
                 </div>
             </div>
@@ -398,27 +457,47 @@ table.mockup-grid td { padding: 6px 8px; border: 1px solid #e2e8f0; background: 
         <div class="collapsible-body open">
             <p>Authoritative column contract. Use app <code>FormControl</code> per CLAUDE.md. Product must define markup % vs markup $ precedence when both set.</p>
             <table class="schema-table">
-                <thead><tr><th>Column</th><th>Control</th><th>Data field</th><th>Edit</th><th>Formula / behavior</th></tr></thead>
+                <thead><tr><th>Column / surface</th><th>Control</th><th>Data field</th><th>Edit</th><th>Formula / behavior</th></tr></thead>
                 <tbody>
-                    <tr><td>Type</td><td>Badge (read-only)</td><td><code>lineItemType</code></td><td>No</td><td>Set when pick completes or Custom chosen.</td></tr>
-                    <tr><td>Selected item / description</td><td><code>FormControl</code> select-with-input / combobox</td><td><code>userId</code>, <code>tradeLevelId</code>, <code>materialId</code>, <code>equipmentId</code>, <code>description</code></td><td>Yes</td><td>Labor: picker sets user + trade; display concatenated. Custom: free text only.</td></tr>
-                    <tr><td>Qty</td><td>Numeric</td><td><code>quantity</code></td><td>Yes</td><td>On change, recompute <code>totalCost</code> and line price.</td></tr>
-                    <tr><td>Unit</td><td>Text / select</td><td><code>unit</code></td><td>Yes</td><td>Prefilled from resolver (hr, LF, day).</td></tr>
-                    <tr><td>Unit cost</td><td>Currency</td><td><code>unitCost</code></td><td>Yes</td><td>Seeded by resolver; estimator may override.</td></tr>
-                    <tr><td>Total cost</td><td>Currency (typically read-only)</td><td><code>totalCost</code></td><td>Derived</td><td><code>quantity &times; unitCost</code> (round per instance rules).</td></tr>
-                    <tr><td>Markup %</td><td>Percent input</td><td><code>markupPercent</code></td><td>Yes</td><td>Default from job/instance or &ldquo;Set default markup&rdquo; (IE-3).</td></tr>
-                    <tr><td>Markup $</td><td>Currency</td><td><code>markupDollarValue</code></td><td>Yes</td><td>Optional flat markup; combine rule TBD in product.</td></tr>
-                    <tr><td>Line price</td><td>Currency read-only</td><td><code>price</code></td><td>No</td><td><code>totalCost</code> + markup (from % and/or $ per product rule).</td></tr>
+                    <tr><td>Type</td><td>Dropdown on blank row; badge once picked</td><td><code>lineItemType</code></td><td>Create-only (<code>canEdit: false</code>)</td><td>Required before other cells become editable. Immutable after create &mdash; delete + re-add to change.</td></tr>
+                    <tr><td>Selected item (Labor / Mat / Eq)</td><td>Cascade of dropdowns on the row (per §3.2)</td><td><code>priceReferenceModel</code> + <code>priceReferenceId</code></td><td>Create-only (catalog link locked after first save; delete + re-add to change)</td><td>Labor: TradeLevel + EmployeeAgreementRateLabel &rarr; <code>TradeLevelRate</code>. Material: Material + X + Y (+ Z) &rarr; <code>MaterialAttributePrice</code>. Equipment: Equipment + Per + RateLabel + Operator &rarr; <code>EquipmentRateValue</code>.</td></tr>
+                    <tr><td>Worker (Labor only)</td><td>Optional user picker on the row</td><td><code>userId</code></td><td>Yes (create + edit)</td><td>IE-1 rule: <code>userId</code> is permitted only on Labor rows, never required. When set, resolver applies that worker&#39;s active employee agreement; otherwise base contract rate.</td></tr>
+                    <tr><td>Description</td><td>Inline text</td><td><code>description</code></td><td>Yes</td><td>Custom: primary field for the row label. Labor/Mat/Eq: defaults to the resolved catalog label; editable as a note suffix.</td></tr>
+                    <tr><td>Qty</td><td>Numeric</td><td><code>quantity</code></td><td>Yes</td><td>On change, recompute <code>totalCost</code>, <code>price</code>, and trigger <code>taxValue</code> recompute.</td></tr>
+                    <tr><td>Unit</td><td>Read-only (Labor / Mat / Eq); text input (Custom only)</td><td><code>unit</code></td><td>Custom only</td><td>Derived from the price reference (Labor: <code>hr</code> by agreement; Material: catalog UOM; Equipment: from <code>EquipmentRatePer</code>). Not editable on catalog-linked rows.</td></tr>
+                    <tr><td>Unit cost</td><td>Read-only currency (Labor / Mat / Eq); currency input (Custom only)</td><td><code>unitCost</code></td><td>Custom only</td><td>Resolved from the price reference (<code>TradeLevelRate.billableValue</code> / <code>MaterialAttributePrice.value</code> / <code>EquipmentRateValue.baseValue</code>). <strong>No estimator override</strong> on catalog-linked rows &mdash; if the rate is wrong, fix the rate at its source, not on the line.</td></tr>
+                    <tr><td>Total cost</td><td>Currency (read-only)</td><td><code>totalCost</code></td><td>Derived</td><td><code>quantity &times; unitCost</code> (rounding per instance rules).</td></tr>
+                    <tr><td>Markup %</td><td>Percent input</td><td><code>markupPercent</code></td><td>Yes</td><td>Seeded at insert time from <code>ECR.estimateMarkup</code> (which itself seeds from <code>Instance.defaultEstimateMarkup</code> or <code>Instance.defaultChangeOrderMarkup</code> at ECR creation, per record type). Editable per-line; a later change to the ECR seed does not retroactively re-price existing lines &mdash; see IE-3&#39;s &ldquo;Set default markup %&rdquo; modal for the bulk-apply action.</td></tr>
+                    <tr><td>Markup $</td><td>Currency</td><td><code>markupDollarValue</code></td><td>Yes</td><td>Optional flat markup; combine rule TBD.</td></tr>
+                    <tr><td>Line price</td><td>Currency read-only</td><td><code>price</code></td><td>Derived</td><td><code>totalCost</code> + markup. Tax base.</td></tr>
+                    <tr><td><strong>Tax Rate(s) sub-row</strong></td><td>Stacked list &mdash; one dropdown + computed amount + remove per entry, with <strong>+ Add Another Tax Rate</strong> button (mirrors <code>SimpleInvoice.tsx</code>)</td><td>IE-1 M2M <code>TaxType</code> relation; cached <code>taxValue</code></td><td>Yes</td><td>Compound ordering per <code>TaxType.isCompound</code>; IE-1&#39;s <code>recomputeTaxValue</code> fires on every change.</td></tr>
+                    <tr><td><strong>Discount(s) sub-row</strong></td><td>Stacked list &mdash; dropdown (suggested from Job / Company via SD-1 <code>suggestedDiscountsForLine</code>, or &ldquo;Enter ad-hoc&hellip;&rdquo;) + computed amount + remove, with <strong>+ Add Another Discount</strong> button</td><td>SD-1 <code>DiscountAssignment[]</code> where <code>referenceModel = "ItemizedEstimateChangeOrderRecordLineItem"</code></td><td>Yes</td><td>Ad-hoc entries call <code>createAdHocDiscountAndAttach</code>; named entries call <code>attachDiscount</code>. Order of application per <code>orderNo</code>. Triggers <code>recomputeTaxValue</code> (tax base shifts after line-level discounts).</td></tr>
                     <tr><td>Delete</td><td>Icon button</td><td>remove / <code>isDeleted</code></td><td>Yes</td><td>Confirm optional; soft-delete on save.</td></tr>
                 </tbody>
             </table>
+            <p style="font-size:13px;color:#64748b;"><strong>Estimate-level</strong> tax and discount controls (document-wide totals strip) follow the same stacked pattern against <code>referenceModel = "EstimateChangeOrderRecord"</code> for discounts; tax at the estimate level is IE-3&#39;s totals surface.</p>
         </div>
     </div>
     <div class="uis-section" id="s5">
         <h2 class="collapsible-toggle open" onclick="toggleSection(this)">5. Data &amp; API <span class="toggle-icon">&#9660;</span></h2>
         <div class="collapsible-body open">
-            <p>Prisma model, CRUD, and <code>resolveEstimateLineItemUnitCost</code> are defined in <a href="uis-IE-1-schema-model.html">IE-1</a>. IE-2 consumes <code>estimateLineItems(estimateChangeOrderRecordId)</code> and row mutations (or batched <code>upsert</code> once IE-3 extends the parent mutation).</p>
-            <p>Optional until IE-3: <code>upsertEstimateLineItems(estimateId, items[])</code> for transactional save with header totals.</p>
+            <h3>Consumed from <a href="uis-IE-1-schema-model.html">IE-1</a> (line items)</h3>
+            <ul>
+                <li><code>itemizedEstimateChangeOrderRecordLineItems(options)</code> &mdash; listing</li>
+                <li><code>resolveItemizedLineItemUnitCost(input)</code> &mdash; auto-fills <code>unit</code> + <code>unitCost</code> after each cascade completes</li>
+                <li><code>createItem</code> / <code>createMany</code> / <code>editItem</code> / <code>editMany</code> / <code>deleteItem</code> / <code>deleteMany</code> / <code>archive</code> / <code>restore</code> family &mdash; full CRUD including section nodes (<code>nodeType = Section</code>) and line nodes</li>
+                <li><code>nodeType</code> and <code>lineItemType</code> are <code>canEdit: false</code> on the model &mdash; edit payloads that change them are stripped. UI enforces delete-and-re-add</li>
+            </ul>
+            <h3>Consumed from <a href="uis-SD-1-sales-discount-model.html">SD-1</a> (discounts)</h3>
+            <ul>
+                <li><code>suggestedDiscountsForLine(lineItemId)</code> &mdash; populates the per-line Discount picker (Job + Company union)</li>
+                <li><code>discountsForEntity(referenceModel, referenceId)</code> &mdash; read path for both line and estimate-level stacks</li>
+                <li><code>attachDiscount(input)</code> &mdash; attach a reusable discount from the picker</li>
+                <li><code>createAdHocDiscountAndAttach(input)</code> &mdash; single-call ad-hoc path for inline &ldquo;type 5%&rdquo; entries</li>
+                <li><code>detachDiscount(id)</code> &mdash; soft-delete a line- or estimate-level assignment</li>
+                <li><code>reorderDiscountAssignments(&hellip;)</code> &mdash; drag-reorder within a stack</li>
+            </ul>
+            <p>Optional until IE-3: <code>upsertItemizedEstimateChangeOrderRecordLineItems(estimateId, items[])</code> for transactional save of the whole tree with header totals in a single mutation.</p>
         </div>
     </div>
     <div class="uis-section" id="s6">
@@ -430,9 +509,12 @@ table.mockup-grid td { padding: 6px 8px; border: 1px solid #e2e8f0; background: 
                 <div class="blast-row"><span class="blast-label">API / Prisma migrations</span><span class="blast-value">0</span> (IE-1)</div>
             </div>
             <ul>
-                <li><span class="action-new">NEW</span> <code>apps/frontend/src/components/Estimates/EstimateLineItemEditor.tsx</code> (path per repo layout)</li>
-                <li><span class="action-new">NEW</span> GraphQL query + mutation files for line items</li>
-                <li><span class="action-mod">MOD</span> <code>EstimateChangeOrderDetails.tsx</code> &mdash; render editor when <code>Itemized</code>; pass totals props to IE-3 panel</li>
+                <li><span class="action-new">NEW</span> <code>apps/frontend/src/components/Estimates/EstimateLineItemEditor.tsx</code> (root component; no mode toggle)</li>
+                <li><span class="action-new">NEW</span> <code>LineItemRow.tsx</code> &mdash; main row + tax/discount sub-rows (pattern mirrors <code>apps/frontend/src/components/DetailsPage/JobDetailsPage/Tabs/Billing/SimpleInvoice.tsx</code> §lines 335&ndash;491)</li>
+                <li><span class="action-new">NEW</span> <code>AddLineCascade.tsx</code> &mdash; per-type progressive dropdown component (Labor / Material / Equipment cascades); reuses <code>useGetTableDataRecordSetQuery</code> for catalog pickers</li>
+                <li><span class="action-new">NEW</span> <code>SectionRow.tsx</code> &mdash; section header with inline title, <strong>+ Sub</strong> / <strong>+ Line</strong> / reorder / delete controls</li>
+                <li><span class="action-new">NEW</span> GraphQL query + mutation files for line items + tax / discount attachment</li>
+                <li><span class="action-mod">MOD</span> <code>EstimateChangeOrderDetails.tsx</code> &mdash; render editor only when <code>creationType = Itemized</code> (no radio toggle); legacy worksheet renders for <code>Full</code> / <code>BidFirst</code></li>
             </ul>
         </div>
     </div>
@@ -440,11 +522,23 @@ table.mockup-grid td { padding: 6px 8px; border: 1px solid #e2e8f0; background: 
         <h2 class="collapsible-toggle open" onclick="toggleSection(this)">7. Acceptance Criteria <span class="toggle-icon">&#9660;</span></h2>
         <div class="collapsible-body open">
             <ul class="criteria-list">
+                <li><div class="criteria-check"></div><span>Editor mounts only when <code>creationType = Itemized</code>; no worksheet/itemized toggle is rendered in either direction</span></li>
                 <li><div class="criteria-check"></div><span>User can add, edit, remove rows without full page reload</span></li>
-                <li><div class="criteria-check"></div><span>Selecting a catalog row fills unit cost via server resolve</span></li>
-                <li><div class="criteria-check"></div><span>Labor row ties to a specific user when product requires user-first labor</span></li>
-                <li><div class="criteria-check"></div><span>Custom row allows manual description and costs with null catalog FKs</span></li>
-                <li><div class="criteria-check"></div><span>Total cost, markup fields, and line price stay numerically consistent</span></li>
+                <li><div class="criteria-check"></div><span>Clicking <strong>+ Add item</strong> inserts a blank row with a Type dropdown; subsequent cells stay disabled until Type is picked</span></li>
+                <li><div class="criteria-check"></div><span>Labor cascade (TradeLevel &rarr; EmployeeAgreementRateLabel) resolves to a single <code>TradeLevelRate</code> and seeds <code>unitCost</code> from <code>billableValue</code></span></li>
+                <li><div class="criteria-check"></div><span>Material cascade (Material &rarr; X &rarr; Y &rarr; Z when defined) resolves to a single <code>MaterialAttributePrice</code> and seeds <code>unitCost</code> from <code>value</code></span></li>
+                <li><div class="criteria-check"></div><span>Equipment cascade (Equipment &rarr; Per &rarr; RateLabel &rarr; Operator) resolves to a single <code>EquipmentRateValue</code> and seeds <code>unitCost</code> from <code>baseValue</code></span></li>
+                <li><div class="criteria-check"></div><span>Custom row permits manual <code>description</code> / <code>quantity</code> / <code>unit</code> / <code>unitCost</code>; <code>priceReferenceModel</code> and <code>priceReferenceId</code> stay null</span></li>
+                <li><div class="criteria-check"></div><span>On Labor / Material / Equipment rows, <code>unit</code>, <code>unitCost</code>, <code>totalCost</code>, and <code>price</code> render as read-only text &mdash; no inline input. Any correction to the rate happens at the source (<code>TradeLevelRate</code> / <code>MaterialAttributePrice</code> / <code>EquipmentRateValue</code>) and flows back in on the next resolver run</span></li>
+                <li><div class="criteria-check"></div><span>Labor rows expose an optional <code>userId</code> picker (Labor only &mdash; never required)</span></li>
+                <li><div class="criteria-check"></div><span>Type badge and catalog link are locked after first save; UI offers delete + re-add to change</span></li>
+                <li><div class="criteria-check"></div><span>Tax Rate(s) sub-row stacks multiple <code>TaxType</code> entries per line with a dropdown + amount + remove per entry, plus <strong>+ Add Another Tax Rate</strong>, matching <code>SimpleInvoice.tsx</code> UX</span></li>
+                <li><div class="criteria-check"></div><span>Discount(s) sub-row stacks multiple <code>DiscountAssignment</code> entries per line with the same pattern; suggested entries (from Job / Company) + ad-hoc entry option</span></li>
+                <li><div class="criteria-check"></div><span>Adding / editing / removing a line-level discount or tax triggers recompute of <code>taxValue</code> on the line</span></li>
+                <li><div class="criteria-check"></div><span>Estimate-level discount stack lives in the totals strip (same sub-row UX, <code>referenceModel = "EstimateChangeOrderRecord"</code>)</span></li>
+                <li><div class="criteria-check"></div><span>Section rows render <strong>+ Sub</strong> and <strong>+ Line</strong> buttons inline (no &ldquo;Here&rdquo; indirection); root-level <strong>+ Section</strong> / <strong>+ Line</strong> live on the editor toolbar</span></li>
+                <li><div class="criteria-check"></div><span>Section reorder moves the entire subtree; depth cap enforced (rejects <strong>+ Sub</strong> when it would exceed IE-1&#39;s cap)</span></li>
+                <li><div class="criteria-check"></div><span>Total cost, markup fields, line price, tax total, and discount total stay numerically consistent after every change</span></li>
                 <li><div class="criteria-check"></div><span>Permissions match existing estimate edit rules</span></li>
             </ul>
         </div>
@@ -452,7 +546,7 @@ table.mockup-grid td { padding: 6px 8px; border: 1px solid #e2e8f0; background: 
     <div class="uis-section" id="s8">
         <h2 class="collapsible-toggle open" onclick="toggleSection(this)">8. Dependencies <span class="toggle-icon">&#9660;</span></h2>
         <div class="collapsible-body open">
-            <p><span class="dep-tag dep-requires">IE-1</span></p>
+            <p><span class="dep-tag dep-requires">IE-1</span><span class="dep-tag dep-requires">SD-1</span><span class="dep-tag dep-requires">LEM-1</span><span class="dep-tag dep-requires">LEM-2</span></p>
             <p><span class="dep-tag dep-enables">IE-3 Totals &amp; Overhead</span></p>
             <p><a class="dep-tag dep-none" href="uis-IE-itemized-estimates.html">UIS-IE Parent</a></p>
         </div>

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>IE-3: Totals &amp; Overhead — Implementation Plan</title>
+    <title>IE-3: Totals & Overhead (Itemized) — Implementation Plan</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
 .in-iframe .top-nav { display: none !important; }
@@ -17,6 +17,7 @@ body { font-family: 'Inter', -apple-system, sans-serif; background: #f8fafc; col
 h1 { font-size: 24px; font-weight: 800; margin: 0 0 16px; }
 h2 { font-size: 18px; font-weight: 700; margin: 28px 0 12px; padding-bottom: 8px; border-bottom: 2px solid #e2e8f0; }
 h3 { font-size: 15px; font-weight: 700; margin: 20px 0 8px; padding-top: 10px; border-top: 1px solid #f1f5f9; }
+h4 { font-size: 14px; font-weight: 700; margin: 14px 0 6px; }
 p { font-size: 14px; color: #334155; line-height: 1.7; margin: 6px 0; }
 ul, ol { padding-left: 20px; margin: 8px 0; }
 li { font-size: 14px; color: #334155; line-height: 1.7; margin: 3px 0; }
@@ -28,7 +29,10 @@ hr { border: none; border-top: 1px solid #e2e8f0; margin: 24px 0; }
 table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 12px 0; }
 th { text-align: left; padding: 8px 12px; background: #f1f5f9; border-bottom: 2px solid #e2e8f0; font-weight: 600; }
 td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
+.check-item { display: flex; gap: 8px; align-items: flex-start; padding: 5px 0; }
+.check-box { width: 16px; height: 16px; border: 2px solid #cbd5e1; border-radius: 3px; flex-shrink: 0; margin-top: 2px; }
 .callout { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 14px 18px; margin: 14px 0; font-size: 13px; color: #1e40af; }
+.callout strong { color: #1e3a8a; }
     </style>
 </head>
 <body>
@@ -46,107 +50,962 @@ td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
 <div class="plan-wrap" id="rendered"></div>
 
 <script type="text/plain" id="plan-md">
-# IE-3: Estimate Totals & Overhead — Implementation Plan
+# IE-3: Estimate Totals & Overhead (Itemized) — Implementation Plan
 
 ## Overview
 
-Add `Itemized` to `EstimateChangeOrderRecord.creationType`; extend `upsertFullEstimateChangeOrderRecord` to accept nested `EstimateLineItem[]` in one transaction; update `EstimateChangeOrderTotals.tsx` for itemized subtotals, overhead, contingency, and gross margin.
+The Itemized totals engine, totals panel UI, overhead editor, "Set default markup %" modal, and the transactional upsert mutation that persists an Itemized `EstimateChangeOrderRecord` tree in one atomic write. All schema work for the itemized estimating feature is consolidated in IE-1 — IE-3's only schema touch is adding the two contingency fields (pending the business question in the spec callout) and a doc-comment on `estimateMarkup` documenting its creationType-dependent dual meaning.
 
-**Estimated effort:** 2-3 days  
-**Spec:** `uis-IE-3-totals-overhead.html`  
-**Requires:** IE-2
+**Estimated effort:** 4-5 days
+**Risk:** Medium — totals math is non-trivial (compound tax, proportional discount split, nested section rollups); getting it right once and reusing it for PDF / invoice is what earns the day count
+**Spec:** `tm-work-orders-uis/uis-IE-3-totals-overhead.html`
+**Requires:** IE-1 (enum + tree + tax snapshot + gate validator), SD-1 (discount model + assignments + queries), IE-2 (editor + tree state + SD-1 stack UI components)
+**Enables:** IE-4 (PDF — imports the totals engine), IE-5 (invoice — imports the totals engine)
 
----
+### Key design decisions (mirrors spec §2)
 
-## Step 1: Prisma enum extension
-
-- Add `Itemized` to `EstimateChangeOrderCreationType` (or equivalent enum name in codebase).
-- Migrate.
-
----
-
-## Step 2: API upsert
-
-**Model:** `EstimateChangeOrderRecord` (or dedicated service)
-
-- In `upsertFullEstimateChangeOrderRecord`, when payload includes line items:
-  - Replace-or-merge child `EstimateLineItem` rows by id / order.
-  - Use Prisma transaction; soft-delete removed lines.
+- **creationType is immutable — no mode-switching code lives in IE-3.** IE-1 enforces the rule (`canEdit: false` on `creationType` + write-side gate on line items). IE-3 reads `creationType` and renders; there is no switch UX, no confirm dialog, no data-migration logic anywhere in this plan.
+- **Totals math lives in `@useanzen/shared-utils`** — pure-function module importable by every app. Lives at `packages/shared-utils/src/estimates/itemizedTotalsEngine.ts` (namespaced under `estimates/` so the domain is obvious at a glance). The totals panel computes live on every keystroke with no GraphQL round-trip (qty / markup / tax / discount edits update the panel on the same React render as the edit). Backend re-runs the same function during the upsert for server-authoritative totals and as a sanity check against client drift. IE-4 (PDF) and IE-5 (invoice conversion) import the same module — math is written once, everybody else reads derived values.
+- **Section rollups are read-time.** IE-1 doesn't store subtotals on Section rows; the totals engine walks the `parentId` tree to build the numbered rollup the IE-2 canvas renders. If caching ever proves necessary, it goes in the engine, not the schema.
+- **Estimate-level discount stack uses SD-1 directly.** `DiscountAssignment` rows against `referenceModel = "EstimateChangeOrderRecord"` are the canonical store; IE-3's totals engine reads them via SD-1's `discountsForEntity` query. IE-2 already owns the UI for attaching / detaching / reordering — IE-3 reuses IE-2's `EstimateDiscountStack` component.
+- **`estimateMarkup` column is reused, not duplicated.** The existing Instance → ECR seeding (`Instance.defaultEstimateMarkup` / `defaultChangeOrderMarkup` → `ECR.estimateMarkup` at ECR create) keeps working unchanged; IE-3 reuses the column as the per-line-markup seed on Itemized records. A schema doc-comment documents the overload. The totals engine does **not** consult `ECR.estimateMarkup` on the Itemized path — each line's own `markupPercent` is what drives sell.
+- **Header `estimateMarkup` input hides on Itemized.** `EstimateChangeOrderDetails` guards the existing JSX block with `creationType !== "Itemized"`. The only Itemized edit surface for that column is the `Set default markup %` modal.
+- **Transactional upsert in one `$transaction`.** Header fields + full line-item tree (sections + lines, in parentId order) + line tax sets (M2M) + line discount assignments + estimate-level discount assignments all commit together or not at all. Partial failure rolls everything back.
+- **Contingency shape is pending product confirmation.** Plan below assumes the recommended answer: dedicated `contingencyPercent` + `contingencyDollarValue` on `EstimateChangeOrderRecord`, per-estimate. If the answer flips to "per-line" or "fold into `subsidy`", Step 1 changes; Step 2's engine stays structurally identical (the contingency step in the rollup reads from a different field).
 
 ---
 
-## Step 3: Totals component
+## Step 1: Prisma schema + doc-comment
 
-**File:** `EstimateChangeOrderTotals.tsx`
+**File:** `apps/api/prisma/schema.prisma`
 
-- If `creationType === Itemized`:
-  - Cost subtotal = sum of line `totalCost`
-  - Total markup = sum of line markup dollars
-  - Customer bid = sum of line `price` plus record-level overhead/contingency as per UIS
-  - Gross margin = `(bid - costSubtotal) / bid` when bid &gt; 0
+### 1a. Add contingency fields to `EstimateChangeOrderRecord`
+
+```prisma
+model EstimateChangeOrderRecord {
+  // ... existing fields ...
+  contingencyPercent      Decimal?  @db.Decimal(10, 2)
+  contingencyDollarValue  Decimal?  @db.Decimal(10, 2)
+  // ... rest ...
+}
+```
+
+Nullable on both; no backfill needed.
+
+### 1b. Doc-comment the `estimateMarkup` overload
+
+Prisma supports triple-slash doc comments on fields that propagate to the generated client and schema.graphql:
+
+```prisma
+model EstimateChangeOrderRecord {
+  // ... existing fields ...
+
+  /// Semantically overloaded by creationType:
+  ///   - Full / BidFirst: applied multiplier on the document total
+  ///   - Itemized:        per-line seed for new markupPercent at insert time;
+  ///                      NOT applied to Itemized totals directly.
+  /// Seeded at ECR-create from Instance.defaultEstimateMarkup /
+  /// defaultChangeOrderMarkup depending on EstimateChangeOrdersRecordType.
+  estimateMarkup                  Decimal  @default(0) @db.Decimal(10, 2)
+
+  // ... rest ...
+}
+```
+
+Zero runtime cost, preserves the "read the code, understand the rule" discipline.
+
+### 1c. Migration
+
+```bash
+pnpm --filter api prisma:migrate
+```
+
+Verify:
+
+- Two new nullable columns on `EstimateChangeOrderRecord`; no default needed.
+- Migration SQL ends with a newline, no schema references, no `DROP PRIMARY KEY`.
+- Run `pnpm --filter api prisma:cleanMigrationFile`.
+
+> **Gate:** if the §2 Business Question callout in the spec resolves to "fold into subsidy," skip 1a entirely and have the totals engine read `subsidy` where it would have read contingency. Everything else in this plan is unaffected.
 
 ---
 
-## Step 4: Default markup action
+## Step 2: `itemizedTotalsEngine` — pure-function math module
 
-- Button or menu: "Apply default markup %" to all lines lacking explicit override (define rules in model).
+**New file:** `packages/shared-utils/src/estimates/itemizedTotalsEngine.ts` (namespaced under `estimates/` so the domain is obvious at a glance)
+**Re-exported from:** `packages/shared-utils/src/index.ts` so consumers import as `import { computeItemizedTotals } from "@useanzen/shared-utils"`.
+
+This is the heart of IE-3. Every consumer (totals panel, server-side upsert, PDF, invoice conversion) imports from here. No side effects, no Prisma, no React, no `apps/*` dependencies — just pure input-to-output. Living in `shared-utils` is the whole reason the totals panel can recompute live on every edit without a server round-trip.
+
+### 2a. Input shape
+
+```typescript
+/**
+ * Inputs to the totals engine. Callers hydrate these from the database
+ * (server-side) or from the local tree state (IE-2 frontend during edit).
+ *
+ * IMPORTANT: ECR.estimateMarkup is INTENTIONALLY NOT on this input. On the
+ * Itemized path it is only a new-line seed (consumed by IE-2); it does not
+ * participate in any total. If you find yourself wanting to read it here,
+ * you're on the wrong branch — consult the spec §4 dual-meaning note.
+ */
+export interface IItemizedTotalsInput {
+    lines: IItemizedTotalsLine[];        // FLAT list, parentId drives hierarchy
+    estimateDiscounts: IItemizedDiscount[];  // SD-1 assignments where referenceModel = "EstimateChangeOrderRecord", sorted by orderNo
+    overheadPercent: number;             // ECR.overheadMarkup (null → 0)
+    contingencyPercent: number;          // ECR.contingencyPercent (null → 0)
+    contingencyDollarValue: number;      // ECR.contingencyDollarValue (null → 0)
+}
+
+export interface IItemizedTotalsLine {
+    id: string;
+    parentId: string | null;
+    orderNo: number;
+    nodeType: "Section" | "LineItem";
+    lineItemType?: "Labor" | "Material" | "Equipment" | "Custom" | null;
+
+    // Priced fields (null on Section nodes)
+    quantity?: number | null;
+    unitCost?: number | null;
+    totalCost?: number | null;         // derived upstream; passed in for consistency
+    markupPercent?: number | null;
+    markupDollarValue?: number | null;
+    price?: number | null;              // pre-discount sell
+
+    // Line-level taxes
+    taxTypes: { id: string; rate: number; isCompound: boolean }[];
+
+    // Line-level discounts (SD-1 assignments), sorted by orderNo
+    lineDiscounts: IItemizedDiscount[];
+}
+
+export interface IItemizedDiscount {
+    id: string;
+    type: "Percent" | "FixedAmount";
+    value: number;
+    orderNo: number;
+}
+```
+
+### 2b. Output shape
+
+```typescript
+export interface IItemizedTotalsOutput {
+    // Numbered rollup (matches IE-2 canvas steps)
+    lineSellBeforeDiscounts: number;    // sum of price across priced lines
+    costSubtotal: number;               // sum of totalCost
+    lineDiscountTotal: number;          // sum of per-line discount application
+    lineSellAfterLineDiscounts: number; // step 1 in canvas
+    estimateDiscountTotal: number;
+    taxableSellAfterEstimateDiscounts: number; // step 2 in canvas
+    taxAggregates: Array<{              // one entry per TaxType appearing on any line
+        taxTypeId: string;
+        rate: number;
+        isCompound: boolean;
+        amount: number;
+    }>;
+    taxTotal: number;
+    subtotal: number;                   // step 3 (taxableSell + taxTotal)
+    overheadAmount: number;             // step 4
+    contingencyAmount: number;          // step 5 (contingencyDollarValue + contingencyPercent × subtotal)
+    grandTotal: number;                 // subtotal + overhead + contingency
+    grossMarginPercent: number;         // (grandTotal - costSubtotal) / grandTotal × 100
+
+    // Section tree rollup (for the IE-2 canvas numbered subtotals + PDF)
+    nodeRollups: Map<string, ISectionRollup>;  // keyed by sectionId; root = null key
+}
+
+export interface ISectionRollup {
+    sectionId: string | null;       // null = root
+    label: string;                  // "1", "1.1", "1.1.1" — depth-numbered
+    costSubtotal: number;
+    lineSellSubtotal: number;
+    lineCount: number;
+    children: string[];             // ordered section ids
+}
+```
+
+### 2c. Algorithm
+
+```typescript
+export function computeItemizedTotals(input: IItemizedTotalsInput): IItemizedTotalsOutput {
+    const pricedLines = input.lines.filter(
+        (l) => l.nodeType === "LineItem" && (l.price ?? 0) > 0
+    );
+
+    // 1. Per-line: apply line-level discounts, then derive tax base.
+    const perLine = pricedLines.map((line) => {
+        const sellBeforeDiscount = Number(line.price ?? 0);
+        const costOfLine = Number(line.totalCost ?? 0);
+
+        // Stack line-level discounts in orderNo order
+        let runningSell = sellBeforeDiscount;
+        let discountAmount = 0;
+        for (const d of [...line.lineDiscounts].sort((a, b) => a.orderNo - b.orderNo)) {
+            const before = runningSell;
+            if (d.type === "Percent") runningSell -= runningSell * (d.value / 100);
+            else runningSell = Math.max(0, runningSell - d.value);
+            discountAmount += (before - runningSell);
+        }
+        return {
+            lineId: line.id,
+            parentId: line.parentId,
+            sellBeforeDiscount,
+            cost: costOfLine,
+            sellAfterLineDiscounts: runningSell,
+            lineDiscountAmount: discountAmount,
+            taxTypes: line.taxTypes
+        };
+    });
+
+    const lineSellBeforeDiscounts = sum(perLine, (p) => p.sellBeforeDiscount);
+    const costSubtotal = sum(perLine, (p) => p.cost);
+    const lineDiscountTotal = sum(perLine, (p) => p.lineDiscountAmount);
+    const lineSellAfterLineDiscounts = sum(perLine, (p) => p.sellAfterLineDiscounts);
+
+    // 2. Estimate-level discounts stack on the running post-line-discount sell.
+    let running = lineSellAfterLineDiscounts;
+    let estimateDiscountTotal = 0;
+    for (const d of [...input.estimateDiscounts].sort((a, b) => a.orderNo - b.orderNo)) {
+        const before = running;
+        if (d.type === "Percent") running -= running * (d.value / 100);
+        else running = Math.max(0, running - d.value);
+        estimateDiscountTotal += (before - running);
+    }
+    const taxableSellAfterEstimateDiscounts = running;
+
+    // 3. Proportional tax split.
+    // Each line's taxable base shifts proportional to its share of pre-estimate-discount sell.
+    const proportionalFactor =
+        lineSellAfterLineDiscounts > 0
+            ? taxableSellAfterEstimateDiscounts / lineSellAfterLineDiscounts
+            : 0;
+
+    const taxAggregateMap = new Map<string, { rate: number; isCompound: boolean; amount: number }>();
+    for (const p of perLine) {
+        const adjustedBase = p.sellAfterLineDiscounts * proportionalFactor;
+        // Non-compound first, compound second — matches JobBillLineItem / SimpleInvoice.tsx rule.
+        const nonCompoundTotal = p.taxTypes
+            .filter((t) => !t.isCompound)
+            .reduce((s, t) => s + adjustedBase * (t.rate / 100), 0);
+        for (const t of p.taxTypes) {
+            const taxBaseForThis = t.isCompound ? adjustedBase + nonCompoundTotal : adjustedBase;
+            const amount = taxBaseForThis * (t.rate / 100);
+            const existing = taxAggregateMap.get(t.id) ?? { rate: t.rate, isCompound: t.isCompound, amount: 0 };
+            existing.amount += amount;
+            taxAggregateMap.set(t.id, existing);
+        }
+    }
+    const taxAggregates = Array.from(taxAggregateMap.entries()).map(([taxTypeId, v]) => ({
+        taxTypeId,
+        rate: v.rate,
+        isCompound: v.isCompound,
+        amount: v.amount
+    }));
+    const taxTotal = taxAggregates.reduce((s, a) => s + a.amount, 0);
+
+    // 4. Subtotal → overhead → contingency → grand total.
+    const subtotal = taxableSellAfterEstimateDiscounts + taxTotal;
+    const overheadAmount = subtotal * (input.overheadPercent / 100);
+    const contingencyAmount =
+        subtotal * (input.contingencyPercent / 100) + input.contingencyDollarValue;
+    const grandTotal = subtotal + overheadAmount + contingencyAmount;
+    const grossMarginPercent = grandTotal > 0 ? ((grandTotal - costSubtotal) / grandTotal) * 100 : 0;
+
+    // 5. Section tree rollup (numbered labels + per-section subtotals).
+    const nodeRollups = buildSectionRollups(input.lines, perLine);
+
+    return {
+        lineSellBeforeDiscounts,
+        costSubtotal,
+        lineDiscountTotal,
+        lineSellAfterLineDiscounts,
+        estimateDiscountTotal,
+        taxableSellAfterEstimateDiscounts,
+        taxAggregates,
+        taxTotal,
+        subtotal,
+        overheadAmount,
+        contingencyAmount,
+        grandTotal,
+        grossMarginPercent,
+        nodeRollups
+    };
+}
+
+function buildSectionRollups(
+    lines: IItemizedTotalsLine[],
+    perLine: Array<{ lineId: string; parentId: string | null; cost: number; sellBeforeDiscount: number }>
+): Map<string, ISectionRollup> {
+    // Walk the parentId tree, order siblings by orderNo, assign "1", "1.1", etc. labels,
+    // sum cost + sell for each subtree including nested sections.
+    // Implementation left as a straightforward recursion; tree depth capped at 3 per IE-1.
+    // ...
+}
+
+function sum<T>(arr: T[], pick: (x: T) => number): number {
+    return arr.reduce((s, x) => s + pick(x), 0);
+}
+```
+
+> **Gross margin formula:** the code above uses `(grandTotal - costSubtotal) / grandTotal × 100`. This is the industry-standard definition for an estimate's "margin on sell" — simplest to explain to a customer. If product wants a different formula (e.g., on `subtotal` rather than `grandTotal`, excluding overhead), change this one line and document. Flag for product confirmation.
+
+### 2d. Unit tests
+
+**New file:** `packages/shared-utils/src/estimates/itemizedTotalsEngine.test.ts`
+
+Cover at minimum:
+
+- Empty input → all zeros, no NaN.
+- Single Custom line, no tax, no discount → `grandTotal = price + overhead + contingency`.
+- Compound tax stacking matches `SimpleInvoice.tsx`'s handling of QST-on-base+GST.
+- Estimate-level Percent discount → proportional split: line A share = lineA.sell / sum(sells); tax on each line's adjusted base.
+- Estimate-level FixedAmount discount caps at the running sell; never goes negative.
+- Multiple stacked estimate discounts apply in `orderNo` order (first Percent → FixedAmount, then second Percent).
+- Section tree with depth 3 rolls up cost and sell correctly; numbered labels are "1", "1.1", "1.1.1" per depth.
+- **Changing `ECR.estimateMarkup` (not passed to engine) produces zero delta** — a sentinel test confirming the dual-meaning discipline holds.
 
 ---
 
-## Step 5: Frontend save path
+## Step 3: Transactional upsert mutation
 
-- On Save from estimate detail, send full line array + totals fields in one mutation variables object.
+IE-3 adds three backend methods that work together: a top-level `upsertItemized` orchestrator on `EstimateChangeOrderRecord`, a tree-diffing `upsertTree` on IE-1's line-item model, and a polymorphic `syncForEntity` on SD-1's `DiscountAssignment`. All three ship as part of IE-3 since the upsert is the thing that creates the need for them.
+
+### 3a. `EstimateChangeOrderRecord.upsertItemized` — orchestrator
+
+**Modify:** `apps/api/src/models/EstimateChangeOrderRecord.ts`
+
+Add `upsertItemized`:
+
+```typescript
+public async upsertItemized(
+    input: IUpsertItemizedEstimateInput,
+    currentUserId: string
+): Promise<FullModel<IEstimateChangeOrderRecord>> {
+    return prisma.$transaction(async (tx) => {
+        // 1. Header fields
+        const header = await tx.estimateChangeOrderRecord.update({
+            where: { id: input.estimateChangeOrderRecordId },
+            data: {
+                overheadMarkup: input.overheadMarkup,
+                overheadDollarValue: input.overheadDollarValue,
+                estimateMarkup: input.estimateMarkup,      // seed for new lines
+                markupDollarValue: input.markupDollarValue,
+                contingencyPercent: input.contingencyPercent,
+                contingencyDollarValue: input.contingencyDollarValue,
+                bid: input.bid
+                // creationType is intentionally NOT updated — immutable (IE-1).
+            }
+        });
+
+        // 2. Tree diff: create new, update existing, soft-delete missing.
+        //    Delegates to ItemizedEstimateChangeOrderRecordLineItem.upsertTree which:
+        //    - Walks the incoming tree in parentId order so section parents exist
+        //      before their children.
+        //    - Per line: runs IE-1 validatePayload (creation-type gate, reference
+        //      existence check, type↔model map, node-type shape).
+        //    - For each written line: diffs the incoming taxTypeIds vs existing via
+        //      the M2M relation (connect / disconnect) and recomputes taxValue.
+        //    - For each written line: diffs the incoming line-level discount
+        //      assignments against the stored set (SD-1 attachDiscount / detachDiscount).
+        await new ItemizedEstimateChangeOrderRecordLineItem().upsertTree(
+            input.estimateChangeOrderRecordId,
+            input.lineItemTree,
+            currentUserId,
+            tx
+        );
+
+        // 3. Estimate-level discount stack diff.
+        //    Delegates to DiscountAssignment.syncForEntity which attaches new ids,
+        //    detaches removed ones, and writes orderNo for the retained set.
+        await new DiscountAssignment().syncForEntity(
+            "EstimateChangeOrderRecord",
+            input.estimateChangeOrderRecordId,
+            input.estimateDiscountAssignments,
+            currentUserId,
+            tx
+        );
+
+        // 4. Optional: server-authoritative totals sanity check.
+        //    Re-run the shared engine against the post-write tree and log / error
+        //    on material drift from what the client sent (guards against rogue
+        //    clients bypassing the UI). Same import as the frontend hook:
+        //      import { computeItemizedTotals } from "@useanzen/shared-utils";
+
+        return header;
+    });
+}
+```
+
+### 3b. `ItemizedEstimateChangeOrderRecordLineItem.upsertTree` — tree diff helper
+
+**Modify:** `apps/api/src/models/ItemizedEstimateChangeOrderRecordLineItem.ts`
+
+New public method on the IE-1 model. Takes the incoming flat tree and reconciles it against what's persisted for the ECR.
+
+```typescript
+public async upsertTree(
+    estimateChangeOrderRecordId: string,
+    incoming: IUpsertItemizedLineItemPayload[],  // sections + lines, flat with parentId
+    currentUserId: string,
+    tx: Prisma.TransactionClient
+): Promise<FullModel<IItemizedEstimateChangeOrderRecordLineItem>[]> {
+    // 1. Load existing tree for this ECR.
+    const existing = await tx.itemizedEstimateChangeOrderRecordLineItem.findMany({
+        where: { estimateChangeOrderRecordId, isDeleted: false },
+        select: { id: true, parentId: true, nodeType: true }
+    });
+    const existingById = new Map(existing.map((r) => [r.id, r]));
+
+    // 2. Classify each incoming row.
+    const toCreate = incoming.filter((r) => !r.id);
+    const toUpdate = incoming.filter((r) => r.id && existingById.has(r.id) && !r.isDeleted);
+    const toDelete = incoming.filter((r) => r.id && r.isDeleted);
+    const incomingIds = new Set(incoming.filter((r) => r.id).map((r) => r.id!));
+    const orphanDeletes = existing
+        .filter((r) => !incomingIds.has(r.id))
+        .map((r) => ({ id: r.id, isDeleted: true }));
+
+    // 3. Writes must respect tree order: sections (no parent or parent already written)
+    //    before their children. A topological sort by parentId — depth cap of 3 keeps
+    //    this trivial (three passes worst case).
+    const orderedCreates = topoSortByParent(toCreate);
+
+    // 4. Apply in order. Each write runs through validatePayload (creation-type gate,
+    //    reference existence check, type↔model map, node-type shape) so a bad incoming
+    //    row throws and rolls back the whole $transaction.
+    const written: FullModel<IItemizedEstimateChangeOrderRecordLineItem>[] = [];
+    for (const row of orderedCreates) {
+        await this.validatePayload({ ...row, estimateChangeOrderRecordId });
+        const created = await this.createItemWithTax(
+            { ...row, estimateChangeOrderRecordId },
+            currentUserId
+        );
+        // Stitch the client-provided _rid (if any) to the server id in a local map so
+        // later children in the same payload can reference their newly-created parent.
+        // ...
+        written.push(created);
+    }
+    for (const row of toUpdate) {
+        const prior = await this.getItem(row.id!);
+        await this.validatePayload(row, prior);
+        written.push(await this.editItemWithTax(row.id!, row, currentUserId));
+    }
+    for (const row of [...toDelete, ...orphanDeletes]) {
+        await this.deleteItem(row.id!, currentUserId);
+    }
+    return written;
+}
+```
+
+`createItemWithTax` / `editItemWithTax` already exist on IE-1's model (see IE-1 plan §3d) — they handle tax M2M diffing and `recomputeTaxValue`. `upsertTree` just orchestrates the set-diff and ordering.
+
+Line-level discount assignments piggyback on the tax diff: the incoming payload carries `lineDiscounts: IUpsertLineDiscountInput[]` per line, and `createItemWithTax` / `editItemWithTax` grow a parallel `lineDiscounts` handler that calls SD-1's `attachDiscount` / `detachDiscount` / `createAdHocDiscountAndAttach` against each line's id. Land that extension here as part of IE-3 — IE-1 / SD-1 plans don't need changes; IE-3's implementation just reaches across.
+
+### 3c. `DiscountAssignment.syncForEntity` — polymorphic assignment diff
+
+**Modify:** `apps/api/src/models/DiscountAssignment.ts`
+
+New public method on SD-1's `DiscountAssignment`. Takes an incoming assignment list for a single `(referenceModel, referenceId)` target and reconciles it against what's persisted.
+
+```typescript
+public async syncForEntity(
+    referenceModel: DiscountReferenceModel,
+    referenceId: string,
+    incoming: IUpsertEstimateDiscountAssignmentInput[],
+    currentUserId: string,
+    tx: Prisma.TransactionClient
+): Promise<void> {
+    const existing = await tx.discountAssignment.findMany({
+        where: { referenceModel, referenceId, isDeleted: false },
+        select: { id: true, discountId: true, orderNo: true }
+    });
+    const existingById = new Map(existing.map((a) => [a.id, a]));
+    const incomingIds = new Set(incoming.filter((a) => a.id).map((a) => a.id!));
+
+    // Detach assignments dropped from the incoming list.
+    for (const prior of existing) {
+        if (!incomingIds.has(prior.id)) {
+            await tx.discountAssignment.update({
+                where: { id: prior.id },
+                data: { isDeleted: true }
+            });
+        }
+    }
+
+    // Attach new + update retained orderNo.
+    for (const row of incoming) {
+        if (!row.id) {
+            // New attachment — run validatePayload for the referenceModel allowlist /
+            // existence check, same as SD-1's attachDiscount resolver.
+            await this.validatePayload({
+                referenceModel,
+                referenceId,
+                discountId: row.discountId,
+                orderNo: row.orderNo
+            });
+            await tx.discountAssignment.create({
+                data: {
+                    id: generateId(),
+                    referenceModel,
+                    referenceId,
+                    discountId: row.discountId,
+                    orderNo: row.orderNo
+                }
+            });
+        } else {
+            const prior = existingById.get(row.id);
+            if (prior && prior.orderNo !== row.orderNo) {
+                await tx.discountAssignment.update({
+                    where: { id: row.id },
+                    data: { orderNo: row.orderNo }
+                });
+            }
+        }
+    }
+}
+```
+
+Used by IE-3's orchestrator for the estimate-level stack (`referenceModel = "EstimateChangeOrderRecord"`). The per-line version that's invoked during `upsertTree` follows the same pattern but against `referenceModel = "ItemizedEstimateChangeOrderRecordLineItem"`; factor once and reuse.
+
+### 3d. GraphQL mutation
+
+**Modify:** `apps/api/src/graphql/models/EstimateChangeOrderRecord.ts`
+
+Add the typeDef and resolver:
+
+```typescript
+typeDef: gql`
+    input UpsertItemizedEstimateChangeOrderRecordLineItemInput {
+        id: ID                # null = new
+        nodeType: LineItemNodeType!
+        parentId: ID           # null = root
+        orderNo: Int!
+        lineItemType: EstimateLineItemType    # null on Section
+        priceReferenceModel: PriceReferenceModel
+        priceReferenceId: ID
+        userId: ID
+        description: String
+        quantity: Float
+        unit: String
+        unitCost: Float
+        markupPercent: Float
+        markupDollarValue: Float
+        price: Float
+        taxTypeIds: [ID!]
+        lineDiscounts: [UpsertLineDiscountInput!]
+        isDeleted: Boolean     # true → soft-delete
+    }
+
+    input UpsertLineDiscountInput {
+        id: ID                 # DiscountAssignment.id — null = new attachment
+        discountId: ID         # null if isAdHoc = true
+        isAdHoc: Boolean!
+        type: DiscountType
+        value: Float
+        name: String
+        orderNo: Int!
+    }
+
+    input UpsertEstimateDiscountAssignmentInput {
+        id: ID
+        discountId: ID!
+        orderNo: Int!
+    }
+
+    input UpsertItemizedEstimateChangeOrderRecordInput {
+        estimateChangeOrderRecordId: ID!
+        overheadMarkup: Float
+        overheadDollarValue: Float
+        estimateMarkup: Float
+        markupDollarValue: Float
+        contingencyPercent: Float
+        contingencyDollarValue: Float
+        bid: Float
+        lineItemTree: [UpsertItemizedEstimateChangeOrderRecordLineItemInput!]!
+        estimateDiscountAssignments: [UpsertEstimateDiscountAssignmentInput!]
+    }
+
+    extend type Mutation {
+        upsertItemizedEstimateChangeOrderRecord(
+            input: UpsertItemizedEstimateChangeOrderRecordInput!
+        ): EstimateChangeOrderRecord
+    }
+`,
+Mutation: {
+    upsertItemizedEstimateChangeOrderRecord: (_p, args, context) =>
+        new EstimateChangeOrderRecord().upsertItemized(args.input, context.userId())
+}
+```
 
 ---
 
-## UI / UX deliverables
+## Step 4: Totals panel UI — Itemized branch
 
-Match `uis-IE-3-totals-overhead.html` §3 UI Concepts (mockups).
+### 4a. Thin hook
 
-### Totals panel (Itemized branch)
+**New file:** `apps/frontend/src/components/Estimates/Totals/useItemizedTotals.ts`
 
-- Render rows: **Cost subtotal**, **Total markup**, **Line sell subtotal**, **Overhead** (amount from %), **Contingency**, **Grand bid**, **Gross margin %**.
-- **creationType** control in estimate header with confirm when switching away from Itemized with existing lines.
-- **Set default markup %** adjacent to totals or header; behavior documented with PM (new lines vs overrides).
+```typescript
+import { computeItemizedTotals } from "@useanzen/shared-utils";
+// Pure module — no GraphQL round-trip for totals during edit.
 
-### Formula QA
+export const useItemizedTotals = (tree, estimateDiscountAssignments, headerFields) =>
+    useMemo(
+        () =>
+            computeItemizedTotals({
+                lines: tree,
+                estimateDiscounts: estimateDiscountAssignments,
+                overheadPercent: headerFields.overheadMarkup ?? 0,
+                contingencyPercent: headerFields.contingencyPercent ?? 0,
+                contingencyDollarValue: headerFields.contingencyDollarValue ?? 0
+            }),
+        [tree, estimateDiscountAssignments, headerFields]
+    );
+```
 
-- Gross margin = `(grandBid - costSubtotal) / grandBid` when grandBid &gt; 0; document rounding.
-- After save, panel numbers match server-returned header fields.
+### 4b. Panel component
 
-### Payload cross-check
+**New file:** `apps/frontend/src/components/Estimates/Totals/EstimateChangeOrderTotals.tsx`
 
-- `upsert` / extended mutation sends `lineItems[]` + overhead fields in one variables object per UIS.
+Itemized branch. Pattern-matches the IE-2 canvas totals panel. Reuses `EstimateDiscountStack` from IE-2 for the estimate-level discount list. The panel MUST surface three rollups as distinct, always-rendered rows so the reader can always tell which level the money came from:
+
+1. **Line discounts subtotal** (`totals.lineDiscountTotal`) — sum of every per-line `DiscountAssignment` amount, independent of the stack.
+2. **Estimate-level discount subtotal** (`totals.estimateDiscountTotal`) — sum of the estimate-level stack, rendered below the stack UI.
+3. **Tax subtotal** (`totals.taxTotal`) — sum of per-line cached `taxValue`, labeled with a weighted-average rate annotation (`taxTotal / taxableSellAfterEstimateDiscounts × 100`). There is no estimate-level tax control; tax always originates from the line grid.
+
+The per-TaxType breakdown rows continue to render above the tax subtotal so compound / non-compound behavior remains auditable.
+
+```tsx
+interface IEstimateChangeOrderTotalsProps {
+    estimateChangeOrderRecordId: string;
+    tree: ILineFormValue[];
+    estimateDiscountAssignments: IDiscountAssignmentFormValue[];
+    headerFields: {
+        overheadMarkup: number | null;
+        contingencyPercent: number | null;
+        contingencyDollarValue: number | null;
+    };
+    isEditMode: boolean;
+    onOverheadChange: (pct: number) => void;
+    onContingencyChange: (pct: number | null, amt: number | null) => void;
+}
+
+const EstimateChangeOrderTotals: FC<IEstimateChangeOrderTotalsProps> = ({ ... }) => {
+    // State
+    const totals = useItemizedTotals(tree, estimateDiscountAssignments, headerFields);
+
+    // Render
+    return (
+        <div className="totals-footer">
+            <h3>Summary</h3>
+
+            <TotalsRow label="Cost subtotal" value={totals.costSubtotal} />
+            <TotalsRow label="Line sell (before discounts)" value={totals.lineSellBeforeDiscounts} />
+            <TotalsRow
+                label="Line discounts (Σ per-line)"
+                value={-totals.lineDiscountTotal}
+                tone="negative"
+                alwaysRender
+            />
+            <TotalsRow step={1} label="Line sell after line discounts" value={totals.lineSellAfterLineDiscounts} />
+
+            <EstimateDiscountStack
+                estimateChangeOrderRecordId={estimateChangeOrderRecordId}
+                assignments={estimateDiscountAssignments}
+                isEditMode={isEditMode}
+            />
+
+            <TotalsRow
+                label="Estimate-level discount (stack total)"
+                value={-totals.estimateDiscountTotal}
+                tone="negative"
+                alwaysRender
+            />
+            <TotalsRow step={2} label="Taxable sell after estimate discounts" value={totals.taxableSellAfterEstimateDiscounts} />
+            {totals.taxAggregates.map((t) => (
+                <TotalsRow
+                    key={t.taxTypeId}
+                    label={`Tax · ${taxLabelFor(t)} (${t.rate}%${t.isCompound ? " compound" : ""})`}
+                    value={t.amount}
+                />
+            ))}
+            <TotalsRow
+                label={`Tax (Σ per-line taxValue, weighted avg ${formatWeightedAvg(totals)}%)`}
+                value={totals.taxTotal}
+                alwaysRender
+            />
+            <TotalsRow step={3} label="Subtotal (discounted sell + tax)" value={totals.subtotal} />
+
+            <TotalsRow
+                step={4}
+                label={`Overhead (${headerFields.overheadMarkup ?? 0}%)`}
+                value={totals.overheadAmount}
+            />
+            {(headerFields.contingencyPercent || headerFields.contingencyDollarValue) && (
+                <TotalsRow step={5} label="Contingency" value={totals.contingencyAmount} />
+            )}
+            <TotalsRow grand label="Grand total" value={totals.grandTotal} />
+            <TotalsRow label="Gross margin %" value={totals.grossMarginPercent} suffix="%" />
+
+            {/* Trigger button for the Set default markup modal (Step 6) */}
+            <SetDefaultMarkupButton estimateChangeOrderRecordId={estimateChangeOrderRecordId} />
+        </div>
+    );
+};
+```
+
+`TotalsRow` is a small presentational component; layout matches the IE-2 canvas (`.t-line` / `.t-line.step` / `.t-line.grand`). `tone="negative"` applies the `.val.neg` red color used by the canvas; `alwaysRender` forces the row even when the value is `0` so the three rollups (line discounts, estimate-level discount, tax) stay visible and labeled regardless of state. `formatWeightedAvg(totals)` = `totals.taxableSellAfterEstimateDiscounts > 0 ? (totals.taxTotal / totals.taxableSellAfterEstimateDiscounts * 100).toFixed(2) : "0.00"`.
+
+### 4c. Section rollup rendering
+
+The totals engine's `nodeRollups` map is intended for the PDF (IE-4) and any future "jump to section X subtotal" affordance. For v1, the totals panel itself doesn't render section subtotals — the IE-2 canvas already shows them inline in the grid as the numbered rollup. Don't double-render.
 
 ---
 
-## Checklist
+## Step 5: Overhead UI — sidebar input
 
-- [ ] Switching creation type mid-edit shows confirm if data loss
-- [ ] Totals reconcile with server response after save
-- [ ] Permissions on mutation unchanged from parent estimate
+**Modify:** `apps/frontend/src/pages/…/EstimateChangeOrderDetails.tsx` (or wherever the sidebar currently lives)
+
+Sidebar overhead input already exists for Full / BidFirst. Two changes:
+
+1. Live-recalc — the totals panel is already wired to `headerFields.overheadMarkup` via `useItemizedTotals`, so changing the input re-runs `computeItemizedTotals`. No extra work.
+2. Dirty tracking — already part of the parent form's state; `Save` is disabled until everything validates (existing pattern).
+
+On Itemized records, the same sidebar overhead input persists to `ECR.overheadMarkup` on save via the new `upsertItemizedEstimateChangeOrderRecord` mutation.
 
 ---
 
-## Integration / E2E test scenarios
+## Step 6: "Set default markup %" modal
 
-1. Create Itemized estimate with 3 lines → verify totals panel **cost subtotal**, **markup total**, **line sell subtotal** match sum of persisted rows from API.
-2. Change **overhead %** → panel updates live → Save → reload → overhead amount matches server.
-3. **creationType switch:** Start `Full` with worksheet values → switch to `Itemized` → confirm → line editor visible; legacy rows not shown; save Itemized lines only.
-4. Switch **Itemized → Full** with itemized lines → confirm → expect confirm copy per UIS; after switch, data state matches product rule (archived vs retained).
-5. **Set default markup %** → apply → only targeted rows update (per PM rule A/B/C); Save → reload confirms.
-6. **Atomic save:** Introduce validation error on one line → entire save fails; no partial header without lines (or document transactional boundary).
+**New file:** `apps/frontend/src/components/Estimates/Totals/SetDefaultMarkupModal.tsx`
+
+### 6a. Modal shape
+
+- Numeric `FormControl` prefilled from `ECR.estimateMarkup` (passed in as a prop).
+- Two primary action buttons stacked:
+    - **Update default for future lines** (primary, blue)
+    - **Apply default to all lines now** (secondary, outlined)
+- Cancel.
+
+Both buttons call back into the parent form — no direct GraphQL calls from the modal.
+
+### 6b. Button handlers
+
+```tsx
+// Parent form (EstimateChangeOrderDetails or editor state hook)
+const handleUpdateDefault = (value: number) => {
+    setHeaderFields((prev) => ({ ...prev, estimateMarkup: value }));
+    // Persists on next parent Save.
+};
+
+const handleApplyToAll = async (value: number) => {
+    const pricedLines = tree.filter(
+        (r) => r.kind === "line" && r.lineItemType && r.lineItemType !== null
+    );
+    const confirmed = await confirm({
+        title: `Overwrite markup on ${pricedLines.length} existing lines?`,
+        body: `Sets every priced line's markupPercent to ${value}%, overwriting any per-line overrides. This can't be undone.`,
+        confirmLabel: "Overwrite",
+        variant: "danger"
+    });
+    if (!confirmed) return;
+
+    setHeaderFields((prev) => ({ ...prev, estimateMarkup: value }));
+    setTree((prev) =>
+        prev.map((r) =>
+            r.kind === "line" && r.lineItemType
+                ? { ...r, markupPercent: value, _dirty: r._dirty ?? "edit" }
+                : r
+        )
+    );
+    // Section rows untouched. The next Save will write the whole batch via upsert.
+};
+```
+
+### 6c. Confirmation dialog
+
+Reuse the project's existing `useConfirm` / `Confirm` pattern — red-accent border, "Overwrite" / "Cancel" buttons, copy per the spec §3.2 mockup.
+
+---
+
+## Step 7: `EstimateChangeOrderDetails` integration
+
+**Modify:** `apps/frontend/src/pages/…/EstimateChangeOrderDetails.tsx`
+
+### 7a. Hide `estimateMarkup` header input on Itemized
+
+Find the existing JSX block that renders the `estimateMarkup` input (alongside `overheadMarkup`, `bid`, etc. on the Full / BidFirst header):
+
+```tsx
+{estimate.creationType !== "Itemized" && (
+    <FormControl
+        name="estimateMarkup"
+        value={formValues.estimateMarkup}
+        onChange={...}
+        type="percent"
+        label="Estimate markup %"
+    />
+)}
+```
+
+No other change to the surrounding block.
+
+### 7b. Wire save path
+
+Existing Save handler forks by `creationType`:
+
+```tsx
+const handleSave = async () => {
+    if (estimate.creationType === "Itemized") {
+        await upsertItemizedEstimateChangeOrderRecord({
+            variables: {
+                input: {
+                    estimateChangeOrderRecordId: estimate.id,
+                    overheadMarkup: headerFields.overheadMarkup,
+                    overheadDollarValue: headerFields.overheadDollarValue,
+                    estimateMarkup: headerFields.estimateMarkup,    // seed for new lines
+                    markupDollarValue: headerFields.markupDollarValue,
+                    contingencyPercent: headerFields.contingencyPercent,
+                    contingencyDollarValue: headerFields.contingencyDollarValue,
+                    bid: headerFields.bid,
+                    lineItemTree: serializeTreeForUpsert(tree),
+                    estimateDiscountAssignments: serializeEstimateDiscounts(estimateDiscounts)
+                }
+            }
+        });
+    } else {
+        await upsertFullEstimateChangeOrderRecord({ /* existing */ });
+    }
+    // Refetch + reconcile ids.
+};
+```
+
+### 7c. Render the Itemized totals panel
+
+Below the IE-2 editor within the Worksheet tab (IE-2 owns this placement; see IE-2 §3.1):
+
+```tsx
+{estimate.creationType === "Itemized" && (
+    <>
+        <EstimateLineItemEditor /* IE-2 */ ... />
+        <EstimateChangeOrderTotals
+            estimateChangeOrderRecordId={estimate.id}
+            tree={tree}
+            estimateDiscountAssignments={estimateDiscounts}
+            headerFields={headerFields}
+            isEditMode={canEdit}
+            onOverheadChange={(pct) => setHeaderFields((p) => ({ ...p, overheadMarkup: pct }))}
+            onContingencyChange={(pct, amt) =>
+                setHeaderFields((p) => ({ ...p, contingencyPercent: pct, contingencyDollarValue: amt }))
+            }
+        />
+    </>
+)}
+```
+
+---
+
+## Step 8: TypeScript + build
+
+```bash
+pnpm --filter api build
+pnpm run codegen
+pnpm --filter frontend build
+```
+
+---
+
+## Handoff to IE-4 / IE-5
+
+- **IE-4 (PDF)** imports `itemizedTotalsEngine.computeItemizedTotals`, passes in the same inputs it would give the totals panel, and renders the `nodeRollups` + numbered totals directly in the PDF body. No totals math duplicated.
+- **IE-5 (invoice conversion)** calls `computeItemizedTotals` server-side against the persisted tree as a sanity check on conversion math; converts each priced `ItemizedEstimateChangeOrderRecordLineItem` into a `JobBillLineItem` (including its tax set and discount assignments). SD-1's `DiscountAssignment` rows against `EstimateChangeOrderRecord` are copied onto the created `JobBill` with `referenceModel = "JobBill"`.
+
+---
+
+## Verification Checklist
+
+- [ ] Migration adds `contingencyPercent` and `contingencyDollarValue` nullable decimals to `EstimateChangeOrderRecord` (or skipped per the §2 gate)
+- [ ] `estimateMarkup` carries the triple-slash doc comment documenting its creationType-dependent dual meaning
+- [ ] `itemizedTotalsEngine.ts` has no Prisma / React imports; tests run with no backend wiring
+- [ ] Unit tests cover: empty input, single line, compound tax (matches `SimpleInvoice.tsx`), estimate-level Percent discount with proportional split, estimate-level FixedAmount cannot go below zero, stacked estimate discounts apply in `orderNo` order, section tree depth-3 rollup labels correctly
+- [ ] Engine does **not** consult `ECR.estimateMarkup` on the Itemized path (explicit test)
+- [ ] Gross margin formula matches the one chosen in Step 2c; document in a code comment next to the formula
+- [ ] `upsertItemizedEstimateChangeOrderRecord` mutation: all writes in one Prisma `$transaction`; partial failure rolls everything back
+- [ ] Mutation delegates line tree writes through IE-1's validator so the creation-type gate and node-shape rules still fire
+- [ ] Mutation diffs line tax M2M and line discount assignments per line
+- [ ] Mutation diffs estimate-level discount assignments against stored set
+- [ ] Mutation never updates `creationType` (IE-1's `canEdit: false` would strip it anyway; defensive belt-and-braces)
+- [ ] Totals panel renders the 5-step numbered rollup + tax aggregates + overhead + contingency + grand total + gross margin
+- [ ] Totals panel always renders **Line discounts (Σ per-line)** and **Estimate-level discount (stack total)** as two distinct rows, even at $0.00, and never merges them
+- [ ] Totals panel always renders a **Tax (Σ per-line taxValue, weighted avg X.XX%)** summary row derived from `taxTotal / taxableSellAfterEstimateDiscounts`, below the per-TaxType breakdown
+- [ ] Totals panel re-computes live when qty / markup / tax / line discount / estimate discount / overhead / contingency changes
+- [ ] Totals panel mounts only on `creationType = Itemized`
+- [ ] Sidebar overhead input persists on save; value round-trips from `ECR.overheadMarkup`
+- [ ] `estimateMarkup` header input is hidden on Itemized records (`creationType !== "Itemized"` guard)
+- [ ] Set default markup modal: prefill from `ECR.estimateMarkup`; two action buttons visible; cancel closes without persisting
+- [ ] "Update default for future lines" writes `ECR.estimateMarkup` only; tree unchanged
+- [ ] "Apply default to all lines now": confirmation dialog fires first; accept sets `markupPercent` on every priced line and flags them dirty; Section rows untouched
+- [ ] `pnpm --filter api build`, `pnpm run codegen`, `pnpm --filter frontend build` all pass
+
+---
+
+## Integration / E2E Test Scenarios
+
+1. **Engine — compound tax.** Input: one line sell $100 with GST 5% + QST-QC 9.975% (compound). Expected: GST = $5.00; QST = $105.00 × 9.975% = $10.47; total tax = $15.47.
+2. **Engine — estimate-level Percent discount with proportional split.** Two lines: A sell $100 (GST 5%), B sell $200 (HST 13%). Estimate-level 10% discount. Taxable sell = $270. Adjusted base A = $90, tax A = $4.50. Adjusted base B = $180, tax B = $23.40. Total tax = $27.90.
+3. **Engine — FixedAmount cannot go below zero.** Line sell $50, estimate discount FixedAmount $75 → taxable sell = $0, tax = 0.
+4. **Engine — stacked estimate discounts.** Line sell $1000. Discount 1: Percent 10% (`orderNo=0`) → running = $900. Discount 2: FixedAmount $50 (`orderNo=1`) → running = $850. Total estimate discount = $150.
+5. **Engine — section rollup.** Tree: Root → Section A → [Line a1 (sell 100), Section A.1 → Line a1.1 (sell 50)]. Section A rollup: cost + sell of both descendant lines; label "1". Section A.1: label "1.1". Depth-3 Line inside A.1 gets label "1.1.1" in the numbered rollup.
+6. **Engine — dual meaning sentinel.** Build inputs, compute, store result. Change `ECR.estimateMarkup` in storage (no engine call) and re-read — result is identical. Confirms the engine never consults the field.
+7. **Mutation — transactional rollback.** Fire `upsertItemizedEstimateChangeOrderRecord` with a valid header + a line whose `priceReferenceId` doesn't resolve (IE-1 validator throws). Transaction rolls back: header fields stay untouched; no lines created; no tax M2M writes; no discount assignments.
+8. **Mutation — tree diff.** Seed an ECR with 3 lines under one section. Submit an upsert that (a) keeps line 1, (b) edits line 2's qty, (c) soft-deletes line 3, (d) adds a new line 4. Post-upsert: 3 live lines (1, 2-edited, 4); line 3 has `isDeleted = true`.
+9. **Mutation — tax diff.** Line carries `[GST]`. Upsert with `taxTypeIds: [GST, HST]` → GST stays, HST connected. Next upsert with `[]` → both disconnected. `taxValue` snapshot recomputes each time.
+10. **Mutation — estimate discount diff.** ECR has 2 estimate-level discount assignments. Upsert with a list that drops one and reorders the other → SD-1 detaches the removed one, updates `orderNo` on the retained.
+11. **Mutation — creationType never touched.** Pass `creationType: "Full"` in the mutation payload (shouldn't be in the input type but in a hand-rolled request). `canEdit: false` from IE-1 strips it; stored value remains `Itemized`.
+12. **UI — totals live-recalc.** Bump qty on any line → totals panel updates within one React render; no server round-trip.
+13. **UI — overhead recalc.** Type `15` into the sidebar overhead input → step 4 and grand total re-compute live.
+14. **UI — contingency both flavors.** Set `contingencyPercent = 3` and `contingencyDollarValue = 500` → step 5 = subtotal × 0.03 + 500.
+15. **UI — `estimateMarkup` header input hidden on Itemized.** Open an Itemized ECR → no "Estimate markup %" field in the header. Open a Full ECR → field appears (existing behavior preserved).
+16. **UI — Set default markup "Update future".** Modal opens prefilled at `ECR.estimateMarkup`. Change to 18, click Update future → `ECR.estimateMarkup` becomes 18 (dirty); existing lines' `markupPercent` unchanged. Save → persists. Add a new Labor line post-save → seeds at 18.
+17. **UI — Set default markup "Apply to all".** 5 priced lines, each with different `markupPercent`. Modal opens, user enters 12, clicks Apply to all → confirmation dialog mentions "Overwrite markup on 5 existing lines?". Accept → all 5 lines now at 12; Section rows' titles are unchanged. Save → each line's row writes back with the new markup; `taxValue` recomputed for all five.
+18. **UI — Set default markup cancel on confirmation.** Same flow as 17, but cancel the confirmation → modal remains open; no lines changed; `ECR.estimateMarkup` unchanged.
+19. **UI — gross margin display.** On an estimate with cost $1000, grand total $1500 → gross margin 33.3%. Change overhead % → gross margin recomputes because grand total moves.
+20. **UI — totals panel mounts only on Itemized.** Open a Full ECR in the same `EstimateChangeOrderDetails` page → existing totals panel renders (legacy); Itemized panel does not. Open an Itemized ECR → Itemized panel renders; legacy does not.
 
 ---
 
 ## Files Summary
 
-| Action | File |
-|--------|------|
-| MODIFY | `apps/api/prisma/schema.prisma` |
-| MODIFY | `apps/api/src/models/EstimateChangeOrderRecord.ts` (or equivalent) |
-| MODIFY | `apps/api/src/graphql/models/EstimateChangeOrderRecord.ts` |
-| MODIFY | `apps/frontend/src/components/.../EstimateChangeOrderTotals.tsx` |
+| Action | File | What to do |
+|--------|------|------------|
+| MODIFY | `apps/api/prisma/schema.prisma` | Add `contingencyPercent` + `contingencyDollarValue` nullable decimals on `EstimateChangeOrderRecord`; add triple-slash doc comment on `estimateMarkup` |
+| CREATE | `apps/api/prisma/migrations/.../migration.sql` | Prisma-generated; review for SQL safety; `pnpm --filter api prisma:cleanMigrationFile` |
+| CREATE | `packages/shared-utils/src/estimates/itemizedTotalsEngine.ts` | Pure-function totals module (namespaced under `estimates/` so the domain is clear) — imported by frontend (live recalc), backend (upsert sanity check), IE-4 (PDF), IE-5 (invoice conversion) |
+| MODIFY | `packages/shared-utils/src/index.ts` | Re-export `computeItemizedTotals` and the engine's public types from `./estimates/itemizedTotalsEngine` so consumers `import { computeItemizedTotals } from "@useanzen/shared-utils"` |
+| CREATE | `packages/shared-utils/src/estimates/itemizedTotalsEngine.test.ts` | Unit tests covering compound tax, proportional split, discount stacking, section rollup, dual-meaning sentinel |
+| MODIFY | `apps/api/src/models/EstimateChangeOrderRecord.ts` | Add `upsertItemized` orchestrator that drives the one-transaction upsert |
+| MODIFY | `apps/api/src/models/ItemizedEstimateChangeOrderRecordLineItem.ts` | Add `upsertTree` helper that diffs the incoming tree against the persisted one, ordering creates parentId-first, deferring to `createItemWithTax` / `editItemWithTax` per row; extend those two to handle line-level `lineDiscounts` payloads via SD-1 |
+| MODIFY | `apps/api/src/models/DiscountAssignment.ts` | Add `syncForEntity(referenceModel, referenceId, incoming, …)` helper that diffs polymorphic assignments for a single target — used for both estimate-level and line-level stacks |
+| MODIFY | `apps/api/src/graphql/models/EstimateChangeOrderRecord.ts` | Register `upsertItemizedEstimateChangeOrderRecord` mutation + input types |
+| CREATE | `apps/frontend/src/components/Estimates/Totals/EstimateChangeOrderTotals.tsx` | Totals panel (Itemized branch) |
+| CREATE | `apps/frontend/src/components/Estimates/Totals/useItemizedTotals.ts` | Thin memoizing hook around `computeItemizedTotals` |
+| CREATE | `apps/frontend/src/components/Estimates/Totals/TotalsRow.tsx` | Presentational row used by the panel |
+| CREATE | `apps/frontend/src/components/Estimates/Totals/SetDefaultMarkupModal.tsx` | Numeric input + two action buttons + bulk-apply confirmation flow |
+| CREATE | `apps/frontend/src/components/Estimates/Totals/SetDefaultMarkupButton.tsx` | Button that opens the modal; rendered inside the totals panel |
+| CREATE | `apps/frontend/src/graphql/mutations/upsertItemizedEstimateChangeOrderRecord.graphql` | Frontend mutation file |
+| MODIFY | `apps/frontend/src/pages/…/EstimateChangeOrderDetails.tsx` | Hide `estimateMarkup` header input on Itemized; fork Save handler to call the new upsert; mount the Itemized totals panel below IE-2's editor |
+
+---
+
+## Out of Scope (handled elsewhere)
+
+- **IE-1** — `Itemized` enum value, `canEdit: false` on `creationType`, line-item schema + validator + gate, tax M2M + `taxValue` snapshot, section/tree model, resolver for unit cost.
+- **SD-1** — `Discount` + `DiscountAssignment` schema, CRUD, suggestions, ad-hoc promotion.
+- **IE-2** — line-item editor (cascades, sub-rows, section tree controls), `EstimateDiscountStack` component, markup seeding on new-line insert.
+- **IE-4** — PDF rendering (imports the totals engine; no math duplication).
+- **IE-5** — invoice conversion (imports the totals engine; copies line items and discount assignments onto `JobBill` / `JobBillLineItem`).
+- **Discount Library UX** — settings page listing reusable `Discount` rows (future spec).
 
 </script>
 

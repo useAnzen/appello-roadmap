@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>IE-1: EstimateLineItem Schema &amp; Model</title>
+<title>IE-1: ItemizedEstimateChangeOrderRecordLineItem Schema &amp; Model</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
 .in-iframe .top-nav { display: none !important; }
@@ -37,6 +37,9 @@ body { font-family: 'Inter', -apple-system, sans-serif; background: #f1f5f9; col
 .uis-section ul, .uis-section ol { padding-left: 20px; margin: 8px 0; }
 .customer-quote { background: #fef3c7; border-left: 3px solid #f59e0b; padding: 12px 16px; border-radius: 0 8px 8px 0; margin: 14px 0; font-style: italic; font-size: 14px; color: #92400e; }
 .customer-quote .attribution { font-style: normal; font-weight: 600; display: block; margin-top: 6px; }
+.decision { background: #fef3c7; border: 2px solid #f59e0b; border-radius: 10px; padding: 18px 22px; margin: 14px 0; }
+.decision h4 { color: #92400e; margin: 0 0 8px; font-size: 14px; }
+.decision p, .decision li { font-size: 13px; color: #92400e; }
 .scope-tag { display: inline-block; font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 5px; margin-right: 6px; }
 .scope-in { background: #dcfce7; color: #166534; }
 .scope-out { background: #fee2e2; color: #dc2626; }
@@ -85,8 +88,8 @@ table.schema-table code { font-family: monospace; background: #f1f5f9; padding: 
             <span class="uis-badge badge-priority">P1</span>
             <span class="uis-badge badge-child">Child of UIS-IE</span>
         </div>
-        <h1 class="uis-h1">EstimateLineItem Schema &amp; Model</h1>
-        <p class="uis-sub">Introduce <code>EstimateLineItem</code> as the persisted backing store for itemized estimate rows. Nullable catalog FKs support structured picks; custom rows omit FKs. Server-side helpers resolve default unit cost from LEM rate tables.</p>
+        <h1 class="uis-h1">ItemizedEstimateChangeOrderRecordLineItem Schema &amp; Model</h1>
+        <p class="uis-sub">Introduce <code>ItemizedEstimateChangeOrderRecordLineItem</code> as the persisted backing store for itemized estimate rows (only used when <code>EstimateChangeOrderRecord.creationType = Itemized</code>, added in IE-3). A polymorphic <code>priceReferenceModel</code> + <code>priceReferenceId</code> pair points at rate-level rows (<code>TradeLevelRate</code>, <code>MaterialAttributePrice</code>, <code>EquipmentRateValue</code>); custom rows omit both. Server-side helpers resolve default unit cost from LEM rate tables.</p>
         <div class="uis-meta">
             <span><strong>Estimate:</strong> 3&ndash;4 days</span>
             <span><strong>Parent:</strong> UIS-IE</span>
@@ -120,11 +123,16 @@ table.schema-table code { font-family: monospace; background: #f1f5f9; padding: 
         <div class="collapsible-body open">
             <h3>In Scope</h3>
             <ul>
-                <li><span class="scope-tag scope-in">IN</span> Prisma model <code>EstimateLineItem</code> + enum <code>EstimateLineItemType</code> (<code>Labor</code>, <code>Material</code>, <code>Equipment</code>, <code>Custom</code>)</li>
-                <li><span class="scope-tag scope-in">IN</span> Nullable <code>tradeLevelId</code>, <code>materialId</code>, <code>equipmentId</code>; required <code>estimateChangeOrderRecordId</code></li>
+                <li><span class="scope-tag scope-in">IN</span> Prisma model <code>ItemizedEstimateChangeOrderRecordLineItem</code> + enums <code>EstimateLineItemType</code> (<code>Labor</code>, <code>Material</code>, <code>Equipment</code>, <code>Custom</code>) and <code>PriceReferenceModel</code> (<code>TradeLevelRate</code>, <code>MaterialAttributePrice</code>, <code>EquipmentRateValue</code>)</li>
+                <li><span class="scope-tag scope-in">IN</span> Extend existing <code>EstimateChangeOrderRecordCreationType</code> enum with <code>Itemized</code> (all DB updates consolidated in IE-1; IE-3 consumes the enum value)</li>
+                <li><span class="scope-tag scope-in">IN</span> Make <code>EstimateChangeOrderRecord.creationType</code> immutable after create via <code>canEdit: false</code> on the ECR model&#39;s <code>modelFields</code> &mdash; enforces the project-wide &ldquo;never switch creation types&rdquo; rule in code, not just convention</li>
+                <li><span class="scope-tag scope-in">IN</span> Creation-type gate: write-side validator rejects <code>ItemizedEstimateChangeOrderRecordLineItem</code> writes when the parent ECR&#39;s <code>creationType</code> is not <code>Itemized</code></li>
+                <li><span class="scope-tag scope-in">IN</span> Polymorphic <code>priceReferenceModel</code> + <code>priceReferenceId</code> (nullable for <code>Custom</code>); optional <code>userId</code> permitted only on <code>Labor</code> rows (never required); required <code>estimateChangeOrderRecordId</code></li>
+                <li><span class="scope-tag scope-in">IN</span> <code>LineItemNodeType</code> enum (<code>Section</code>, <code>LineItem</code>) + self-referential <code>parentId</code> for section / subsection nesting (tree depth cap 3); section rollups computed at read time, never stored</li>
                 <li><span class="scope-tag scope-in">IN</span> Fields: description, quantity, unit, unitCost, totalCost, markupPercent, markupDollarValue, price, orderNo, soft delete flags</li>
+                <li><span class="scope-tag scope-in">IN</span> Many-to-many <code>TaxType</code> relation (mirrors <code>JobBillLineItem</code>) with cached <code>taxValue</code> (write-time snapshot of <code>price</code> &times; effective tax rates, compound-aware)</li>
                 <li><span class="scope-tag scope-in">IN</span> Model class + BaseModel list/get/create/edit patterns</li>
-                <li><span class="scope-tag scope-in">IN</span> Service <code>resolveEstimateLineItemUnitCost()</code> delegating to TradeLevelRate / Material pricing / EquipmentRateValue</li>
+                <li><span class="scope-tag scope-in">IN</span> Service <code>resolveItemizedLineItemUnitCost()</code> branching on <code>priceReferenceModel</code> (delegates to TradeLevelRate / MaterialAttributePrice / EquipmentRateValue resolvers)</li>
             </ul>
             <h3>Out of Scope</h3>
             <ul>
@@ -136,22 +144,41 @@ table.schema-table code { font-family: monospace; background: #f1f5f9; padding: 
     <div class="uis-section" id="s3">
         <h2 class="collapsible-toggle open" onclick="toggleSection(this)">3. Data Model <span class="toggle-icon">&#9660;</span></h2>
         <div class="collapsible-body open">
-            <pre>enum EstimateLineItemType {
+            <pre>// Extend the existing creationType enum — IE-1 now owns this
+// since all schema work for itemized estimates is consolidated here.
+enum EstimateChangeOrderRecordCreationType {
+  BidFirst
+  Full
+  Itemized     // NEW — gates the ItemizedEstimateChangeOrderRecordLineItem path
+}
+
+enum EstimateLineItemType {
   Labor
   Material
   Equipment
   Custom
 }
 
-model EstimateLineItem {
-  id                          String   @id @db.VarChar(21)
-  instanceId                  String   @db.VarChar(21)
-  estimateChangeOrderRecordId String   @db.VarChar(21)
-  lineItemType                EstimateLineItemType
-  tradeLevelId                String?  @db.VarChar(21)
-  materialId                  String?  @db.VarChar(21)
-  equipmentId                 String?  @db.VarChar(21)
-  userId                      String?  @db.VarChar(21)
+enum PriceReferenceModel {
+  TradeLevelRate
+  MaterialAttributePrice
+  EquipmentRateValue
+}
+
+enum LineItemNodeType {
+  Section      // grouper only — no price, no tax, no reference; holds a title via `description`
+  LineItem     // priced / taxable row (existing behavior)
+}
+
+model ItemizedEstimateChangeOrderRecordLineItem {
+  id                          String           @id @db.VarChar(21)
+  estimateChangeOrderRecordId String           @db.VarChar(21)
+  nodeType                    LineItemNodeType @default(LineItem)
+  parentId                    String?          @db.VarChar(21)  // null = root under the ECR; tree depth capped at 3
+  lineItemType                EstimateLineItemType?             // null on Section nodes
+  priceReferenceModel         PriceReferenceModel?      // null for Custom
+  priceReferenceId            String?  @db.VarChar(21)  // null for Custom; polymorphic — no DB FK
+  userId                      String?  @db.VarChar(21)  // Labor worker identity (separate from pricing)
   description                 String?  @db.VarChar(500)
   quantity                    Decimal? @db.Decimal(10, 4)
   unit                        String?  @db.VarChar(50)
@@ -160,18 +187,49 @@ model EstimateLineItem {
   markupPercent               Decimal? @db.Decimal(10, 2)
   markupDollarValue           Decimal? @db.Decimal(10, 2)
   price                       Decimal? @db.Decimal(10, 2)
+  taxValue                    Decimal? @db.Decimal(10, 2)  // cached total tax on price; snapshot at write
   orderNo                     Int      @default(0)
   isDeleted                   Boolean  @default(false)
   isArchived                  Boolean  @default(false)
   createdAt                   DateTime @default(now())
   updatedAt                   DateTime @updatedAt
-  EstimateChangeOrderRecord   EstimateChangeOrderRecord @relation(...)
-  TradeLevel                  TradeLevel?  @relation(...)
-  Material                    Material?    @relation(...)
-  Equipment                   Equipment?   @relation(...)
-  User                        User?        @relation(...)
+  EstimateChangeOrderRecord   EstimateChangeOrderRecord @relation(fields: [estimateChangeOrderRecordId], references: [id])
+  User                        User?                     @relation(fields: [userId], references: [id])
+  TaxType                     TaxType[] @relation("ItemizedEstimateLineItemToTaxType")
+  Parent                      ItemizedEstimateChangeOrderRecordLineItem?  @relation("NodeTree", fields: [parentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  Children                    ItemizedEstimateChangeOrderRecordLineItem[] @relation("NodeTree")
+
+  @@index([estimateChangeOrderRecordId])
+  @@index([priceReferenceModel, priceReferenceId])
+  @@index([parentId])
 }</pre>
             <p><strong>Note:</strong> Optional <code>userId</code> on labor rows aligns with the user-first labor rule for WO line items when the same picker is reused in IE-2.</p>
+            <p><strong>Note on <code>instanceId</code>.</strong> Intentionally omitted &mdash; the app is single-tenant today. Add later only if multi-tenant requirements emerge.</p>
+            <p><strong>Note on tax.</strong> Mirrors <code>JobBillLineItem</code>: many-to-many <code>TaxType</code> relation (supports stacked / compound taxes) with a cached <code>taxValue</code>. Tax base is the line&#39;s <code>price</code> (post-markup) &mdash; industry standard. <code>taxValue</code> is a <strong>write-time snapshot</strong>: recomputed on create/edit when <code>price</code>, markup fields, or the <code>TaxType</code> set changes, but <strong>not</strong> when a <code>TaxTypeItem</code> rate is edited later. Keeps estimates as point-in-time documents and lets IE-5 invoice conversion be a straight copy. <code>excludeTax</code> is intentionally omitted &mdash; it is a legacy field on <code>JobBillLineItem</code> with no active consumers.</p>
+
+            <h3>Sections &amp; subsections (tree structure)</h3>
+            <p>IE-2&#39;s canvas introduces <strong>+ Section</strong> and <strong>+ Sub</strong> nested groupers; sections and priced lines appear as siblings at any depth, and whole subtrees reorder together. We model this as a <strong>single polymorphic table</strong> with a self-referential <code>parentId</code> and a <code>nodeType</code> discriminator (<code>Section</code> or <code>LineItem</code>).</p>
+            <ul>
+                <li><strong>Section</strong> nodes carry a title (via <code>description</code>) and a sibling <code>orderNo</code>; every priced/tax/reference field must be null. They are grouper-only.</li>
+                <li><strong>LineItem</strong> nodes behave as before; <code>parentId</code> places them under a <code>Section</code> (or null = root).</li>
+                <li><code>parentId</code> must reference a <code>Section</code> &mdash; priced lines never have priced-line children.</li>
+                <li>Section rollups (subtotals, row numbering) are <strong>computed at read time</strong>, never stored on <code>Section</code> rows. Keeps IE-3 as the single source of total math and avoids cache-invalidation headaches.</li>
+            </ul>
+            <div class="decision">
+                <h4>Business Question for Corey / Chris</h4>
+                <p><strong>Tree depth cap.</strong> We&#39;ve scaffolded for <strong>max depth 3</strong> from the <code>EstimateChangeOrderRecord</code> root &mdash; so <code>Section &rarr; Subsection &rarr; LineItem</code> is the deepest valid chain. The IE-2 canvas uses exactly three depth classes (<code>depth-1</code>, <code>depth-2</code>, <code>depth-3</code>), which reads as the intended cap, but please confirm this isn&#39;t accidentally too restrictive for any real estimate structure you&#39;ve seen in the field.</p>
+                <p><strong>Section-level markup / discount.</strong> Out of scope for v1 &mdash; today only lines and the whole estimate carry markup, per IE-2&#39;s canvas note. The polymorphic table shape deliberately leaves <code>markupPercent</code> and <code>markupDollarValue</code> on every row, so if sections ever need their own markup override the schema absorbs it with zero migration &mdash; only the validation rule would flip. Good to know if you&#39;d like that in v2.</p>
+            </div>
+
+            <h3>Design decision: polymorphic price reference</h3>
+            <p><strong>Why <code>priceReferenceModel</code> + <code>priceReferenceId</code> instead of hard FKs to <code>TradeLevelRate</code> / <code>MaterialAttributePrice</code> / <code>EquipmentRateValue</code>:</strong></p>
+            <p><strong>Reason for decision.</strong> Keeps the schema open to new price-lookup sources (subcontractor quotes, vendor PO prices, job-scoped rate overrides, etc.) without a follow-up migration each time. Matches the pattern already adopted by LEM-2&#39;s <code>EquipmentRateValue</code> (<code>referenceModel</code> + <code>referenceId</code>), so the estimating stack uses one shape end-to-end.</p>
+            <p><strong>Tradeoffs accepted.</strong></p>
+            <ol>
+                <li>No database-level foreign key on <code>priceReferenceId</code> &mdash; referential integrity is enforced in application code via the <code>PriceReferenceModel</code> enum and resolver validation on every write.</li>
+                <li>No native Prisma <code>include</code> for the price-source join &mdash; GraphQL resolvers must branch on <code>priceReferenceModel</code> to hydrate a union type. LEM-2 is already paying this cost, so the pattern is already established.</li>
+            </ol>
+            <p><strong>Rejected alternative.</strong> Three nullable FKs (<code>tradeLevelRateId</code>, <code>materialAttributePriceId</code>, <code>equipmentRateValueId</code>): gains DB-level integrity for today&#39;s three sources, but every new price source becomes a schema change, and readers have to inspect multiple fields to discover which one is populated.</p>
 
             <h3>Field &rarr; line grid (IE-2)</h3>
             <p>Contract for the editor in <a href="uis-IE-2-line-item-editor.html">IE-2</a>. Terms match <a href="uis-IE-itemized-estimates.html#s-ui">UIS-IE glossary</a>.</p>
@@ -179,8 +237,8 @@ model EstimateLineItem {
                 <thead><tr><th>Prisma / GraphQL field</th><th>UI column / surface</th><th>Notes</th></tr></thead>
                 <tbody>
                     <tr><td><code>lineItemType</code></td><td>Type badge</td><td>Labor / Material / Equipment / Custom</td></tr>
-                    <tr><td><code>User</code> + <code>TradeLevel</code> + <code>description</code></td><td>Selected item / description</td><td>Labor: show worker name + trade; fallback to description. Material/Equipment: catalog label + optional description.</td></tr>
-                    <tr><td><code>materialId</code>, <code>equipmentId</code></td><td>Picker value (hidden id)</td><td>Drives resolver input; display name from join or TableFeed column.</td></tr>
+                    <tr><td><code>User</code> + resolved <code>TradeLevel</code> (via <code>TradeLevelRate</code>) + <code>description</code></td><td>Selected item / description</td><td>Labor: show worker name + trade (derived from <code>TradeLevelRate.TradeLevel</code>); fallback to description. Material/Equipment: catalog label (resolved through the price reference) + optional description.</td></tr>
+                    <tr><td><code>priceReferenceModel</code> + <code>priceReferenceId</code></td><td>Picker value (hidden; one per non-Custom row)</td><td>Drives resolver input; display name hydrated by the GraphQL layer based on <code>priceReferenceModel</code> (union type).</td></tr>
                     <tr><td><code>quantity</code></td><td>Qty</td><td>Must be &gt; 0 for sell math where applicable.</td></tr>
                     <tr><td><code>unit</code></td><td>Unit</td><td>Prefilled from rate (hr, ea, day).</td></tr>
                     <tr><td><code>unitCost</code></td><td>Unit cost</td><td>Seeded by <code>resolveEstimateLineItemUnitCost</code>; editable.</td></tr>
@@ -188,6 +246,8 @@ model EstimateLineItem {
                     <tr><td><code>markupPercent</code></td><td>Markup %</td><td>Per line.</td></tr>
                     <tr><td><code>markupDollarValue</code></td><td>Markup $</td><td>Per line; product defines % vs $ precedence.</td></tr>
                     <tr><td><code>price</code></td><td>Line price</td><td>Read-only sell total after markup rules.</td></tr>
+                    <tr><td><code>TaxType</code> (M2M)</td><td>Tax dropdown / multi-select</td><td>Picker populated from active <code>TaxType</code> records. IE-2 may present as a single dropdown; model supports stacking for compound taxes.</td></tr>
+                    <tr><td><code>taxValue</code></td><td>Tax (read-only cell in totals strip)</td><td>Cached at write time from <code>price &times;</code> effective <code>TaxTypeItem</code> rate(s); compound ordering follows <code>JobBillLineItem</code> rules.</td></tr>
                     <tr><td><code>orderNo</code></td><td>Row order</td><td>Drag handle or implicit; not a labeled column.</td></tr>
                     <tr><td>(n/a)</td><td>Delete</td><td>Soft-delete on save via <code>isDeleted</code> or remove from upsert payload.</td></tr>
                 </tbody>
@@ -195,38 +255,36 @@ model EstimateLineItem {
 
             <h3>Example rows (resolver inputs)</h3>
             <table class="schema-table">
-                <thead><tr><th>Type</th><th>FKs set</th><th>Example <code>description</code></th><th><code>resolveEstimateLineItemUnitCost</code> input</th></tr></thead>
+                <thead><tr><th>Type</th><th>Identity / price reference</th><th>Example <code>description</code></th><th><code>resolveItemizedLineItemUnitCost</code> input</th></tr></thead>
                 <tbody>
-                    <tr><td>Labor</td><td><code>userId</code>, <code>tradeLevelId</code></td><td>J. Smith &mdash; Pipefitter Journeyman</td><td>instance + job context + userId + tradeLevelId (+ agreement context per LEM-1)</td></tr>
-                    <tr><td>Material</td><td><code>materialId</code></td><td>2&quot; Copper Type L</td><td>materialId + qty (optional) + material pricing / LEM-3</td></tr>
-                    <tr><td>Equipment</td><td><code>equipmentId</code></td><td>Scissor lift 19ft</td><td>equipmentId + unit (day/hr) per LEM-2</td></tr>
-                    <tr><td>Custom</td><td>none</td><td>Permits &amp; fees</td><td>No resolver; manual <code>unitCost</code></td></tr>
+                    <tr><td>Labor</td><td><code>priceReferenceModel = TradeLevelRate</code>, <code>priceReferenceId = &lt;TradeLevelRate.id&gt;</code>; optional <code>userId</code> (only type that accepts it)</td><td>J. Smith &mdash; Pipefitter Journeyman (or just &ldquo;Pipefitter Journeyman&rdquo; when no user is selected)</td><td>job context + priceReferenceId (+ optional userId to apply active employee agreement per LEM-1)</td></tr>
+                    <tr><td>Material</td><td><code>priceReferenceModel = MaterialAttributePrice</code>, <code>priceReferenceId = &lt;MaterialAttributePrice.id&gt;</code></td><td>2&quot; Copper Type L</td><td>priceReferenceId + qty (optional) per LEM-3</td></tr>
+                    <tr><td>Equipment</td><td><code>priceReferenceModel = EquipmentRateValue</code>, <code>priceReferenceId = &lt;EquipmentRateValue.id&gt;</code></td><td>Scissor lift 19ft</td><td>priceReferenceId + unit (day/hr) per LEM-2</td></tr>
+                    <tr><td>Custom</td><td>none (both <code>priceReference*</code> null)</td><td>Permits &amp; fees</td><td>No resolver; manual <code>unitCost</code></td></tr>
                 </tbody>
             </table>
 
             <h3 id="s3-resolve">Resolver input / output by line type</h3>
-            <p>GraphQL query <code>resolveEstimateLineItemUnitCost</code> returns a single <strong>Float</strong> (internal billable <strong>unit cost</strong> in instance currency). The client still receives optional <code>unit</code> string from a companion field or from the same resolver extended to a payload &mdash; if implementation stays scalar-only, <code>unit</code> is inferred from catalog defaults in IE-2 after the Float returns.</p>
+            <p>GraphQL query <code>resolveItemizedLineItemUnitCost</code> returns a single <strong>Float</strong> (internal billable <strong>unit cost</strong>). The client still receives optional <code>unit</code> string from a companion field or from the same resolver extended to a payload &mdash; if implementation stays scalar-only, <code>unit</code> is inferred from catalog defaults in IE-2 after the Float returns.</p>
 
             <h4>Shared input base</h4>
-            <pre>input ResolveEstimateLineItemUnitCostInput {
+            <pre>input ResolveItemizedLineItemUnitCostInput {
   estimateChangeOrderRecordId: ID!
   lineItemType: EstimateLineItemType!
+  priceReferenceModel: PriceReferenceModel  # null for Custom
+  priceReferenceId: ID                       # null for Custom
+  userId: ID                                 # Labor only — worker identity
   quantity: Float
   unit: String
-  # Discriminated by lineItemType — only matching FKs are read:
-  userId: ID
-  tradeLevelId: ID
-  materialId: ID
-  equipmentId: ID
 }</pre>
 
             <table class="schema-table">
                 <thead><tr><th><code>lineItemType</code></th><th>Required input fields</th><th>Server behavior</th><th>Return value</th></tr></thead>
                 <tbody>
-                    <tr><td><code>Labor</code></td><td><code>userId</code>, <code>tradeLevelId</code> (trade from <code>UserTradeLevel</code> if client omits &mdash; <strong>TBD</strong>)</td><td>Resolve active employee agreement + <code>TradeLevelRate.billableValue</code> (LEM-1).</td><td>Hourly internal unit cost (<code>Float</code>); UI sets <code>unit</code> to <code>hr</code> unless agreement defines otherwise.</td></tr>
-                    <tr><td><code>Material</code></td><td><code>materialId</code>; optional <code>quantity</code> for tiered pricing</td><td><code>MaterialAttributePrice</code> / LEM-3 sell-or-cost cell per product.</td><td>Cost per catalog UOM as <code>Float</code>; <code>unit</code> from material UOM.</td></tr>
-                    <tr><td><code>Equipment</code></td><td><code>equipmentId</code>, <code>unit</code> (<code>hr</code> | <code>day</code> | instance-specific)</td><td>Delegates to existing <code>resolveEquipmentRate</code> (LEM-2) for billing unit.</td><td>Internal rate per selected billing unit.</td></tr>
-                    <tr><td><code>Custom</code></td><td>None required</td><td>Resolver returns <strong>null</strong> or throws <code>BAD_USER_INPUT</code>; client leaves <code>unitCost</code> manual.</td><td>N/A</td></tr>
+                    <tr><td><code>Labor</code></td><td><code>priceReferenceModel = TradeLevelRate</code>, <code>priceReferenceId</code>; optional <code>userId</code> (Labor only)</td><td>Load <code>TradeLevelRate</code> by id; if <code>userId</code> is provided, resolve via that worker&#39;s active employee agreement (LEM-1) for the billable value. Without <code>userId</code>, return the base rate from the contract attached to the <code>TradeLevelRate</code>.</td><td>Hourly internal unit cost (<code>Float</code>); UI sets <code>unit</code> to <code>hr</code> unless agreement defines otherwise.</td></tr>
+                    <tr><td><code>Material</code></td><td><code>priceReferenceModel = MaterialAttributePrice</code>, <code>priceReferenceId</code>; optional <code>quantity</code> for tiered pricing</td><td>Load <code>MaterialAttributePrice.value</code> (LEM-3) directly; no further lookup.</td><td>Cost per catalog UOM as <code>Float</code>; <code>unit</code> from material UOM.</td></tr>
+                    <tr><td><code>Equipment</code></td><td><code>priceReferenceModel = EquipmentRateValue</code>, <code>priceReferenceId</code>, <code>unit</code> (<code>hr</code> | <code>day</code> | &hellip;)</td><td>Load <code>EquipmentRateValue</code> by id; delegate to <code>resolveEquipmentRate</code> (LEM-2) for billing unit conversion if needed.</td><td>Internal rate per selected billing unit.</td></tr>
+                    <tr><td><code>Custom</code></td><td>None required (both <code>priceReference*</code> null)</td><td>Resolver returns <strong>null</strong> or throws <code>BAD_USER_INPUT</code>; client leaves <code>unitCost</code> manual.</td><td>N/A</td></tr>
                 </tbody>
             </table>
             <p style="font-size:13px;color:#64748b;">Errors: missing rate data &rarr; GraphQL error with message; IE-2 shows row banner and allows manual override per <a href="uis-IE-2-line-item-editor.html#s3-validate">IE-2 validation</a>.</p>
@@ -235,17 +293,39 @@ model EstimateLineItem {
     <div class="uis-section" id="s4">
         <h2 class="collapsible-toggle open" onclick="toggleSection(this)">4. API Surface <span class="toggle-icon">&#9660;</span></h2>
         <div class="collapsible-body open">
-            <pre>type EstimateLineItem { id: ID!, estimateChangeOrderRecordId: ID!, lineItemType: EstimateLineItemType!, ... }
-
-extend type Query {
-  estimateLineItems(estimateChangeOrderRecordId: ID!): [EstimateLineItem!]!
+            <pre>type ItemizedEstimateChangeOrderRecordLineItem {
+  id: ID!
+  estimateChangeOrderRecordId: ID!
+  lineItemType: EstimateLineItemType!
+  priceReferenceModel: PriceReferenceModel
+  priceReferenceId: ID
+  userId: ID
+  taxValue: Float
+  TaxType: [TaxType]          # M2M, write-time snapshot
+  # ... remaining scalar fields
 }
 
+# Create/Edit inputs accept taxTypeIds: [String] to manage the M2M.
+# Model strips it off, calls createItem/editItem, then connectTaxTypes + recomputeTaxValue.
+
+extend type Query {
+  itemizedEstimateChangeOrderRecordLineItem(id: ID!): ItemizedEstimateChangeOrderRecordLineItem
+  itemizedEstimateChangeOrderRecordLineItems(options: GetListOptions): GetListResult
+  resolveItemizedLineItemUnitCost(input: ResolveItemizedLineItemUnitCostInput!): Float
+}
+
+# Full BaseAuditableModel CRUD surface — single + bulk variants for each op.
 extend type Mutation {
-  createEstimateLineItem(data: CreateEstimateLineItemInput!): EstimateLineItem!
-  editEstimateLineItem(id: ID!, data: EditEstimateLineItemInput!): EstimateLineItem!
-  deleteEstimateLineItem(id: ID!): Boolean!
-  resolveEstimateLineItemUnitCost(input: ResolveEstimateLineItemUnitCostInput!): Float!
+  createItemizedEstimateChangeOrderRecordLineItem(...): ItemizedEstimateChangeOrderRecordLineItem
+  createManyItemizedEstimateChangeOrderRecordLineItems(...): [ItemizedEstimateChangeOrderRecordLineItem]
+  editItemizedEstimateChangeOrderRecordLineItem(...): ItemizedEstimateChangeOrderRecordLineItem
+  editManyItemizedEstimateChangeOrderRecordLineItems(...): [ItemizedEstimateChangeOrderRecordLineItem]
+  deleteItemizedEstimateChangeOrderRecordLineItem(id: ID!): Boolean
+  deleteManyItemizedEstimateChangeOrderRecordLineItems(ids: [ID]): Boolean
+  archiveItemizedEstimateChangeOrderRecordLineItem(id: ID!): Boolean
+  archiveManyItemizedEstimateChangeOrderRecordLineItems(ids: [ID]): Boolean
+  restoreItemizedEstimateChangeOrderRecordLineItem(id: ID!): Boolean
+  restoreManyItemizedEstimateChangeOrderRecordLineItems(ids: [ID]): Boolean
 }</pre>
         </div>
     </div>
@@ -258,9 +338,10 @@ extend type Mutation {
                 <div class="blast-row"><span class="blast-label">GraphQL registration</span><span class="blast-value">schema.ts</span></div>
             </div>
             <ul>
-                <li><span class="action-new">NEW</span> <code>apps/api/src/models/EstimateLineItem.ts</code></li>
-                <li><span class="action-new">NEW</span> <code>apps/api/src/graphql/models/EstimateLineItem.ts</code></li>
-                <li><span class="action-mod">MOD</span> <code>apps/api/prisma/schema.prisma</code> &mdash; model + relations on <code>EstimateChangeOrderRecord</code></li>
+                <li><span class="action-new">NEW</span> <code>apps/api/src/models/ItemizedEstimateChangeOrderRecordLineItem.ts</code></li>
+                <li><span class="action-new">NEW</span> <code>apps/api/src/graphql/models/ItemizedEstimateChangeOrderRecordLineItem.ts</code></li>
+                <li><span class="action-mod">MOD</span> <code>apps/api/prisma/schema.prisma</code> &mdash; new model with self-referential tree, new enums (<code>PriceReferenceModel</code>, <code>LineItemNodeType</code>), extension of existing <code>EstimateChangeOrderRecordCreationType</code> enum with <code>Itemized</code>, relations on <code>EstimateChangeOrderRecord</code>, <code>User</code>, and <code>TaxType</code> (M2M)</li>
+                <li><span class="action-mod">MOD</span> <code>apps/api/src/models/EstimateChangeOrderRecord.ts</code> &mdash; add <code>canEdit: false</code> to the <code>creationType</code> entry in <code>modelFields</code> (immutability enforcement)</li>
                 <li><span class="action-mod">MOD</span> <code>apps/api/src/graphql/schema.ts</code></li>
             </ul>
         </div>
@@ -269,18 +350,27 @@ extend type Mutation {
         <h2 class="collapsible-toggle open" onclick="toggleSection(this)">6. Acceptance Criteria <span class="toggle-icon">&#9660;</span></h2>
         <div class="collapsible-body open">
             <ul class="criteria-list">
-                <li><div class="criteria-check"></div><span>Migration creates <code>EstimateLineItem</code> with indexes on <code>estimateChangeOrderRecordId</code> and <code>instanceId</code></span></li>
+                <li><div class="criteria-check"></div><span>Migration creates <code>ItemizedEstimateChangeOrderRecordLineItem</code> with indexes on <code>estimateChangeOrderRecordId</code> and on (<code>priceReferenceModel</code>, <code>priceReferenceId</code>)</span></li>
                 <li><div class="criteria-check"></div><span>CRUD respects BaseModel permissions scoped to estimate permissions</span></li>
-                <li><div class="criteria-check"></div><span><code>resolveEstimateLineItemUnitCost</code> returns billable rate for TradeLevel when LEM-1 data present</span></li>
-                <li><div class="criteria-check"></div><span>Equipment path calls existing <code>resolveEquipmentRate</code> (LEM-2)</span></li>
-                <li><div class="criteria-check"></div><span>Material path uses Material pricing service when LEM-3 available; otherwise returns null or catalog cell per interim rule</span></li>
+                <li><div class="criteria-check"></div><span>Create/edit mutations reject writes where <code>priceReferenceModel</code> is set without <code>priceReferenceId</code> (or vice versa), and reject non-null values for <code>lineItemType = Custom</code></span></li>
+                <li><div class="criteria-check"></div><span><code>resolveItemizedLineItemUnitCost</code> returns billable rate by loading <code>TradeLevelRate</code> by id and applying LEM-1 agreement context for Labor</span></li>
+                <li><div class="criteria-check"></div><span>Equipment path loads <code>EquipmentRateValue</code> by id and delegates to <code>resolveEquipmentRate</code> (LEM-2) for unit conversion</span></li>
+                <li><div class="criteria-check"></div><span>Material path reads <code>MaterialAttributePrice.value</code> by id (LEM-3)</span></li>
+                <li><div class="criteria-check"></div><span>GraphQL layer hydrates a union/polymorphic field for the price reference (branch on <code>priceReferenceModel</code>)</span></li>
+                <li><div class="criteria-check"></div><span>Create/edit accepts <code>taxTypeIds: [String]</code>; model connects/disconnects <code>TaxType</code> and writes <code>taxValue</code> as a snapshot of <code>price</code> &times; effective <code>TaxTypeItem</code> rate(s), stacked per <code>isCompound</code> ordering</span></li>
+                <li><div class="criteria-check"></div><span><code>taxValue</code> is not recomputed when a <code>TaxTypeItem</code> rate is edited or a newer effective-date row is added &mdash; estimate stays pinned to the rate effective at save time</span></li>
+                <li><div class="criteria-check"></div><span><code>Section</code> nodes reject any priced / tax / price-reference field value; <code>LineItem</code> nodes require <code>lineItemType</code></span></li>
+                <li><div class="criteria-check"></div><span><code>parentId</code> must reference a <code>Section</code> on the same <code>EstimateChangeOrderRecord</code>; tree depth from the ECR root is capped at 3</span></li>
+                <li><div class="criteria-check"></div><span><code>Itemized</code> exists on <code>EstimateChangeOrderRecordCreationType</code>; writes to <code>ItemizedEstimateChangeOrderRecordLineItem</code> are rejected when parent ECR&#39;s <code>creationType</code> is <code>Full</code> or <code>BidFirst</code></span></li>
+                <li><div class="criteria-check"></div><span><code>EstimateChangeOrderRecord.creationType</code> is immutable after create &mdash; edit payloads carrying a changed value are stripped by the base model (<code>canEdit: false</code>); stored value remains</span></li>
             </ul>
         </div>
     </div>
     <div class="uis-section" id="s7">
         <h2 class="collapsible-toggle open" onclick="toggleSection(this)">7. Dependencies <span class="toggle-icon">&#9660;</span></h2>
         <div class="collapsible-body open">
-            <p><span class="dep-tag dep-requires">LEM-1</span><span class="dep-tag dep-requires">LEM-2</span></p>
+            <p><span class="dep-tag dep-requires">SD-1 Sales Discount Model</span><span class="dep-tag dep-requires">LEM-1</span><span class="dep-tag dep-requires">LEM-2</span></p>
+            <p style="font-size:13px;color:#64748b;">SD-1 must ship first: IE-1 itself carries no discount fields. Line-level and estimate-level discounts attach via <code>DiscountAssignment</code> (<code>referenceModel = "ItemizedEstimateChangeOrderRecordLineItem"</code> or <code>"EstimateChangeOrderRecord"</code>). <code>taxValue</code> recompute on the line triggers when a line-level <code>DiscountAssignment</code> is added / edited / removed.</p>
             <p><span class="dep-tag dep-enables">IE-2 Line Item Editor</span></p>
             <p><a class="dep-tag dep-none" href="uis-IE-itemized-estimates.html">UIS-IE Parent</a></p>
         </div>

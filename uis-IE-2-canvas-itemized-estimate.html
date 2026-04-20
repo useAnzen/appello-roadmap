@@ -3,1461 +3,1237 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>IE-2 Canvas — Full Itemized Estimate (Interactive)</title>
+<title>IE-2 · Itemized Estimate Canvas</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
-* { margin: 0; padding: 0; box-sizing: border-box; }
-body { font-family: "Inter", -apple-system, sans-serif; background: #0f172a; color: #0f172a; min-height: 100vh; }
-.in-iframe .top-nav,
-.in-iframe .canvas-banner { display: none !important; }
-.in-iframe .canvas-root { padding-top: 4px; }
-.top-nav { position: sticky; top: 0; z-index: 200; background: #020617; border-bottom: 1px solid #1e293b; padding: 0 16px; display: flex; align-items: center; gap: 0; flex-wrap: wrap; }
-.top-nav a { display: inline-flex; align-items: center; padding: 10px 14px; font-size: 12px; font-weight: 600; color: #94a3b8; text-decoration: none; }
+.in-iframe .top-nav { display: none !important; }
+.top-nav { position: sticky; top: 0; z-index: 100; background: #0f172a; border-bottom: 1px solid #1e293b; padding: 0 24px; display: flex; align-items: center; gap: 0; }
+.top-nav a { display: inline-flex; align-items: center; padding: 12px 18px; font-size: 13px; font-weight: 600; color: #94a3b8; text-decoration: none; border-bottom: 2px solid transparent; transition: all 0.15s; white-space: nowrap; }
 .top-nav a:hover { color: #f8fafc; background: #1e293b; }
-.top-nav .nav-logo { font-size: 10px; font-weight: 800; letter-spacing: 1.2px; text-transform: uppercase; color: #64748b; padding-right: 12px; margin-right: 4px; border-right: 1px solid #1e293b; }
-.canvas-banner { background: linear-gradient(90deg, #312e81, #1e3a5f); color: #e0e7ff; padding: 10px 20px; font-size: 12px; text-align: center; border-bottom: 1px solid #4338ca; }
-.canvas-banner strong { color: #fff; }
-.canvas-root { max-width: 1400px; margin: 0 auto; padding: 16px; }
-.shell { display: flex; gap: 0; background: #fff; border-radius: 12px; overflow: hidden; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.45); border: 1px solid #e2e8f0; min-height: 720px; }
-.sidebar { width: 260px; flex-shrink: 0; background: #f8fafc; border-right: 1px solid #e2e8f0; padding: 16px; display: flex; flex-direction: column; gap: 12px; font-size: 12px; }
-.sidebar h2 { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; color: #64748b; }
-.sidebar .pill { display: inline-block; padding: 4px 10px; border-radius: 999px; font-size: 11px; font-weight: 700; }
-.pill-draft { background: #e2e8f0; color: #475569; }
-.pill-sent { background: #dbeafe; color: #1e40af; }
-.pill-won { background: #dcfce7; color: #166534; }
-.pill-lost { background: #fee2e2; color: #b91c1c; }
-.sidebar label { display: block; font-weight: 600; color: #334155; margin-bottom: 4px; }
-.sidebar select, .sidebar input { width: 100%; padding: 8px 10px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 12px; background: #fff; }
-.sidebar .btn { width: 100%; padding: 10px; border-radius: 8px; font-weight: 700; font-size: 12px; border: none; cursor: pointer; }
+.top-nav .nav-logo { font-size: 11px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: #475569; padding-right: 18px; margin-right: 4px; border-right: 1px solid #1e293b; }
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { font-family: 'Inter', -apple-system, sans-serif; background: #f1f5f9; color: #0f172a; height: 100%; }
+.canvas-banner { background: #0f172a; color: #cbd5e1; padding: 8px 16px; font-size: 11px; line-height: 1.5; }
+.canvas-banner strong { color: #f8fafc; }
+.canvas-root { padding: 16px; min-height: calc(100% - 120px); }
+.shell { display: grid; grid-template-columns: 280px 1fr; gap: 16px; max-width: 1400px; margin: 0 auto; }
+@media (max-width: 1024px) { .shell { grid-template-columns: 1fr; } }
+
+/* Sidebar */
+.sidebar { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 18px 16px; height: fit-content; font-size: 12px; }
+.sidebar h2 { font-size: 11px; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 10px; }
+.sidebar .row { padding: 6px 0; border-bottom: 1px solid #f1f5f9; }
+.sidebar .row:last-child { border-bottom: none; }
+.sidebar .lbl { color: #64748b; font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 2px; display: block; }
+.sidebar .val { color: #0f172a; font-weight: 600; font-size: 12px; }
+.pill { display: inline-block; font-size: 10px; font-weight: 700; padding: 3px 10px; border-radius: 4px; }
+.pill-draft { background: #e0e7ff; color: #3730a3; }
+.sidebar input[type=number] { width: 70px; padding: 4px 8px; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 12px; font-family: inherit; }
+.sidebar label.overhead { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.btn { display: inline-flex; align-items: center; justify-content: center; padding: 7px 14px; font-size: 12px; font-weight: 600; border-radius: 6px; border: 1px solid transparent; cursor: pointer; font-family: inherit; }
 .btn-primary { background: #2563eb; color: #fff; }
-.btn-primary:disabled { background: #94a3b8; cursor: not-allowed; }
-.btn-secondary { background: #fff; color: #334155; border: 1px solid #cbd5e1; }
-.sidebar .hint { font-size: 10px; color: #94a3b8; line-height: 1.4; }
-.main { flex: 1; min-width: 0; display: flex; flex-direction: column; background: #fff; }
-.main-header { padding: 12px 16px; border-bottom: 1px solid #e2e8f0; display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
-.main-header .title { font-weight: 800; font-size: 15px; color: #0f172a; }
-.main-header .sub { font-size: 11px; color: #64748b; }
-.main-header .spacer { flex: 1; min-width: 8px; }
-.toolbar-btn { padding: 7px 12px; border-radius: 8px; font-size: 11px; font-weight: 600; border: 1px solid #e2e8f0; background: #fff; color: #334155; cursor: pointer; }
+.btn-primary:hover { background: #1d4ed8; }
+.btn-secondary { background: #fff; color: #334155; border-color: #cbd5e1; }
+.btn-secondary:hover { background: #f8fafc; }
+.sidebar .actions { display: flex; gap: 6px; margin-top: 10px; }
+
+/* Main */
+.main { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px 22px; }
+.header-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 14px; }
+.header-row h1 { font-size: 16px; font-weight: 700; }
+.header-row .sub { font-size: 11px; color: #64748b; margin-top: 2px; }
+.header-right { display: flex; gap: 6px; }
+.toolbar-btn { font-size: 11px; font-weight: 600; padding: 6px 10px; border: 1px solid #cbd5e1; background: #fff; border-radius: 5px; cursor: pointer; font-family: inherit; color: #334155; }
 .toolbar-btn:hover { background: #f1f5f9; }
 .toolbar-btn.primary { background: #2563eb; color: #fff; border-color: #2563eb; }
-.toolbar-btn.primary:disabled { background: #cbd5e1; border-color: #cbd5e1; color: #f8fafc; cursor: not-allowed; }
-.toolbar-btn.linkish { border: none; color: #2563eb; text-decoration: underline; background: transparent; }
-.tabs { display: flex; gap: 0; padding: 0 16px; background: #f1f5f9; border-bottom: 1px solid #e2e8f0; }
-.tab { padding: 10px 18px; font-size: 12px; font-weight: 700; color: #64748b; cursor: pointer; border-bottom: 3px solid transparent; margin-bottom: -1px; }
-.tab:hover { color: #334155; }
-.tab.active { color: #2563eb; border-bottom-color: #2563eb; background: #fff; }
-.tab-body { flex: 1; padding: 16px; overflow: auto; display: flex; flex-direction: column; }
-.tab-placeholder { padding: 48px; text-align: center; color: #94a3b8; font-size: 13px; }
-.creation-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 14px; }
-.creation-row label { font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; }
-.pill-select { display: flex; gap: 6px; flex-wrap: wrap; }
-.pill-opt { padding: 6px 12px; border-radius: 999px; font-size: 11px; font-weight: 600; border: 1px solid #cbd5e1; background: #fff; cursor: pointer; color: #475569; }
-.pill-opt.active { border-color: #7c3aed; background: #f5f3ff; color: #5b21b6; }
-.grid-toolbar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 12px; }
-.grid-toolbar .grid-toolbar-spacer { flex: 1; min-width: 8px; }
-.add-item-slot { position: relative; margin-top: 12px; max-width: 580px; }
-.btn-add-item { display: inline-flex; align-items: center; gap: 8px; padding: 10px 18px; background: #2563eb; color: #fff; border: none; border-radius: 8px; font-weight: 700; font-size: 13px; cursor: pointer; font-family: inherit; }
-.btn-add-item:hover { background: #1d4ed8; }
-.btn-add-item:disabled { opacity: 0.45; cursor: not-allowed; }
-.btn-add-item .plus { font-size: 18px; font-weight: 400; line-height: 1; }
-.add-item-panel { display: none; margin-top: 12px; padding: 14px 16px 16px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; box-shadow: 0 4px 14px rgba(15, 23, 42, 0.06); }
-.add-item-panel.open { display: block; }
-.add-item-hint { font-size: 12px; color: #475569; margin-bottom: 10px; line-height: 1.45; }
-.btn-cancel-add { margin-top: 12px; padding: 0; font-size: 12px; border: none; background: transparent; color: #64748b; cursor: pointer; text-decoration: underline; font-family: inherit; }
-.btn-cancel-add:hover { color: #334155; }
-.addline-wrap { position: relative; width: 100%; max-width: 560px; }
-.smart-search-wrap { position: relative; }
-.smart-search-wrap::before { content: ""; position: absolute; left: 12px; top: 50%; transform: translateY(-50%); width: 16px; height: 16px; background: no-repeat center; opacity: 0.45; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2364748b'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z'/%3E%3C/svg%3E"); background-size: 16px 16px; pointer-events: none; }
-#smartSearch { width: 100%; padding: 10px 14px 10px 40px; border: 2px solid #cbd5e1; border-radius: 10px; font-size: 13px; background: #fff; }
-#smartSearch:focus { outline: none; border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15); }
-.smart-dd { display: none; position: absolute; left: 0; right: 0; top: calc(100% + 4px); z-index: 60; background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; box-shadow: 0 20px 50px rgba(15, 23, 42, 0.18); max-height: 320px; overflow: auto; }
-.smart-dd.open { display: block; }
-.smart-dd-hint { padding: 10px 14px; font-size: 11px; color: #64748b; border-bottom: 1px solid #f1f5f9; background: #fafafa; }
-.pick-row { padding: 12px 14px; cursor: pointer; border-bottom: 1px solid #f1f5f9; display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
-.pick-row:hover { background: #eff6ff; }
-.pick-row .left { min-width: 0; }
-.pick-row .name { font-weight: 700; font-size: 13px; color: #0f172a; }
-.pick-row .meta { font-size: 11px; color: #64748b; margin-top: 2px; }
-.pick-row .price { font-weight: 700; font-size: 13px; color: #0f172a; white-space: nowrap; }
-.pick-footer { padding: 12px 14px; border-top: 1px solid #e2e8f0; font-size: 12px; font-weight: 700; color: #2563eb; cursor: pointer; display: flex; align-items: center; gap: 8px; }
-.pick-footer:hover { background: #eff6ff; }
-.search-filter { width: 200px; padding: 8px 10px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 12px; }
-.table-wrap { overflow-x: auto; border: 1px solid #e2e8f0; border-radius: 10px; flex: 1; min-height: 120px; }
-table.grid { width: 100%; border-collapse: collapse; font-size: 11px; min-width: 1200px; }
-table.grid th { text-align: left; padding: 8px 10px; background: #f1f5f9; border-bottom: 1px solid #e2e8f0; font-weight: 700; white-space: nowrap; color: #475569; }
-table.grid td { padding: 6px 8px; border-bottom: 1px solid #f1f5f9; vertical-align: middle; background: #fff; }
-table.grid tr.resolving td { background: #eff6ff; }
-.badge { display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 9px; font-weight: 800; text-transform: uppercase; }
-.b-labor { background: #dbeafe; color: #1d4ed8; }
-.b-mat { background: #dcfce7; color: #166534; }
-.b-eq { background: #fef3c7; color: #92400e; }
-.b-custom { background: #f1f5f9; color: #475569; }
-.cell-in { width: 100%; max-width: 76px; padding: 4px 6px; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 11px; }
-.cell-in.wide { max-width: 160px; }
-.desc-cell { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
-.row-attrs { font-size: 9px; color: #64748b; line-height: 1.35; padding: 0 2px; max-width: 220px; }
-.rate-sel { max-width: 118px; padding: 4px 6px; border-radius: 4px; border: 1px solid #cbd5e1; font-size: 10px; background: #fff; }
-.cell-muted { color: #94a3b8; font-size: 10px; text-align: center; }
-.cell-in:focus { outline: 2px solid #93c5fd; border-color: #3b82f6; }
-.cell-num { text-align: right; font-variant-numeric: tabular-nums; }
-.tax-sel { max-width: 100px; padding: 4px 6px; border-radius: 4px; border: 1px solid #cbd5e1; font-size: 10px; background: #fff; }
-.drag-cell { color: #94a3b8; cursor: grab; user-select: none; text-align: center; width: 28px; }
-.row-actions button { padding: 2px 6px; font-size: 10px; margin: 0 1px; border: 1px solid #e2e8f0; border-radius: 4px; background: #fff; cursor: pointer; }
-.row-actions button:hover { background: #f1f5f9; }
-.worksheet-stack { display: flex; flex-direction: column; flex: 1; min-height: 0; }
-.totals-footer { margin-top: 20px; padding-top: 16px; border-top: 1px solid #e2e8f0; display: flex; justify-content: flex-end; align-items: flex-start; }
-.totals-wave { width: 100%; max-width: 400px; background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 16px 18px; box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06); }
-.totals-wave h3 { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; color: #64748b; margin-bottom: 12px; text-align: left; }
-.tline { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; padding: 6px 0; font-size: 13px; border-bottom: 1px solid #f1f5f9; text-align: right; }
-.tline .lbl { color: #64748b; text-align: left; flex-shrink: 0; }
-.tline .val { font-variant-numeric: tabular-nums; font-weight: 500; color: #0f172a; }
-.tline.t-grand { border-bottom: none; padding-top: 12px; margin-top: 4px; border-top: 2px solid #0f172a; }
-.tline.t-grand .lbl { font-weight: 800; color: #0f172a; font-size: 15px; }
-.tline.t-grand .val { font-weight: 800; font-size: 18px; }
-.tline input.oh { width: 52px; margin-left: 8px; padding: 3px 6px; border-radius: 4px; border: 1px solid #cbd5e1; font-size: 12px; }
-.tline .val.neg { color: #b45309; font-weight: 600; }
-.doc-disc-block { margin: 12px 0 14px; padding: 12px 0 0; border-top: 1px dashed #e2e8f0; text-align: left; }
-.doc-disc-block h4 { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; color: #64748b; margin-bottom: 8px; }
-.doc-disc-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 8px; font-size: 11px; }
-.doc-disc-row input[type="text"] { flex: 1; min-width: 100px; padding: 5px 8px; border: 1px solid #cbd5e1; border-radius: 6px; }
-.doc-disc-row select { padding: 5px 8px; border-radius: 6px; border: 1px solid #cbd5e1; font-size: 11px; }
-.doc-disc-row input[type="number"] { width: 72px; padding: 5px 8px; border-radius: 6px; border: 1px solid #cbd5e1; }
-.doc-disc-row .btn-rm { padding: 4px 8px; font-size: 10px; border: 1px solid #e2e8f0; border-radius: 6px; background: #fff; cursor: pointer; color: #64748b; }
-.doc-disc-row .btn-rm:hover { background: #fef2f2; color: #b91c1c; border-color: #fecaca; }
-.btn-add-disc { margin-top: 4px; padding: 6px 10px; font-size: 11px; font-weight: 600; border: 1px dashed #94a3b8; border-radius: 8px; background: #f8fafc; color: #475569; cursor: pointer; font-family: inherit; }
-.btn-add-disc:hover { background: #eff6ff; border-color: #2563eb; color: #1d4ed8; }
-.tax-note { font-size: 10px; color: #94a3b8; margin-top: 10px; line-height: 1.45; text-align: left; }
-.sum-flow-title { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; color: #64748b; margin: 14px 0 8px; text-align: left; }
-.sum-detail { margin-bottom: 10px; border: 1px solid #e2e8f0; border-radius: 8px; padding: 0; background: #fafafa; }
-.sum-detail > summary { cursor: pointer; list-style: none; padding: 8px 12px; font-size: 11px; font-weight: 600; color: #475569; }
-.sum-detail > summary::-webkit-details-marker { display: none; }
-.sum-detail[open] > summary { border-bottom: 1px solid #e2e8f0; }
-.sum-detail .tline { padding-left: 12px; padding-right: 12px; font-size: 12px; }
-.sum-detail .tline:last-of-type { border-bottom: none; padding-bottom: 8px; }
-.tline.t-step .lbl { color: #334155; font-weight: 600; }
-.tline.t-step .step-num { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; border-radius: 999px; background: #e0e7ff; color: #3730a3; font-size: 10px; font-weight: 800; margin-right: 8px; vertical-align: middle; }
-.section-row td.section-cell { padding: 0; background: linear-gradient(90deg, #f1f5f9, #f8fafc); border-bottom: 1px solid #cbd5e1; }
-.section-inner { display: flex; align-items: center; gap: 10px; padding: 8px 10px; }
-.section-inner.depth-1 { padding-left: 22px; }
-.section-inner.depth-2 { padding-left: 38px; }
-.section-inner.depth-3 { padding-left: 54px; }
-tr.line-depth td { background: #fcfcfd; }
-tr.line-depth .depth-pad-1 { padding-left: 18px; }
-tr.line-depth .depth-pad-2 { padding-left: 34px; }
-tr.line-depth .depth-pad-3 { padding-left: 50px; }
+.toolbar-btn.primary:disabled { opacity: 0.5; cursor: not-allowed; }
+.toolbar-btn.primary:hover:not(:disabled) { background: #1d4ed8; }
+
+.tabs { display: flex; gap: 0; border-bottom: 1px solid #e2e8f0; margin-bottom: 14px; }
+.tabs .tab { padding: 8px 14px; font-size: 12px; font-weight: 600; color: #64748b; border-bottom: 2px solid transparent; cursor: pointer; }
+.tabs .tab.active { color: #0f172a; border-bottom-color: #2563eb; }
+
+.worksheet-bar { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; padding: 8px 12px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; }
+.worksheet-bar .left { display: flex; align-items: center; gap: 6px; }
+.worksheet-bar .left .lbl { font-size: 10px; color: #64748b; margin-right: 6px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; }
+.search-filter { padding: 5px 9px; border: 1px solid #cbd5e1; border-radius: 5px; font-size: 11px; min-width: 220px; font-family: inherit; }
+
+/* Table */
+.table-wrap { border: 1px solid #e2e8f0; border-radius: 8px; overflow-x: auto; margin-bottom: 12px; }
+table.grid { width: 100%; border-collapse: collapse; font-size: 11px; min-width: 1100px; }
+table.grid th { text-align: left; padding: 7px 8px; background: #f1f5f9; border-bottom: 1px solid #cbd5e1; font-weight: 700; color: #475569; font-size: 10px; text-transform: uppercase; letter-spacing: 0.04em; }
+table.grid td { padding: 5px 8px; border-bottom: 1px solid #f1f5f9; vertical-align: middle; }
+table.grid tr.line-row:hover > td { background: #f8fafc; }
+table.grid tr.sub-row > td { background: #fafbfc; }
+
+/* Section rows */
+tr.section-row > td { padding: 0 !important; background: transparent; border-bottom: 1px solid #cbd5e1; }
+.section-inner { display: flex; align-items: center; gap: 10px; padding: 9px 10px; background: linear-gradient(90deg, #eef2ff, #f8fafc); }
+.section-inner.depth-1 { padding-left: 10px; }
+.section-inner.depth-2 { padding-left: 28px; background: linear-gradient(90deg, #f5f3ff, #fafafa); }
+.section-inner.depth-3 { padding-left: 46px; background: linear-gradient(90deg, #fef3c7, #fef9e7); }
+.section-handle { cursor: grab; font-size: 13px; color: #94a3b8; user-select: none; }
 .section-tag { flex-shrink: 0; font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; color: #475569; background: #fff; padding: 3px 8px; border-radius: 4px; border: 1px solid #cbd5e1; }
-.section-title-inp { flex: 1; min-width: 140px; font-weight: 700; font-size: 12px; border: 1px solid #cbd5e1; border-radius: 6px; padding: 6px 10px; background: #fff; font-family: inherit; }
-.section-actions { display: flex; gap: 4px; flex-shrink: 0; }
-.section-actions button { padding: 4px 8px; font-size: 10px; border: 1px solid #cbd5e1; border-radius: 4px; background: #fff; cursor: pointer; }
-.section-actions button:hover { background: #eff6ff; }
-.section-actions .btn-here { font-size: 9px; font-weight: 800; padding: 3px 7px; color: #1d4ed8; }
-.section-inner.section-insert-active { box-shadow: inset 0 0 0 2px #2563eb; border-radius: 8px; background: #eff6ff; }
-.modal-back { display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.5); z-index: 300; align-items: center; justify-content: center; padding: 20px; }
-.modal-back.open { display: flex; }
-.modal { background: #fff; border-radius: 12px; padding: 20px 22px; max-width: 420px; width: 100%; box-shadow: 0 25px 50px rgba(0, 0, 0, 0.25); }
-.modal h4 { font-size: 15px; margin-bottom: 10px; }
-.modal p { font-size: 12px; color: #64748b; margin-bottom: 14px; line-height: 1.5; }
-.modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 16px; }
-.toast { position: fixed; bottom: 24px; right: 24px; background: #0f172a; color: #fff; padding: 12px 18px; border-radius: 10px; font-size: 12px; display: none; z-index: 400; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3); }
-.toast.show { display: block; }
-.spin { display: inline-block; width: 12px; height: 12px; border: 2px solid #e2e8f0; border-top-color: #3b82f6; border-radius: 50%; animation: sp 0.7s linear infinite; vertical-align: middle; margin-right: 4px; }
-@keyframes sp { to { transform: rotate(360deg); } }
+.section-title-inp { flex: 1; min-width: 140px; font-weight: 700; font-size: 12px; border: 1px solid transparent; border-radius: 4px; padding: 5px 8px; background: transparent; font-family: inherit; color: #0f172a; }
+.section-title-inp:focus { background: #fff; border-color: #93c5fd; outline: none; }
+.section-actions { display: flex; gap: 4px; flex-shrink: 0; align-items: center; }
+.section-actions button { padding: 4px 9px; font-size: 10px; font-weight: 600; border: 1px solid #cbd5e1; border-radius: 4px; background: #fff; cursor: pointer; font-family: inherit; color: #334155; }
+.section-actions button:hover { background: #e0e7ff; }
+.section-actions .btn-sub { color: #7c3aed; border-color: #d8b4fe; }
+.section-actions .btn-sub:hover { background: #f5f3ff; }
+.section-actions .btn-line { color: #0369a1; border-color: #bae6fd; }
+.section-actions .btn-line:hover { background: #eff6ff; }
+.section-actions .btn-delete { color: #dc2626; border-color: #fecaca; padding: 4px 7px; }
+.section-actions .btn-delete:hover { background: #fef2f2; }
+
+/* Line rows */
+.line-handle { cursor: grab; color: #cbd5e1; user-select: none; }
+.line-handle:hover { color: #64748b; }
+.badge { display: inline-block; font-size: 10px; font-weight: 800; padding: 3px 8px; border-radius: 4px; white-space: nowrap; }
+.badge-labor { background: #dbeafe; color: #1e40af; }
+.badge-mat { background: #dcfce7; color: #166534; }
+.badge-eq { background: #fef3c7; color: #92400e; }
+.badge-custom { background: #e9d5ff; color: #6b21a8; }
+.badge-pending { background: #f3f4f6; color: #6b7280; border: 1px dashed #9ca3af; font-weight: 700; }
+
+.sel-item { font-weight: 600; color: #0f172a; }
+.sel-sub { font-size: 10px; color: #64748b; display: block; margin-top: 1px; }
+.grid input, .grid select { font-family: inherit; font-size: 11px; padding: 3px 6px; border: 1px solid #cbd5e1; border-radius: 4px; background: #fff; min-width: 0; }
+.grid input[type=number] { width: 64px; text-align: right; }
+.grid input.qty { width: 56px; }
+.grid input.unit { width: 56px; }
+.grid input.currency { width: 88px; text-align: right; }
+.grid input.markup { width: 56px; text-align: right; }
+.grid select.type-dd { min-width: 100px; font-weight: 700; }
+.grid select.cascade-sel { min-width: 120px; font-size: 10px; padding: 3px 5px; }
+.cell-muted { color: #cbd5e1; font-size: 11px; }
+.cell-ro { color: #334155; font-weight: 500; text-align: right; white-space: nowrap; }
+.cell-strong { color: #0f172a; font-weight: 700; text-align: right; white-space: nowrap; }
+.del-btn { background: none; border: none; color: #cbd5e1; cursor: pointer; font-size: 14px; padding: 2px 6px; font-family: inherit; }
+.del-btn:hover { color: #dc2626; }
+
+.cascade-wrap { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.cascade-wrap .plus-arrow { color: #94a3b8; font-size: 11px; }
+.cascade-wrap .optional-user { display: inline-flex; align-items: center; gap: 4px; margin-left: 6px; padding: 2px 7px; border: 1px dashed #cbd5e1; border-radius: 4px; font-size: 10px; color: #64748b; cursor: pointer; }
+.cascade-wrap .optional-user:hover { background: #f1f5f9; color: #334155; }
+
+/* Sub-rows for tax and discount — aligned right to visually pair with line price */
+tr.tax-row > td, tr.disc-row > td { padding: 6px 14px; border-bottom: 1px solid #f1f5f9; text-align: right; }
+tr.tax-row > td { background: #f0f9ff; }
+tr.disc-row > td { background: #fef6f9; }
+.sub-label { display: inline-block; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; color: #475569; margin-right: 8px; padding: 2px 7px; border-radius: 3px; background: #fff; border: 1px solid #cbd5e1; vertical-align: top; }
+.sub-list { display: inline-flex; flex-direction: column; gap: 5px; align-items: flex-end; vertical-align: top; }
+.sub-item { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+.sub-item select, .sub-item input { font-size: 11px; padding: 3px 7px; border: 1px solid #cbd5e1; border-radius: 4px; font-family: inherit; }
+.sub-item select { min-width: 170px; background: #fff; }
+.sub-item input[type=number] { width: 80px; text-align: right; }
+.sub-item .sub-amt { font-size: 11px; color: #334155; font-weight: 600; min-width: 80px; text-align: right; }
+.sub-item .sub-amt.disc { color: #b91c1c; }
+.sub-item .del-btn { color: #cbd5e1; }
+.sub-item .del-btn:hover { color: #dc2626; }
+.sub-item input.ad-hoc-val { width: 70px; }
+.sub-item .type-toggle { font-size: 10px; padding: 2px 6px; border-radius: 3px; border: 1px solid #cbd5e1; background: #fff; cursor: pointer; font-family: inherit; }
+.sub-item .type-toggle.active { background: #2563eb; color: #fff; border-color: #2563eb; }
+.add-sub-btn { display: block; width: fit-content; margin: 6px 0 0 auto; font-size: 11px; font-weight: 600; padding: 4px 9px; border: 1px dashed #94a3b8; background: #fff; color: #475569; border-radius: 4px; cursor: pointer; font-family: inherit; }
+.add-sub-btn:hover { border-style: solid; border-color: #2563eb; color: #2563eb; }
+
+.root-toolbar { display: flex; gap: 6px; align-items: center; }
+
+/* Totals panel */
+.totals-footer { background: #fafbfc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 16px 20px; margin-top: 12px; }
+.totals-footer h3 { font-size: 13px; font-weight: 700; margin-bottom: 10px; color: #0f172a; }
+.t-line { display: flex; justify-content: space-between; align-items: center; padding: 5px 0; font-size: 12px; color: #334155; }
+.t-line.bold { font-weight: 700; color: #0f172a; }
+.t-line.step { margin-top: 2px; }
+.t-line.step .lbl { display: flex; align-items: center; gap: 6px; }
+.step-num { display: inline-flex; width: 18px; height: 18px; border-radius: 50%; background: #2563eb; color: #fff; font-size: 10px; font-weight: 800; align-items: center; justify-content: center; flex-shrink: 0; }
+.t-line.grand { font-size: 15px; font-weight: 800; color: #0f172a; border-top: 2px solid #0f172a; padding-top: 10px; margin-top: 8px; }
+.t-line .val.neg { color: #b91c1c; }
+.doc-disc-block { margin: 10px 0; padding: 10px 12px; background: #fff; border: 1px dashed #cbd5e1; border-radius: 6px; }
+.doc-disc-block h4 { font-size: 11px; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 6px; }
+.doc-disc-block p { font-size: 10px; color: #64748b; line-height: 1.5; margin-bottom: 8px; }
+
+.empty-state { padding: 32px 16px; text-align: center; color: #64748b; font-size: 12px; }
+.empty-state .big { font-size: 14px; font-weight: 700; color: #334155; margin-bottom: 6px; }
+
+.legend { font-size: 10px; color: #64748b; padding: 8px 12px; background: #f8fafc; border-radius: 6px; margin-bottom: 10px; line-height: 1.6; }
+.legend strong { color: #0f172a; }
+.legend kbd { font-family: monospace; background: #fff; border: 1px solid #cbd5e1; border-radius: 3px; padding: 1px 5px; }
 </style>
 </head>
 <body>
-<script>if (self !== top) document.documentElement.classList.add("in-iframe");</script>
+<script>if(self!==top)document.documentElement.classList.add("in-iframe")</script>
 <nav class="top-nav">
-    <span class="nav-logo">Appello SDLC</span>
+    <span class="nav-logo">Appello SDLC · IE-2 Canvas</span>
     <a href="index.html">Roadmap</a>
     <a href="release-1.33-timeline.html">Release 1.33</a>
-    <a href="release-1.34-timeline.html">Release 1.34</a>
-    <a href="uis-IE-itemized-estimates.html">UIS-IE Parent</a>
     <a href="uis-IE-2-line-item-editor.html">IE-2 Spec</a>
     <a href="ui-interface-library.html">UI Library</a>
 </nav>
 <div class="canvas-banner">
-    <strong>Interactive Canvas</strong> &mdash; <strong>+ Section</strong> (root) and <strong>+ Sub</strong> (nested); <strong>↑↓</strong> reorder siblings (whole subsection moves with its lines); <strong>Here</strong> sets where new catalog lines attach; <strong>+ Add item</strong> search; overhead in the <strong>left rail</strong>; numbered summary roll-up. Spec review only.
+    <strong>Interactive Canvas</strong> — itemized estimate editor. Mounts only when <code>creationType = Itemized</code> (no mode toggle). Click <strong>+ Add item</strong> → blank row appears → pick Type → cascade picks the rate. Section rows expose <strong>+ Sub</strong> / <strong>+ Line</strong> / reorder / delete. Per-line Tax and Discount sub-rows stack (mirrors <code>SimpleInvoice.tsx</code>). Spec review only.
 </div>
+
 <div class="canvas-root">
-    <div class="shell" id="shell">
+    <div class="shell">
+
+        <!-- Sidebar -->
         <aside class="sidebar">
             <h2>Record</h2>
-            <div><strong>EST-2026-0142</strong></div>
-            <div>
-                <label for="selStatus">Status</label>
-                <select id="selStatus">
-                    <option value="Draft">Draft</option>
-                    <option value="Sent">Sent</option>
-                    <option value="Won">Won</option>
-                    <option value="Lost">Lost</option>
-                </select>
+            <div class="row"><span class="lbl">Estimate #</span><span class="val">EST-2026-0142</span></div>
+            <div class="row"><span class="lbl">Customer</span><span class="val">ACME Retail TI</span></div>
+            <div class="row"><span class="lbl">Job</span><span class="val">2026-0142 ACME Retail TI</span></div>
+            <div class="row"><span class="lbl">Creation Type</span><span class="val">Itemized</span></div>
+            <div class="row"><span class="lbl">Status</span><span class="pill pill-draft">Draft</span></div>
+            <h2 style="margin-top:14px;">Estimate Overhead</h2>
+            <label class="overhead">
+                <span style="font-size:11px;color:#475569;font-weight:600;">Overhead %</span>
+                <input type="number" id="overheadPct" value="10" min="0" max="100" step="1">
+            </label>
+            <div class="actions">
+                <button type="button" class="btn btn-secondary" id="btnSave">Save</button>
+                <button type="button" class="btn btn-primary" id="btnSend">Send</button>
             </div>
-            <div id="statusPill" class="pill pill-draft">Draft</div>
-            <div class="hint">Customer: ACME Retail TI<br>Job: 2026-0142</div>
-            <h2 style="margin-top: 8px;">Actions</h2>
-            <button type="button" class="btn btn-secondary" id="btnSave">Save</button>
-            <p class="hint">Save shows a toast only; state resets on reload.</p>
-            <h2 style="margin-top: 14px;">Worksheet totals</h2>
-            <label for="overheadPct">Overhead %</label>
-            <input type="number" id="overheadPct" value="10" min="0" max="100" step="1">
-            <p class="hint">In this prototype, overhead runs on <strong>balance after estimate-level discounts</strong>. Final policy (burden vs margin, job vs org default) belongs in IE-1 / finance settings.</p>
         </aside>
-        <div class="main" id="mainCol">
-            <div class="main-header">
+
+        <!-- Main -->
+        <main class="main">
+            <div class="header-row">
                 <div>
-                    <div class="title">Estimate detail</div>
-                    <div class="sub"><code>EstimateChangeOrderDetails</code> &middot; <code>creationType</code> = <span id="ctLabel">Itemized</span></div>
+                    <h1>Itemized Estimate Worksheet</h1>
+                    <div class="sub"><code>EstimateChangeOrderDetails</code> · <code>creationType = Itemized</code></div>
                 </div>
-                <span class="spacer"></span>
-                <button type="button" class="toolbar-btn linkish" id="btnEditCols">Edit columns</button>
-                <button type="button" class="toolbar-btn" id="btnPdf">Export PDF</button>
-                <button type="button" class="toolbar-btn" id="btnDup">Duplicate</button>
-                <button type="button" class="toolbar-btn primary" id="btnInvoice" disabled>Generate invoice</button>
+                <div class="header-right">
+                    <button type="button" class="toolbar-btn">Export PDF</button>
+                    <button type="button" class="toolbar-btn">Duplicate</button>
+                    <button type="button" class="toolbar-btn primary" disabled>Generate invoice</button>
+                </div>
             </div>
             <div class="tabs">
-                <div class="tab active" data-tab="worksheet">Worksheet</div>
-                <div class="tab" data-tab="letter">Letter</div>
-                <div class="tab" data-tab="files">Files</div>
+                <div class="tab active">Worksheet</div>
+                <div class="tab">Letter</div>
+                <div class="tab">Files</div>
             </div>
-            <div class="tab-body" id="tabWorksheet">
-                <div id="fullWorksheetBanner" style="display:none;margin-bottom:12px;padding:12px 14px;background:#fef3c7;border:1px solid #fcd34d;border-radius:8px;font-size:12px;color:#92400e;">
-                    <strong>Full / Bid first worksheet</strong> &mdash; <code>EstimateChangeOrderCategory</code> + <code>EstimateChangeOrderRecordValue</code> grid is not modeled here. Switch back to <strong>Itemized</strong> to continue.
-                </div>
-                <div id="itemizedBlock" style="flex:1;display:flex;flex-direction:column;min-height:0;">
-                <div class="creation-row">
-                    <label>Worksheet mode</label>
-                    <div class="pill-select" id="creationPills">
-                        <button type="button" class="pill-opt" data-ct="Full">Full</button>
-                        <button type="button" class="pill-opt" data-ct="BidFirst">Bid first</button>
-                        <button type="button" class="pill-opt active" data-ct="Itemized">Itemized</button>
-                    </div>
-                </div>
-                <div class="worksheet-stack">
-                <div class="grid-toolbar">
+
+            <div class="legend">
+                <strong>UX pattern:</strong> <kbd>+ Add item</kbd> (toolbar) adds a blank line at root. Each <strong>Section</strong> header carries its own <kbd>+ Sub</kbd> / <kbd>+ Line</kbd> buttons so you don't have to set an "insert target" first. Picking <strong>Type</strong> on a blank row reveals the right cascade (Labor / Material / Equipment) or drops to a free-text description (Custom). Tax and Discount stack per-line via sub-rows — same pattern <code>SimpleInvoice.tsx</code> uses for multi-tax invoicing.
+            </div>
+
+            <div class="worksheet-bar">
+                <div class="left root-toolbar">
+                    <span class="lbl">Worksheet root:</span>
                     <button type="button" class="toolbar-btn" id="btnAddSection">+ Section</button>
-                    <span class="grid-toolbar-spacer"></span>
-                    <input type="search" class="search-filter" id="gridSearch" placeholder="Filter rows / sections&hellip;" title="Client-side filter on lines and section titles">
+                    <button type="button" class="toolbar-btn" id="btnAddRootLine">+ Line</button>
                 </div>
-                <div class="table-wrap" id="gridWrap">
-                    <table class="grid">
-                        <thead>
-                            <tr>
-                                <th></th>
-                                <th>Type</th>
-                                <th>Description</th>
-                                <th>Bill as</th>
-                                <th>Qty</th>
-                                <th>Unit</th>
-                                <th>Unit cost</th>
-                                <th>Total cost</th>
-                                <th>Markup %</th>
-                                <th>Line disc %</th>
-                                <th>Line sell</th>
-                                <th>Tax</th>
-                                <th>Line w/ tax</th>
-                                <th></th>
-                            </tr>
-                        </thead>
-                        <tbody id="tbody"></tbody>
-                    </table>
-                </div>
-                <div class="add-item-slot" id="addItemSlot">
-                    <button type="button" class="btn-add-item" id="btnAddItem"><span class="plus">+</span> Add item</button>
-                    <div class="add-item-panel" id="addItemPanel">
-                        <p class="add-item-hint">Search across <strong>labor, materials, and equipment</strong> in one field. Click <strong>Here</strong> on a section so new lines land under that section (or they go to the worksheet root). Equipment <strong>Bill as</strong> multi-rate; material <strong>specs</strong> in search. Add a custom line from the footer below.</p>
-                        <div class="addline-wrap">
-                            <div class="smart-search-wrap">
-                                <input type="text" id="smartSearch" autocomplete="off" placeholder="Type an item name&hellip;">
-                            </div>
-                            <div class="smart-dd" id="smartDd">
-                                <div class="smart-dd-hint" id="smartDdHint">Results combine all catalog types; ranked by relevance.</div>
-                                <div id="smartDdList"></div>
-                                <div class="pick-footer" id="pickCustom" role="button">+ Add custom line (no catalog link)</div>
-                            </div>
-                        </div>
-                        <button type="button" class="btn-cancel-add" id="btnCancelAdd">Cancel</button>
-                    </div>
-                </div>
-                <div class="totals-footer">
-                    <div class="totals-wave">
-                        <h3>Summary</h3>
-                        <details class="sum-detail" id="sellDetail">
-                            <summary>Selling detail (gross &amp; line discounts)</summary>
-                            <div class="tline"><span class="lbl">Extended sell, before line disc</span><span class="val" id="tSellGross">$0.00</span></div>
-                            <div class="tline" id="tLineDiscRow" style="display: none;"><span class="lbl">Less line-level discount</span><span class="val neg" id="tLineDisc">($0.00)</span></div>
-                        </details>
-                        <div class="sum-flow-title">How this adds up</div>
-                        <div class="tline t-step"><span class="lbl"><span class="step-num">1</span>Extended sell (lines, after line %)</span><span class="val" id="tSell">$0.00</span></div>
-                        <div class="tline t-step"><span class="lbl"><span class="step-num">2</span>Cost subtotal</span><span class="val" id="tCost">$0.00</span></div>
-                        <div class="doc-disc-block" id="docDiscBlock">
-                            <h4>Estimate-level discounts</h4>
-                            <p style="font-size:10px;color:#64748b;margin-bottom:8px;line-height:1.4;">Applied to <strong>pre-tax</strong> extended sell (step 1). Stacked: each <strong>%</strong> uses the running pre-tax balance; each <strong>Fixed $</strong> cannot take it below zero. Tax (steps 4–5) is then computed on each line&rsquo;s share of the discounted sell (proportional split; mixed rates).</p>
-                            <div id="docDiscList"></div>
-                            <button type="button" class="btn-add-disc" id="btnAddEstDisc">+ Add estimate discount</button>
-                            <div class="tline" id="tEstDiscRow" style="display: none; margin-top: 10px;"><span class="lbl">Less estimate-level discount (pre-tax)</span><span class="val neg" id="tEstDisc">($0.00)</span></div>
-                        </div>
-                        <div class="tline t-step"><span class="lbl"><span class="step-num">3</span>Taxable sell after estimate discounts</span><span class="val" id="tSellAfterDoc">$0.00</span></div>
-                        <div class="tline t-step"><span class="lbl"><span class="step-num">4</span>Estimated tax</span><span class="val" id="tTax">$0.00</span></div>
-                        <div class="tline t-step"><span class="lbl"><span class="step-num">5</span>Subtotal (discounted sell + tax)</span><span class="val" id="tSubTax">$0.00</span></div>
-                        <div class="tline t-step"><span class="lbl"><span class="step-num">6</span>Balance before overhead</span><span class="val" id="tAfterEst">$0.00</span></div>
-                        <div class="tline t-step"><span class="lbl"><span class="step-num">7</span>Overhead (<span id="tOhPctLbl">10</span>%)</span><span class="val" id="tOh">$0.00</span></div>
-                        <div class="tline t-grand"><span class="lbl">Grand total</span><span class="val" id="tGrand">$0.00</span></div>
-                        <p class="tax-note"><strong>Order:</strong> line % &rarr; line sell; <strong>estimate-level discounts on pre-tax sell</strong>; then tax on each line&rsquo;s <em>discounted</em> share (proportional split of the estimate discount; grid tax / w-tax match that). Overhead % in the <strong>left sidebar</strong>. IE-1 may refine (e.g. jurisdictional rules).</p>
-                    </div>
-                </div>
-                </div>
-                </div>
+                <input type="search" class="search-filter" id="gridSearch" placeholder="Filter rows / sections…">
             </div>
-            <div class="tab-body" id="tabLetter" style="display: none;">
-                <div class="tab-placeholder">Letter tab &mdash; rich text + merge tags (<code>RichTextEditor</code>). Unchanged for Itemized.</div>
+
+            <div class="table-wrap">
+                <table class="grid">
+                    <thead>
+                        <tr>
+                            <th style="width:22px;"></th>
+                            <th>Type</th>
+                            <th>Selected item / description</th>
+                            <th>Qty</th>
+                            <th>Unit</th>
+                            <th>Unit cost</th>
+                            <th>Total cost</th>
+                            <th>Markup %</th>
+                            <th>Markup $</th>
+                            <th>Line price</th>
+                            <th style="width:32px;"></th>
+                        </tr>
+                    </thead>
+                    <tbody id="tbody"></tbody>
+                </table>
             </div>
-            <div class="tab-body" id="tabFiles" style="display: none;">
-                <div class="tab-placeholder">Files tab &mdash; attachments list. Unchanged for Itemized.</div>
+
+            <!-- Totals panel -->
+            <div class="totals-footer">
+                <h3>Summary <span style="font-size:10px;color:#64748b;font-weight:500;">(computed — IE-3 will own final math)</span></h3>
+
+                <div class="t-line"><span>Cost subtotal</span><span class="val" id="tCost">$0.00</span></div>
+                <div class="t-line"><span>Line sell (before discounts)</span><span class="val" id="tSellBeforeDisc">$0.00</span></div>
+                <div class="t-line"><span>Line discounts <span style="font-size:10px;color:#64748b;">(&Sigma; per-line)</span></span><span class="val neg" id="tLineDiscSum">-$0.00</span></div>
+                <div class="t-line step"><span class="lbl"><span class="step-num">1</span>Line sell after line discounts</span><span class="val" id="tSell">$0.00</span></div>
+
+                <div class="doc-disc-block">
+                    <h4>Estimate-level discounts (stack)</h4>
+                    <p>Same stack pattern as per-line; each entry is a <code>DiscountAssignment</code> with <code>referenceModel = "EstimateChangeOrderRecord"</code>. Applied to pre-tax sell; order set by <code>orderNo</code>.</p>
+                    <div class="sub-list" id="docDiscList"></div>
+                    <button type="button" class="add-sub-btn" id="btnAddEstDisc">+ Add estimate discount</button>
+                </div>
+
+                <div class="t-line"><span>Estimate-level discount <span style="font-size:10px;color:#64748b;">(stack total)</span></span><span class="val neg" id="tEstDiscSum">-$0.00</span></div>
+                <div class="t-line step"><span class="lbl"><span class="step-num">2</span>Taxable sell after estimate discounts</span><span class="val" id="tSellAfterDoc">$0.00</span></div>
+                <div class="t-line" id="taxAggregates"></div>
+                <div class="t-line"><span>Tax <span style="font-size:10px;color:#64748b;">(&Sigma; per-line <code>taxValue</code>, weighted avg <span id="tTaxAvgPct">0.0</span>%)</span></span><span class="val" id="tTaxTotal">$0.00</span></div>
+                <div class="t-line step"><span class="lbl"><span class="step-num">3</span>Subtotal (discounted sell + tax)</span><span class="val" id="tSubTax">$0.00</span></div>
+                <div class="t-line step"><span class="lbl"><span class="step-num">4</span>Overhead (<span id="tOhPctLbl">10</span>%)</span><span class="val" id="tOh">$0.00</span></div>
+                <div class="t-line grand"><span>Grand total</span><span class="val" id="tGrand">$0.00</span></div>
             </div>
-        </div>
+        </main>
     </div>
 </div>
-
-<div class="modal-back" id="modalSwitch">
-    <div class="modal">
-        <h4 id="modalSwitchTitle">Switch worksheet mode?</h4>
-        <p id="modalSwitchBody"></p>
-        <div class="modal-actions">
-            <button type="button" class="toolbar-btn" id="modalSwitchCancel">Cancel</button>
-            <button type="button" class="toolbar-btn primary" id="modalSwitchOk">Continue</button>
-        </div>
-    </div>
-</div>
-
-<div class="modal-back" id="modalInvoice">
-    <div class="modal">
-        <h4>Create Simple invoice from estimate?</h4>
-        <p>Job: <strong>2026-0142 ACME Retail TI</strong><br>Lines: <strong id="invLines">0</strong> &middot; Grand total: <strong id="invTotal">$0.00</strong></p>
-        <div class="modal-actions">
-            <button type="button" class="toolbar-btn" id="invCancel">Cancel</button>
-            <button type="button" class="toolbar-btn primary" id="invOk">Create invoice</button>
-        </div>
-    </div>
-</div>
-
-<div class="toast" id="toast"></div>
 
 <script>
-(function () {
-    var creationType = "Itemized";
-    var pendingCreation = null;
-    var rows = [];
-    var nextId = 1;
-    var nextEstDiscId = 1;
-    var estimateDiscounts;
+/* -------------------------------------------------
+   Catalog seed data (mock — represents IE-1 / LEM-1 / LEM-2 shapes)
+   ------------------------------------------------- */
+
+// LEM-1: TradeLevel + EmployeeAgreementRateLabel → TradeLevelRate
+var TRADE_LEVELS = [
+    { id: "tl-weld-j", name: "Welder · Journeyman" },
+    { id: "tl-weld-a", name: "Welder · Apprentice" },
+    { id: "tl-pipe-j", name: "Pipefitter · Journeyman" },
+    { id: "tl-pipe-a", name: "Pipefitter · Apprentice" },
+    { id: "tl-ele-j", name: "Electrician · Journeyman" }
+];
+var RATE_LABELS = [
+    { id: "rl-std", name: "Standard" },
+    { id: "rl-ot", name: "Overtime" },
+    { id: "rl-pw", name: "Prevailing Wage" }
+];
+// Keyed by (tradeLevelId, rateLabelId)
+var TRADE_LEVEL_RATES = {
+    "tl-weld-j|rl-std": { id: "tlr-001", billableValue: 68.00 },
+    "tl-weld-j|rl-ot":  { id: "tlr-002", billableValue: 102.00 },
+    "tl-weld-j|rl-pw":  { id: "tlr-003", billableValue: 82.00 },
+    "tl-weld-a|rl-std": { id: "tlr-004", billableValue: 46.00 },
+    "tl-pipe-j|rl-std": { id: "tlr-005", billableValue: 72.00 },
+    "tl-pipe-j|rl-pw":  { id: "tlr-006", billableValue: 88.00 },
+    "tl-pipe-a|rl-std": { id: "tlr-007", billableValue: 48.00 },
+    "tl-ele-j|rl-std":  { id: "tlr-008", billableValue: 76.00 }
+};
+
+var USERS = [
+    { id: "u-lee", name: "A. Lee", primaryTradeId: "tl-weld-j" },
+    { id: "u-jones", name: "C. Jones", primaryTradeId: "tl-pipe-a" },
+    { id: "u-patel", name: "R. Patel", primaryTradeId: "tl-pipe-j" },
+    { id: "u-nguyen", name: "M. Nguyen", primaryTradeId: "tl-ele-j" }
+];
+
+// LEM-3: Material + X/Y(/Z) attribute → MaterialAttributePrice
+var MATERIALS = [
+    {
+        id: "mat-bi-pipe", name: "Black iron pipe", unit: "LF",
+        xLabel: "Size", xValues: [
+            { id: "x-2in", name: '2"' },
+            { id: "x-3in", name: '3"' },
+            { id: "x-4in", name: '4"' }
+        ],
+        yLabel: "Schedule", yValues: [
+            { id: "y-40", name: "Sch 40" },
+            { id: "y-80", name: "Sch 80" }
+        ],
+        zLabel: null, zValues: null
+    },
+    {
+        id: "mat-cu", name: "Copper tube Type L", unit: "LF",
+        xLabel: "Size", xValues: [
+            { id: "x-half", name: '1/2"' },
+            { id: "x-34", name: '3/4"' },
+            { id: "x-1", name: '1"' },
+            { id: "x-2", name: '2"' }
+        ],
+        yLabel: "Grade", yValues: [
+            { id: "y-l", name: "Type L" },
+            { id: "y-m", name: "Type M" }
+        ],
+        zLabel: null, zValues: null
+    },
+    {
+        id: "mat-drywall", name: "Drywall sheet", unit: "sheet",
+        xLabel: "Size", xValues: [
+            { id: "x-4x8", name: "4x8" },
+            { id: "x-4x12", name: "4x12" }
+        ],
+        yLabel: "Type", yValues: [
+            { id: "y-std", name: "Standard" },
+            { id: "y-fc", name: "Fire-rated" },
+            { id: "y-mr", name: "Moisture-resistant" }
+        ],
+        zLabel: "Thickness", zValues: [
+            { id: "z-12", name: "1/2\"" },
+            { id: "z-58", name: "5/8\"" }
+        ]
+    }
+];
+// Keyed by (materialId, xId, yId, zId or "-")
+var MATERIAL_PRICES = {
+    "mat-bi-pipe|x-2in|y-40|-": { id: "map-001", value: 4.90 },
+    "mat-bi-pipe|x-3in|y-40|-": { id: "map-002", value: 5.85 },
+    "mat-bi-pipe|x-4in|y-40|-": { id: "map-003", value: 6.10 },
+    "mat-bi-pipe|x-2in|y-80|-": { id: "map-004", value: 7.20 },
+    "mat-bi-pipe|x-4in|y-80|-": { id: "map-005", value: 9.40 },
+    "mat-cu|x-half|y-l|-": { id: "map-010", value: 3.25 },
+    "mat-cu|x-34|y-l|-":   { id: "map-011", value: 4.60 },
+    "mat-cu|x-1|y-l|-":    { id: "map-012", value: 7.15 },
+    "mat-cu|x-2|y-l|-":    { id: "map-013", value: 13.90 },
+    "mat-cu|x-half|y-m|-": { id: "map-014", value: 2.70 },
+    "mat-drywall|x-4x8|y-std|z-12": { id: "map-020", value: 12.40 },
+    "mat-drywall|x-4x8|y-std|z-58": { id: "map-021", value: 14.60 },
+    "mat-drywall|x-4x8|y-fc|z-58":  { id: "map-022", value: 17.90 },
+    "mat-drywall|x-4x12|y-std|z-12": { id: "map-023", value: 17.20 },
+    "mat-drywall|x-4x12|y-mr|z-58":  { id: "map-024", value: 22.80 }
+};
+
+// LEM-2: Equipment + Per + RateLabel + Operator → EquipmentRateValue
+var EQUIPMENT = [
+    { id: "eq-forklift", name: "Forklift 5k cap" },
+    { id: "eq-scissor", name: "Scissor lift 19'" },
+    { id: "eq-gen", name: "Generator 25kW" }
+];
+var RATE_PERS = ["Hour", "Day", "Week", "Month"];
+var EQ_RATE_LABELS = [
+    { id: "erl-std", name: "Standard" },
+    { id: "erl-ah", name: "After Hours" }
+];
+// Keyed by (equipmentId, per, rateLabelId, operatorIncluded)
+var EQUIPMENT_RATE_VALUES = {
+    "eq-forklift|Hour|erl-std|false":  { id: "erv-001", baseValue: 85.00 },
+    "eq-forklift|Hour|erl-std|true":   { id: "erv-002", baseValue: 125.00 },
+    "eq-forklift|Day|erl-std|false":   { id: "erv-003", baseValue: 225.00 },
+    "eq-forklift|Day|erl-std|true":    { id: "erv-004", baseValue: 340.00 },
+    "eq-forklift|Week|erl-std|false":  { id: "erv-005", baseValue: 980.00 },
+    "eq-scissor|Hour|erl-std|false":   { id: "erv-010", baseValue: 95.00 },
+    "eq-scissor|Day|erl-std|false":    { id: "erv-011", baseValue: 275.00 },
+    "eq-scissor|Day|erl-std|true":     { id: "erv-012", baseValue: 410.00 },
+    "eq-scissor|Week|erl-std|false":   { id: "erv-013", baseValue: 1100.00 },
+    "eq-scissor|Day|erl-ah|false":     { id: "erv-014", baseValue: 335.00 },
+    "eq-gen|Hour|erl-std|false":       { id: "erv-020", baseValue: 45.00 },
+    "eq-gen|Day|erl-std|false":        { id: "erv-021", baseValue: 175.00 }
+};
+
+// TaxType (M2M on line)
+var TAX_TYPES = [
+    { id: "tax-exempt", abbreviation: "Exempt", rate: 0,  isCompound: false },
+    { id: "tax-gst",    abbreviation: "GST",    rate: 5,  isCompound: false },
+    { id: "tax-pst-bc", abbreviation: "PST-BC", rate: 7,  isCompound: false },
+    { id: "tax-hst-on", abbreviation: "HST-ON", rate: 13, isCompound: false },
+    { id: "tax-qst-qc", abbreviation: "QST-QC", rate: 9.975, isCompound: true }
+];
+
+// Suggested discounts from Job / Company (SD-1 suggestedDiscountsForLine merges these)
+var SUGGESTED_DISCOUNTS = [
+    { id: "d-contractor", name: "Contractor rate", type: "Percent", value: 7.5, source: "Company" },
+    { id: "d-repeat",     name: "Repeat customer",  type: "Percent", value: 5,   source: "Company" },
+    { id: "d-job-prom",   name: "Job-specific promo", type: "FixedAmount", value: 250, source: "Job" }
+];
+
+/* -------------------------------------------------
+   State
+   ------------------------------------------------- */
+var nextOrderNo = 1;
+function nid() { return "r-" + Math.random().toString(36).slice(2, 9); }
+
+// Single source of truth for all rows (sections + lines).
+var rows = [];
+
+// Estimate-level discounts (DiscountAssignment where referenceModel = "EstimateChangeOrderRecord")
+var estimateDiscounts = [
+    { id: "ad-1", type: "Percent", value: 2, name: "Early-bird" }
+];
+
+function makeSection(title, parentId, orderNo) {
+    return { id: nid(), kind: "section", parentId: parentId, orderNo: orderNo, title: title };
+}
+function makeLine(hint, parentId, orderNo, overrides) {
+    var base = {
+        id: nid(),
+        kind: "line",
+        parentId: parentId,
+        orderNo: orderNo,
+        lineItemType: null,
+        description: "",
+        // cascade fields (for Labor / Material / Equipment)
+        tradeLevelId: null, rateLabelId: null, userId: null,
+        materialId: null, xValueId: null, yValueId: null, zValueId: null,
+        equipmentId: null, ratePer: null, operatorIncluded: false,
+        // priced fields
+        quantity: 0, unit: "", unitCost: 0,
+        markupPercent: 0, markupDollarValue: 0,
+        taxTypeIds: ["tax-gst"],
+        discounts: []
+    };
+    Object.keys(overrides || {}).forEach(function (k) { base[k] = overrides[k]; });
+    // resolve unit + unitCost from the cascade for demo rows
+    resolveLineFromCascade(base);
+    return base;
+}
+
+/* -------------------------------------------------
+   Resolver — mirrors IE-1.resolveUnitCost behavior
+   ------------------------------------------------- */
+function resolveLineFromCascade(r) {
+    if (r.lineItemType === "Labor") {
+        if (r.tradeLevelId && r.rateLabelId) {
+            var k = r.tradeLevelId + "|" + r.rateLabelId;
+            var rate = TRADE_LEVEL_RATES[k];
+            if (rate) {
+                r.unit = "hr";
+                r.unitCost = rate.billableValue;
+                r._priceRefModel = "TradeLevelRate";
+                r._priceRefId = rate.id;
+            }
+        }
+    } else if (r.lineItemType === "Material") {
+        var mat = MATERIALS.find(function (m) { return m.id === r.materialId; });
+        if (mat && r.xValueId && r.yValueId && (!mat.zValues || r.zValueId)) {
+            var mk = r.materialId + "|" + r.xValueId + "|" + r.yValueId + "|" + (r.zValueId || "-");
+            var price = MATERIAL_PRICES[mk];
+            if (price) {
+                r.unit = mat.unit;
+                r.unitCost = price.value;
+                r._priceRefModel = "MaterialAttributePrice";
+                r._priceRefId = price.id;
+            }
+        }
+    } else if (r.lineItemType === "Equipment") {
+        if (r.equipmentId && r.ratePer && r.rateLabelId) {
+            var ek = r.equipmentId + "|" + r.ratePer + "|" + r.rateLabelId + "|" + String(!!r.operatorIncluded);
+            var erv = EQUIPMENT_RATE_VALUES[ek];
+            if (erv) {
+                r.unit = r.ratePer.toLowerCase().slice(0, 2) === "ho" ? "hr" : r.ratePer.toLowerCase();
+                r.unitCost = erv.baseValue;
+                r._priceRefModel = "EquipmentRateValue";
+                r._priceRefId = erv.id;
+            }
+        }
+    }
+}
+
+/* -------------------------------------------------
+   Math helpers
+   ------------------------------------------------- */
+function money(n) {
+    if (isNaN(n) || n === null) return "$0.00";
+    var sign = n < 0 ? "-" : "";
+    var abs = Math.abs(n);
+    return sign + "$" + abs.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+}
+function lineTotalCost(r) { return (Number(r.quantity) || 0) * (Number(r.unitCost) || 0); }
+function lineMarkup(r) {
+    var pct = (Number(r.markupPercent) || 0) / 100;
+    var flat = Number(r.markupDollarValue) || 0;
+    return lineTotalCost(r) * pct + flat;
+}
+function lineSellBeforeDiscount(r) { return lineTotalCost(r) + lineMarkup(r); }
+
+function applyLineDiscounts(r, base) {
+    var running = base;
+    (r.discounts || []).forEach(function (d) {
+        if (d.type === "Percent") running -= running * (Number(d.value) || 0) / 100;
+        else if (d.type === "FixedAmount") running -= Number(d.value) || 0;
+    });
+    return Math.max(0, running);
+}
+function lineSellAfterDiscounts(r) { return applyLineDiscounts(r, lineSellBeforeDiscount(r)); }
+
+function lineTaxAmount(r, base) {
+    var b = base == null ? lineSellAfterDiscounts(r) : base;
+    if (!r.taxTypeIds || !r.taxTypeIds.length) return 0;
+    var types = r.taxTypeIds.map(function (id) {
+        return TAX_TYPES.find(function (t) { return t.id === id; });
+    }).filter(Boolean);
+    var baseRunning = b;
+    var nonCompoundTotal = 0;
+    types.filter(function (t) { return !t.isCompound; }).forEach(function (t) {
+        nonCompoundTotal += b * (t.rate / 100);
+    });
+    var total = nonCompoundTotal;
+    types.filter(function (t) { return t.isCompound; }).forEach(function (t) {
+        total += (b + nonCompoundTotal) * (t.rate / 100);
+    });
+    return total;
+}
+
+/* -------------------------------------------------
+   Render — table
+   ------------------------------------------------- */
+function render() {
     var tbody = document.getElementById("tbody");
-    var __rowTaxAfterDoc = {};
-
-    function isSectionRow(r) {
-        return r && r.kind === "section";
+    tbody.innerHTML = "";
+    var tree = buildTree();
+    if (tree.length === 0) {
+        var tr = document.createElement("tr");
+        tr.innerHTML = '<td colspan="11"><div class="empty-state"><div class="big">No line items yet</div><div>Click <strong>+ Line</strong> to add a priced row or <strong>+ Section</strong> to group them first.</div></div></td>';
+        tbody.appendChild(tr);
+        renderTotals();
+        return;
     }
-
-    function isDataLine(r) {
-        return r && !r.deleted && !isSectionRow(r);
-    }
-
-    function countDataLines() {
-        var n = 0;
-        rows.forEach(function (r) {
-            if (isDataLine(r)) n++;
-        });
-        return n;
-    }
-
-    var insertLinesParentId = null;
-
-    function childrenOf(parentId) {
-        return rows
-            .filter(function (r) {
-                if (r.deleted) return false;
-                if (parentId == null) return r.parentId == null;
-                return r.parentId === parentId;
-            })
-            .sort(function (a, b) {
-                var ao = a.orderIndex != null ? a.orderIndex : a.id;
-                var bo = b.orderIndex != null ? b.orderIndex : b.id;
-                if (ao !== bo) return ao - bo;
-                return a.id - b.id;
-            });
-    }
-
-    function maxSiblingOrder(parentId) {
-        var ch = childrenOf(parentId);
-        if (ch.length === 0) return 0;
-        var mx = 0;
-        ch.forEach(function (c) {
-            var o = c.orderIndex != null ? c.orderIndex : 0;
-            if (o > mx) mx = o;
-        });
-        return mx;
-    }
-
-    function normalizeSiblingOrder(parentId) {
-        var ch = childrenOf(parentId);
-        ch.forEach(function (r, i) {
-            r.orderIndex = (i + 1) * 10;
+    tree.forEach(function (node) { renderNode(node, 1, tbody); });
+    renderTotals();
+}
+function buildTree() {
+    var byParent = {};
+    rows.forEach(function (r) {
+        var key = r.parentId == null ? "_root_" : r.parentId;
+        (byParent[key] = byParent[key] || []).push(r);
+    });
+    Object.keys(byParent).forEach(function (k) {
+        byParent[k].sort(function (a, b) { return a.orderNo - b.orderNo; });
+    });
+    function expand(parentId) {
+        var key = parentId == null ? "_root_" : parentId;
+        return (byParent[key] || []).map(function (r) {
+            return { row: r, children: r.kind === "section" ? expand(r.id) : [] };
         });
     }
+    return expand(null);
+}
+function renderNode(node, depth, tbody) {
+    if (node.row.kind === "section") {
+        renderSectionRow(node.row, depth, tbody);
+        node.children.forEach(function (c) { renderNode(c, depth + 1, tbody); });
+    } else {
+        renderLineRow(node.row, depth, tbody);
+    }
+}
+function renderSectionRow(sec, depth, tbody) {
+    var tr = document.createElement("tr");
+    tr.className = "section-row";
+    var depthClass = "depth-" + Math.min(3, depth);
+    var canGoDeeper = depth < 3;
+    tr.innerHTML =
+        '<td colspan="11">' +
+        '<div class="section-inner ' + depthClass + '">' +
+        '<span class="section-handle" title="Drag to reorder (prototype)">⋮⋮</span>' +
+        '<span class="section-tag">' + (depth === 1 ? "Section" : "Sub") + '</span>' +
+        '<input type="text" class="section-title-inp" value="' + esc(sec.title || "") + '" data-sid="' + sec.id + '" data-action="title">' +
+        '<div class="section-actions">' +
+        '<button type="button" data-sid="' + sec.id + '" data-action="up">↑</button>' +
+        '<button type="button" data-sid="' + sec.id + '" data-action="down">↓</button>' +
+        (canGoDeeper ? '<button type="button" class="btn-sub" data-sid="' + sec.id + '" data-action="add-sub">+ Sub</button>' : '<button type="button" class="btn-sub" disabled title="Depth cap reached">+ Sub</button>') +
+        '<button type="button" class="btn-line" data-sid="' + sec.id + '" data-action="add-line">+ Line</button>' +
+        '<button type="button" class="btn-delete" data-sid="' + sec.id + '" data-action="delete">✕</button>' +
+        '</div>' +
+        '</div>' +
+        '</td>';
+    tbody.appendChild(tr);
+}
+function renderLineRow(line, depth, tbody) {
+    var tr = document.createElement("tr");
+    tr.className = "line-row";
+    tr.setAttribute("data-rid", line.id);
 
-    function matchesRow(r, q) {
-        if (!q) return true;
-        if (isSectionRow(r)) return String(r.title || "").toLowerCase().indexOf(q) >= 0;
-        return (String(r.label) + " " + (r.attrs || "")).toLowerCase().indexOf(q) >= 0;
+    var typeCell = renderTypeCell(line);
+    var itemCell = renderItemCell(line);
+    var qty = line.lineItemType ? '<input type="number" class="qty" min="0" step="0.01" value="' + (line.quantity || 0) + '" data-rid="' + line.id + '" data-action="qty">' : '<span class="cell-muted">—</span>';
+    // unit & unitCost:
+    //   Custom  → editable (no resolver, user enters manually)
+    //   Labor / Material / Equipment → read-only (derived from the price reference)
+    var unit, unitCost;
+    if (line.lineItemType === "Custom") {
+        unit = '<input type="text" class="unit" value="' + esc(line.unit || "") + '" data-rid="' + line.id + '" data-action="unit">';
+        unitCost = '<input type="number" class="currency" min="0" step="0.01" value="' + (line.unitCost || 0).toFixed(2) + '" data-rid="' + line.id + '" data-action="unitCost">';
+    } else if (line.lineItemType) {
+        unit = line.unit ? '<span class="cell-ro">' + esc(line.unit) + '</span>' : '<span class="cell-muted">—</span>';
+        unitCost = line.unitCost ? '<span class="cell-ro">' + money(line.unitCost) + '</span>' : '<span class="cell-muted">—</span>';
+    } else {
+        unit = '<span class="cell-muted">—</span>';
+        unitCost = '<span class="cell-muted">—</span>';
+    }
+    var tc = lineTotalCost(line);
+    var totalCost = line.lineItemType ? '<span class="cell-ro">' + money(tc) + '</span>' : '<span class="cell-muted">—</span>';
+    var mpct = line.lineItemType ? '<input type="number" class="markup" min="0" step="0.1" value="' + (line.markupPercent || 0) + '" data-rid="' + line.id + '" data-action="markupPercent">' : '<span class="cell-muted">—</span>';
+    var mamt = line.lineItemType ? '<input type="number" class="markup" min="0" step="1" value="' + (line.markupDollarValue || 0) + '" data-rid="' + line.id + '" data-action="markupDollar">' : '<span class="cell-muted">—</span>';
+    var lp = lineSellBeforeDiscount(line);
+    var lineP = line.lineItemType ? '<span class="cell-strong">' + money(lp) + '</span>' : '<span class="cell-muted">—</span>';
+
+    tr.innerHTML =
+        '<td><span class="line-handle" title="Drag">≡</span></td>' +
+        '<td>' + typeCell + '</td>' +
+        '<td>' + itemCell + '</td>' +
+        '<td>' + qty + '</td>' +
+        '<td>' + unit + '</td>' +
+        '<td>' + unitCost + '</td>' +
+        '<td>' + totalCost + '</td>' +
+        '<td>' + mpct + '</td>' +
+        '<td>' + mamt + '</td>' +
+        '<td>' + lineP + '</td>' +
+        '<td><button class="del-btn" data-rid="' + line.id + '" data-action="delete-line" title="Delete line">×</button></td>';
+    tbody.appendChild(tr);
+
+    // Tax + Discount sub-rows only once the line has a type
+    if (line.lineItemType) {
+        tbody.appendChild(renderTaxRow(line));
+        tbody.appendChild(renderDiscRow(line));
+    }
+}
+
+function renderTypeCell(line) {
+    if (!line.lineItemType) {
+        // blank line → Type dropdown
+        var opts = ["Labor", "Material", "Equipment", "Custom"].map(function (t) {
+            return '<option value="' + t + '">' + t + '</option>';
+        }).join("");
+        return '<select class="type-dd" data-rid="' + line.id + '" data-action="set-type"><option value="">Pick type…</option>' + opts + '</select>';
+    }
+    var cls = "badge badge-" + (line.lineItemType === "Labor" ? "labor" : line.lineItemType === "Material" ? "mat" : line.lineItemType === "Equipment" ? "eq" : "custom");
+    // Once set, immutable (canEdit:false in IE-1 modelFields). Shown as a badge.
+    var label = line.lineItemType === "Material" ? "Mat" : line.lineItemType === "Equipment" ? "Eq" : line.lineItemType;
+    return '<span class="' + cls + '" title="Immutable after create (delete + re-add to change)">' + label + '</span>';
+}
+
+function renderItemCell(line) {
+    if (!line.lineItemType) {
+        return '<span class="cell-muted" style="font-size:10.5px;">Pick Type first →</span>';
     }
 
-    function subtreeHasMatch(sectionId, q) {
-        var ch = childrenOf(sectionId);
-        var k = 0;
-        for (; k < ch.length; k++) {
-            var c = ch[k];
-            if (matchesRow(c, q)) return true;
-            if (isSectionRow(c) && subtreeHasMatch(c.id, q)) return true;
+    // If the cascade is incomplete, show inline dropdowns for the next step(s).
+    // Once complete, show the resolved summary as read-only (catalog link locked).
+    if (line.lineItemType === "Labor") {
+        var complete = line.tradeLevelId && line.rateLabelId;
+        if (complete) {
+            var tl = TRADE_LEVELS.find(function (x) { return x.id === line.tradeLevelId; });
+            var rl = RATE_LABELS.find(function (x) { return x.id === line.rateLabelId; });
+            var workerText = line.userId ? USERS.find(function (u) { return u.id === line.userId; }).name + ' — ' + tl.name : tl.name + ' (no worker assigned)';
+            var userSwitcher = renderUserSwitcher(line);
+            return '<span class="sel-item">' + esc(workerText) + '</span>' +
+                '<span class="sel-sub">' + esc(rl.name + ' · TradeLevelRate resolved') + '</span>' +
+                userSwitcher;
         }
-        return false;
+        return renderLaborCascade(line);
     }
 
-    function sectionShownInFilter(sectionId, q) {
-        if (!q) return true;
-        var sec = rows.find(function (x) {
-            return x.id === sectionId && !x.deleted;
-        });
-        if (!sec) return false;
-        if (matchesRow(sec, q)) return true;
-        return subtreeHasMatch(sectionId, q);
-    }
-
-    function lineShownInFilter(line, q) {
-        if (!q) return true;
-        if (matchesRow(line, q)) return true;
-        var pid = line.parentId;
-        while (pid != null) {
-            if (sectionShownInFilter(pid, q)) return true;
-            var p = rows.find(function (x) {
-                return x.id === pid;
-            });
-            if (!p) break;
-            pid = p.parentId;
+    if (line.lineItemType === "Material") {
+        var mat = MATERIALS.find(function (m) { return m.id === line.materialId; });
+        var full = mat && line.xValueId && line.yValueId && (!mat.zValues || line.zValueId);
+        if (full) {
+            var xv = mat.xValues.find(function (v) { return v.id === line.xValueId; });
+            var yv = mat.yValues.find(function (v) { return v.id === line.yValueId; });
+            var zv = mat.zValues && line.zValueId ? mat.zValues.find(function (v) { return v.id === line.zValueId; }) : null;
+            var label = mat.name + ' · ' + xv.name + ' · ' + yv.name + (zv ? ' · ' + zv.name : '');
+            return '<span class="sel-item">' + esc(label) + '</span>' +
+                '<span class="sel-sub">MaterialAttributePrice resolved</span>';
         }
-        return false;
+        return renderMaterialCascade(line);
     }
 
-    function isRowUnderSection(row, sectionRootId) {
-        var pid = row.parentId;
-        while (pid != null) {
-            if (pid === sectionRootId) return true;
-            var p = rows.find(function (x) {
-                return x.id === pid;
-            });
-            if (!p) break;
-            pid = p.parentId;
+    if (line.lineItemType === "Equipment") {
+        var eq = EQUIPMENT.find(function (e) { return e.id === line.equipmentId; });
+        var erlabel = EQ_RATE_LABELS.find(function (e) { return e.id === line.rateLabelId; });
+        var full = eq && line.ratePer && erlabel;
+        if (full) {
+            var label = eq.name + ' · ' + line.ratePer + ' · ' + erlabel.name + (line.operatorIncluded ? ' · w/ operator' : '');
+            return '<span class="sel-item">' + esc(label) + '</span>' +
+                '<span class="sel-sub">EquipmentRateValue resolved</span>';
         }
-        return false;
+        return renderEquipmentCascade(line);
     }
 
-    function moveAmongSiblings(id, dir) {
-        var r = rows.find(function (x) {
-            return x.id === id && !x.deleted;
-        });
-        if (!r) return;
-        var pid = r.parentId == null ? null : r.parentId;
-        var sibs = childrenOf(pid);
-        var idx = sibs.findIndex(function (x) {
-            return x.id === id;
-        });
-        var j = idx + dir;
-        if (j < 0 || j >= sibs.length) return;
-        var oa = sibs[idx].orderIndex != null ? sibs[idx].orderIndex : 0;
-        var ob = sibs[j].orderIndex != null ? sibs[j].orderIndex : 0;
-        sibs[idx].orderIndex = ob;
-        sibs[j].orderIndex = oa;
-        normalizeSiblingOrder(pid);
-        render();
+    if (line.lineItemType === "Custom") {
+        return '<input type="text" class="cascade-sel" style="min-width:260px;" placeholder="Describe this custom line item…" value="' + esc(line.description || "") + '" data-rid="' + line.id + '" data-action="desc">';
     }
+    return '';
+}
 
-    var CATALOG = [
-        { type: "Labor", label: "A. Lee — Welder Journeyman", sub: "Labor · TradeLevel billable", keys: "welder weld labor union hour", unit: "hr", cost: 68, delay: 0 },
-        { type: "Labor", label: "C. Jones — Pipefitter Apprentice", sub: "Labor · Pipefitting", keys: "pipe apprentice fitter labor", unit: "hr", cost: 52, delay: 0 },
-        { type: "Labor", label: "Site supervisor (included)", sub: "Labor · General", keys: "supervisor foreman general", unit: "hr", cost: 95, delay: 0 },
-        { type: "Material", label: "Black iron 4\" sch 40", sub: "Material · Black iron pipe", keys: "black iron pipe schedule 40 sch carbon steel 4 inch", unit: "LF", cost: 6.1, delay: 1 },
-        { type: "Material", label: "2\" Copper Type L", sub: "Material · Plumbing · cold / hot water", keys: "copper water tube type l 2 inch od", unit: "LF", cost: 4.2, delay: 1 },
-        {
-            type: "Material",
-            label: "Duct liner 1\" (roll)",
-            sub: "Material · Insulation · faced",
-            keys: "liner duct insulation roll 1 inch thickness black facing nrc",
-            attrs: "1 in thick · 4 ft wide roll · black mat facing",
-            unit: "sq ft",
-            cost: 1.85,
-            delay: 1
-        },
-        {
-            type: "Material",
-            label: "PIR insulation board R-6",
-            sub: "Material · Polyiso roof deck",
-            keys: "pir polyiso iso board roof insulation r-6 r6 48 96 2 inch fsk silver gray",
-            attrs: "48×96 in · 2 in thick · FSK facing",
-            unit: "sheet",
-            cost: 89,
-            delay: 1
-        },
-        {
-            type: "Equipment",
-            label: "Forklift 5k cap",
-            sub: "Equipment · Rental · Hour / Day / Week",
-            keys: "fork lift material handling daily weekly hourly 5k",
-            rateOptions: [
-                { id: "hr", label: "Hourly", unit: "hr", cost: 85 },
-                { id: "day", label: "Daily", unit: "day", cost: 225 },
-                { id: "wk", label: "Weekly", unit: "wk", cost: 980 }
-            ],
-            delay: 1
-        },
-        {
-            type: "Equipment",
-            label: "Scissor lift 19 ft",
-            sub: "Equipment · Aerial · Hour / Day / Week",
-            keys: "scissor lift aerial boom 19 foot height",
-            rateOptions: [
-                { id: "hr", label: "Hourly", unit: "hr", cost: 95 },
-                { id: "day", label: "Daily", unit: "day", cost: 275 },
-                { id: "wk", label: "Weekly", unit: "wk", cost: 1100 }
-            ],
-            delay: 1
-        },
-        {
-            type: "Equipment",
-            label: "Generator 25kW",
-            sub: "Equipment · Power · Day default (no week tier in demo)",
-            keys: "generator power temp kW diesel",
-            rateOptions: [
-                { id: "hr", label: "Hourly", unit: "hr", cost: 45 },
-                { id: "day", label: "Daily", unit: "day", cost: 175 }
-            ],
-            delay: 1
-        }
-    ];
+function renderLaborCascade(line) {
+    var tlOpts = '<option value="">TradeLevel…</option>' + TRADE_LEVELS.map(function (t) {
+        return '<option value="' + t.id + '"' + (line.tradeLevelId === t.id ? ' selected' : '') + '>' + esc(t.name) + '</option>';
+    }).join("");
+    var rlOpts = '<option value="">Rate Label…</option>' + RATE_LABELS.map(function (r) {
+        var k = line.tradeLevelId + "|" + r.id;
+        var hasRate = TRADE_LEVEL_RATES[k];
+        return '<option value="' + r.id + '"' + (line.rateLabelId === r.id ? ' selected' : '') + (hasRate ? '' : ' disabled') + '>' + esc(r.name) + (hasRate ? '' : ' (no rate)') + '</option>';
+    }).join("");
+    return '<div class="cascade-wrap">' +
+        '<select class="cascade-sel" data-rid="' + line.id + '" data-action="cascade-labor-tl">' + tlOpts + '</select>' +
+        '<span class="plus-arrow">→</span>' +
+        '<select class="cascade-sel" data-rid="' + line.id + '" data-action="cascade-labor-rl"' + (line.tradeLevelId ? '' : ' disabled') + '>' + rlOpts + '</select>' +
+        '</div>';
+}
 
-    function catalogPriceLabel(item) {
-        if (item.rateOptions && item.rateOptions.length) {
-            var costs = item.rateOptions.map(function (o) {
-                return o.cost;
-            });
-            var mn = Math.min.apply(null, costs);
-            var mx = Math.max.apply(null, costs);
-            if (mn === mx) {
-                return money(mn) + " (multi-window)";
-            }
-            return money(mn) + " – " + money(mx);
-        }
-        return money(item.cost) + " / " + item.unit;
-    }
+function renderUserSwitcher(line) {
+    var userOpts = '<option value="">(no worker)</option>' + USERS.map(function (u) {
+        return '<option value="' + u.id + '"' + (line.userId === u.id ? ' selected' : '') + '>' + esc(u.name) + '</option>';
+    }).join("");
+    return ' <select class="optional-user" data-rid="' + line.id + '" data-action="set-user" title="Optional worker (Labor only)">' + userOpts + '</select>';
+}
 
-    function syncEquipmentRate(r) {
-        if (!r.rateOptions || !r.selectedRateId) return;
-        var opt = r.rateOptions.find(function (x) {
-            return x.id === r.selectedRateId;
-        });
-        if (opt) {
-            r.unit = opt.unit;
-            r.unitCost = opt.cost;
-        }
-    }
-
-    var TAX_OPTS = [
-        { v: "0", rate: 0, label: "Exempt" },
-        { v: "0.05", rate: 0.05, label: "GST 5%" },
-        { v: "0.13", rate: 0.13, label: "HST 13%" }
-    ];
-
-    function money(n) {
-        return "$" + n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
-    }
-
-    function escAttr(s) {
-        return String(s).replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
-    }
-
-    function rowLineSellGross(r) {
-        if (!r || isSectionRow(r)) return 0;
-        var tc = r.qty * r.unitCost;
-        return tc + tc * (r.markupPct / 100);
-    }
-
-    function lineDiscFrac(r) {
-        if (!r || isSectionRow(r)) return 0;
-        var v = parseFloat(r.lineDiscPct);
-        if (isNaN(v) || v <= 0) return 0;
-        if (v >= 100) return 1;
-        return v / 100;
-    }
-
-    function rowLineSell(r) {
-        return rowLineSellGross(r) * (1 - lineDiscFrac(r));
-    }
-
-    function rowTaxAmt(r) {
-        if (!r || r.deleted || isSectionRow(r)) return 0;
-        var rate = parseFloat(r.taxRate);
-        if (isNaN(rate)) rate = 0;
-        return rowLineSell(r) * rate;
-    }
-
-    function rowTotalWithTax(r) {
-        if (!r || isSectionRow(r)) return 0;
-        return rowLineSell(r) + rowTaxAmt(r);
-    }
-
-    function applyDocDiscountsToRunning(start) {
-        var running = start;
-        var totalCut = 0;
-        estimateDiscounts.forEach(function (d) {
-            var cut = 0;
-            if (d.mode === "amt") {
-                cut = Math.min(running, Math.max(0, parseFloat(d.value) || 0));
-            } else {
-                var p = Math.max(0, Math.min(100, parseFloat(d.value) || 0));
-                cut = running * (p / 100);
-            }
-            running -= cut;
-            totalCut += cut;
-            if (running < 0) {
-                running = 0;
-            }
-        });
-        return { after: running, totalCut: totalCut };
-    }
-
-    function getTotals() {
-        var cost = 0;
-        var sellGross = 0;
-        var sellNet = 0;
-        var parts = [];
-        rows.forEach(function (r) {
-            if (!isDataLine(r)) return;
-            cost += r.qty * r.unitCost;
-            sellGross += rowLineSellGross(r);
-            var b = rowLineSell(r);
-            sellNet += b;
-            var rate = parseFloat(r.taxRate);
-            if (isNaN(rate)) rate = 0;
-            parts.push({ id: r.id, base: b, rate: rate });
-        });
-        var lineDiscAmt = sellGross - sellNet;
-        var docPre = applyDocDiscountsToRunning(sellNet);
-        var sellAfterDoc = docPre.after;
-        var docCut = sellNet - sellAfterDoc;
-        __rowTaxAfterDoc = {};
-        var tax = 0;
-        parts.forEach(function (p) {
-            var alloc = sellNet > 0.00001 ? docCut * (p.base / sellNet) : 0;
-            var baseAfter = Math.max(0, p.base - alloc);
-            var tx = baseAfter * p.rate;
-            __rowTaxAfterDoc[p.id] = { baseAfter: baseAfter, tax: tx };
-            tax += tx;
-        });
-        var subTax = sellAfterDoc + tax;
-        var oh = parseFloat(document.getElementById("overheadPct").value) || 0;
-        var ohAmt = subTax * (oh / 100);
-        var grand = subTax + ohAmt;
-        return {
-            cost: cost,
-            sellGross: sellGross,
-            sellNet: sellNet,
-            sellAfterDoc: sellAfterDoc,
-            tax: tax,
-            lineDiscAmt: lineDiscAmt,
-            subTax: subTax,
-            docCut: docCut,
-            afterEst: subTax,
-            ohAmt: ohAmt,
-            grand: grand
-        };
-    }
-
-    function recalc() {
-        var t = getTotals();
-        document.getElementById("tCost").textContent = money(t.cost);
-        document.getElementById("tSellGross").textContent = money(t.sellGross);
-        document.getElementById("tSell").textContent = money(t.sellNet);
-        var ldr = document.getElementById("tLineDiscRow");
-        if (t.lineDiscAmt > 0.008) {
-            ldr.style.display = "flex";
-            document.getElementById("tLineDisc").textContent = "(" + money(t.lineDiscAmt) + ")";
-        } else {
-            ldr.style.display = "none";
-        }
-        var sad = document.getElementById("tSellAfterDoc");
-        if (sad) sad.textContent = money(t.sellAfterDoc);
-        document.getElementById("tTax").textContent = money(t.tax);
-        document.getElementById("tSubTax").textContent = money(t.subTax);
-        document.getElementById("tAfterEst").textContent = money(t.afterEst);
-        var edr = document.getElementById("tEstDiscRow");
-        if (t.docCut > 0.008) {
-            edr.style.display = "flex";
-            document.getElementById("tEstDisc").textContent = "(" + money(t.docCut) + ")";
-        } else {
-            edr.style.display = "none";
-        }
-        var ohEl = document.getElementById("overheadPct");
-        var ohPct = ohEl ? parseFloat(ohEl.value) || 0 : 0;
-        var pctLbl = document.getElementById("tOhPctLbl");
-        if (pctLbl) pctLbl.textContent = String(ohPct);
-        document.getElementById("tOh").textContent = money(t.ohAmt);
-        document.getElementById("tGrand").textContent = money(t.grand);
-        var st = document.getElementById("selStatus").value;
-        var inv = document.getElementById("btnInvoice");
-        var canInv = st === "Won" && creationType === "Itemized" && countDataLines() > 0;
-        inv.disabled = !canInv;
-    }
-
-    function renderEstimateDiscounts() {
-        var list = document.getElementById("docDiscList");
-        if (!list) return;
-        list.innerHTML = "";
-        estimateDiscounts.forEach(function (d) {
-            var div = document.createElement("div");
-            div.className = "doc-disc-row";
-            div.setAttribute("data-ed-id", String(d.id));
-            var modeOpts =
-                "<option value=\"pct\"" + (d.mode === "pct" ? " selected" : "") + ">% of balance</option>" +
-                "<option value=\"amt\"" + (d.mode === "amt" ? " selected" : "") + ">Fixed $</option>";
-            div.innerHTML =
-                "<input type=\"text\" data-ed-f=\"label\" placeholder=\"Label\" value=\"" + escAttr(d.label) + "\">" +
-                "<select data-ed-f=\"mode\">" + modeOpts + "</select>" +
-                "<input type=\"number\" data-ed-f=\"value\" step=\"0.01\" min=\"0\" placeholder=\"0\" value=\"" +
-                (d.value != null && !isNaN(d.value) ? d.value : "") + "\">" +
-                "<button type=\"button\" class=\"btn-rm\" data-ed-remove=\"" + d.id + "\">Remove</button>";
-            list.appendChild(div);
-        });
-    }
-
-    function scoreItem(item, q) {
-        if (!q) return 1;
-        var hay = (
-            item.label +
-            " " +
-            item.sub +
-            " " +
-            item.keys +
-            " " +
-            (item.attrs || "") +
-            " " +
-            item.type
-        ).toLowerCase();
-        if (hay.indexOf(q) >= 0) return 2;
-        var parts = q.split(/\s+/).filter(Boolean);
-        var hit = 0;
-        parts.forEach(function (p) {
-            if (hay.indexOf(p) >= 0) hit++;
-        });
-        return hit / Math.max(parts.length, 1);
-    }
-
-    function filterCatalog(q) {
-        q = (q || "").toLowerCase().trim();
-        var scored = CATALOG.map(function (item, i) {
-            return { item: item, i: i, s: scoreItem(item, q) };
-        }).filter(function (o) {
-            return !q || o.s > 0;
-        });
-        scored.sort(function (a, b) { return b.s - a.s; });
-        return scored.map(function (o) { return o.item; }).slice(0, 12);
-    }
-
-    function renderSmartDd() {
-        var q = document.getElementById("smartSearch").value;
-        var list = document.getElementById("smartDdList");
-        list.innerHTML = "";
-        var items = filterCatalog(q);
-        if (items.length === 0) {
-            list.innerHTML = "<div class=\"pick-row\"><div class=\"left\"><div class=\"name\">No matches</div><div class=\"meta\">Try another term or add a custom line below.</div></div></div>";
-            return;
-        }
-        items.forEach(function (item) {
-            var row = document.createElement("div");
-            row.className = "pick-row";
-            row.setAttribute("data-ci", String(CATALOG.indexOf(item)));
-            var bc = item.type === "Labor" ? "b-labor" : item.type === "Material" ? "b-mat" : "b-eq";
-            var metaExtra = item.attrs ? " · " + item.attrs : "";
-            var rateMeta = item.rateOptions && item.rateOptions.length
-                ? " · " + item.rateOptions.map(function (o) {
-                    return o.label;
-                }).join(" · ")
-                : "";
-            row.innerHTML =
-                "<div class=\"left\"><span class=\"badge " + bc + "\">" + item.type.substring(0, 3) + "</span> " +
-                "<div class=\"name\" style=\"display:inline;margin-left:4px\">" + escAttr(item.label) + "</div>" +
-                "<div class=\"meta\">" + escAttr(item.sub + metaExtra + rateMeta) + "</div></div>" +
-                "<div class=\"price\">" + catalogPriceLabel(item) + "</div>";
-            row.addEventListener("mousedown", function (e) {
-                e.preventDefault();
-            });
-            row.addEventListener("click", function () {
-                addFromCatalog(item);
-            });
-            list.appendChild(row);
-        });
-    }
-
-    function addFromCatalog(item) {
-        var delay = item.delay === 1;
-        var qty = item.type === "Material" ? 100 : item.type === "Equipment" ? 1 : 8;
-        var unit = item.unit;
-        var unitCost = item.cost;
-        if (item.rateOptions && item.rateOptions.length) {
-            var pref = item.rateOptions.find(function (o) {
-                return o.unit === "day" || o.id === "day";
-            });
-            var first = item.rateOptions[0];
-            var pick = pref || first;
-            unit = pick.unit;
-            unitCost = pick.cost;
-        }
-        var row = {
-            id: nextId++,
-            kind: "line",
-            type: item.type,
-            label: item.label,
-            qty: qty,
-            unit: unit,
-            unitCost: unitCost,
-            markupPct: item.type === "Labor" ? 10 : 12,
-            lineDiscPct: 0,
-            taxRate: "0.13",
-            resolving: delay,
-            deleted: false
-        };
-        if (item.attrs) {
-            row.attrs = item.attrs;
-        }
-        if (item.rateOptions && item.rateOptions.length) {
-            row.rateOptions = item.rateOptions.map(function (o) {
-                return { id: o.id, label: o.label, unit: o.unit, cost: o.cost };
-            });
-            var pref2 = row.rateOptions.find(function (o) {
-                return o.unit === "day" || o.id === "day";
-            });
-            row.selectedRateId = (pref2 || row.rateOptions[0]).id;
-            syncEquipmentRate(row);
-        }
-        var par = insertLinesParentId;
-        if (par != null) {
-            var pr = rows.find(function (x) {
-                return x.id === par && !x.deleted && isSectionRow(x);
-            });
-            if (!pr) par = null;
-        }
-        row.parentId = par;
-        row.orderIndex = maxSiblingOrder(par) + 10;
-        rows.push(row);
-        normalizeSiblingOrder(par);
-        closeAddPanel();
-        render();
-        if (delay) {
-            setTimeout(function () {
-                row.resolving = false;
-                render();
-                toast("Resolved unit cost from catalog.");
-            }, 800);
-        }
-    }
-
-    function addCustomLine() {
-        var par = insertLinesParentId;
-        if (par != null) {
-            var pr = rows.find(function (x) {
-                return x.id === par && !x.deleted && isSectionRow(x);
-            });
-            if (!pr) par = null;
-        }
-        rows.push({
-            id: nextId++,
-            kind: "line",
-            type: "Custom",
-            label: "New custom line",
-            qty: 1,
-            unit: "ls",
-            unitCost: 0,
-            markupPct: 0,
-            lineDiscPct: 0,
-            taxRate: "0",
-            resolving: false,
-            deleted: false,
-            parentId: par,
-            orderIndex: maxSiblingOrder(par) + 10
-        });
-        normalizeSiblingOrder(par);
-        closeAddPanel();
-        render();
-        toast("Custom line added — fill description and costs.");
-    }
-
-    function setDdOpen(open) {
-        var dd = document.getElementById("smartDd");
-        dd.classList.toggle("open", open);
-    }
-
-    function isAddPanelOpen() {
-        return document.getElementById("addItemPanel").classList.contains("open");
-    }
-
-    function openAddPanel() {
-        document.getElementById("addItemPanel").classList.add("open");
-        var ss = document.getElementById("smartSearch");
-        renderSmartDd();
-        setDdOpen(true);
-        setTimeout(function () {
-            ss.focus();
-            ss.select();
-        }, 0);
-    }
-
-    function closeAddPanel() {
-        document.getElementById("addItemPanel").classList.remove("open");
-        document.getElementById("smartSearch").value = "";
-        setDdOpen(false);
-    }
-
-    function render() {
-        getTotals();
-        var q = (document.getElementById("gridSearch").value || "").toLowerCase();
-        tbody.innerHTML = "";
-
-        function depthClass(d) {
-            d = Math.min(Math.max(d, 0), 3);
-            return d === 0 ? "" : " depth-" + d;
-        }
-
-        function appendRowsForParent(parentId, depth) {
-            childrenOf(parentId).forEach(function (r) {
-                if (q) {
-                    if (isSectionRow(r)) {
-                        if (!sectionShownInFilter(r.id, q)) return;
-                    } else {
-                        if (!lineShownInFilter(r, q)) return;
-                    }
-                }
-                if (isSectionRow(r)) {
-                    var dcls = depthClass(depth);
-                    var insCls = insertLinesParentId === r.id ? " section-insert-active" : "";
-                    var tagLabel = depth > 0 ? "Subsection" : "Section";
-                    var sctr = document.createElement("tr");
-                    sctr.className = "section-row";
-                    sctr.innerHTML =
-                        "<td colspan=\"14\" class=\"section-cell\">" +
-                        "<div class=\"section-inner" + dcls + insCls + "\">" +
-                        "<span class=\"section-tag\">" + tagLabel + "</span>" +
-                        "<input type=\"text\" class=\"section-title-inp\" data-k=\"sectionTitle\" data-id=\"" + r.id + "\" value=\"" +
-                        escAttr(r.title || "") + "\">" +
-                        "<span class=\"section-actions\">" +
-                        "<button type=\"button\" class=\"btn-here\" title=\"New lines from + Add item go under this section\" data-insert-here=\"" + r.id + "\">Here</button>" +
-                        "<button type=\"button\" title=\"Add nested section\" data-nest=\"" + r.id + "\">+ Sub</button>" +
-                        "<button type=\"button\" title=\"Move block with contents among siblings\" data-up=\"" + r.id + "\">&uarr;</button>" +
-                        "<button type=\"button\" title=\"Move block with contents among siblings\" data-down=\"" + r.id + "\">&darr;</button>" +
-                        "<button type=\"button\" data-del=\"" + r.id + "\">Remove</button>" +
-                        "</span></div></td>";
-                    tbody.appendChild(sctr);
-                    appendRowsForParent(r.id, depth + 1);
-                    return;
-                }
-                var tr = document.createElement("tr");
-                var trClass = r.resolving ? "resolving" : "";
-                if (depth > 0) trClass = trClass ? trClass + " line-depth" : "line-depth";
-                if (trClass) tr.className = trClass;
-                var badgeClass = r.type === "Labor" ? "b-labor" : r.type === "Material" ? "b-mat" : r.type === "Equipment" ? "b-eq" : "b-custom";
-                var sell = rowLineSell(r);
-                var alloc = __rowTaxAfterDoc[r.id];
-                var wtax = alloc ? alloc.baseAfter + alloc.tax : rowTotalWithTax(r);
-                var taxOpts = TAX_OPTS.map(function (o) {
-                    return "<option value=\"" + o.v + "\"" + (String(r.taxRate) === o.v ? " selected" : "") + ">" + o.label + "</option>";
+function renderMaterialCascade(line) {
+    var matOpts = '<option value="">Material…</option>' + MATERIALS.map(function (m) {
+        return '<option value="' + m.id + '"' + (line.materialId === m.id ? ' selected' : '') + '>' + esc(m.name) + '</option>';
+    }).join("");
+    var out = '<div class="cascade-wrap"><select class="cascade-sel" data-rid="' + line.id + '" data-action="cascade-mat-mat">' + matOpts + '</select>';
+    var mat = MATERIALS.find(function (m) { return m.id === line.materialId; });
+    if (mat) {
+        var xOpts = '<option value="">' + esc(mat.xLabel) + '…</option>' + mat.xValues.map(function (v) {
+            return '<option value="' + v.id + '"' + (line.xValueId === v.id ? ' selected' : '') + '>' + esc(v.name) + '</option>';
+        }).join("");
+        out += '<span class="plus-arrow">→</span><select class="cascade-sel" data-rid="' + line.id + '" data-action="cascade-mat-x">' + xOpts + '</select>';
+        if (line.xValueId) {
+            var yOpts = '<option value="">' + esc(mat.yLabel) + '…</option>' + mat.yValues.map(function (v) {
+                var k = mat.id + "|" + line.xValueId + "|" + v.id + "|" + (mat.zValues ? "-" : "-");
+                // Only filter if no Z required
+                return '<option value="' + v.id + '"' + (line.yValueId === v.id ? ' selected' : '') + '>' + esc(v.name) + '</option>';
+            }).join("");
+            out += '<span class="plus-arrow">→</span><select class="cascade-sel" data-rid="' + line.id + '" data-action="cascade-mat-y">' + yOpts + '</select>';
+            if (mat.zValues && line.yValueId) {
+                var zOpts = '<option value="">' + esc(mat.zLabel) + '…</option>' + mat.zValues.map(function (v) {
+                    return '<option value="' + v.id + '"' + (line.zValueId === v.id ? ' selected' : '') + '>' + esc(v.name) + '</option>';
                 }).join("");
-                var billAsCell = "";
-                if (r.rateOptions && r.rateOptions.length) {
-                    var ropts = r.rateOptions.map(function (o) {
-                        return "<option value=\"" + escAttr(o.id) + "\"" + (r.selectedRateId === o.id ? " selected" : "") + ">" + escAttr(o.label) + " (" + escAttr(o.unit) + ")</option>";
-                    }).join("");
-                    billAsCell = "<select class=\"rate-sel\" data-rate=\"" + r.id + "\">" + ropts + "</select>";
-                } else {
-                    billAsCell = "<span class=\"cell-muted\">—</span>";
-                }
-                var descPad = depth > 0 ? " style=\"padding-left:" + (8 + depth * 16) + "px\"" : "";
-                var descBlock =
-                    "<div class=\"desc-cell\">" +
-                    "<input class=\"cell-in wide\" type=\"text\" data-k=\"label\" data-id=\"" + r.id + "\" value=\"" + escAttr(r.label) + "\">" +
-                    (r.attrs ? "<div class=\"row-attrs\" title=\"Variant / spec (searchable in catalog)\">" + escAttr(r.attrs) + "</div>" : "") +
-                    "</div>";
-                tr.innerHTML =
-                    "<td class=\"drag-cell\" title=\"Reorder among siblings\">&#9776;</td>" +
-                    "<td><span class=\"badge " + badgeClass + "\">" + r.type.substring(0, 3) + "</span></td>" +
-                    "<td" + descPad + ">" + descBlock + "</td>" +
-                    "<td>" + billAsCell + "</td>" +
-                    "<td><input class=\"cell-in cell-num\" type=\"number\" data-k=\"qty\" data-id=\"" + r.id + "\" step=\"0.01\" min=\"0\" value=\"" + r.qty + "\"></td>" +
-                    "<td><input class=\"cell-in\" type=\"text\" data-k=\"unit\" data-id=\"" + r.id + "\" value=\"" + escAttr(r.unit) + "\"></td>" +
-                    "<td><input class=\"cell-in cell-num\" type=\"number\" data-k=\"unitCost\" data-id=\"" + r.id + "\" step=\"0.01\" min=\"0\" value=\"" + r.unitCost + "\"></td>" +
-                    "<td class=\"cell-num\">" + money(r.qty * r.unitCost) + "</td>" +
-                    "<td><input class=\"cell-in cell-num\" type=\"number\" data-k=\"markupPct\" data-id=\"" + r.id + "\" step=\"0.1\" value=\"" + r.markupPct + "\"></td>" +
-                    "<td><input class=\"cell-in cell-num\" type=\"number\" data-k=\"lineDiscPct\" data-id=\"" + r.id + "\" step=\"0.1\" min=\"0\" max=\"100\" title=\"% off this line extended sell (after markup)\" value=\"" +
-                    (r.lineDiscPct != null ? r.lineDiscPct : 0) + "\"></td>" +
-                    "<td class=\"cell-num\">" + (r.resolving ? "<span class=\"spin\"></span>" : money(sell)) + "</td>" +
-                    "<td><select class=\"tax-sel\" data-tax=\"" + r.id + "\">" + taxOpts + "</select></td>" +
-                    "<td class=\"cell-num\">" + (r.resolving ? "…" : money(wtax)) + "</td>" +
-                    "<td class=\"row-actions\"><button type=\"button\" data-up=\"" + r.id + "\">&uarr;</button><button type=\"button\" data-down=\"" + r.id + "\">&darr;</button><button type=\"button\" data-del=\"" + r.id + "\">Remove</button></td>";
-                tbody.appendChild(tr);
-            });
+                out += '<span class="plus-arrow">→</span><select class="cascade-sel" data-rid="' + line.id + '" data-action="cascade-mat-z">' + zOpts + '</select>';
+            }
         }
-
-        appendRowsForParent(null, 0);
-        tbody.querySelectorAll("input[data-k]").forEach(function (inp) {
-            inp.addEventListener("input", onCellInput);
-            inp.addEventListener("change", onCellInput);
-        });
-        tbody.querySelectorAll("select[data-tax]").forEach(function (sel) {
-            sel.addEventListener("change", function () {
-                var id = parseInt(sel.getAttribute("data-tax"), 10);
-                var r = rows.find(function (x) { return x.id === id; });
-                if (r) r.taxRate = sel.value;
-                render();
-            });
-        });
-        tbody.querySelectorAll("select[data-rate]").forEach(function (sel) {
-            sel.addEventListener("change", function () {
-                var id = parseInt(sel.getAttribute("data-rate"), 10);
-                var r = rows.find(function (x) { return x.id === id; });
-                if (r) {
-                    r.selectedRateId = sel.value;
-                    syncEquipmentRate(r);
-                }
-                render();
-            });
-        });
-        tbody.querySelectorAll("button[data-del]").forEach(function (b) {
-            b.addEventListener("click", function () {
-                var id = parseInt(b.getAttribute("data-del"), 10);
-                var victim = rows.find(function (x) {
-                    return x.id === id;
-                });
-                if (!victim) return;
-                if (isSectionRow(victim)) {
-                    rows.forEach(function (r) {
-                        if (r.deleted) return;
-                        if (r.id === id || isRowUnderSection(r, id)) {
-                            r.deleted = true;
-                        }
-                    });
-                    if (insertLinesParentId === id) insertLinesParentId = null;
-                } else {
-                    victim.deleted = true;
-                }
-                render();
-            });
-        });
-        tbody.querySelectorAll("button[data-up]").forEach(function (b) {
-            b.addEventListener("click", function () {
-                moveAmongSiblings(parseInt(b.getAttribute("data-up"), 10), -1);
-            });
-        });
-        tbody.querySelectorAll("button[data-down]").forEach(function (b) {
-            b.addEventListener("click", function () {
-                moveAmongSiblings(parseInt(b.getAttribute("data-down"), 10), 1);
-            });
-        });
-        tbody.querySelectorAll("button[data-nest]").forEach(function (b) {
-            b.addEventListener("click", function (e) {
-                e.stopPropagation();
-                addNestedSection(parseInt(b.getAttribute("data-nest"), 10));
-            });
-        });
-        tbody.querySelectorAll("button[data-insert-here]").forEach(function (b) {
-            b.addEventListener("click", function (e) {
-                e.stopPropagation();
-                var sid = parseInt(b.getAttribute("data-insert-here"), 10);
-                insertLinesParentId = sid;
-                render();
-                toast("New catalog/custom lines will be added under this section until you pick another \"Here\".");
-            });
-        });
-        recalc();
     }
+    out += '</div>';
+    return out;
+}
 
-    function onCellInput(ev) {
-        var inp = ev.target;
-        var id = parseInt(inp.getAttribute("data-id"), 10);
-        var k = inp.getAttribute("data-k");
-        var r = rows.find(function (x) { return x.id === id; });
-        if (!r || r.deleted) return;
-        if (isSectionRow(r)) {
-            if (k === "sectionTitle") r.title = inp.value;
+function renderEquipmentCascade(line) {
+    var eqOpts = '<option value="">Equipment…</option>' + EQUIPMENT.map(function (e) {
+        return '<option value="' + e.id + '"' + (line.equipmentId === e.id ? ' selected' : '') + '>' + esc(e.name) + '</option>';
+    }).join("");
+    var out = '<div class="cascade-wrap"><select class="cascade-sel" data-rid="' + line.id + '" data-action="cascade-eq-eq">' + eqOpts + '</select>';
+    if (line.equipmentId) {
+        var perOpts = '<option value="">Per…</option>' + RATE_PERS.map(function (p) {
+            var hasAny = Object.keys(EQUIPMENT_RATE_VALUES).some(function (k) { return k.indexOf(line.equipmentId + "|" + p + "|") === 0; });
+            return '<option value="' + p + '"' + (line.ratePer === p ? ' selected' : '') + (hasAny ? '' : ' disabled') + '>' + p + (hasAny ? '' : ' (no rate)') + '</option>';
+        }).join("");
+        out += '<span class="plus-arrow">→</span><select class="cascade-sel" data-rid="' + line.id + '" data-action="cascade-eq-per">' + perOpts + '</select>';
+        if (line.ratePer) {
+            var rlOpts = '<option value="">Rate Label…</option>' + EQ_RATE_LABELS.map(function (r) {
+                var hasAny = Object.keys(EQUIPMENT_RATE_VALUES).some(function (k) { return k.indexOf(line.equipmentId + "|" + line.ratePer + "|" + r.id + "|") === 0; });
+                return '<option value="' + r.id + '"' + (line.rateLabelId === r.id ? ' selected' : '') + (hasAny ? '' : ' disabled') + '>' + esc(r.name) + (hasAny ? '' : ' (n/a)') + '</option>';
+            }).join("");
+            out += '<span class="plus-arrow">→</span><select class="cascade-sel" data-rid="' + line.id + '" data-action="cascade-eq-rl">' + rlOpts + '</select>';
+            if (line.rateLabelId) {
+                out += '<span class="plus-arrow">→</span><label style="font-size:10px;color:#475569;display:inline-flex;gap:4px;align-items:center;"><input type="checkbox"' + (line.operatorIncluded ? ' checked' : '') + ' data-rid="' + line.id + '" data-action="cascade-eq-op"> Operator</label>';
+            }
+        }
+    }
+    out += '</div>';
+    return out;
+}
+
+/* -------------------------------------------------
+   Tax sub-row
+   ------------------------------------------------- */
+function renderTaxRow(line) {
+    var tr = document.createElement("tr");
+    tr.className = "tax-row";
+    var items = (line.taxTypeIds || []).map(function (taxId) {
+        var other = TAX_TYPES.filter(function (t) { return t.id === taxId || !line.taxTypeIds.includes(t.id); });
+        var opts = other.map(function (t) {
+            return '<option value="' + t.id + '"' + (t.id === taxId ? ' selected' : '') + '>' + esc(t.abbreviation) + ' — ' + t.rate + '%' + (t.isCompound ? ' (compound)' : '') + '</option>';
+        }).join("");
+        var base = lineSellAfterDiscounts(line);
+        var t = TAX_TYPES.find(function (x) { return x.id === taxId; });
+        var amt = t ? (t.isCompound ? (base + base * sumNonCompound(line) / 100) * t.rate / 100 : base * t.rate / 100) : 0;
+        return '<div class="sub-item">' +
+            '<select data-rid="' + line.id + '" data-action="change-tax" data-current="' + taxId + '">' + opts + '</select>' +
+            '<span class="sub-amt">' + money(amt) + '</span>' +
+            '<button class="del-btn" data-rid="' + line.id + '" data-action="remove-tax" data-tax="' + taxId + '" title="Remove tax">×</button>' +
+            '</div>';
+    }).join("");
+    var remaining = TAX_TYPES.filter(function (t) { return !line.taxTypeIds.includes(t.id); });
+    var addBtn = remaining.length ? '<button class="add-sub-btn" data-rid="' + line.id + '" data-action="add-tax">+ Add Another Tax Rate</button>' : '<span style="font-size:10px;color:#94a3b8;">All tax types added</span>';
+    tr.innerHTML = '<td></td><td colspan="10"><span class="sub-label">Tax Rate(s)</span><div class="sub-list">' + (items || '<span style="font-size:10.5px;color:#94a3b8;">No taxes applied</span>') + '</div>' + addBtn + '</td>';
+    return tr;
+}
+function sumNonCompound(line) {
+    return (line.taxTypeIds || []).reduce(function (s, id) {
+        var t = TAX_TYPES.find(function (x) { return x.id === id; });
+        return t && !t.isCompound ? s + t.rate : s;
+    }, 0);
+}
+
+/* -------------------------------------------------
+   Discount sub-row
+   ------------------------------------------------- */
+function renderDiscRow(line) {
+    var tr = document.createElement("tr");
+    tr.className = "disc-row";
+    var items = (line.discounts || []).map(function (d) {
+        var suggested = SUGGESTED_DISCOUNTS.filter(function (s) {
+            return s.id === d.id || !line.discounts.some(function (x) { return x.id === s.id; });
+        });
+        var opts = '<option value="">Choose discount…</option>' + suggested.map(function (s) {
+            return '<option value="' + s.id + '"' + (s.id === d.id ? ' selected' : '') + '>' + esc(s.name) + ' — ' + (s.type === "Percent" ? s.value + "%" : money(s.value)) + ' <em>(' + s.source + ')</em></option>';
+        }).join("") + '<option value="__adhoc__"' + (d.isAdHoc ? ' selected' : '') + '>+ Ad-hoc discount</option>';
+        var valueInput = d.isAdHoc
+            ? '<button class="type-toggle' + (d.type === "Percent" ? ' active' : '') + '" data-rid="' + line.id + '" data-action="adhoc-type" data-did="' + d._rid + '" data-type="Percent">%</button>' +
+              '<button class="type-toggle' + (d.type === "FixedAmount" ? ' active' : '') + '" data-rid="' + line.id + '" data-action="adhoc-type" data-did="' + d._rid + '" data-type="FixedAmount">$</button>' +
+              '<input type="number" class="ad-hoc-val" min="0" step="0.01" value="' + (d.value || 0) + '" data-rid="' + line.id + '" data-action="adhoc-val" data-did="' + d._rid + '">'
+            : '';
+        var base = lineSellBeforeDiscount(line);
+        var amt = d.type === "Percent" ? base * (Number(d.value) || 0) / 100 : (Number(d.value) || 0);
+        return '<div class="sub-item">' +
+            '<select data-rid="' + line.id + '" data-action="pick-disc" data-did="' + d._rid + '">' + opts + '</select>' +
+            valueInput +
+            '<span class="sub-amt disc">-' + money(amt) + '</span>' +
+            '<button class="del-btn" data-rid="' + line.id + '" data-action="remove-disc" data-did="' + d._rid + '" title="Remove discount">×</button>' +
+            '</div>';
+    }).join("");
+    tr.innerHTML = '<td></td><td colspan="10"><span class="sub-label" style="background:#fef6f9;">Discount(s)</span><div class="sub-list">' + (items || '<span style="font-size:10.5px;color:#94a3b8;">No discounts applied</span>') + '</div><button class="add-sub-btn" data-rid="' + line.id + '" data-action="add-disc">+ Add Another Discount</button></td>';
+    return tr;
+}
+
+/* -------------------------------------------------
+   Totals
+   ------------------------------------------------- */
+function renderTotals() {
+    var allLines = rows.filter(function (r) { return r.kind === "line" && r.lineItemType; });
+    var sellBeforeLineDisc = 0;
+    var sellAfterLineDisc = 0;
+    var costSubtotal = 0;
+    allLines.forEach(function (r) {
+        sellBeforeLineDisc += lineSellBeforeDiscount(r);
+        sellAfterLineDisc += lineSellAfterDiscounts(r);
+        costSubtotal += lineTotalCost(r);
+    });
+    var lineDiscountSum = sellBeforeLineDisc - sellAfterLineDisc;
+
+    document.getElementById("tCost").textContent = money(costSubtotal);
+    document.getElementById("tSellBeforeDisc").textContent = money(sellBeforeLineDisc);
+    document.getElementById("tLineDiscSum").textContent = "-" + money(lineDiscountSum);
+    document.getElementById("tSell").textContent = money(sellAfterLineDisc);
+
+    // Estimate-level discounts
+    var discList = document.getElementById("docDiscList");
+    discList.innerHTML = estimateDiscounts.length ? estimateDiscounts.map(function (d, i) {
+        var running = sellAfterLineDisc;
+        for (var j = 0; j < i; j++) {
+            var prev = estimateDiscounts[j];
+            if (prev.type === "Percent") running -= running * (Number(prev.value) || 0) / 100;
+            else running -= Number(prev.value) || 0;
+            running = Math.max(0, running);
+        }
+        var amt = d.type === "Percent" ? running * (Number(d.value) || 0) / 100 : Math.min(running, Number(d.value) || 0);
+        return '<div class="sub-item">' +
+            '<button class="type-toggle' + (d.type === "Percent" ? " active" : "") + '" data-did="' + d.id + '" data-action="est-disc-type" data-type="Percent">%</button>' +
+            '<button class="type-toggle' + (d.type === "FixedAmount" ? " active" : "") + '" data-did="' + d.id + '" data-action="est-disc-type" data-type="FixedAmount">$</button>' +
+            '<input type="number" class="ad-hoc-val" min="0" step="0.01" value="' + (d.value || 0) + '" data-did="' + d.id + '" data-action="est-disc-val">' +
+            '<input type="text" placeholder="Label (optional)" value="' + esc(d.name || "") + '" data-did="' + d.id + '" data-action="est-disc-name" style="flex:1;min-width:140px;">' +
+            '<span class="sub-amt disc">-' + money(amt) + '</span>' +
+            '<button class="del-btn" data-did="' + d.id + '" data-action="est-disc-rm" title="Remove">×</button>' +
+            '</div>';
+    }).join("") : '<span style="font-size:10.5px;color:#94a3b8;">No estimate-level discounts</span>';
+
+    // Apply estimate discounts to running
+    var taxableSell = sellAfterLineDisc;
+    estimateDiscounts.forEach(function (d) {
+        if (d.type === "Percent") taxableSell -= taxableSell * (Number(d.value) || 0) / 100;
+        else taxableSell -= Number(d.value) || 0;
+        taxableSell = Math.max(0, taxableSell);
+    });
+    var estDiscountSum = sellAfterLineDisc - taxableSell;
+    document.getElementById("tEstDiscSum").textContent = "-" + money(estDiscountSum);
+    document.getElementById("tSellAfterDoc").textContent = money(taxableSell);
+
+    // Tax aggregates (per TaxType across all lines)
+    var taxMap = {};
+    var shareOfDiscount = sellAfterLineDisc > 0 ? (sellAfterLineDisc - taxableSell) / sellAfterLineDisc : 0;
+    var totalTax = 0;
+    allLines.forEach(function (r) {
+        var linePostLineDisc = lineSellAfterDiscounts(r);
+        var lineAfterEstDisc = linePostLineDisc * (1 - shareOfDiscount);
+        (r.taxTypeIds || []).forEach(function (id) {
+            var t = TAX_TYPES.find(function (x) { return x.id === id; });
+            if (!t) return;
+            var nonComp = (r.taxTypeIds || []).filter(function (tid) {
+                var tt = TAX_TYPES.find(function (xx) { return xx.id === tid; });
+                return tt && !tt.isCompound;
+            }).reduce(function (s, tid) {
+                var tt = TAX_TYPES.find(function (xx) { return xx.id === tid; });
+                return s + lineAfterEstDisc * (tt.rate / 100);
+            }, 0);
+            var amt = t.isCompound ? (lineAfterEstDisc + nonComp) * (t.rate / 100) : lineAfterEstDisc * (t.rate / 100);
+            taxMap[id] = (taxMap[id] || 0) + amt;
+            totalTax += amt;
+        });
+    });
+    var taxHtml = Object.keys(taxMap).map(function (id) {
+        var t = TAX_TYPES.find(function (x) { return x.id === id; });
+        return '<div class="t-line"><span>Tax · ' + esc(t.abbreviation) + ' (' + t.rate + '%' + (t.isCompound ? ' compound' : '') + ')</span><span class="val">' + money(taxMap[id]) + '</span></div>';
+    }).join("");
+    document.getElementById("taxAggregates").outerHTML = '<div id="taxAggregates">' + (taxHtml || '<div class="t-line"><span style="color:#94a3b8;">No taxes applied</span><span class="val">$0.00</span></div>') + '</div>';
+
+    var weightedAvgPct = taxableSell > 0 ? (totalTax / taxableSell) * 100 : 0;
+    document.getElementById("tTaxAvgPct").textContent = weightedAvgPct.toFixed(2);
+    document.getElementById("tTaxTotal").textContent = money(totalTax);
+
+    document.getElementById("tSubTax").textContent = money(taxableSell + totalTax);
+    var ohPct = Number(document.getElementById("overheadPct").value) || 0;
+    document.getElementById("tOhPctLbl").textContent = ohPct;
+    var oh = (taxableSell + totalTax) * (ohPct / 100);
+    document.getElementById("tOh").textContent = money(oh);
+    document.getElementById("tGrand").textContent = money(taxableSell + totalTax + oh);
+}
+
+/* -------------------------------------------------
+   Events
+   ------------------------------------------------- */
+function onAction(ev) {
+    var t = ev.target.closest("[data-action]");
+    if (!t) return;
+    var action = t.getAttribute("data-action");
+    var rid = t.getAttribute("data-rid");
+    var sid = t.getAttribute("data-sid");
+    var did = t.getAttribute("data-did");
+    var row = rid ? rows.find(function (r) { return r.id === rid; }) : null;
+    var sec = sid ? rows.find(function (r) { return r.id === sid; }) : null;
+
+    switch (action) {
+        // Section controls
+        case "title":
+            if (sec) sec.title = t.value;
+            break;
+        case "up":
+        case "down":
+            moveSibling(sec, action === "up" ? -1 : 1);
             render();
-            return;
+            break;
+        case "add-sub":
+            if (sec) {
+                var existing = rows.filter(function (r) { return r.parentId === sec.id; });
+                rows.push(makeSection("New subsection", sec.id, existing.length));
+                render();
+            }
+            break;
+        case "add-line":
+            if (sec) {
+                var existing = rows.filter(function (r) { return r.parentId === sec.id; });
+                rows.push(makeLine("blank", sec.id, existing.length, {}));
+                // Reset the blank-line fields so it appears with Type picker
+                var last = rows[rows.length - 1];
+                last.lineItemType = null; last.unit = ""; last.unitCost = 0; last.quantity = 0;
+                last.taxTypeIds = []; last.discounts = [];
+                render();
+            }
+            break;
+        case "delete":
+            if (sec && confirm("Delete this section and all its children?")) {
+                deleteSubtree(sec.id);
+                render();
+            }
+            break;
+
+        // Line — type + cascades
+        case "set-type":
+            if (row) {
+                row.lineItemType = t.value;
+                if (row.lineItemType === "Custom") { row.unit = "ea"; row.quantity = 1; }
+                render();
+            }
+            break;
+        case "delete-line":
+            if (row && confirm("Delete this line?")) {
+                rows = rows.filter(function (r) { return r.id !== row.id; });
+                render();
+            }
+            break;
+        case "cascade-labor-tl": row.tradeLevelId = t.value || null; row.rateLabelId = null; resolveLineFromCascade(row); render(); break;
+        case "cascade-labor-rl": row.rateLabelId = t.value || null; resolveLineFromCascade(row); render(); break;
+        case "set-user": row.userId = t.value || null; render(); break;
+        case "cascade-mat-mat": row.materialId = t.value || null; row.xValueId = null; row.yValueId = null; row.zValueId = null; resolveLineFromCascade(row); render(); break;
+        case "cascade-mat-x": row.xValueId = t.value || null; row.yValueId = null; row.zValueId = null; resolveLineFromCascade(row); render(); break;
+        case "cascade-mat-y": row.yValueId = t.value || null; row.zValueId = null; resolveLineFromCascade(row); render(); break;
+        case "cascade-mat-z": row.zValueId = t.value || null; resolveLineFromCascade(row); render(); break;
+        case "cascade-eq-eq": row.equipmentId = t.value || null; row.ratePer = null; row.rateLabelId = null; resolveLineFromCascade(row); render(); break;
+        case "cascade-eq-per": row.ratePer = t.value || null; row.rateLabelId = null; resolveLineFromCascade(row); render(); break;
+        case "cascade-eq-rl": row.rateLabelId = t.value || null; resolveLineFromCascade(row); render(); break;
+        case "cascade-eq-op": row.operatorIncluded = t.checked; resolveLineFromCascade(row); render(); break;
+
+        // Line priced fields
+        case "qty": row.quantity = Number(t.value) || 0; renderTotals(); updateLineReadonly(row); break;
+        case "unit": row.unit = t.value; break;
+        case "unitCost": row.unitCost = Number(t.value) || 0; renderTotals(); updateLineReadonly(row); break;
+        case "markupPercent": row.markupPercent = Number(t.value) || 0; renderTotals(); updateLineReadonly(row); break;
+        case "markupDollar": row.markupDollarValue = Number(t.value) || 0; renderTotals(); updateLineReadonly(row); break;
+        case "desc": row.description = t.value; break;
+
+        // Tax sub-row
+        case "add-tax": {
+            var available = TAX_TYPES.filter(function (x) { return !row.taxTypeIds.includes(x.id); });
+            if (available.length) { row.taxTypeIds.push(available[0].id); render(); }
+            break;
         }
-        if (k === "label") r.label = inp.value;
-        if (k === "qty") r.qty = Math.max(0, parseFloat(inp.value) || 0);
-        if (k === "unit") r.unit = inp.value;
-        if (k === "unitCost") r.unitCost = Math.max(0, parseFloat(inp.value) || 0);
-        if (k === "markupPct") r.markupPct = parseFloat(inp.value) || 0;
-        if (k === "lineDiscPct") {
-            var ld = parseFloat(inp.value);
-            if (isNaN(ld) || ld < 0) r.lineDiscPct = 0;
-            else r.lineDiscPct = Math.min(100, ld);
+        case "remove-tax": row.taxTypeIds = row.taxTypeIds.filter(function (x) { return x !== t.getAttribute("data-tax"); }); render(); break;
+        case "change-tax": {
+            var cur = t.getAttribute("data-current");
+            row.taxTypeIds = row.taxTypeIds.map(function (x) { return x === cur ? t.value : x; });
+            render();
+            break;
         }
-        render();
-    }
 
-    function toast(msg) {
-        var t = document.getElementById("toast");
-        t.textContent = msg;
-        t.classList.add("show");
-        setTimeout(function () { t.classList.remove("show"); }, 2200);
-    }
-
-    function addNestedSection(parentSectionId) {
-        var p = rows.find(function (x) {
-            return x.id === parentSectionId && !x.deleted && isSectionRow(x);
-        });
-        if (!p) return;
-        rows.push({
-            id: nextId++,
-            kind: "section",
-            title: "New subsection",
-            parentId: parentSectionId,
-            orderIndex: maxSiblingOrder(parentSectionId) + 10,
-            deleted: false
-        });
-        normalizeSiblingOrder(parentSectionId);
-        render();
-        toast("Subsection added under \"" + (p.title || "Section") + "\".");
-    }
-
-    function addSectionRow() {
-        rows.push({
-            id: nextId++,
-            kind: "section",
-            title: "New section",
-            parentId: null,
-            orderIndex: maxSiblingOrder(null) + 10,
-            deleted: false
-        });
-        normalizeSiblingOrder(null);
-        render();
-        toast("Root section added — use + Sub on any section for nesting; ↑↓ reorders within the same parent.");
-    }
-
-    function seedRows() {
-        var sidP1 = nextId++;
-        var sidAerial = nextId++;
-        var sidP2 = nextId++;
-        var sidAll = nextId++;
-        rows = [
-            { id: sidP1, kind: "section", title: "Phase 1 — Crew & equipment", parentId: null, orderIndex: 10, deleted: false },
-            {
-                id: nextId++,
-                kind: "line",
-                type: "Labor",
-                label: "A. Lee — Welder Journeyman",
-                parentId: sidP1,
-                orderIndex: 20,
-                qty: 24,
-                unit: "hr",
-                unitCost: 68,
-                markupPct: 10,
-                lineDiscPct: 0,
-                taxRate: "0.13",
-                resolving: false,
-                deleted: false
-            },
-            { id: sidAerial, kind: "section", title: "Package: Aerial & lifts", parentId: sidP1, orderIndex: 30, deleted: false },
-            {
-                id: nextId++,
-                kind: "line",
-                type: "Equipment",
-                label: "Forklift 5k cap",
-                parentId: sidAerial,
-                orderIndex: 40,
-                qty: 2,
-                unit: "day",
-                unitCost: 225,
-                markupPct: 8,
-                lineDiscPct: 0,
-                taxRate: "0.13",
-                resolving: false,
-                deleted: false,
-                rateOptions: [
-                    { id: "hr", label: "Hourly", unit: "hr", cost: 85 },
-                    { id: "day", label: "Daily", unit: "day", cost: 225 },
-                    { id: "wk", label: "Weekly", unit: "wk", cost: 980 }
-                ],
-                selectedRateId: "day"
-            },
-            { id: sidP2, kind: "section", title: "Phase 2 — Materials", parentId: null, orderIndex: 50, deleted: false },
-            {
-                id: nextId++,
-                kind: "line",
-                type: "Material",
-                label: "Black iron 4\" sch 40",
-                parentId: sidP2,
-                orderIndex: 60,
-                qty: 120,
-                unit: "LF",
-                unitCost: 6.1,
-                markupPct: 12,
-                lineDiscPct: 5,
-                taxRate: "0.13",
-                resolving: false,
-                deleted: false
-            },
-            { id: sidAll, kind: "section", title: "Allowances & professional", parentId: null, orderIndex: 70, deleted: false },
-            {
-                id: nextId++,
-                kind: "line",
-                type: "Custom",
-                label: "Engineering review (NTE)",
-                parentId: sidAll,
-                orderIndex: 80,
-                qty: 1,
-                unit: "ls",
-                unitCost: 3500,
-                markupPct: 0,
-                lineDiscPct: 0,
-                taxRate: "0",
-                resolving: false,
-                deleted: false
-            }
-        ];
-        normalizeSiblingOrder(null);
-        normalizeSiblingOrder(sidP1);
-        normalizeSiblingOrder(sidAerial);
-        normalizeSiblingOrder(sidP2);
-        normalizeSiblingOrder(sidAll);
-        render();
-    }
-
-    document.querySelectorAll(".tab").forEach(function (tab) {
-        tab.addEventListener("click", function () {
-            document.querySelectorAll(".tab").forEach(function (t) { t.classList.remove("active"); });
-            tab.classList.add("active");
-            var name = tab.getAttribute("data-tab");
-            document.getElementById("tabWorksheet").style.display = name === "worksheet" ? "flex" : "none";
-            document.getElementById("tabLetter").style.display = name === "letter" ? "block" : "none";
-            document.getElementById("tabFiles").style.display = name === "files" ? "block" : "none";
-        });
-    });
-
-    document.getElementById("selStatus").addEventListener("change", function () {
-        var v = document.getElementById("selStatus").value;
-        var p = document.getElementById("statusPill");
-        p.textContent = v;
-        p.className = "pill pill-" + v.toLowerCase();
-        recalc();
-    });
-
-    document.getElementById("overheadPct").addEventListener("input", recalc);
-
-    document.getElementById("gridSearch").addEventListener("input", render);
-
-    document.getElementById("btnAddSection").addEventListener("click", function () {
-        if (document.getElementById("btnAddSection").disabled) return;
-        addSectionRow();
-    });
-
-    var smartSearch = document.getElementById("smartSearch");
-    var smartDd = document.getElementById("smartDd");
-    smartSearch.addEventListener("focus", function () {
-        if (!isAddPanelOpen()) return;
-        renderSmartDd();
-        setDdOpen(true);
-    });
-    smartSearch.addEventListener("input", function () {
-        if (!isAddPanelOpen()) return;
-        renderSmartDd();
-        setDdOpen(true);
-    });
-    document.getElementById("pickCustom").addEventListener("click", function (e) {
-        e.stopPropagation();
-        addCustomLine();
-    });
-
-    document.getElementById("btnAddItem").addEventListener("click", function (e) {
-        e.stopPropagation();
-        if (document.getElementById("btnAddItem").disabled) return;
-        if (isAddPanelOpen()) closeAddPanel();
-        else openAddPanel();
-    });
-
-    document.getElementById("btnCancelAdd").addEventListener("click", function (e) {
-        e.stopPropagation();
-        closeAddPanel();
-    });
-
-    document.addEventListener("click", function (e) {
-        if (!e.target.closest("#addItemSlot")) {
-            setDdOpen(false);
-            if (isAddPanelOpen()) closeAddPanel();
-        } else if (!e.target.closest(".addline-wrap")) {
-            setDdOpen(false);
+        // Discount sub-row
+        case "add-disc": {
+            row.discounts = row.discounts || [];
+            row.discounts.push({ _rid: nid(), id: null, isAdHoc: false, type: "Percent", value: 0, name: "" });
+            render();
+            break;
         }
-    });
-
-    document.getElementById("btnEditCols").addEventListener("click", function () {
-        toast("Column labels / hide columns — see Wave-style IE-4 + IE-2 customize modal (spec).");
-    });
-
-    function openModal(el) { el.classList.add("open"); }
-    function closeModal(el) { el.classList.remove("open"); }
-
-    document.querySelectorAll("#creationPills .pill-opt").forEach(function (btn) {
-        btn.addEventListener("click", function () {
-            var next = btn.getAttribute("data-ct");
-            if (next === creationType) return;
-            var hasLines = countDataLines() > 0;
-            pendingCreation = next;
-            if (creationType === "Itemized" && next !== "Itemized" && hasLines) {
-                document.getElementById("modalSwitchTitle").textContent = "Leave Itemized mode?";
-                document.getElementById("modalSwitchBody").textContent = "Line items will be hidden from this worksheet.";
-                openModal(document.getElementById("modalSwitch"));
-                return;
+        case "pick-disc": {
+            var d = row.discounts.find(function (x) { return x._rid === did; });
+            if (!d) break;
+            if (t.value === "__adhoc__") {
+                d.isAdHoc = true; d.id = null; d.type = d.type || "Percent"; d.value = d.value || 0; d.name = "Ad-hoc";
+            } else if (t.value) {
+                var sug = SUGGESTED_DISCOUNTS.find(function (s) { return s.id === t.value; });
+                if (sug) { d.isAdHoc = false; d.id = sug.id; d.type = sug.type; d.value = sug.value; d.name = sug.name; }
             }
-            if (creationType !== "Itemized" && next === "Itemized") {
-                document.getElementById("modalSwitchTitle").textContent = "Switch to Itemized?";
-                document.getElementById("modalSwitchBody").textContent = "Account-item worksheet rows stay in DB but are not shown here.";
-                openModal(document.getElementById("modalSwitch"));
-                return;
-            }
-            setCreation(next);
-        });
-    });
-
-    document.getElementById("modalSwitchCancel").addEventListener("click", function () {
-        pendingCreation = null;
-        closeModal(document.getElementById("modalSwitch"));
-    });
-
-    document.getElementById("modalSwitchOk").addEventListener("click", function () {
-        if (pendingCreation) setCreation(pendingCreation);
-        pendingCreation = null;
-        closeModal(document.getElementById("modalSwitch"));
-    });
-
-    function setCreation(ct) {
-        creationType = ct;
-        document.getElementById("ctLabel").textContent = ct;
-        document.querySelectorAll("#creationPills .pill-opt").forEach(function (b) {
-            b.classList.toggle("active", b.getAttribute("data-ct") === ct);
-        });
-        var banner = document.getElementById("fullWorksheetBanner");
-        var itemizedBlock = document.getElementById("itemizedBlock");
-        var addBtn = document.getElementById("btnAddItem");
-        var secBtn = document.getElementById("btnAddSection");
-        if (ct !== "Itemized") {
-            banner.style.display = "block";
-            if (itemizedBlock) {
-                itemizedBlock.style.opacity = "0.4";
-                itemizedBlock.style.pointerEvents = "none";
-            }
-            if (addBtn) addBtn.disabled = true;
-            if (secBtn) secBtn.disabled = true;
-            closeAddPanel();
-        } else {
-            banner.style.display = "none";
-            if (itemizedBlock) {
-                itemizedBlock.style.opacity = "1";
-                itemizedBlock.style.pointerEvents = "";
-            }
-            if (addBtn) addBtn.disabled = false;
-            if (secBtn) secBtn.disabled = false;
+            render();
+            break;
         }
-        recalc();
-        toast("creationType → " + ct);
+        case "adhoc-type": {
+            var d2 = row.discounts.find(function (x) { return x._rid === did; });
+            if (d2) { d2.type = t.getAttribute("data-type"); render(); }
+            break;
+        }
+        case "adhoc-val": {
+            var d3 = row.discounts.find(function (x) { return x._rid === did; });
+            if (d3) { d3.value = Number(t.value) || 0; renderTotals(); }
+            break;
+        }
+        case "remove-disc": row.discounts = row.discounts.filter(function (x) { return x._rid !== did; }); render(); break;
+
+        // Estimate-level discounts
+        case "est-disc-type": {
+            var ed = estimateDiscounts.find(function (x) { return x.id === did; });
+            if (ed) { ed.type = t.getAttribute("data-type"); renderTotals(); }
+            break;
+        }
+        case "est-disc-val": {
+            var ed2 = estimateDiscounts.find(function (x) { return x.id === did; });
+            if (ed2) { ed2.value = Number(t.value) || 0; renderTotals(); }
+            break;
+        }
+        case "est-disc-name": {
+            var ed3 = estimateDiscounts.find(function (x) { return x.id === did; });
+            if (ed3) { ed3.name = t.value; }
+            break;
+        }
+        case "est-disc-rm":
+            estimateDiscounts = estimateDiscounts.filter(function (x) { return x.id !== did; });
+            renderTotals();
+            break;
     }
+}
 
-    document.getElementById("btnSave").addEventListener("click", function () {
-        toast("Save (demo) — " + countDataLines() + " line(s), " + rows.filter(function (r) { return !r.deleted && isSectionRow(r); }).length + " section(s).");
-    });
-
-    document.getElementById("btnPdf").addEventListener("click", function () {
-        toast("PDF export — IE-4.");
-    });
-
-    document.getElementById("btnDup").addEventListener("click", function () {
-        toast("Duplicate — product TBD.");
-    });
-
-    document.getElementById("btnInvoice").addEventListener("click", function () {
-        var t = getTotals();
-        document.getElementById("invLines").textContent = String(countDataLines());
-        document.getElementById("invTotal").textContent = money(t.grand);
-        openModal(document.getElementById("modalInvoice"));
-    });
-
-    document.getElementById("invCancel").addEventListener("click", function () {
-        closeModal(document.getElementById("modalInvoice"));
-    });
-
-    document.getElementById("invOk").addEventListener("click", function () {
-        closeModal(document.getElementById("modalInvoice"));
-        toast("Invoice created (demo).");
-    });
-
-    estimateDiscounts = [
-        { id: nextEstDiscId++, label: "Promo — repeat customer", mode: "pct", value: 2 },
-        { id: nextEstDiscId++, label: "Round-down goodwill", mode: "amt", value: 100 }
-    ];
-    renderEstimateDiscounts();
-
-    document.getElementById("docDiscBlock").addEventListener("input", function (e) {
-        var t = e.target;
-        var row = t.closest("[data-ed-id]");
-        if (!row) return;
-        var id = parseInt(row.getAttribute("data-ed-id"), 10);
-        var d = estimateDiscounts.find(function (x) {
-            return x.id === id;
+function updateLineReadonly(row) {
+    // Re-render just the target row efficiently for numeric edits
+    render();
+}
+function deleteSubtree(rootId) {
+    var toKill = new Set([rootId]);
+    var changed = true;
+    while (changed) {
+        changed = false;
+        rows.forEach(function (r) {
+            if (r.parentId && toKill.has(r.parentId) && !toKill.has(r.id)) {
+                toKill.add(r.id);
+                changed = true;
+            }
         });
-        if (!d) return;
-        var f = t.getAttribute("data-ed-f");
-        if (f === "label") d.label = t.value;
-        if (f === "value") d.value = parseFloat(t.value) || 0;
-        recalc();
-    });
+    }
+    rows = rows.filter(function (r) { return !toKill.has(r.id); });
+}
+function moveSibling(row, delta) {
+    if (!row) return;
+    var siblings = rows.filter(function (r) { return r.parentId === row.parentId; }).sort(function (a, b) { return a.orderNo - b.orderNo; });
+    var idx = siblings.findIndex(function (r) { return r.id === row.id; });
+    var j = idx + delta;
+    if (j < 0 || j >= siblings.length) return;
+    var other = siblings[j];
+    var tmp = row.orderNo;
+    row.orderNo = other.orderNo;
+    other.orderNo = tmp;
+}
+function esc(s) { return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
 
-    document.getElementById("docDiscBlock").addEventListener("change", function (e) {
-        var t = e.target;
-        var row = t.closest("[data-ed-id]");
-        if (!row) return;
-        var id = parseInt(row.getAttribute("data-ed-id"), 10);
-        var d = estimateDiscounts.find(function (x) {
-            return x.id === id;
-        });
-        if (!d) return;
-        if (t.getAttribute("data-ed-f") === "mode") d.mode = t.value;
-        recalc();
+document.addEventListener("change", onAction);
+document.addEventListener("input", function (ev) {
+    // Only handle text/number inputs that should react live
+    var act = ev.target.getAttribute && ev.target.getAttribute("data-action");
+    if (!act) return;
+    if (["title", "desc", "qty", "unit", "unitCost", "markupPercent", "markupDollar", "adhoc-val", "est-disc-val", "est-disc-name"].includes(act)) {
+        onAction(ev);
+    }
+});
+document.addEventListener("click", function (ev) {
+    // Don't hijack clicks on selects / inputs — let the browser handle native
+    // interaction (opening dropdowns, focusing inputs). The `change` and
+    // `input` listeners above pick up the resulting value commits.
+    var tag = ev.target.tagName;
+    if (tag === "SELECT" || tag === "INPUT" || tag === "TEXTAREA" || tag === "OPTION") return;
+    onAction(ev);
+});
+document.getElementById("btnAddSection").addEventListener("click", function () {
+    var rootCount = rows.filter(function (r) { return r.parentId == null; }).length;
+    rows.push(makeSection("New section", null, rootCount));
+    render();
+});
+document.getElementById("btnAddRootLine").addEventListener("click", function () {
+    var rootCount = rows.filter(function (r) { return r.parentId == null; }).length;
+    var ln = makeLine("blank", null, rootCount, {});
+    ln.lineItemType = null; ln.unit = ""; ln.unitCost = 0; ln.quantity = 0; ln.taxTypeIds = []; ln.discounts = [];
+    rows.push(ln);
+    render();
+});
+document.getElementById("btnAddEstDisc").addEventListener("click", function () {
+    estimateDiscounts.push({ id: nid(), type: "Percent", value: 0, name: "" });
+    renderTotals();
+});
+document.getElementById("overheadPct").addEventListener("input", function () { renderTotals(); });
+document.getElementById("gridSearch").addEventListener("input", function () {
+    // Simple prototype: hide line rows + their sub-rows whose text doesn't match.
+    var q = this.value.trim().toLowerCase();
+    document.querySelectorAll("tr.line-row, tr.tax-row, tr.disc-row, tr.section-row").forEach(function (tr) {
+        if (!q) { tr.style.display = ""; return; }
+        var text = tr.textContent.toLowerCase();
+        tr.style.display = text.indexOf(q) >= 0 ? "" : "none";
     });
+});
 
-    document.getElementById("docDiscBlock").addEventListener("click", function (e) {
-        var rm = e.target.getAttribute("data-ed-remove");
-        if (!rm) return;
-        e.preventDefault();
-        var id = parseInt(rm, 10);
-        estimateDiscounts = estimateDiscounts.filter(function (x) {
-            return x.id !== id;
-        });
-        renderEstimateDiscounts();
-        recalc();
-    });
-
-    document.getElementById("btnAddEstDisc").addEventListener("click", function () {
-        estimateDiscounts.push({ id: nextEstDiscId++, label: "New discount", mode: "pct", value: 0 });
-        renderEstimateDiscounts();
-        recalc();
-    });
-
-    seedRows();
-    document.getElementById("selStatus").value = "Draft";
+/* -------------------------------------------------
+   Seed demo tree — runs after all helpers are declared
+   ------------------------------------------------- */
+(function seedDemo() {
+    var mechId = nid();
+    var elecId = nid();
+    rows.push({ id: mechId, kind: "section", parentId: null, orderNo: 0, title: "Mechanical" });
+    rows.push(makeLine("seed", mechId, 0, {
+        lineItemType: "Labor",
+        tradeLevelId: "tl-weld-j",
+        rateLabelId: "rl-std",
+        userId: "u-lee",
+        description: "Welder · Journeyman",
+        quantity: 24,
+        markupPercent: 10
+    }));
+    rows.push(makeLine("seed", mechId, 1, {
+        lineItemType: "Material",
+        materialId: "mat-bi-pipe",
+        xValueId: "x-4in",
+        yValueId: "y-40",
+        description: 'Black iron pipe 4" Sch 40',
+        quantity: 120,
+        markupPercent: 12
+    }));
+    rows.push({ id: elecId, kind: "section", parentId: null, orderNo: 1, title: "Electrical" });
+    rows.push(makeLine("seed", elecId, 0, {
+        lineItemType: "Equipment",
+        equipmentId: "eq-scissor",
+        ratePer: "Day",
+        rateLabelId: "erl-std",
+        operatorIncluded: false,
+        description: "Scissor lift 19' · Day",
+        quantity: 2,
+        markupPercent: 8
+    }));
+    // Demo: seed a line-level discount on the labor row
+    var laborLine = rows.find(function (r) { return r.kind === "line" && r.lineItemType === "Labor"; });
+    if (laborLine) {
+        laborLine.discounts = [{ _rid: nid(), id: "d-contractor", isAdHoc: false, type: "Percent", value: 7.5, name: "Contractor rate" }];
+    }
 })();
+
+render();
 </script>
+
 </body>
 </html>

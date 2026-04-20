@@ -1,0 +1,796 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SD-1: Sales Discount Model — Implementation Plan</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+.in-iframe .top-nav { display: none !important; }
+.top-nav { position: sticky; top: 0; z-index: 100; background: #0f172a; border-bottom: 1px solid #1e293b; padding: 0 24px; display: flex; align-items: center; gap: 0; }
+.top-nav a { display: inline-flex; align-items: center; padding: 12px 18px; font-size: 13px; font-weight: 600; color: #94a3b8; text-decoration: none; border-bottom: 2px solid transparent; transition: all 0.15s; white-space: nowrap; }
+.top-nav a:hover { color: #f8fafc; background: #1e293b; }
+.top-nav .nav-logo { font-size: 11px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: #475569; padding-right: 18px; margin-right: 4px; border-right: 1px solid #1e293b; }
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Inter', -apple-system, sans-serif; background: #f8fafc; color: #0f172a; }
+.plan-wrap { max-width: 880px; margin: 0 auto; padding: 40px 24px 80px; }
+h1 { font-size: 24px; font-weight: 800; margin: 0 0 16px; }
+h2 { font-size: 18px; font-weight: 700; margin: 28px 0 12px; padding-bottom: 8px; border-bottom: 2px solid #e2e8f0; }
+h3 { font-size: 15px; font-weight: 700; margin: 20px 0 8px; padding-top: 10px; border-top: 1px solid #f1f5f9; }
+h4 { font-size: 14px; font-weight: 700; margin: 14px 0 6px; }
+p { font-size: 14px; color: #334155; line-height: 1.7; margin: 6px 0; }
+ul, ol { padding-left: 20px; margin: 8px 0; }
+li { font-size: 14px; color: #334155; line-height: 1.7; margin: 3px 0; }
+strong { color: #0f172a; }
+code { font-family: 'SF Mono', monospace; background: #f1f5f9; padding: 1px 6px; border-radius: 4px; font-size: 12px; color: #7c3aed; }
+pre { background: #0f172a; color: #f8fafc; border-radius: 8px; padding: 16px; overflow-x: auto; font-size: 13px; line-height: 1.6; margin: 12px 0; font-family: 'SF Mono', monospace; }
+pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
+hr { border: none; border-top: 1px solid #e2e8f0; margin: 24px 0; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 12px 0; }
+th { text-align: left; padding: 8px 12px; background: #f1f5f9; border-bottom: 2px solid #e2e8f0; font-weight: 600; }
+td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
+.check-item { display: flex; gap: 8px; align-items: flex-start; padding: 5px 0; }
+.check-box { width: 16px; height: 16px; border: 2px solid #cbd5e1; border-radius: 3px; flex-shrink: 0; margin-top: 2px; }
+.callout { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 14px 18px; margin: 14px 0; font-size: 13px; color: #1e40af; }
+.callout strong { color: #1e3a8a; }
+    </style>
+</head>
+<body>
+
+<script>if(self!==top)document.documentElement.classList.add("in-iframe")</script>
+<nav class="top-nav">
+    <span class="nav-logo">Appello SDLC</span>
+    <a href="../index.html">Roadmap</a>
+    <a href="../release-1.33-timeline.html">Release 1.33</a>
+    <a href="../release-1.34-timeline.html">Release 1.34</a>
+    <a href="../master-spec-reconciliation.html">Spec Reconciliation</a>
+    <a href="../cross-release-continuity-audit.html">Continuity Audit</a>
+    <a href="../ui-interface-library.html">UI Library</a>
+</nav>
+<div class="plan-wrap" id="rendered"></div>
+
+<script type="text/plain" id="plan-md">
+# SD-1: Sales Discount Model — Implementation Plan
+
+## Overview
+
+Add a reusable `Discount` entity and a polymorphic `DiscountAssignment` join (mirroring `PurchaseOrder` / `PurchaseOrderAssignment`) so sell-side discounts can be authored once and attached to any of: `Company`, `Job`, `EstimateChangeOrderRecord`, `ItemizedEstimateChangeOrderRecordLineItem`, `JobBill`, `JobBillLineItem`. Foundation layer — no UI in this spec; subsequent IE-2 and a future Discount Library settings UX consume it.
+
+**Estimated effort:** 3-4 days
+**Risk:** Low — two new tables, additive only
+**Spec:** `tm-work-orders-uis/uis-SD-1-sales-discount-model.html`
+**Requires:** (none)
+**Blocks:** IE-1, IE-2, IE-3, IE-5
+
+### Key design decisions (mirrors spec §3)
+
+- **Polymorphic attachment.** `DiscountAssignment.referenceModel` + `referenceId` point at the attached entity. No DB FK; a validated allowlist of model names + an existence check replaces the DB constraint. Same tradeoff the estimate line item pays for `priceReferenceModel`, and the same shape `PurchaseOrderAssignment` already uses in the codebase.
+- **Ad-hoc vs named.** Inline discounts (user types "5%" on a line) still persist as a `Discount` row with `isAdHoc = true`, plus an assignment. Keeps the query path uniform ("all discounts on X" = one query) and enables reporting and ad-hoc → reusable promotion.
+- **Effective-date windowing.** `effectiveFrom` / `effectiveTo` on the `Discount` itself. Both nullable = open-ended. Lets seasonal promos auto-retire and pre-scheduled contract rates kick in on a future date.
+- **Suggestions, not auto-apply.** A `Discount` attached to a `Company` never silently applies to a new estimate — it becomes a pickable suggestion in IE-2's per-line picker (unioned with Job-level discounts for the same job). Attachment is always explicit.
+- **Math lives in IE-3.** SD-1 stores; IE-3's totals engine computes. SD-1 does not opine on stack ordering at the math layer (it just exposes `orderNo`), proportional tax split, or compound discount interaction.
+
+---
+
+## Step 1: Prisma Schema — Enums + Models
+
+**File:** `apps/api/prisma/schema.prisma`
+
+### 1a. New enum
+
+```prisma
+enum DiscountType {
+  Percent       // value = percentage (5.00 = 5%)
+  FixedAmount   // value = currency amount (100.00 = $100)
+}
+```
+
+### 1b. New models
+
+```prisma
+model Discount {
+  id            String       @id @db.VarChar(21)
+  isDeleted     Boolean      @default(false)
+  isArchived    Boolean      @default(false)
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @default(now()) @updatedAt
+
+  name          String       @db.VarChar(191)
+  description   String?      @db.Text
+  type          DiscountType
+  value         Decimal      @db.Decimal(10, 2)
+
+  // Hidden from suggestion picker; used for inline one-offs. Still auditable
+  // and promotable to reusable via the promoteAdHocDiscount mutation.
+  isAdHoc       Boolean      @default(false)
+
+  // Both nullable = open-ended. Validated in the model so effectiveTo >= effectiveFrom.
+  effectiveFrom DateTime?
+  effectiveTo   DateTime?
+
+  DiscountAssignments DiscountAssignment[]
+
+  @@index([isAdHoc, isArchived, isDeleted], map: "Discount_picker_idx")
+  @@index([effectiveFrom, effectiveTo], map: "Discount_effective_idx")
+}
+
+model DiscountAssignment {
+  id             String   @id @db.VarChar(21)
+  isDeleted      Boolean  @default(false)
+  isArchived     Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @default(now()) @updatedAt
+
+  // Polymorphic. Validated in application code — see Step 3b.
+  referenceModel String   @db.VarChar(191)
+  referenceId    String   @db.VarChar(21)
+
+  orderNo        Int      @default(0)
+
+  discountId     String   @db.VarChar(21)
+  Discount       Discount @relation(fields: [discountId], references: [id])
+
+  @@unique([referenceModel, referenceId, discountId], map: "DiscountAssignment_ref_discount_unique")
+  @@index([referenceModel, referenceId], map: "DiscountAssignment_ref_idx")
+  @@index([discountId], map: "DiscountAssignment_discountId_fkey")
+}
+```
+
+### 1c. Migration
+
+```bash
+pnpm --filter api prisma:migrate
+```
+
+Verify the generated SQL:
+
+- `CREATE TABLE Discount` and `CREATE TABLE DiscountAssignment` with the indexes and unique constraint above.
+- No `DROP PRIMARY KEY`, no schema references.
+- Ends with a newline (`pnpm --filter api prisma:cleanMigrationFile`).
+
+---
+
+## Step 2: TypeScript Types
+
+**New file:** `apps/api/src/types/Discount.types.ts`
+
+```typescript
+export const discountTypes = ["Percent", "FixedAmount"] as const;
+export type DiscountType = (typeof discountTypes)[number];
+
+/**
+ * Allowlist of Prisma model names that a DiscountAssignment.referenceModel
+ * may point at. Adding a new sell-side scope = one entry here + downstream
+ * consumer opt-in. No schema migration needed.
+ */
+export const discountReferenceModels = [
+    "Company",
+    "Job",
+    "EstimateChangeOrderRecord",
+    "ItemizedEstimateChangeOrderRecordLineItem",
+    "JobBill",
+    "JobBillLineItem"
+] as const;
+export type DiscountReferenceModel = (typeof discountReferenceModels)[number];
+```
+
+**Modify:** `apps/api/src/types/index.ts`
+
+```typescript
+export type { Discount as IDiscount, DiscountAssignment as IDiscountAssignment } from "@prisma/client";
+export * from "./Discount.types";
+```
+
+---
+
+## Step 3: Model Layer
+
+Pattern to follow: `apps/api/src/models/EstimateChangeOrderRecordValue.ts` for shape; `apps/api/src/models/JobBillLineItem.ts` for the connect/disconnect helper style.
+
+### 3a. `Discount` model
+
+**New file:** `apps/api/src/models/Discount.ts`
+
+```typescript
+import prisma from "./_prismaClient";
+import type { FullModel, IField, IDiscount } from "../types";
+import { BaseAuditableModel } from "./base/_BaseAuditableModel";
+import { BadUserInputError } from "../errors";
+
+class Discount extends BaseAuditableModel<IDiscount> {
+    public name = "Discount";
+    public name_plural = "Discounts";
+
+    protected prisma = prisma.discount;
+    protected modelFields: IField<IDiscount>[] = [
+        { name: "name", type: "string" },
+        { name: "description", type: "string" },
+        { name: "type", type: "string" },
+        { name: "value", type: "float" },
+        { name: "isAdHoc", type: "boolean" },
+        { name: "effectiveFrom", type: "date" },
+        { name: "effectiveTo", type: "date" }
+    ];
+
+    // archiveChildren / restoreChildren / deleteChildren inherit from BaseAuditableModel.
+    public async getRelatedDeleteCount(_ids: string[]): Promise<Record<string, number>> { return {}; }
+
+    public async validatePayload(input: Partial<IDiscount>): Promise<void> {
+        if (input.name !== undefined && !input.name?.trim()) {
+            throw new BadUserInputError("Discount.name is required.");
+        }
+        if (input.value != null && input.type === "Percent" && (Number(input.value) < 0 || Number(input.value) > 100)) {
+            throw new BadUserInputError("Percent discount value must be between 0 and 100.");
+        }
+        if (input.value != null && Number(input.value) < 0) {
+            throw new BadUserInputError("Discount value must be non-negative.");
+        }
+        if (input.effectiveFrom && input.effectiveTo && input.effectiveFrom > input.effectiveTo) {
+            throw new BadUserInputError("effectiveFrom must be <= effectiveTo.");
+        }
+    }
+
+    /** Flips isAdHoc off. Requires a non-empty name (overwrites whatever was there). */
+    public async promoteAdHoc(id: string, name: string, currentUserId: string) {
+        if (!name?.trim()) {
+            throw new BadUserInputError("A name is required to promote an ad-hoc discount.");
+        }
+        return this.editItem(id, { isAdHoc: false, name: name.trim() }, currentUserId);
+    }
+}
+
+export { Discount };
+```
+
+### 3b. `DiscountAssignment` model
+
+**New file:** `apps/api/src/models/DiscountAssignment.ts`
+
+```typescript
+import prisma from "./_prismaClient";
+import type {
+    FullModel,
+    IField,
+    IDiscountAssignment,
+    DiscountReferenceModel
+} from "../types";
+import { discountReferenceModels } from "../types";
+import { BaseAuditableModel } from "./base/_BaseAuditableModel";
+import { BadUserInputError } from "../errors";
+
+class DiscountAssignment extends BaseAuditableModel<IDiscountAssignment> {
+    public name = "DiscountAssignment";
+    public name_plural = "DiscountAssignments";
+
+    protected prisma = prisma.discountAssignment;
+    protected modelFields: IField<IDiscountAssignment>[] = [
+        { name: "referenceModel", type: "string" },
+        { name: "referenceId", type: "string" },
+        { name: "orderNo", type: "float" },
+        { name: "discountId", type: "string" }
+    ];
+
+    // archiveChildren / restoreChildren / deleteChildren inherit from BaseAuditableModel.
+    public async getRelatedDeleteCount(_ids: string[]): Promise<Record<string, number>> { return {}; }
+
+    // Map from allowed referenceModel → Prisma delegate for the existence check.
+    // Add new supported scopes here as the enum in Discount.types.ts grows.
+    private static readonly delegateByReferenceModel = {
+        Company: prisma.company,
+        Job: prisma.job,
+        EstimateChangeOrderRecord: prisma.estimateChangeOrderRecord,
+        ItemizedEstimateChangeOrderRecordLineItem: prisma.itemizedEstimateChangeOrderRecordLineItem,
+        JobBill: prisma.jobBill,
+        JobBillLineItem: prisma.jobBillLineItem
+    } as const;
+
+    public async validatePayload(input: Partial<IDiscountAssignment>): Promise<void> {
+        const { referenceModel, referenceId, discountId } = input;
+
+        if (!referenceModel || !referenceId) {
+            throw new BadUserInputError("referenceModel and referenceId are required.");
+        }
+        if (!discountReferenceModels.includes(referenceModel as DiscountReferenceModel)) {
+            throw new BadUserInputError(
+                `referenceModel must be one of: ${discountReferenceModels.join(", ")}`
+            );
+        }
+        if (!discountId) {
+            throw new BadUserInputError("discountId is required.");
+        }
+
+        // Existence check on both sides. Enforces referential integrity that the
+        // DB can't because referenceId has no FK.
+        const delegate = DiscountAssignment.delegateByReferenceModel[
+            referenceModel as DiscountReferenceModel
+        ];
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const refExists = await (delegate as any).findFirst({
+            where: { id: referenceId, isDeleted: false, isArchived: false },
+            select: { id: true }
+        });
+        if (!refExists) {
+            throw new BadUserInputError(
+                `referenceId ${referenceId} does not resolve in ${referenceModel}.`
+            );
+        }
+        const discountExists = await prisma.discount.findFirst({
+            where: { id: discountId, isDeleted: false, isArchived: false },
+            select: { id: true }
+        });
+        if (!discountExists) {
+            throw new BadUserInputError(`discountId ${discountId} does not resolve.`);
+        }
+    }
+
+    /**
+     * All active assignments for an entity + hydrated Discount, filtered to the
+     * discount's effective window at read time. This is the canonical read
+     * path — IE-3's totals engine will call this per estimate / per line.
+     */
+    public async forEntity(
+        referenceModel: DiscountReferenceModel,
+        referenceId: string
+    ): Promise<(IDiscountAssignment & { Discount: IDiscount })[]> {
+        const now = new Date();
+        return this.prisma.findMany({
+            where: {
+                referenceModel,
+                referenceId,
+                isDeleted: false,
+                isArchived: false,
+                Discount: {
+                    isDeleted: false,
+                    isArchived: false,
+                    OR: [{ effectiveFrom: null }, { effectiveFrom: { lte: now } }],
+                    AND: [{ OR: [{ effectiveTo: null }, { effectiveTo: { gte: now } }] }]
+                }
+            },
+            include: { Discount: true },
+            orderBy: { orderNo: "asc" }
+        });
+    }
+
+    /**
+     * Suggestions for the IE-2 per-line picker. Union of Job-level and
+     * Company-level discounts for the line's job, de-duped by discountId,
+     * filtered to non-ad-hoc and active effective window.
+     */
+    public async suggestedForLine(lineItemId: string): Promise<IDiscount[]> {
+        const line = await prisma.itemizedEstimateChangeOrderRecordLineItem.findUnique({
+            where: { id: lineItemId },
+            select: {
+                EstimateChangeOrderRecord: {
+                    select: { jobId: true, Job: { select: { companyId: true } } }
+                }
+            }
+        });
+        const jobId = line?.EstimateChangeOrderRecord?.jobId ?? null;
+        const companyId = line?.EstimateChangeOrderRecord?.Job?.companyId ?? null;
+
+        const now = new Date();
+        const orTargets: any[] = [];
+        if (jobId) orTargets.push({ referenceModel: "Job", referenceId: jobId });
+        if (companyId) orTargets.push({ referenceModel: "Company", referenceId: companyId });
+        if (orTargets.length === 0) return [];
+
+        const assignments = await this.prisma.findMany({
+            where: {
+                OR: orTargets,
+                isDeleted: false,
+                isArchived: false,
+                Discount: {
+                    isDeleted: false,
+                    isArchived: false,
+                    isAdHoc: false,
+                    OR: [{ effectiveFrom: null }, { effectiveFrom: { lte: now } }],
+                    AND: [{ OR: [{ effectiveTo: null }, { effectiveTo: { gte: now } }] }]
+                }
+            },
+            include: { Discount: true }
+        });
+
+        const byId = new Map<string, IDiscount>();
+        for (const a of assignments) byId.set(a.Discount.id, a.Discount);
+        return [...byId.values()];
+    }
+
+    /**
+     * Convenience: create an ad-hoc Discount and its assignment in one txn.
+     * Used by the IE-2 "enter 5% inline" path.
+     */
+    public async createAdHocAndAttach(
+        input: {
+            referenceModel: DiscountReferenceModel;
+            referenceId: string;
+            orderNo?: number;
+            name?: string; // optional label; falls back to "Ad-hoc N%"
+            type: "Percent" | "FixedAmount";
+            value: number;
+        },
+        currentUserId: string
+    ) {
+        return prisma.$transaction(async (tx) => {
+            const label = input.name?.trim() ||
+                (input.type === "Percent"
+                    ? `Ad-hoc ${input.value}%`
+                    : `Ad-hoc $${input.value}`);
+            const discount = await tx.discount.create({
+                data: {
+                    id: generateId(),               // follow nanoid pattern used elsewhere
+                    name: label,
+                    type: input.type,
+                    value: input.value,
+                    isAdHoc: true
+                }
+            });
+            return tx.discountAssignment.create({
+                data: {
+                    id: generateId(),
+                    referenceModel: input.referenceModel,
+                    referenceId: input.referenceId,
+                    orderNo: input.orderNo ?? 0,
+                    discountId: discount.id
+                },
+                include: { Discount: true }
+            });
+        });
+    }
+
+    /** Reorder a set of assignments within a reference entity atomically. */
+    public async reorder(
+        referenceModel: DiscountReferenceModel,
+        referenceId: string,
+        orderedAssignmentIds: string[],
+        _currentUserId: string
+    ) {
+        return prisma.$transaction(
+            orderedAssignmentIds.map((id, idx) =>
+                this.prisma.update({ where: { id }, data: { orderNo: idx } })
+            )
+        );
+    }
+}
+
+export { DiscountAssignment };
+```
+
+> **Note on `generateId()`.** Use whatever nanoid helper the codebase already uses (grep existing model `create` calls). Not showing the import here to keep the block focused.
+
+---
+
+## Step 4: GraphQL Resolvers
+
+### 4a. `Discount` resolver
+
+**New file:** `apps/api/src/graphql/models/Discount.ts`
+
+```typescript
+import type { IModelResolverConfig } from "./_types";
+import gql from "graphql-tag";
+import { Discount } from "../../models/Discount";
+import type { IDiscount } from "../../types";
+
+export const DiscountResolvers: IModelResolverConfig<IDiscount> = {
+    typeDef: gql`
+        enum DiscountType {
+            Percent
+            FixedAmount
+        }
+
+        type Discount {
+            id: ID
+            createdAt: DateTime
+            updatedAt: DateTime
+            isDeleted: Boolean
+            isArchived: Boolean
+            name: String
+            description: String
+            type: DiscountType
+            value: Float
+            isAdHoc: Boolean
+            effectiveFrom: DateTime
+            effectiveTo: DateTime
+            DiscountAssignments: [DiscountAssignment]
+        }
+
+        input CreateDiscount {
+            name: String!
+            description: String
+            type: DiscountType!
+            value: Float!
+            isAdHoc: Boolean
+            effectiveFrom: DateTime
+            effectiveTo: DateTime
+        }
+
+        input EditDiscount {
+            id: ID!
+            name: String
+            description: String
+            type: DiscountType
+            value: Float
+            effectiveFrom: DateTime
+            effectiveTo: DateTime
+        }
+
+        extend type Query {
+            discount(id: ID!): Discount
+            discounts(options: GetListOptions): GetListResult
+        }
+
+        extend type Mutation {
+            createDiscount(data: CreateDiscount): Discount
+            editDiscount(data: EditDiscount): Discount
+            deleteDiscount(id: ID!): Boolean
+            archiveDiscount(id: ID!): Boolean
+            restoreDiscount(id: ID!): Boolean
+            promoteAdHocDiscount(id: ID!, name: String!): Discount
+        }
+    `,
+    Query: {
+        discount: (_p, { id }) => new Discount().getItem(id),
+        discounts: (_p, { options }, context) => new Discount().getList(options, context.userId())
+    },
+    Mutation: {
+        createDiscount: async (_p, args, context) => {
+            const model = new Discount();
+            await model.validatePayload(args.data);
+            return model.createItem(args.data, context.userId());
+        },
+        editDiscount: async (_p, args, context) => {
+            const model = new Discount();
+            await model.validatePayload(args.data);
+            return model.editItem(args.data.id, args.data, context.userId());
+        },
+        deleteDiscount: (_p, args, context) =>
+            new Discount().deleteItem(args.id, context.userId()),
+        archiveDiscount: (_p, args, context) =>
+            new Discount().archiveManyItems([args.id], context.userId()).then(() => true),
+        restoreDiscount: (_p, args, context) =>
+            new Discount().restoreManyItems([args.id], context.userId()).then(() => true),
+        promoteAdHocDiscount: (_p, args, context) =>
+            new Discount().promoteAdHoc(args.id, args.name, context.userId())
+    }
+};
+```
+
+### 4b. `DiscountAssignment` resolver
+
+**New file:** `apps/api/src/graphql/models/DiscountAssignment.ts`
+
+```typescript
+import type { IModelResolverConfig } from "./_types";
+import gql from "graphql-tag";
+import { DiscountAssignment } from "../../models/DiscountAssignment";
+import type { IDiscountAssignment } from "../../types";
+
+export const DiscountAssignmentResolvers: IModelResolverConfig<IDiscountAssignment> = {
+    typeDef: gql`
+        type DiscountAssignment {
+            id: ID
+            createdAt: DateTime
+            updatedAt: DateTime
+            isDeleted: Boolean
+            isArchived: Boolean
+            referenceModel: String
+            referenceId: String
+            orderNo: Int
+            discountId: String
+            Discount: Discount
+        }
+
+        input AttachDiscountInput {
+            referenceModel: String!
+            referenceId: ID!
+            discountId: ID!
+            orderNo: Int
+        }
+
+        input CreateAdHocDiscountInput {
+            referenceModel: String!
+            referenceId: ID!
+            orderNo: Int
+            type: DiscountType!
+            value: Float!
+            name: String
+        }
+
+        extend type Query {
+            discountsForEntity(
+                referenceModel: String!
+                referenceId: ID!
+            ): [DiscountAssignment!]!
+            suggestedDiscountsForLine(
+                itemizedEstimateChangeOrderRecordLineItemId: ID!
+            ): [Discount!]!
+        }
+
+        extend type Mutation {
+            attachDiscount(input: AttachDiscountInput!): DiscountAssignment
+            detachDiscount(id: ID!): Boolean
+            createAdHocDiscountAndAttach(input: CreateAdHocDiscountInput!): DiscountAssignment
+            reorderDiscountAssignments(
+                referenceModel: String!
+                referenceId: ID!
+                orderedAssignmentIds: [ID!]!
+            ): [DiscountAssignment!]!
+        }
+    `,
+    Query: {
+        discountsForEntity: (_p, { referenceModel, referenceId }) =>
+            new DiscountAssignment().forEntity(referenceModel, referenceId),
+        suggestedDiscountsForLine: (_p, { itemizedEstimateChangeOrderRecordLineItemId }) =>
+            new DiscountAssignment().suggestedForLine(itemizedEstimateChangeOrderRecordLineItemId)
+    },
+    Mutation: {
+        attachDiscount: async (_p, args, context) => {
+            const model = new DiscountAssignment();
+            await model.validatePayload({
+                referenceModel: args.input.referenceModel,
+                referenceId: args.input.referenceId,
+                discountId: args.input.discountId,
+                orderNo: args.input.orderNo ?? 0
+            });
+            return model.createItem(
+                {
+                    referenceModel: args.input.referenceModel,
+                    referenceId: args.input.referenceId,
+                    discountId: args.input.discountId,
+                    orderNo: args.input.orderNo ?? 0
+                },
+                context.userId()
+            );
+        },
+        detachDiscount: (_p, args, context) =>
+            new DiscountAssignment().deleteItem(args.id, context.userId()),
+        createAdHocDiscountAndAttach: (_p, args, context) =>
+            new DiscountAssignment().createAdHocAndAttach(args.input, context.userId()),
+        reorderDiscountAssignments: (_p, args, context) =>
+            new DiscountAssignment().reorder(
+                args.referenceModel,
+                args.referenceId,
+                args.orderedAssignmentIds,
+                context.userId()
+            )
+    }
+};
+```
+
+---
+
+## Step 5: Register in `schema.ts`
+
+**Modify:** `apps/api/src/graphql/schema.ts`
+
+Both resolvers must be registered per CLAUDE.md §"Registering New GraphQL Files":
+
+```typescript
+import { DiscountResolvers } from "./models/Discount";
+import { DiscountAssignmentResolvers } from "./models/DiscountAssignment";
+```
+
+```typescript
+Query: {
+    // ... existing
+    ...DiscountResolvers.Query,
+    ...DiscountAssignmentResolvers.Query
+}
+```
+
+```typescript
+Mutation: {
+    // ... existing
+    ...DiscountResolvers.Mutation,
+    ...DiscountAssignmentResolvers.Mutation
+}
+```
+
+```typescript
+typeDefs: [
+    // ... existing
+    DiscountResolvers.typeDef ?? gql``,
+    DiscountAssignmentResolvers.typeDef ?? gql``
+]
+```
+
+---
+
+## Step 6: Validate
+
+```bash
+pnpm --filter api build
+```
+
+`apps/api/schema.graphql` regenerates automatically when the API boots in dev.
+
+---
+
+## Handoff notes (to downstream consumers)
+
+- **IE-1 line-item model** consumes `DiscountAssignment` via `referenceModel = "ItemizedEstimateChangeOrderRecordLineItem"`. IE-1 adds no discount fields directly on the line; instead, whenever the set of assignments on a line changes, the line's `taxValue` cache recomputes (IE-1's existing `recomputeTaxValue` trigger list grows by one entry).
+- **IE-2 line editor** uses `suggestedDiscountsForLine` for the per-line picker and `createAdHocDiscountAndAttach` for inline "type 5%" entry. Estimate-level discounts use `attachDiscount` with `referenceModel = "EstimateChangeOrderRecord"` and `reorderDiscountAssignments` for stack reorder.
+- **IE-3 totals engine** is the canonical consumer of `discountsForEntity`. Application math (line % → line sell → estimate-level on pre-tax → tax on discounted share, proportional split) is IE-3's responsibility. SD-1 never computes totals.
+- **IE-5 invoice conversion** copies `DiscountAssignment` rows pointing at an estimate and its lines onto the new `JobBill` and `JobBillLineItem` rows — same polymorphic shape, new `referenceId` values.
+- **Future Discount Library UX** (out of scope here) consumes `discounts(options)` for the reusable list, `createDiscount` / `editDiscount` for management, and `promoteAdHocDiscount` for the "save as reusable" affordance.
+
+---
+
+## Verification Checklist
+
+- [ ] Migration applies cleanly on an empty DB
+- [ ] Migration applies cleanly on a populated DB
+- [ ] Migration SQL ends with newline, no schema references, no `DROP PRIMARY KEY`
+- [ ] `DiscountType` enum generated in `@prisma/client`
+- [ ] `Discount` and `DiscountAssignment` tables created with all indexes and unique constraint
+- [ ] `apps/api/src/types/Discount.types.ts` exports both `discountTypes` and `discountReferenceModels` as const arrays with derived types; barrel re-exports from `types/index.ts`
+- [ ] `Discount` model's `validatePayload` rejects blank `name`, negative `value`, Percent > 100, and `effectiveFrom > effectiveTo`
+- [ ] `promoteAdHocDiscount` rejects empty `name` and flips `isAdHoc = false`
+- [ ] `DiscountAssignment.validatePayload` rejects `referenceModel` outside the allowlist
+- [ ] `DiscountAssignment.validatePayload` rejects `referenceId` that does not resolve in the table named by `referenceModel`
+- [ ] `DiscountAssignment.validatePayload` rejects a non-existent `discountId`
+- [ ] Unique constraint rejects the same `Discount` being attached twice to the same entity
+- [ ] `discountsForEntity` returns only active, non-archived, effective-window-active assignments + hydrated `Discount`, ordered by `orderNo`
+- [ ] `suggestedDiscountsForLine` unions Job-level and Company-level assignments for the line's job, de-dupes by `discountId`, excludes `isAdHoc = true`, respects effective window
+- [ ] `createAdHocDiscountAndAttach` creates both rows in a single transaction; failure in either rolls back both
+- [ ] `reorderDiscountAssignments` writes `orderNo` atomically across all provided ids
+- [ ] `pnpm --filter api build` passes with zero type errors
+- [ ] `apps/api/schema.graphql` regenerated with the new types, enums, queries, mutations
+
+---
+
+## Integration / E2E Test Scenarios
+
+1. **CRUD `Discount`.** Create Percent 5% with `isAdHoc = false`; edit `value` to 7.5; archive; restore; delete. All respect BaseAuditableModel semantics.
+2. **Validation — blank name.** `createDiscount` with empty name → rejected.
+3. **Validation — Percent out of range.** Create with `type = Percent`, `value = 150` → rejected.
+4. **Validation — effective window.** Create with `effectiveFrom = 2026-01-01`, `effectiveTo = 2025-12-31` → rejected.
+5. **Attach to Company.** Seed a `Company`; attach a `Discount` → assignment persists; `discountsForEntity("Company", companyId)` returns it.
+6. **Attach to Line.** Seed an `ItemizedEstimateChangeOrderRecordLineItem`; attach → assignment persists; re-read through the line's own resolver returns the expected count.
+7. **Attach — invalid `referenceModel`.** `attachDiscount` with `referenceModel = "SomeOtherModel"` → rejected.
+8. **Attach — missing `referenceId`.** `referenceId` pointing at a nonexistent company → rejected.
+9. **Attach — soft-deleted reference.** Soft-delete the company, then attempt to attach → rejected.
+10. **Attach — duplicate.** Attach the same discount to the same line twice → unique constraint rejects the second.
+11. **Suggested for line — happy path.** Seed Company + Job + Estimate + line; attach a `Discount` to the Company. `suggestedDiscountsForLine(line.id)` returns it.
+12. **Suggested for line — Job wins dedup.** Attach the same `Discount` to both the Company and the Job. Suggestion list returns it once.
+13. **Suggested for line — ad-hoc excluded.** Attach an `isAdHoc = true` discount to the Company; it must not appear in the suggestion list.
+14. **Suggested for line — expired excluded.** Attach a discount with `effectiveTo = yesterday`; suggestion list omits it; `discountsForEntity` also omits it.
+15. **Suggested for line — future-dated excluded.** `effectiveFrom = tomorrow` → omitted from both read paths.
+16. **Ad-hoc create + attach.** `createAdHocDiscountAndAttach({ referenceModel: "...LineItem", referenceId, type: "Percent", value: 5 })` → new `Discount` (`isAdHoc = true`) and assignment visible on the line; label defaults to `"Ad-hoc 5%"` when no `name` provided.
+17. **Ad-hoc transaction rollback.** Force a failure on the assignment insert (e.g., unique conflict); confirm the `Discount` row is not persisted.
+18. **Promote ad-hoc.** Promote the previous ad-hoc → `isAdHoc = false` + `name = "Repeat customer 5%"`; it now appears in `suggestedDiscountsForLine`.
+19. **Reorder assignments.** Attach three discounts to one `EstimateChangeOrderRecord`; call `reorderDiscountAssignments` with a shuffled id array; `discountsForEntity` returns them in the new order.
+20. **Soft delete cascade on detach.** `detachDiscount` soft-deletes the assignment; the underlying `Discount` is untouched; `discountsForEntity` no longer returns the detached row.
+
+---
+
+## Files Summary
+
+| Action | File | What to do |
+|--------|------|------------|
+| MODIFY | `apps/api/prisma/schema.prisma` | Add `DiscountType` enum, `Discount` model, `DiscountAssignment` model, all indexes and the unique constraint |
+| CREATE | `apps/api/prisma/migrations/.../migration.sql` | Prisma-generated; review for SQL safety |
+| CREATE | `apps/api/src/types/Discount.types.ts` | Const arrays + derived types for `DiscountType` and `DISCOUNT_REFERENCE_MODELS` |
+| MODIFY | `apps/api/src/types/index.ts` | Re-export types and the Prisma-derived interfaces |
+| CREATE | `apps/api/src/models/Discount.ts` | `BaseAuditableModel` subclass with validation + `promoteAdHoc` |
+| CREATE | `apps/api/src/models/DiscountAssignment.ts` | `BaseAuditableModel` subclass with polymorphic validation, `forEntity`, `suggestedForLine`, `createAdHocAndAttach`, `reorder` |
+| CREATE | `apps/api/src/graphql/models/Discount.ts` | `IModelResolverConfig` with CRUD + `promoteAdHocDiscount` |
+| CREATE | `apps/api/src/graphql/models/DiscountAssignment.ts` | `IModelResolverConfig` with `discountsForEntity`, `suggestedDiscountsForLine`, `attachDiscount`, `createAdHocDiscountAndAttach`, `reorderDiscountAssignments` |
+| MODIFY | `apps/api/src/graphql/schema.ts` | Import both resolvers; register `Query`, `Mutation`, `typeDef` for each |
+
+---
+
+## Out of Scope (handled elsewhere)
+
+- **Discount Library UX** — settings page listing reusable `Discount` rows. Future UX spec consumes SD-1's CRUD surface.
+- **IE-2 Line Item Editor** — the per-line picker + inline ad-hoc input + estimate-level stack UI.
+- **IE-3 Totals Engine** — all application math: line % → line sell → estimate-level on pre-tax → proportional tax split.
+- **IE-5 Invoice Conversion** — copying `DiscountAssignment` rows from estimate + lines onto `JobBill` + `JobBillLineItem` rows.
+- **Auto-cascade** from Company-level discount to a newly created estimate. Suggestions only; attachment is explicit.
+
+</script>
+
+<script src="plan-renderer.js"></script>
+<script>renderPlan();</script>
+</body>
+</html>

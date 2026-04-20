@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>IE-5: Estimate to Invoice — Implementation Plan</title>
+    <title>IE-5: Itemized Estimate &rarr; Simple Invoice &mdash; Implementation Plan</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
 .in-iframe .top-nav { display: none !important; }
@@ -17,6 +17,7 @@ body { font-family: 'Inter', -apple-system, sans-serif; background: #f8fafc; col
 h1 { font-size: 24px; font-weight: 800; margin: 0 0 16px; }
 h2 { font-size: 18px; font-weight: 700; margin: 28px 0 12px; padding-bottom: 8px; border-bottom: 2px solid #e2e8f0; }
 h3 { font-size: 15px; font-weight: 700; margin: 20px 0 8px; padding-top: 10px; border-top: 1px solid #f1f5f9; }
+h4 { font-size: 14px; font-weight: 700; margin: 14px 0 6px; }
 p { font-size: 14px; color: #334155; line-height: 1.7; margin: 6px 0; }
 ul, ol { padding-left: 20px; margin: 8px 0; }
 li { font-size: 14px; color: #334155; line-height: 1.7; margin: 3px 0; }
@@ -28,7 +29,12 @@ hr { border: none; border-top: 1px solid #e2e8f0; margin: 24px 0; }
 table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 12px 0; }
 th { text-align: left; padding: 8px 12px; background: #f1f5f9; border-bottom: 2px solid #e2e8f0; font-weight: 600; }
 td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
+.check-item { display: flex; gap: 8px; align-items: flex-start; padding: 5px 0; }
+.check-box { width: 16px; height: 16px; border: 2px solid #cbd5e1; border-radius: 3px; flex-shrink: 0; margin-top: 2px; }
 .callout { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 14px 18px; margin: 14px 0; font-size: 13px; color: #1e40af; }
+.callout strong { color: #1e3a8a; }
+.callout.warn { background: #fef3c7; border-color: #fde68a; color: #92400e; }
+.callout.warn strong { color: #78350f; }
     </style>
 </head>
 <body>
@@ -46,109 +52,671 @@ td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
 <div class="plan-wrap" id="rendered"></div>
 
 <script type="text/plain" id="plan-md">
-# IE-5: Itemized Estimate to Invoice — Implementation Plan
+# IE-5: Itemized Estimate &rarr; Simple Invoice &mdash; Implementation Plan
 
 ## Overview
 
-Add `createInvoiceFromEstimate` (or equivalent) mutation: create `JobBill` with `Simple` template rows from `EstimateLineItem`; optional `sourceEstimateChangeOrderRecordId` on `JobBill` for traceability. Frontend: "Generate Invoice" when estimate status is Won; confirmation modal mirroring WO-7 pattern.
+Add a `createInvoiceFromEstimate(estimateChangeOrderRecordId)` mutation that creates a `JobBill` with `template: Simple` and one `JobBillLineItem` per itemized line, links both sides via new FK columns, and surfaces a **Generate invoice** action in the `EstimateChangeOrderDetails` header for Won itemized estimates. Once generated, the action flips permanently to a **View invoice** deep link &mdash; a second invoice cannot be produced.
 
-**Estimated effort:** 2-3 days  
-**Spec:** `uis-IE-5-estimate-to-invoice.html`  
-**Requires:** IE-3, existing invoice stack
+**Estimated effort:** 2&ndash;3 days
+**Risk:** Low &mdash; pattern is established by PR #7017 (`generateInvoiceFromWorkOrder`) which ships first. We borrow its shape and diverge only where itemized estimates need different semantics.
+**Spec:** `uis-IE-5-estimate-to-invoice.html`
+**Requires:** IE-1 (itemized line items), IE-3 (totals engine), SD-1 (discount stack on ECR). Lands **after** PR #7017 (Work Orders) so we can reference its patterns.
 
----
+### Relationship to PR #7017 (`WOConversionConfirmModal`)
 
-## Step 1: Prisma (optional FK)
+PR #7017 introduces:
 
-- Add nullable `sourceEstimateChangeOrderRecordId` on `JobBill` with FK + index.
-- Migrate.
+- `JobBillModel.generateInvoiceFromWorkOrder(jobId, currentUserId)` &mdash; guard on `job.jobType.jobClassification === "WorkOrder"` and `prisma.jobBill.findFirst({ where: { jobId, isDeleted: false } })` as its duplicate check.
+- `apps/frontend/src/components/WorkOrder/WOConversionConfirmModal.tsx` &mdash; `FC` arrow component, `useModal` from `@useanzen/ui`, `useQuery(WORK_ORDER_CONVERSION_PREVIEW)` for a labor / material / equipment preview, `useMutation(GENERATE_INVOICE_FROM_WORK_ORDER)` to fire.
+- `workOrderConversionPreview(jobId)` query that returns counts and totals by category (labor/material/equipment).
 
----
+**Decision: build a new `EstimateInvoiceConfirmModal.tsx` rather than reuse `WOConversionConfirmModal`.** The two flows diverge in three places that would bloat a shared component:
 
-## Step 2: Model method
+| Concern | WO (PR #7017) | Itemized estimate (IE-5) |
+|---|---|---|
+| Preview shape | 3 category counts/totals (labor/material/equipment) | Line count, line sell, line discounts, estimate discount, tax, grand total |
+| Duplicate guard | &ldquo;Any non-deleted `JobBill` on this `jobId`&rdquo; &mdash; broad | **`EstimateChangeOrderRecord.generatedJobBillId IS NULL`** &mdash; targeted to this estimate, coexists with Progress invoices on the same job |
+| Entry point | WO details page | Estimate details header (also surfaced in Billing area) |
 
-**File:** `JobBill` model or `InvoiceService`
+We keep the skeleton (FC + `useModal` + `useMutation` + Cancel/Confirm footer) consistent so the two modals feel like siblings, but we don't abstract a shared base &mdash; two call sites isn't enough.
 
-- Load estimate record + line items; validate status Won and permissions.
-- Map each line:
-  - `description` from line description
-  - `quantity` from line qty
-  - `rate` = `price / quantity` when qty &gt; 0 else `price`
-  - `value` = line `price`
-- Create header + lines in transaction; return new bill id.
+### Key design decisions
 
----
-
-## Step 3: GraphQL
-
-- Mutation `createInvoiceFromEstimate(estimateChangeOrderRecordId: ID!): JobBill` (shape per existing patterns).
-- Resolver delegates to model; thin resolver.
-
----
-
-## Step 4: Frontend
-
-- Button on estimate detail; hidden unless Won + invoice permission.
-- `ConversionConfirmationModal`-style summary: line count, total, job link.
-- On success: navigate to invoice detail or show toast + link.
+- **New FK columns on both sides, written in one transaction.** `EstimateChangeOrderRecord.generatedJobBillId` (nullable 1:1) *and* `JobBill.sourceEstimateChangeOrderRecordId` (nullable) are both set by the resolver in a single `prisma.$transaction`. Either side alone would be sufficient for the query; we keep both so lookups stay simple in either direction and so the JobBill knows its provenance for PDF footer / audit hooks later.
+- **Won status comes from `Instance.estimateChangeOrderWonStatusId`.** Never hardcoded. The resolver must re-read the instance config at mutation time to avoid bypass by a stale client payload.
+- **Button is hidden when gates fail.** The UI does not render a disabled button with a tooltip for the permission case &mdash; users without `JobBill: { create: true }` see no action at all. This keeps the &ldquo;insufficient billing permission&rdquo; error surface unreachable (the only path to that message now is a server bug).
+- **Post-generation, the action is replaced by a View invoice link.** In every surface that exposes the primary action (header toolbar, Billing area panel), the presence of `generatedJobBillId` swaps the button for `<a href="/jobs/:jobId/billing/:jobBillId">View invoice INV-XXXX &rarr;</a>`. Single-shot generation is enforced on both sides &mdash; UI hides it, server rejects it.
+- **No new preview query.** The estimate details view already has the full itemized tree + totals loaded via IE-2/IE-3. We pass the already-computed totals into the modal as props; no extra round trip. (PR #7017 needs the preview query because the WO tab doesn't otherwise load aggregate counts.)
+- **Mapping is one-to-one, flat.** Each itemized `EstimateLineItem` with `nodeType: LineItem` becomes one `JobBillLineItem`. Section / SubSection nodes are skipped &mdash; the invoice template is **Simple**, not hierarchical. Section names are *not* concatenated into the description (we considered it; the Simple bill is flat by definition and users can edit after creation).
+- **Per-line tax and discount carry over as a straight copy.** Both IE-1 and SD-1 are designed with this conversion in mind:
+    - IE-1 snapshots `taxValue` at write time ("makes IE-5 invoice conversion a straight copy"). IE-5 copies the `TaxType[]` connections + the cached `taxValue` directly onto the new `JobBillLineItem` &mdash; **not** recomputed, so the invoice reflects the exact tax basis the customer agreed to on the estimate.
+    - SD-1 lists `"JobBillLineItem"` and `"JobBill"` in the `DiscountAssignment.referenceModel` allowlist specifically to support this conversion (SD-1 plan line 714). IE-5 re-points per-line discounts at the new `JobBillLineItem.id` and estimate-level discounts at the new `JobBill.id` &mdash; same `discountId`, new reference row.
+    - `excludeTax` on `JobBillLineItem` stays at its default (`false`). IE-1 intentionally skipped it on the estimate line; we don't invent a value here.
 
 ---
 
-## UI / UX deliverables
+## Step 1: Schema migration &mdash; link columns
 
-Match `uis-IE-5-estimate-to-invoice.html` §3 (button + confirmation modal).
+**Create:** `apps/api/prisma/migrations/YYYYMMDDHHMMSS_add_estimate_invoice_link/migration.sql`
 
-### Visibility matrix
+Two nullable FKs. Both columns only exist to record a generated-invoice relationship; both are added nullable with no default and no backfill.
 
-| Condition | Generate invoice button |
-|-----------|-------------------------|
-| Status ≠ Won | Hidden or disabled |
-| `creationType` ≠ Itemized | Hidden |
-| Zero line items | Disabled |
-| No invoice permission | Hidden |
-| Bill already linked (if product blocks duplicate) | Disabled + tooltip |
+```sql
+-- EstimateChangeOrderRecord -> JobBill (the bill this estimate generated, if any)
+ALTER TABLE `EstimateChangeOrderRecord`
+    ADD COLUMN `generatedJobBillId` VARCHAR(21) NULL;
 
-### Modal contents
+ALTER TABLE `EstimateChangeOrderRecord`
+    ADD CONSTRAINT `EstimateChangeOrderRecord_generatedJobBillId_fkey`
+    FOREIGN KEY (`generatedJobBillId`) REFERENCES `JobBill`(`id`)
+    ON DELETE SET NULL ON UPDATE CASCADE;
 
-- Job name (default estimate job), line count, grand total; optional preview table (first N lines + ellipsis).
-- Primary **Create invoice**, secondary **Cancel**; same flow weighting as WO-7 conversion modal.
+CREATE UNIQUE INDEX `EstimateChangeOrderRecord_generatedJobBillId_key`
+    ON `EstimateChangeOrderRecord`(`generatedJobBillId`);
 
-### Post-success
+-- JobBill -> EstimateChangeOrderRecord (which estimate seeded this bill, if any)
+ALTER TABLE `JobBill`
+    ADD COLUMN `sourceEstimateChangeOrderRecordId` VARCHAR(21) NULL;
 
-- Navigate to `JobBill` detail (or open in flyout per existing billing UX).
+ALTER TABLE `JobBill`
+    ADD CONSTRAINT `JobBill_sourceEstimateChangeOrderRecordId_fkey`
+    FOREIGN KEY (`sourceEstimateChangeOrderRecordId`) REFERENCES `EstimateChangeOrderRecord`(`id`)
+    ON DELETE SET NULL ON UPDATE CASCADE;
+
+CREATE INDEX `JobBill_sourceEstimateChangeOrderRecordId_idx`
+    ON `JobBill`(`sourceEstimateChangeOrderRecordId`);
+```
+
+**Why `UNIQUE` on `generatedJobBillId`:** enforces &ldquo;one estimate generates at most one invoice&rdquo; at the database layer. A concurrent duplicate call in a race condition will fail with a unique constraint violation; the resolver wraps that into the retry-friendly error.
+
+**Why `ON DELETE SET NULL`:** if the bill is hard-deleted (rare &mdash; bills soft-delete via `isDeleted`), we don't want to cascade-delete the estimate. Same in reverse.
+
+### Prisma schema edits
+
+**Modify:** `apps/api/prisma/schema.prisma`
+
+```prisma
+model EstimateChangeOrderRecord {
+  // ... existing fields ...
+  generatedJobBillId String?  @unique @db.VarChar(21)
+  GeneratedJobBill   JobBill? @relation("EstimateGeneratedJobBill", fields: [generatedJobBillId], references: [id])
+}
+
+model JobBill {
+  // ... existing fields ...
+  sourceEstimateChangeOrderRecordId String?                    @db.VarChar(21)
+  SourceEstimateChangeOrderRecord   EstimateChangeOrderRecord? @relation("EstimateGeneratedJobBill", fields: [sourceEstimateChangeOrderRecordId], references: [id])
+
+  @@index([sourceEstimateChangeOrderRecordId])
+}
+```
+
+**Naming:** use the same relation name (`EstimateGeneratedJobBill`) on both sides so Prisma wires them as one relation. The `@unique` on the ECR side makes it 1:1; the reverse side is already 1:1 by consequence.
+
+Run `pnpm --filter api prisma:format` + `pnpm --filter api prisma:validate` after editing.
 
 ---
 
-## Checklist
+## Step 2: API &mdash; `JobBillModel.createInvoiceFromEstimate`
 
-- [ ] Idempotency strategy documented (block duplicate invoice vs allow — product call)
-- [ ] Audit log / activity entry
-- [ ] E2E: won estimate → invoice lines match rounded totals
+**Modify:** `apps/api/src/models/JobBill.ts`
+
+Add a new method next to the existing `generateInvoiceFromWorkOrder` (the PR #7017 sibling method). Borrow its structure; substitute the guards and line resolver.
+
+```ts
+public async createInvoiceFromEstimate(
+    estimateChangeOrderRecordId: string,
+    currentUserId: string
+): Promise<FullModel<IJobBill>> {
+    const estimate = await prisma.estimateChangeOrderRecord.findUnique({
+        where: { id: estimateChangeOrderRecordId },
+        select: {
+            id: true,
+            jobId: true,
+            type: true,
+            statusId: true,
+            creationType: true,
+            generatedJobBillId: true,
+            isDeleted: true,
+            isArchived: true
+        }
+    });
+
+    if (!estimate || estimate.isDeleted || estimate.isArchived) {
+        throw new Error("Estimate not found.");
+    }
+    if (estimate.type !== "Estimate") {
+        throw new Error("Only Estimates (not Change Orders) can generate invoices.");
+    }
+    if (estimate.creationType !== "Itemized") {
+        throw new Error("Only Itemized estimates can generate invoices via this flow.");
+    }
+    if (!estimate.jobId) {
+        throw new Error("Estimate has no associated Job.");
+    }
+    if (estimate.generatedJobBillId) {
+        throw new Error("An invoice has already been generated for this estimate.");
+    }
+
+    // Won status is instance-configured, never hardcoded.
+    const instance = await prisma.instance.findFirstOrThrow({
+        select: { estimateChangeOrderWonStatusId: true }
+    });
+    if (estimate.statusId !== instance.estimateChangeOrderWonStatusId) {
+        throw new Error("Estimate must be in the Won status to generate an invoice.");
+    }
+
+    // Pull the flat itemized tree; keep only leaf LineItem nodes for the Simple bill.
+    // Include TaxType connections so we can mirror them onto JobBillLineItem rows.
+    const lineItems = await prisma.itemizedEstimateChangeOrderRecordLineItem.findMany({
+        where: {
+            estimateChangeOrderRecordId,
+            nodeType: "LineItem",
+            isDeleted: false,
+            isArchived: false
+        },
+        orderBy: [{ parentId: "asc" }, { orderNo: "asc" }],
+        include: {
+            TaxType: { select: { id: true } }
+        }
+    });
+    if (lineItems.length === 0) {
+        throw new Error("Estimate has no line items to invoice.");
+    }
+
+    // Pull all DiscountAssignment rows targeting this estimate: the estimate-level
+    // stack (referenceModel = "EstimateChangeOrderRecord") and every per-line discount
+    // (referenceModel = "ItemizedEstimateChangeOrderRecordLineItem") for our line set.
+    // Single query, filtered in-memory — avoids N round trips inside the transaction.
+    const lineItemIds = lineItems.map((l) => l.id);
+    const discountAssignments = await prisma.discountAssignment.findMany({
+        where: {
+            isDeleted: false,
+            OR: [
+                { referenceModel: "EstimateChangeOrderRecord", referenceId: estimate.id },
+                {
+                    referenceModel: "ItemizedEstimateChangeOrderRecordLineItem",
+                    referenceId: { in: lineItemIds }
+                }
+            ]
+        },
+        select: { id: true, discountId: true, referenceModel: true, referenceId: true }
+    });
+
+    const perLineDiscounts = new Map<string, typeof discountAssignments>();
+    const estimateLevelDiscounts: typeof discountAssignments = [];
+    for (const da of discountAssignments) {
+        if (da.referenceModel === "EstimateChangeOrderRecord") {
+            estimateLevelDiscounts.push(da);
+        } else {
+            const bucket = perLineDiscounts.get(da.referenceId) ?? [];
+            bucket.push(da);
+            perLineDiscounts.set(da.referenceId, bucket);
+        }
+    }
+
+    // Create bill + mirror estimate-level discounts + create lines + mirror per-line
+    // tax and discounts + link both sides — all atomic.
+    return prisma.$transaction(async (tx) => {
+        const bill = await this.customCreateItem(
+            {
+                jobId: estimate.jobId!,
+                template: "Simple",
+                invoiceDate: new Date(),
+                submittedByUserId: currentUserId,
+                sourceEstimateChangeOrderRecordId: estimate.id
+            },
+            [],
+            currentUserId,
+            true,
+            tx
+        );
+
+        // Estimate-level discounts → JobBill-level discounts (same discountId, new
+        // referenceModel/referenceId). Preserves the exact stack the customer agreed to.
+        for (const da of estimateLevelDiscounts) {
+            await tx.discountAssignment.create({
+                data: {
+                    id: nanoid(),
+                    discountId: da.discountId,
+                    referenceModel: "JobBill",
+                    referenceId: bill.id
+                }
+            });
+        }
+
+        const lineItemModel = new JobBillLineItemModel();
+        for (const item of lineItems) {
+            const quantity = Number(item.quantity ?? 1);
+            const unitSell = Number(item.unitSell ?? 0);
+
+            // Create the bill line with the cached taxValue copied verbatim — IE-1 designs
+            // taxValue as a write-time snapshot so we do NOT recompute here.
+            const billLine = await lineItemModel.createItem(
+                {
+                    jobBillId: bill.id,
+                    description: item.description ?? "",
+                    quantity,
+                    rate: unitSell,
+                    value: quantity * unitSell,
+                    taxValue: item.taxValue ?? null
+                },
+                currentUserId,
+                tx
+            );
+
+            // Mirror the TaxType M2M connection set (same tax rules, same snapshot).
+            const taxTypeIds = item.TaxType.map((t) => t.id);
+            if (taxTypeIds.length > 0) {
+                await tx.jobBillLineItem.update({
+                    where: { id: billLine.id },
+                    data: {
+                        TaxType: { connect: taxTypeIds.map((id) => ({ id })) }
+                    }
+                });
+            }
+
+            // Mirror per-line DiscountAssignment rows onto the new JobBillLineItem.
+            const lineDiscounts = perLineDiscounts.get(item.id) ?? [];
+            for (const da of lineDiscounts) {
+                await tx.discountAssignment.create({
+                    data: {
+                        id: nanoid(),
+                        discountId: da.discountId,
+                        referenceModel: "JobBillLineItem",
+                        referenceId: billLine.id
+                    }
+                });
+            }
+        }
+
+        await tx.estimateChangeOrderRecord.update({
+            where: { id: estimate.id },
+            data: { generatedJobBillId: bill.id }
+        });
+
+        return bill;
+    });
+}
+```
+
+**Transaction scope:** bill creation, line item inserts, and the ECR back-link update all share one `tx`. If any step throws, the unique constraint on `generatedJobBillId` is never written and the estimate stays clean for a retry. If two tabs fire at the same instant, the second transaction's `update` on `generatedJobBillId` loses the unique race and surfaces the generic retry error.
+
+**`customCreateItem` and `createItem` signatures:** PR #7017 calls these *without* the fifth `tx` argument. If they don't currently accept a Prisma transaction client, wrap the bill / line item writes in explicit `tx.jobBill.create(...)` / `tx.jobBillLineItem.createMany(...)` calls inside the transaction instead &mdash; we must not leave writes outside the transaction. Confirm against the WO sibling when it lands.
+
+### Line item field mapping
+
+| `ItemizedEstimateChangeOrderRecordLineItem` | `JobBillLineItem` | Notes |
+|---|---|---|
+| `description` | `description` | Direct copy |
+| `quantity` | `quantity` | Numeric |
+| `unitSell` | `rate` | Client-facing unit price from IE-1 schema |
+| `quantity * unitSell` | `value` | Re-derive rather than trusting a cached total column |
+| `taxValue` | `taxValue` | **Verbatim copy of the IE-1 snapshot** &mdash; do not recompute |
+| `TaxType[]` (M2M `"ItemizedEstimateLineItemToTaxType"`) | `TaxType[]` (M2M `"JobBillLineItemToTaxType"`) | `connect` the same `TaxType.id` set; preserves stacked / compound tax definitions |
+| `DiscountAssignment` rows where `referenceModel = "ItemizedEstimateChangeOrderRecordLineItem"` and `referenceId = lineItem.id` | New `DiscountAssignment` rows with `referenceModel = "JobBillLineItem"`, same `discountId` | One row per source row; cloned, not moved |
+
+### Estimate-level discount mapping
+
+| Source | Target | Notes |
+|---|---|---|
+| `DiscountAssignment` rows where `referenceModel = "EstimateChangeOrderRecord"` and `referenceId = estimate.id` | New `DiscountAssignment` rows with `referenceModel = "JobBill"`, same `discountId` | Attaches to the bill header, not per line &mdash; matches how the estimate-level stack renders in IE-3 |
+
+**Section / SubSection nodes** (`nodeType !== "LineItem"`) are skipped outright &mdash; Simple bills are flat by definition. Per-line tax and discount *snapshots* live on the `LineItem` nodes in IE-1, so no data is lost by filtering out parent nodes.
+
+**Why copy tax/discount rather than skip?** Both IE-1 and SD-1 explicitly design for this:
+- IE-1 line 71 on `taxValue`: *&ldquo;a write-time snapshot&hellip; Preserves estimates as point-in-time documents and makes IE-5 invoice conversion a straight copy.&rdquo;*
+- SD-1 plan line 714: *&ldquo;IE-5 invoice conversion copies `DiscountAssignment` rows pointing at an estimate and its lines onto the new `JobBill` and `JobBillLineItem` rows &mdash; same polymorphic shape, new `referenceId` values.&rdquo;*
+
+If we skipped tax/discount the customer would see an invoice whose math diverges from the estimate they approved &mdash; unacceptable. The snapshot-copy approach guarantees the bill subtotal, tax, and discount all match the signed estimate even if the underlying `TaxTypeItem` rates or `Discount.percentage` change later.
 
 ---
 
-## Integration / E2E test scenarios
+## Step 3: GraphQL resolver + schema
 
-1. **Happy path:** Won + Itemized + 6 lines → open confirm modal → Create → assert `jobBillId` returned → navigate to bill → 6 `JobBillLineItem` rows; amounts match estimate line `price` / rate rules.
-2. **Guardrails:** Draft estimate → **Generate invoice** hidden/disabled; zero lines → disabled.
-3. **Permission:** User without bill create → button hidden; mutation returns forbidden.
-4. **Error path:** Force API 500 → modal shows error + **Retry**; estimate unchanged.
-5. **Duplicate guard (if enabled):** Create invoice once → second attempt shows disabled button + link to existing bill.
-6. **Traceability:** When `sourceEstimateChangeOrderRecordId` exists on `JobBill`, assert set correctly after mutation.
+**Modify:** `apps/api/src/graphql/models/JobBill.ts`
+
+Add mutation definition and resolver. Expose the new FK + relation.
+
+```ts
+// Add to the SDL block that defines JobBill type:
+type JobBill {
+    # ... existing fields ...
+    sourceEstimateChangeOrderRecordId: ID
+    SourceEstimateChangeOrderRecord: EstimateChangeOrderRecord
+}
+
+type Mutation {
+    # ... existing mutations ...
+    createInvoiceFromEstimate(estimateChangeOrderRecordId: ID!): JobBill!
+}
+```
+
+```ts
+Mutation: {
+    // ... existing resolvers ...
+    createInvoiceFromEstimate: (_, args, context) =>
+        new JobBillModel().createInvoiceFromEstimate(
+            args.estimateChangeOrderRecordId,
+            context.userId()
+        )
+}
+```
+
+**Permission enforcement:** the existing `JobBillModel` inherits `BaseAuditableModel`, which runs `create` permission checks via `customCreateItem`. That's enough for the server-side guard &mdash; `customCreateItem` will throw if the user lacks `JobBill: { create: true }`. No additional explicit check needed.
+
+**Modify:** `apps/api/src/graphql/models/EstimateChangeOrderRecord.ts`
+
+Expose `generatedJobBillId` + `GeneratedJobBill` relation so the UI can read &ldquo;has this estimate already produced an invoice?&rdquo; in one query.
+
+```ts
+type EstimateChangeOrderRecord {
+    # ... existing fields ...
+    generatedJobBillId: ID
+    GeneratedJobBill: JobBill
+}
+```
+
+No resolver function needed beyond the default Prisma wiring &mdash; both FK and relation are auto-resolved.
+
+---
+
+## Step 4: New confirmation modal
+
+**Create:** `apps/frontend/src/components/EstimateChangeOrder/EstimateInvoiceConfirmModal.tsx`
+
+Mirror the skeleton of `WOConversionConfirmModal` so the two modals feel like siblings. The details page already has the summary numbers from IE-3's engine &mdash; pass them as props rather than firing a preview query.
+
+```tsx
+import { FC, useState } from "react";
+import { ClassNames, formatValueAsCurrency } from "@useanzen/shared-utils";
+import { Button, useModal } from "@useanzen/ui";
+import { gql, useMutation } from "@apollo/client";
+import { useNotification } from "~root/hooks";
+
+interface IEstimateInvoiceConfirmModalProps {
+    className?: string | ClassNames;
+    estimateChangeOrderRecordId: string;
+    jobId: string;
+    jobDisplay: string;      // e.g. "2026-0142 ACME Retail TI"
+    lineCount: number;
+    grandTotal: number;
+    onConfirmed?: (createdJobBillId: string) => void;
+}
+
+const EstimateInvoiceConfirmModal: FC<IEstimateInvoiceConfirmModalProps> = ({
+    className = "",
+    estimateChangeOrderRecordId,
+    jobId,
+    jobDisplay,
+    lineCount,
+    grandTotal,
+    onConfirmed
+}) => {
+    // Context
+    const { closeModal } = useModal();
+    const { notify } = useNotification();
+
+    // State
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+    // Hooks
+    const [createInvoiceFromEstimate] = useMutation<{
+        createInvoiceFromEstimate: { id: string };
+    }>(CREATE_INVOICE_FROM_ESTIMATE);
+
+    // Functions
+    const handleConfirm = async () => {
+        setIsSubmitting(true);
+        setErrorMessage(null);
+        try {
+            const res = await createInvoiceFromEstimate({
+                variables: { estimateChangeOrderRecordId }
+            });
+            const createdId = res.data?.createInvoiceFromEstimate?.id;
+            if (!createdId) {
+                throw new Error("Invoice was not created.");
+            }
+            notify.success("Invoice generated from estimate");
+            closeModal();
+            onConfirmed?.(createdId);
+        } catch (err) {
+            // Server guards produce specific messages; fall back to generic retry copy
+            // so we never surface "insufficient billing permission" (unreachable path).
+            setErrorMessage("Couldn't create invoice — please try again.");
+            setIsSubmitting(false);
+        }
+    };
+
+    return (
+        <div className={new ClassNames("bg-white rounded-md").add(className).list()}>
+            <div className="flex items-center justify-between p-6 text-lg font-semibold uppercase border-b border-gray-300">
+                Create Simple invoice from estimate?
+            </div>
+            <div className="p-6 space-y-3 text-sm text-gray-700">
+                <p>Job: <strong>{jobDisplay}</strong></p>
+                <p>
+                    Lines: <strong>{lineCount}</strong> · Total:{" "}
+                    <strong>${formatValueAsCurrency(grandTotal, true)}</strong>
+                </p>
+                <p className="italic text-gray-500">
+                    Taxes/fees follow existing Simple JobBill rules. The estimate status will
+                    remain unchanged — this action cannot be undone.
+                </p>
+                {errorMessage && (
+                    <div className="px-3 py-2 text-xs border rounded bg-danger-light text-danger border-danger">
+                        {errorMessage}{" "}
+                        <button
+                            type="button"
+                            onClick={handleConfirm}
+                            className="ml-2 font-semibold underline"
+                        >
+                            Retry
+                        </button>
+                    </div>
+                )}
+            </div>
+            <div className="flex justify-end p-6 space-x-4 border-t border-gray-200">
+                <Button noStyles onClick={() => closeModal()} disabled={isSubmitting}>
+                    Cancel
+                </Button>
+                <Button onClick={handleConfirm} disabled={lineCount === 0 || isSubmitting}>
+                    {isSubmitting ? "Creating…" : "Create invoice"}
+                </Button>
+            </div>
+        </div>
+    );
+};
+
+const CREATE_INVOICE_FROM_ESTIMATE = gql`
+    mutation CreateInvoiceFromEstimate($estimateChangeOrderRecordId: ID!) {
+        createInvoiceFromEstimate(estimateChangeOrderRecordId: $estimateChangeOrderRecordId) {
+            id
+            invoiceNumber
+            jobId
+        }
+    }
+`;
+
+export default EstimateInvoiceConfirmModal;
+export { EstimateInvoiceConfirmModal };
+```
+
+**Error copy is deliberately generic.** The spec forbids surfacing &ldquo;insufficient billing permission&rdquo; &mdash; that gate fires at button visibility, not at the modal. Any error that reaches this handler is a server bug or a race. The retry button re-fires the same mutation (the race-loser case self-heals after the winner's transaction commits and the client re-reads `generatedJobBillId`).
+
+---
+
+## Step 5: Wire into `EstimateChangeOrderDetails`
+
+**Modify:** `apps/frontend/src/components/DetailsPage/JobDetailsPage/Tabs/EstimatesAndChangeOrders/EstimateChangeOrderDetails.tsx`
+
+### 5a: Extend the detail query
+
+The details page already fetches the estimate via `GetEstimateChangeOrderDetails` (see around line 2368). Add the three new fields:
+
+```graphql
+query GetEstimateChangeOrderDetails($id: ID!, $options: GetListOptions) {
+    estimateChangeOrderRecord(id: $id) {
+        # ... existing fields ...
+        statusId
+        creationType
+        generatedJobBillId
+        GeneratedJobBill {
+            id
+            invoiceNumber
+        }
+    }
+}
+```
+
+Also ensure the instance-setting hook (`useAuth` / `useSettings` context) exposes `estimateChangeOrderWonStatusId` — it's already on `Instance` in the schema, so the existing settings context should already surface it. Verify via:
+
+```bash
+grep -n "estimateChangeOrderWonStatusId" apps/frontend/src/components/Settings
+```
+
+If not already read into the settings context, add it to the existing `instanceSetting.query.graphql` selection.
+
+### 5b: Action selector in the header
+
+Inside the `EstimateChangeOrderDetails` component, compute the three-way action state:
+
+```tsx
+// Constants
+const wonStatusId = settings?.estimateChangeOrderWonStatusId; // from SettingsContext
+const canCreateJobBill = hasPermissions({ JobBill: { create: true } }, permissions);
+const isWon = data?.estimateChangeOrderRecord.statusId === wonStatusId;
+const isItemized = data?.estimateChangeOrderRecord.creationType === "Itemized";
+const hasInvoice = Boolean(data?.estimateChangeOrderRecord.generatedJobBillId);
+const lineCount = itemizedTotals?.lineCount ?? 0; // from IE-3 engine output already in scope
+
+const invoiceAction: "generate" | "view" | "hidden" =
+    !isItemized || type !== "Estimate"
+        ? "hidden"
+        : hasInvoice
+          ? "view"
+          : isWon && canCreateJobBill && lineCount > 0
+            ? "generate"
+            : "hidden";
+```
+
+Render in the header action row (alongside Export PDF / Duplicate):
+
+```tsx
+{invoiceAction === "generate" && (
+    <Button
+        onClick={() =>
+            openModal(
+                <EstimateInvoiceConfirmModal
+                    estimateChangeOrderRecordId={id!}
+                    jobId={jobId}
+                    jobDisplay={job?.fullJobNumber ?? ""}
+                    lineCount={lineCount}
+                    grandTotal={itemizedTotals.grandTotal}
+                    onConfirmed={(jobBillId) => {
+                        refetch();
+                        router.push(`/jobs/${jobId}/billing?jobBillId=${jobBillId}`);
+                    }}
+                />
+            )
+        }
+    >
+        Generate invoice
+    </Button>
+)}
+{invoiceAction === "view" && (
+    <Link
+        href={`/jobs/${jobId}/billing?jobBillId=${data.estimateChangeOrderRecord.generatedJobBillId}`}
+        className="inline-flex items-center px-4 py-2 text-sm font-semibold rounded border border-info text-info"
+    >
+        View invoice {data.estimateChangeOrderRecord.GeneratedJobBill?.invoiceNumber ?? ""} →
+    </Link>
+)}
+{/* invoiceAction === "hidden" renders nothing */}
+```
+
+**Don't render the button and disable it.** When gates fail we render nothing. A disabled button with a tooltip exists only in the 3.4 view-invoice state — and in that state it's already been replaced with the link, not a disabled button.
+
+### 5c: Billing area placement (same rules)
+
+If the Billing sub-section of `EstimateChangeOrderDetails` also exposes &ldquo;actions for this estimate,&rdquo; apply the same three-way action state there. One computation, two render sites &mdash; keep the decision in a single `useMemo` at the top of the component.
+
+---
+
+## Step 6: Post-generation navigation
+
+The spec (3.2) requires: close modal, success toast, navigate to the bill. Implemented via `onConfirmed` in 5b &mdash; `router.push` deep-links to the Billing tab with the new bill selected, and `refetch()` re-reads the estimate so the header immediately flips to the View invoice link (also protects against the user navigating back).
+
+No separate success banner needed &mdash; `notify.success` inside the modal already fires before `closeModal()`.
+
+---
+
+## Step 7: Verification checklist
+
+- [ ] Prisma validate passes: `pnpm --filter api prisma:validate`
+- [ ] Prisma schema formatted: `pnpm --filter api prisma:format`
+- [ ] Migration SQL cleaned: `pnpm --filter api prisma:cleanMigrationFile`
+- [ ] API TypeScript compiles: `pnpm --filter api build`
+- [ ] Frontend TypeScript compiles: `pnpm --filter frontend build`
+- [ ] Codegen refreshed after schema changes: `pnpm run codegen`
+- [ ] `generatedJobBillId` UNIQUE constraint visible in generated SQL
+- [ ] Both sides of the FK share the same Prisma relation name (`EstimateGeneratedJobBill`)
+- [ ] Resolver re-reads `Instance.estimateChangeOrderWonStatusId` at call time &mdash; no client-trust on `isWon`
+- [ ] Bill + line items + ECR link update + TaxType connects + DiscountAssignment inserts all inside a single `prisma.$transaction`
+- [ ] Per-line `taxValue` is copied verbatim from the IE-1 snapshot &mdash; **no** tax recompute on the bill
+- [ ] Per-line `TaxType[]` connections on the new `JobBillLineItem` match the source `ItemizedEstimateChangeOrderRecordLineItem.TaxType` set exactly
+- [ ] Per-line `DiscountAssignment` rows cloned from `referenceModel: "ItemizedEstimateChangeOrderRecordLineItem"` to `referenceModel: "JobBillLineItem"`, same `discountId`
+- [ ] Estimate-level `DiscountAssignment` rows cloned from `referenceModel: "EstimateChangeOrderRecord"` to `referenceModel: "JobBill"`, same `discountId`
+- [ ] `customCreateItem` / `JobBillLineItemModel.createItem` accept the `tx` parameter (or writes refactored to `tx.*` directly if not)
+- [ ] UI action selector renders exactly one of: Generate button, View link, nothing &mdash; never a disabled Generate button
+- [ ] Error handler never displays server error text to the user &mdash; only the generic retry message
+- [ ] `SourceEstimateChangeOrderRecord` relation exposed on `JobBill` in GraphQL schema
+- [ ] `GeneratedJobBill` relation exposed on `EstimateChangeOrderRecord` in GraphQL schema
+- [ ] No tabs (bun `fileChecker`), no `console.log`, files end with newline
+
+---
+
+## Step 8: E2E scenarios
+
+1. **Happy path.** Itemized estimate with 6 lines, status = Won, user has `JobBill.create`. Click Generate invoice → modal shows &ldquo;6 lines / $7,606.54&rdquo; → Confirm → toast + navigate to bill detail. Returning to estimate shows View invoice INV-&lt;number&gt; → link, no Generate button.
+2. **Not Won.** Same estimate in Draft. Primary action section renders nothing. Flipping status to Won (via existing status dropdown) reveals Generate invoice without refresh (query already re-reads on status change).
+3. **Full creationType.** Full (non-itemized) estimate. Action section renders nothing regardless of status.
+4. **Change Order type.** Same fields but `type === "ChangeOrder"`. Action section renders nothing.
+5. **Zero lines.** Itemized estimate, Won, zero `EstimateLineItem` rows with `nodeType: LineItem`. Action renders nothing (caught by `lineCount > 0`). Server also rejects if somehow invoked.
+6. **No permission.** User lacks `JobBill.create`. Action section renders nothing. If the mutation is invoked via a hand-crafted request, server returns a permission error &mdash; UI never sees it because nothing invokes it.
+7. **Already generated.** `generatedJobBillId` is set. Action renders View invoice link only. Clicking it deep-links to the Billing tab with that bill selected.
+8. **Concurrent-click race.** Two browser tabs, both show Generate. Tab A clicks first, transaction commits, `generatedJobBillId` set. Tab B clicks &mdash; unique-constraint violation caught server-side, resolver throws, modal shows generic retry. Retry re-fetches the ECR, sees `generatedJobBillId`, closes modal and the button is gone next render.
+9. **Mid-flow status change.** User opens modal while Won, another user flips status to Lost before Confirm. Resolver re-reads status at mutation time, rejects, modal shows generic retry.
+10. **Instance `estimateChangeOrderWonStatusId` change.** Admin changes the Won status definition while the modal is open. Same as #9 &mdash; resolver resolves against the current instance setting, not the client's.
+11. **Tax snapshot carry-over.** Line with two stacked `TaxType` rows (e.g. GST 5% + PST 7%) and `taxValue = $72.00` on the estimate. After generation, the matching `JobBillLineItem` has the same two `TaxType` rows connected and `taxValue = $72.00` unchanged. Do **not** observe a tax recompute against current `TaxTypeItem` rates.
+12. **Estimate-time vs current rate divergence.** Before generation, admin edits a `TaxTypeItem` from 5% → 6%. Generate invoice. Bill line's `taxValue` still reflects the estimate-time 5% snapshot &mdash; proves the copy is verbatim, not recomputed.
+13. **Per-line discount carry-over.** Line with a `DiscountAssignment` (10% off). After generation, a new `DiscountAssignment` exists with the same `discountId`, `referenceModel = "JobBillLineItem"`, and `referenceId = newJobBillLineItem.id`. Source row untouched.
+14. **Estimate-level discount stack carry-over.** Estimate has two `DiscountAssignment` rows at the estimate level (e.g. 5% loyalty + $100 flat). After generation, two new rows exist on the `JobBill`: `referenceModel = "JobBill"`, `referenceId = newJobBill.id`, same two `discountId` values. Per-line discounts are still separate from these.
+15. **No tax / no discount.** Line with `taxValue = null`, no `TaxType` connections, no `DiscountAssignment` rows. Invoice line has `taxValue = null`, empty `TaxType[]`, no discount rows. No spurious inserts.
+16. **Mixed line set.** Estimate with 6 lines &mdash; 2 taxed, 1 discounted, 1 both, 2 clean. Each `JobBillLineItem` mirrors only its own line's tax/discount state; cross-contamination is impossible because the per-line discount map is keyed by source line id.
+17. **PDF footprint.** The spec does not require the generated bill's PDF to reference the source estimate. If stakeholders want that later, it's a straight follow-up hanging off `sourceEstimateChangeOrderRecordId` &mdash; no schema change needed.
 
 ---
 
 ## Files Summary
 
-| Action | File |
-|--------|------|
-| MODIFY | `apps/api/prisma/schema.prisma` |
-| MODIFY | `apps/api/src/models/JobBill.ts` (or invoice service) |
-| MODIFY | `apps/api/src/graphql/models/JobBill.ts` |
-| MODIFY | `apps/frontend/src/.../EstimateChangeOrderDetails.tsx` |
+### Created (2)
+- `apps/api/prisma/migrations/YYYYMMDDHHMMSS_add_estimate_invoice_link/migration.sql`
+- `apps/frontend/src/components/EstimateChangeOrder/EstimateInvoiceConfirmModal.tsx`
 
+### Modified (5)
+- `apps/api/prisma/schema.prisma` &mdash; add `generatedJobBillId` on `EstimateChangeOrderRecord`, `sourceEstimateChangeOrderRecordId` on `JobBill`, shared relation `EstimateGeneratedJobBill`
+- `apps/api/src/models/JobBill.ts` &mdash; add `createInvoiceFromEstimate(estimateId, userId)`
+- `apps/api/src/graphql/models/JobBill.ts` &mdash; add mutation SDL + resolver; expose `SourceEstimateChangeOrderRecord` on `JobBill` type
+- `apps/api/src/graphql/models/EstimateChangeOrderRecord.ts` &mdash; expose `generatedJobBillId` + `GeneratedJobBill` on `EstimateChangeOrderRecord` type
+- `apps/frontend/src/components/DetailsPage/JobDetailsPage/Tabs/EstimatesAndChangeOrders/EstimateChangeOrderDetails.tsx` &mdash; extend query, compute action state, render Generate / View / nothing
+
+### Not touched
+- `WOConversionConfirmModal.tsx` &mdash; referenced as the sibling pattern but not imported, not extended, not generalized
+- Any PDF template files &mdash; the Simple bill uses existing Simple-template rendering; no special treatment for estimate-sourced bills
 </script>
-
 <script src="plan-renderer.js"></script>
 <script>renderPlan();</script>
 </body>

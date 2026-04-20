@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UIS-15H-0: Equipment Assignment Billing Context + Override Permissions — Implementation Plan</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+.in-iframe .top-nav { display: none !important; }
+.top-nav { position: sticky; top: 0; z-index: 100; background: #0f172a; border-bottom: 1px solid #1e293b; padding: 0 24px; display: flex; align-items: center; gap: 0; }
+.top-nav a { display: inline-flex; align-items: center; padding: 12px 18px; font-size: 13px; font-weight: 600; color: #94a3b8; text-decoration: none; border-bottom: 2px solid transparent; transition: all 0.15s; white-space: nowrap; }
+.top-nav a:hover { color: #f8fafc; background: #1e293b; }
+.top-nav .nav-logo { font-size: 11px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: #475569; padding-right: 18px; margin-right: 4px; border-right: 1px solid #1e293b; }
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Inter', -apple-system, sans-serif; background: #f8fafc; color: #0f172a; }
+.plan-wrap { max-width: 880px; margin: 0 auto; padding: 40px 24px 80px; }
+h1 { font-size: 24px; font-weight: 800; margin: 0 0 16px; }
+h2 { font-size: 18px; font-weight: 700; margin: 28px 0 12px; padding-bottom: 8px; border-bottom: 2px solid #e2e8f0; }
+h3 { font-size: 15px; font-weight: 700; margin: 20px 0 8px; padding-top: 10px; border-top: 1px solid #f1f5f9; }
+h4 { font-size: 14px; font-weight: 700; margin: 14px 0 6px; }
+p { font-size: 14px; color: #334155; line-height: 1.7; margin: 6px 0; }
+ul, ol { padding-left: 20px; margin: 8px 0; }
+li { font-size: 14px; color: #334155; line-height: 1.7; margin: 3px 0; }
+strong { color: #0f172a; }
+code { font-family: 'SF Mono', monospace; background: #f1f5f9; padding: 1px 6px; border-radius: 4px; font-size: 12px; color: #7c3aed; }
+pre { background: #0f172a; color: #f8fafc; border-radius: 8px; padding: 16px; overflow-x: auto; font-size: 13px; line-height: 1.6; margin: 12px 0; font-family: 'SF Mono', monospace; }
+pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
+hr { border: none; border-top: 1px solid #e2e8f0; margin: 24px 0; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 12px 0; }
+th { text-align: left; padding: 8px 12px; background: #f1f5f9; border-bottom: 2px solid #e2e8f0; font-weight: 600; }
+td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
+.check-item { display: flex; gap: 8px; align-items: flex-start; padding: 5px 0; }
+.check-box { width: 16px; height: 16px; border: 2px solid #cbd5e1; border-radius: 3px; flex-shrink: 0; margin-top: 2px; }
+.callout { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 14px 18px; margin: 14px 0; font-size: 13px; color: #1e40af; }
+.callout strong { color: #1e3a8a; }
+    </style>
+</head>
+<body>
+
+<script>if(self!==top)document.documentElement.classList.add("in-iframe")</script>
+<nav class="top-nav">
+    <span class="nav-logo">Appello SDLC</span>
+    <a href="../index.html">Roadmap</a>
+    <a href="../release-1.33-timeline.html">Release 1.33</a>
+    <a href="../release-1.34-timeline.html">Release 1.34</a>
+    <a href="../master-spec-reconciliation.html">Spec Reconciliation</a>
+    <a href="../cross-release-continuity-audit.html">Continuity Audit</a>
+    <a href="ui-interface-library.html">UI Library</a>
+</nav>
+<div class="plan-wrap" id="rendered"></div>
+
+<script type="text/plain" id="plan-md">
+# UIS-15H-0: Equipment Assignment Billing Context + Override Permissions — Implementation Plan
+
+## Overview
+
+A small backend-only prerequisite plan that runs **directly before UIS-15H**. EQ-0 has already shipped `EquipmentTimeEntry`, `EquipmentTimeEntryCostCode`, and the base permission set. This plan adds the additional schema, permissions, and model behaviour that UIS-15H depends on but which are not part of EQ-0's scope:
+
+1. Billing-context fields on the existing `EquipmentAssignment` model (`per`, `operatorIncluded`, `isFullDayBilling`) so the assignment becomes the source of truth for defaults.
+2. Override columns on `EquipmentTimeEntry` (`overridePer`, `overrideOperatorIncluded`, `overrideIsFullDayBilling`) — mirrors the `overrideTravelValue` / `overrideBoardValue` / `overrideParkingValue` pattern on `TimeSheetRecord`.
+3. Two new permissions: `EquipmentTimeEntry___OverridePresets` (who can write the override columns) and `EquipmentTimeEntry___LogTimeToUnassignedEquipment` (who can reference equipment with no active assignment).
+4. Hydration + permission enforcement in `upsertEquipmentTimeEntry` / `upsertManyEquipmentTimeEntries`.
+
+**No UI work** — UIS-15H consumes the schema and permissions. UIS-15C adds the billing-context controls to the `EquipmentAssignment` edit form alongside its Attachments multi-select.
+
+**Estimated effort:** 1-1.5 days
+**Risk:** Low — additive schema change on existing models, new permissions default-denied
+**Spec:** `appello-sdlc/docs/uis-15h-equipment-timesheet-capture.html` — "Billing Context — Confirmed Decisions" section
+**Requires:** EQ-0 (already shipped)
+**Enables:** UIS-15H (Equipment Timesheet UI), UIS-15C (EquipmentAssignment form fields)
+
+---
+
+## Step 1: Prisma Schema Additions
+
+**File:** `apps/api/prisma/schema.prisma`
+
+### 1a. EquipmentAssignment — billing context fields
+
+```prisma
+model EquipmentAssignment {
+  // ... existing fields (id, userId, equipmentId, checkoutJobId, checkoutDateTime, etc.) ...
+
+  // Billing context — drives EquipmentTimeEntry defaults for rate resolution.
+  // Nullable so existing rows back-fill cleanly; resolution falls back to
+  // Job.equipmentFullDayBilling / LEM-2 defaults when unset.
+  per                 String?   // HOUR | DAY | WEEK | MONTH | YEAR
+  operatorIncluded    Boolean?
+  isFullDayBilling    Boolean?
+}
+```
+
+### 1b. EquipmentTimeEntry — override columns
+
+```prisma
+model EquipmentTimeEntry {
+  // ... existing fields from EQ-0 (id, equipmentId, jobId, per, operatorIncluded, isFullDayBilling, ...) ...
+
+  // Per-entry overrides of the assignment-level base values. Nullable =
+  // "no override — use the inherited value stored in per / operatorIncluded /
+  // isFullDayBilling on this row". Mirrors overrideTravelValue /
+  // overrideBoardValue / overrideParkingValue on TimeSheetRecord.
+  // Writes to these columns are gated by EquipmentTimeEntry___OverridePresets
+  // in the model class (see Step 3).
+  overridePer                   String?
+  overrideOperatorIncluded      Boolean?
+  overrideIsFullDayBilling      Boolean?
+}
+```
+
+### 1c. Migration
+
+Run `pnpm --filter api prisma:migrate`, name: `add_equipment_assignment_billing_context_and_overrides`.
+
+Migration SQL shape:
+
+```sql
+ALTER TABLE `EquipmentAssignment`
+    ADD COLUMN `per` VARCHAR(191) NULL,
+    ADD COLUMN `operatorIncluded` TINYINT(1) NULL,
+    ADD COLUMN `isFullDayBilling` TINYINT(1) NULL;
+
+ALTER TABLE `EquipmentTimeEntry`
+    ADD COLUMN `overridePer` VARCHAR(191) NULL,
+    ADD COLUMN `overrideOperatorIncluded` TINYINT(1) NULL,
+    ADD COLUMN `overrideIsFullDayBilling` TINYINT(1) NULL;
+```
+
+No backfill needed — all new columns are nullable and absence means "inherit / no override."
+
+---
+
+## Step 2: Permission Migration
+
+**Create file:** `apps/api/prisma/migrations/[timestamp]_equipment_time_entry_override_permissions/migration.sql`
+
+```sql
+-- Allows the user to set overridePer / overrideOperatorIncluded /
+-- overrideIsFullDayBilling on an EquipmentTimeEntry. Without this
+-- permission, those columns stay null and the entry uses the
+-- EquipmentAssignment's billing context as-is.
+--
+-- Allows the user to select ANY equipment when logging time. Without this
+-- permission the equipment picker is restricted to equipment with an
+-- active EquipmentAssignment to the selected job (or to the operator user
+-- when no job is selected).
+INSERT IGNORE INTO `Permission` (`id`, `name`, `slug`) VALUES
+    (SUBSTRING(MD5(UUID()), 1, 21), 'EquipmentTimeEntry___OverridePresets', 'equipmenttimeentry___overridepresets'),
+    (SUBSTRING(MD5(UUID()), 1, 21), 'EquipmentTimeEntry___LogTimeToUnassignedEquipment', 'equipmenttimeentry___logtimetounassignedequipment');
+
+INSERT IGNORE INTO `RolePermission` (`id`, `roleId`, `permissionId`, `scope`, `createdAt`, `updatedAt`)
+SELECT
+    LEFT(md5(concat(uuid(), r.id, p.id)), 21),
+    r.id,
+    p.id,
+    'ALL',
+    NOW(),
+    NOW()
+FROM
+    `Role` r
+    CROSS JOIN `Permission` p
+WHERE
+    p.slug IN (
+        'equipmenttimeentry___overridepresets',
+        'equipmenttimeentry___logtimetounassignedequipment'
+    )
+    AND r.slug IN ('super-admin', 'admin')
+;
+```
+
+**ID generation:** use `SUBSTRING(MD5(UUID()), 1, 21)` for the `Permission.id` values and `LEFT(md5(concat(uuid(), r.id, p.id)), 21)` for the `RolePermission.id` values — same pattern as the existing repo migrations (for example `20260415000000_add_override_trade_level_permission`). Never hardcode placeholder ID strings.
+
+**Role assignment table:** write to `RolePermission` (the current table with scope support), **not** the deprecated `_PermissionToRole` join table. `RolePermission` requires `roleId`, `permissionId`, `scope` (`'ALL'` for plain capability permissions like these), `createdAt`, `updatedAt`.
+
+**Target roles:** assign to both `super-admin` and `admin` so admins can configure the new permissions on other roles without needing a super-admin to enable it for them — matches the pattern used by `20260415000000_add_override_trade_level_permission`.
+
+**Both new permissions are enforced on the backend AND the frontend.** The UI is not the only gate — the model class rejects spoofed writes (see Step 4).
+
+---
+
+## Step 3: Register Permissions in the Permission Map
+
+**File:** `packages/ui/src/components/Permission/PermissionMap.ts`
+
+The Roles/Permissions form in the admin UI renders its checkboxes from `permissionMap`. A permission that exists in the database but is not referenced here never appears in the form, so admins have no way to grant or revoke it. The EQ-0 migration seeds `equipmenttimeentry___create` / `___edit` / `___view` / `___approve` and `mobile___logequipmenttime` but those slugs are not yet registered in `permissionMap`. This plan registers them alongside the two new permissions so the whole EquipmentTimeEntry permission surface lands in one place.
+
+### 3a. New "Equipment Time Entry" section under the Equipment main group
+
+Locate the `Equipment` main group (currently ends around line 1226 of `PermissionMap.ts`, with `Equipment` and `Equipment Rates` sub-sections). Append a third section:
+
+```typescript
+Equipment: {
+    label: "Equipment",
+    groups: [
+        // ... existing "Equipment" section (view/create-edit/archive-delete) ...
+        // ... existing "Equipment Rates" section (view/create-edit/delete) ...
+        // NEW section — append:
+        {
+            label: "Equipment Time Entry",
+            description:
+                "User can log, view, and approve equipment time entries (standalone equipment hours tracked separately from labour timesheets).",
+            permissionGroups: [
+                {
+                    label: "View",
+                    requiredPermissions: ["equipment___view"],
+                    permissionActions: [
+                        {
+                            permissionSlug: "equipmenttimeentry___view",
+                            availableScopes: scopeOptions.allNone
+                        }
+                    ]
+                },
+                {
+                    label: "Create/Edit",
+                    requiredPermissions: ["equipmenttimeentry___view"],
+                    permissionActions: [
+                        { permissionSlug: "equipmenttimeentry___create" },
+                        { permissionSlug: "equipmenttimeentry___edit" }
+                    ]
+                },
+                {
+                    label: "Approve/Reject",
+                    requiredPermissions: ["equipmenttimeentry___view"],
+                    permissionActions: [
+                        { permissionSlug: "equipmenttimeentry___approve" }
+                    ]
+                },
+                {
+                    label: "Log Time to Unassigned Equipment",
+                    description:
+                        "When disabled, the equipment picker is limited to equipment with an active EquipmentAssignment matching the selected job (or the operator user when no job is selected). When enabled, any equipment can be selected.",
+                    requiredPermissions: ["equipmenttimeentry___create"],
+                    permissionActions: [
+                        {
+                            permissionSlug: "equipmenttimeentry___logtimetounassignedequipment"
+                        }
+                    ]
+                },
+                {
+                    label: "Override Billing Presets",
+                    description:
+                        "Allows overriding the per / operator included / full day billing values inherited from the EquipmentAssignment on an individual EquipmentTimeEntry. Desktop only — overrides are never exposed on mobile.",
+                    requiredPermissions: ["equipmenttimeentry___create"],
+                    permissionActions: [
+                        {
+                            permissionSlug: "equipmenttimeentry___overridepresets"
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}
+```
+
+Match the surrounding style:
+- View-style permissions use `availableScopes: scopeOptions.allNone` (as the existing `equipment___view` and `equipmentrate___view` entries do).
+- Plain capability permissions (create / edit / approve / override / unassigned-equipment) omit `availableScopes` — they're booleans on the role.
+- `requiredPermissions` chains: each sub-group lists the slugs that must be enabled before the entry is meaningful (`equipment___view` for the view gate, then `equipmenttimeentry___view` → `equipmenttimeentry___create` for the higher-order gates).
+
+### 3b. Add the mobile Log Time toggle
+
+`mobile___logequipmenttime` is seeded by EQ-0 but is not yet in `permissionMap`. Register it under the existing Mobile main group's **Timesheets** section (the same block that currently hosts `mobile___logtime`, `mobile___approvetimesheets`, `mobile___manualtimeentryoverride`, etc. — around lines 735–775). Append a new `permissionGroup` to that `permissionGroups` array:
+
+```typescript
+{
+    label: "Log Equipment Time",
+    description:
+        "Allows the user to log equipment time from the mobile Equipment detail page and from the mobile timesheet flow.",
+    permissionActions: [{ permissionSlug: "mobile___logequipmenttime" }]
+}
+```
+
+No `availableScopes` — this is a plain capability toggle like `mobile___deleteTimesheet`.
+
+### Slug-match notes
+
+- The `permissionSlug` strings must exactly match the `slug` column values seeded in Step 2 and the EQ-0 migration (all lowercase, triple-underscore separator — `equipmenttimeentry___overridepresets`, not `equipment_time_entry___overridepresets`). The permission form looks up permissions by slug; a typo silently hides the checkbox.
+- If a previous PR has already registered some of the base slugs (`equipmenttimeentry___view` / `create` / `edit` / `approve` or `mobile___logequipmenttime`) in `permissionMap`, skip the duplicate entries rather than creating a second sub-group — the goal is one "Equipment Time Entry" section, one Mobile toggle.
+
+---
+
+## Step 4: Model Class Updates
+
+**File:** `apps/api/src/models/EquipmentTimeEntry.ts`
+
+Extend the existing `upsertEquipmentTimeEntry` and `upsertManyEquipmentTimeEntries` methods with hydration + permission enforcement. Do not change the signatures for other callers — the new behaviour is internal.
+
+### 3a. Hydrate billing context from EquipmentAssignment on create
+
+When an insert is requested (no `id`) and the caller did not supply `per` / `operatorIncluded` / `isFullDayBilling`, look up an active `EquipmentAssignment` matching the entry's equipment + scope:
+
+```typescript
+// Pseudocode inside upsertEquipmentTimeEntry, before write
+if (!input.id) {
+    const assignment = await prisma.equipmentAssignment.findFirst({
+        where: {
+            equipmentId: input.equipmentId,
+            isDeleted: false,
+            OR: [
+                // Scoped by job when jobId provided
+                input.jobId ? { checkoutJobId: input.jobId } : undefined,
+                // Otherwise scoped by operator user
+                !input.jobId && input.operatorUserId
+                    ? { userId: input.operatorUserId }
+                    : undefined
+            ].filter(Boolean),
+            AND: [
+                {
+                    OR: [
+                        { checkinDateTime: null },
+                        { checkinDateTime: { gt: input.workDate } }
+                    ]
+                }
+            ]
+        }
+    });
+
+    input.per = input.per ?? assignment?.per ?? LEM2_DEFAULT_PER;
+    input.operatorIncluded = input.operatorIncluded ?? assignment?.operatorIncluded ?? true;
+    input.isFullDayBilling =
+        input.isFullDayBilling ?? assignment?.isFullDayBilling ?? (await getJobEquipmentFullDayBilling(input.jobId)) ?? true;
+}
+```
+
+### 3b. Permission: `EquipmentTimeEntry___OverridePresets`
+
+```typescript
+const hasOverrideAccess = hasPermissions(
+    { equipmentTimeEntry: { overridePresets: true } },
+    ctx.permissions
+);
+const touchesOverride =
+    input.overridePer !== undefined ||
+    input.overrideOperatorIncluded !== undefined ||
+    input.overrideIsFullDayBilling !== undefined;
+
+if (touchesOverride && !hasOverrideAccess) {
+    throw new ForbiddenError(
+        "EquipmentTimeEntry___OverridePresets permission required to set override fields."
+    );
+}
+```
+
+Applies on insert AND update — a caller without the permission cannot introduce, change, or clear any `override*` value.
+
+### 3c. Permission: `EquipmentTimeEntry___LogTimeToUnassignedEquipment`
+
+```typescript
+const hasUnassignedAccess = hasPermissions(
+    { equipmentTimeEntry: { logTimeToUnassignedEquipment: true } },
+    ctx.permissions
+);
+
+if (!hasUnassignedAccess) {
+    const hasActiveAssignment = await prisma.equipmentAssignment.count({
+        where: {
+            equipmentId: input.equipmentId,
+            isDeleted: false,
+            ...(input.jobId
+                ? { checkoutJobId: input.jobId }
+                : { userId: input.operatorUserId }),
+            OR: [
+                { checkinDateTime: null },
+                { checkinDateTime: { gt: input.workDate } }
+            ]
+        }
+    });
+    if (hasActiveAssignment === 0) {
+        throw new ForbiddenError(
+            "EquipmentTimeEntry___LogTimeToUnassignedEquipment permission required to log time against equipment with no active assignment for this job/user."
+        );
+    }
+}
+```
+
+### 3d. `getEffectiveBillingContext` helper
+
+Add a pure helper that rate resolution and invoicing call instead of reading raw columns:
+
+```typescript
+export function getEffectiveBillingContext(entry: EquipmentTimeEntry) {
+    return {
+        per: entry.overridePer ?? entry.per,
+        operatorIncluded: entry.overrideOperatorIncluded ?? entry.operatorIncluded,
+        isFullDayBilling: entry.overrideIsFullDayBilling ?? entry.isFullDayBilling
+    };
+}
+```
+
+### 3e. Batch behaviour
+
+`upsertManyEquipmentTimeEntries` applies 3a–3c to every element of the batch. One unauthorized entry rejects the whole batch (do not partially write).
+
+---
+
+## Step 5: GraphQL Additions
+
+**File:** `apps/api/src/graphql/models/EquipmentTimeEntry.ts`
+
+### 4a. Expose override columns + resolved fields
+
+```graphql
+extend type EquipmentTimeEntry {
+    overridePer: String
+    overrideOperatorIncluded: Boolean
+    overrideIsFullDayBilling: Boolean
+    # Resolved (override ?? base) — resolver delegates to getEffectiveBillingContext.
+    effectivePer: String!
+    effectiveOperatorIncluded: Boolean!
+    effectiveIsFullDayBilling: Boolean!
+}
+```
+
+### 4b. Accept override columns on the existing input
+
+```graphql
+extend input UpsertEquipmentTimeEntryInput {
+    overridePer: String
+    overrideOperatorIncluded: Boolean
+    overrideIsFullDayBilling: Boolean
+}
+```
+
+Do not introduce any new mutation — the existing `upsertEquipmentTimeEntry` / `upsertManyEquipmentTimeEntries` handle the new fields.
+
+### 4c. EquipmentAssignment GraphQL exposure
+
+Expose the three new columns on the existing `EquipmentAssignment` GraphQL type and its upsert input so UIS-15C can read/write them. Follow the existing pattern in `apps/api/src/graphql/models/EquipmentAssignment.ts` (or equivalent).
+
+---
+
+## Step 6: TypeScript Types
+
+**File:** `apps/api/src/types/Equipment.types.ts`
+
+Extend the existing interfaces (do not create new ones):
+
+```typescript
+export interface IEquipmentTimeEntry {
+    // ... existing fields from EQ-0 ...
+    overridePer?: string;
+    overrideOperatorIncluded?: boolean;
+    overrideIsFullDayBilling?: boolean;
+}
+
+export interface IEquipmentAssignment {
+    // ... existing fields ...
+    per?: string;
+    operatorIncluded?: boolean;
+    isFullDayBilling?: boolean;
+}
+```
+
+---
+
+## Verification Checklist
+
+- [ ] `EquipmentAssignment`: nullable `per` / `operatorIncluded` / `isFullDayBilling` columns added, no default (null = "inherit further up the chain")
+- [ ] `EquipmentTimeEntry`: nullable `overridePer` / `overrideOperatorIncluded` / `overrideIsFullDayBilling` columns added
+- [ ] Migration is purely additive (no backfill, no NOT NULL) — existing rows remain valid
+- [ ] Permission migration seeds `EquipmentTimeEntry___OverridePresets` + `EquipmentTimeEntry___LogTimeToUnassignedEquipment`, assigns both to super-admin
+- [ ] `permissionMap` in `packages/ui/src/components/Permission/PermissionMap.ts` has a new "Equipment Time Entry" section under the `Equipment` main group registering all six EquipmentTimeEntry slugs (`view`, `create`, `edit`, `approve`, `logtimetounassignedequipment`, `overridepresets`) with appropriate `requiredPermissions` chains and `availableScopes: scopeOptions.allNone` on the view entry
+- [ ] `permissionMap` Mobile main group's Timesheets section also registers `mobile___logequipmenttime` as a plain capability toggle
+- [ ] Slug strings in `permissionMap` exactly match the database `slug` values (all lowercase, triple-underscore separators) — confirmed against the EQ-0 seed and Step 2 seed
+- [ ] `upsertEquipmentTimeEntry` hydrates `per` / `operatorIncluded` / `isFullDayBilling` from matching active `EquipmentAssignment` on create (jobId-first, then operatorUserId; falls back to LEM-2 defaults + `Job.equipmentFullDayBilling` when the assignment fields are null)
+- [ ] `upsertEquipmentTimeEntry` rejects writes that touch any `override*` field when caller lacks `EquipmentTimeEntry___OverridePresets` (on both insert and update)
+- [ ] `upsertEquipmentTimeEntry` rejects writes referencing equipment with no active `EquipmentAssignment` matching the supplied `jobId` (or `operatorUserId` when `jobId` is null) when caller lacks `EquipmentTimeEntry___LogTimeToUnassignedEquipment`
+- [ ] `upsertManyEquipmentTimeEntries` applies both permission checks per-entry; a single unauthorized entry rejects the entire batch
+- [ ] `getEffectiveBillingContext` helper exported from `EquipmentTimeEntry` model
+- [ ] Rate resolution + invoicing use `getEffectiveBillingContext` (not the raw base columns)
+- [ ] GraphQL `EquipmentTimeEntry` type exposes `overridePer` / `overrideOperatorIncluded` / `overrideIsFullDayBilling` + `effectivePer` / `effectiveOperatorIncluded` / `effectiveIsFullDayBilling`
+- [ ] `UpsertEquipmentTimeEntryInput` accepts the three `override*` fields
+- [ ] `EquipmentAssignment` GraphQL type + upsert input expose `per` / `operatorIncluded` / `isFullDayBilling`
+- [ ] TypeScript `IEquipmentTimeEntry` and `IEquipmentAssignment` updated to match
+- [ ] No frontend changes — UI for assignment-level fields is owned by UIS-15C; UI for override fields + combobox scoping is owned by UIS-15H
+
+---
+
+## Files Summary
+
+| Action | File | What to do |
+|--------|------|------------|
+| MODIFY | `apps/api/prisma/schema.prisma` | Add `per` / `operatorIncluded` / `isFullDayBilling` nullable columns on `EquipmentAssignment`. Add `overridePer` / `overrideOperatorIncluded` / `overrideIsFullDayBilling` nullable columns on `EquipmentTimeEntry`. |
+| CREATE | `apps/api/prisma/migrations/.../migration.sql` | ALTER TABLE EquipmentAssignment + ALTER TABLE EquipmentTimeEntry — additive only |
+| CREATE | `apps/api/prisma/migrations/.../equipment_time_entry_override_permissions.sql` | Seed `OverridePresets` + `LogTimeToUnassignedEquipment` permissions, assign both to super-admin |
+| MODIFY | `packages/ui/src/components/Permission/PermissionMap.ts` | Add a new "Equipment Time Entry" section under the `Equipment` main group registering `view` / `create` / `edit` / `approve` / `logtimetounassignedequipment` / `overridepresets` with correct `requiredPermissions` chains + `availableScopes: scopeOptions.allNone` on view. Also register `mobile___logequipmenttime` inside the Mobile main group's Timesheets section. |
+| MODIFY | `apps/api/src/types/Equipment.types.ts` | Extend `IEquipmentTimeEntry` + `IEquipmentAssignment` with new optional fields |
+| MODIFY | `apps/api/src/models/EquipmentTimeEntry.ts` | Hydrate billing context from `EquipmentAssignment` on create; gate `override*` writes behind `OverridePresets`; gate unassigned-equipment writes behind `LogTimeToUnassignedEquipment`; add `getEffectiveBillingContext` helper; wire it into rate resolution + invoicing |
+| MODIFY | `apps/api/src/graphql/models/EquipmentTimeEntry.ts` | Expose `override*` + `effective*` fields; extend `UpsertEquipmentTimeEntryInput` with override fields |
+| MODIFY | `apps/api/src/graphql/models/EquipmentAssignment.ts` | Expose `per` / `operatorIncluded` / `isFullDayBilling` on the type + upsert input |
+</script>
+
+<script src="plan-renderer.js"></script>
+<script>renderPlan();</script>
+</body>
+</html>

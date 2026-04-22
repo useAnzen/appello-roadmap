@@ -68,7 +68,7 @@ This PDF is **client-facing only**. Unit cost, markup %, and markup $ are never 
 - **Chrome reused verbatim.** `EstimateChangeOrderPDF.tsx` keeps calling `<PDFHeader>` + body + `<PDFFooter>`. Only the body component changes based on `creationType`.
 - **Totals come from `itemizedTotalsEngine`** — the same pure-function module IE-3 uses for the on-screen totals panel. PDF totals and screen totals cannot diverge because they share the math.
 - **Client-only columns.** Description, Qty, Unit, Unit price, Line total — fixed. No toggles, no per-export options, no instance defaults for what to show. Markup and cost never leave the internal UI.
-- **Section numbering computed at render time** by walking `parentId` via the engine's `nodeRollups` map. Not persisted.
+- **Section numbering computed at render time** by walking `parentRecordId` via the engine's `nodeRollups` map. Not persisted.
 - **Tax and discount rollups are always distinct rows** in the totals block: line discounts (Σ per-line), estimate-level discount (stack total), and tax (Σ per-line `taxValue`, weighted average). All three render even at $0.00. This matches the semantics fixed in IE-2 / IE-3.
 - **Multi-page behavior reuses existing PDF primitives.** A line and its tax/discount sub-rows stay together on one page (rendered as a single keep-together group); the totals block + signature appear on the last page only.
 
@@ -80,7 +80,7 @@ This PDF is **client-facing only**. Unit cost, markup %, and markup $ are never 
 
 The existing GraphQL fetch pulls `EstimateChangeOrderRecord` + its `Values` for the worksheet view. For Itemized records we also need the line-item tree (as a flat list — not nested), each line's tax set, each line's discount assignments, and the estimate-level discount assignments.
 
-<div class="callout"><strong>Tree shape:</strong> IE-1 exposes <code>itemizedEstimateChangeOrderRecordLineItems</code> as a <em>flat list</em> with <code>parentId</code> + <code>nodeType</code> + <code>orderNo</code>. The GraphQL type has no <code>Children</code> field — the client reconstructs the tree by walking <code>parentId</code>. This is the same contract IE-2's editor uses (IE-2 plan §2a, §3 "Maintain the tree as a flat array with parentId / orderNo"). Do not attempt recursive sub-selections; there is no such relation on the GraphQL type.<br><br><strong>Discount shape:</strong> SD-1 does <em>not</em> expose discount assignments as sub-selections on a line or on the ECR. They live behind <code>discountsForEntity(referenceModel, referenceId)</code>, which must be called once per entity. IE-2 hydrates per-line discounts via parallel fetch after loading the tree; IE-4 does the same.</div>
+<div class="callout"><strong>Tree shape:</strong> IE-1 exposes <code>itemizedEstimateChangeOrderRecordLineItems</code> as a <em>flat list</em> with <code>parentRecordId</code> + <code>nodeType</code> + <code>orderNo</code>. The GraphQL type has no <code>Children</code> field — the client reconstructs the tree by walking <code>parentRecordId</code>. This is the same contract IE-2's editor uses (IE-2 plan §2a, §3 "Maintain the tree as a flat array with parentRecordId / orderNo"). Do not attempt recursive sub-selections; there is no such relation on the GraphQL type.<br><br><strong>Discount shape:</strong> SD-1 does <em>not</em> expose discount assignments as sub-selections on a line or on the ECR. They live behind <code>discountsForEntity(referenceModel, referenceId)</code>, which must be called once per entity. IE-2 hydrates per-line discounts via parallel fetch after loading the tree; IE-4 does the same.</div>
 
 ### 1a. Step one — fetch the flat tree + ECR header
 
@@ -97,12 +97,12 @@ query EstimateChangeOrderPdfItemized($id: ID!, $listOptions: GetListOptions!) {
         contingencyDollarValue
     }
     # Flat list — all nodes (Section + LineItem) for this ECR, ordered by orderNo.
-    # Tree is reconstructed client-side by walking parentId.
+    # Tree is reconstructed client-side by walking parentRecordId.
     itemizedEstimateChangeOrderRecordLineItems(options: $listOptions) {
         ... on ItemizedEstimateChangeOrderRecordLineItem {
             id
             nodeType               # "Section" | "LineItem" — discriminator
-            parentId               # null for root nodes
+            parentRecordId               # null for root nodes
             orderNo
             estimateChangeOrderRecordId
             lineItemType
@@ -115,6 +115,8 @@ query EstimateChangeOrderPdfItemized($id: ID!, $listOptions: GetListOptions!) {
             price
             totalCost
             taxValue               # cached per-line snapshot
+            contingencyPercent     # line-level contingency (XOR with contingencyDollarValue)
+            contingencyDollarValue
             TaxType { id abbreviation rate isCompound }
         }
     }
@@ -178,7 +180,7 @@ const pricedLines = tree.filter((n) => n.nodeType === "LineItem");
 
 const engineLines = pricedLines.map((line) => ({
     id: line.id,
-    parentId: line.parentId,
+    parentRecordId: line.parentRecordId,
     nodeType: "LineItem" as const,
     quantity: line.quantity,
     totalCost: line.totalCost,
@@ -190,10 +192,14 @@ const engineLines = pricedLines.map((line) => ({
     })),
     lineDiscounts: (perLineDiscounts.get(line.id) ?? []).map((da) => ({
         id: da.id,
+        // Resolve magnitude via assignment.overrideValue ?? Discount.value (SD-1).
         type: da.Discount.type,        // "Percent" | "FixedAmount"
-        value: Number(da.Discount.value),
+        value: Number(da.overrideValue ?? da.Discount.value),
         orderNo: da.orderNo
-    }))
+    })),
+    // Line-level contingency (XOR — at most one non-null per line).
+    contingencyPercent: line.contingencyPercent,
+    contingencyDollarValue: line.contingencyDollarValue
 }));
 
 const totals = computeItemizedTotals({
@@ -201,12 +207,13 @@ const totals = computeItemizedTotals({
     estimateDiscounts: estimateDiscounts.map((da) => ({
         id: da.id,
         type: da.Discount.type,
-        value: Number(da.Discount.value),
+        value: Number(da.overrideValue ?? da.Discount.value),
         orderNo: da.orderNo
     })),
     overheadPercent: Number(estimate.overheadMarkup ?? 0),
-    contingencyPercent: Number(estimate.contingencyPercent ?? 0),
-    contingencyDollarValue: Number(estimate.contingencyDollarValue ?? 0)
+    // Engine's estimate-level contingency keys (distinct from line-level fields above).
+    estimateContingencyPercent: Number(estimate.contingencyPercent ?? 0),
+    estimateContingencyDollarValue: Number(estimate.contingencyDollarValue ?? 0)
 });
 ```
 
@@ -355,10 +362,10 @@ interface IWalkNode {
 }
 
 function buildOrderedWalk(flat: GqlItemizedLineItem[]): IWalkNode[] {
-    // 1. Index children by parentId (null key = root).
+    // 1. Index children by parentRecordId (null key = root).
     const childrenByParent = new Map<string | null, GqlItemizedLineItem[]>();
     for (const node of flat) {
-        const key = node.parentId ?? null;
+        const key = node.parentRecordId ?? null;
         if (!childrenByParent.has(key)) childrenByParent.set(key, []);
         childrenByParent.get(key)!.push(node);
     }
@@ -366,10 +373,10 @@ function buildOrderedWalk(flat: GqlItemizedLineItem[]): IWalkNode[] {
     for (const bucket of childrenByParent.values()) {
         bucket.sort((a, b) => (a.orderNo ?? 0) - (b.orderNo ?? 0));
     }
-    // 3. DFS from root (parentId === null), assigning depth-first section labels.
+    // 3. DFS from root (parentRecordId === null), assigning depth-first section labels.
     const out: IWalkNode[] = [];
-    const visit = (parentId: string | null, depth: number, prefix: string) => {
-        const siblings = childrenByParent.get(parentId) ?? [];
+    const visit = (parentRecordId: string | null, depth: number, prefix: string) => {
+        const siblings = childrenByParent.get(parentRecordId) ?? [];
         let sectionCounter = 0;
         siblings.forEach((row) => {
             if (row.nodeType === "Section") {
@@ -505,9 +512,19 @@ const ItemizedTotalsBlock: FC<{ totals: IItemizedTotalsOutput; estimateDiscounts
                 value={totals.taxTotal}
                 alwaysRender
             />
-            {totals.contingencyAmount > 0 && (
-                <PdfTotalsRow label="Contingency" value={totals.contingencyAmount} />
-            )}
+            {/* Line vs. estimate contingency — two distinct rows so the reader can
+                tell which scope contributed. Always rendered (zero when empty),
+                mirroring the totals panel in IE-3. */}
+            <PdfTotalsRow
+                label="Line contingency (Σ per-line)"
+                value={totals.lineContingencyAmount}
+                alwaysRender
+            />
+            <PdfTotalsRow
+                label="Estimate contingency"
+                value={totals.estimateContingencyAmount}
+                alwaysRender
+            />
             <PdfTotalsRow label="Grand total" value={totals.grandTotal} emphasis />
         </div>
     );
@@ -586,7 +603,7 @@ Keep it isolated so the worksheet path doesn't pay any of that cost.
 - [ ] PDF data loader fetches the flat line-item tree via `itemizedEstimateChangeOrderRecordLineItems` (no recursive sub-selection — IE-1 does not expose one); worksheet path unchanged
 - [ ] Per-line discounts fetched via parallel `discountsForEntity(referenceModel: "ItemizedEstimateChangeOrderRecordLineItem", referenceId: <lineId>)` calls, matching IE-2's editor pattern
 - [ ] Estimate-level discounts fetched via a single `discountsForEntity(referenceModel: "EstimateChangeOrderRecord", referenceId: <ecrId>)` call
-- [ ] `buildOrderedWalk` reconstructs the tree from `parentId` + `nodeType` + `orderNo`, producing depth-first section labels and `closesSections` markers for subtotal placement
+- [ ] `buildOrderedWalk` reconstructs the tree from `parentRecordId` + `nodeType` + `orderNo`, producing depth-first section labels and `closesSections` markers for subtotal placement
 - [ ] `computeItemizedTotals` runs server-side before `ReactDOMServer.renderToString` so totals arrive as finished numbers
 - [ ] `EstimateChangeOrderPDF.tsx` renders `<ItemizedBreakdown>` when `creationType === "Itemized"` and `<EstimateWorksheet>` otherwise; same `PDFHeader` + `PDFFooter` wrap for both
 - [ ] `ItemizedBreakdown` renders section header rows with depth-first numbering (`1`, `1.1`, `2`)

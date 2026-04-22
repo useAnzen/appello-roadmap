@@ -245,11 +245,14 @@ table.schema-table td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; ver
                     <tr><td>quantity &times; unitSell</td><td>value</td><td>Re-derived</td></tr>
                     <tr><td>taxValue</td><td>taxValue</td><td><strong>Verbatim copy of IE-1 snapshot</strong> &mdash; not recomputed</td></tr>
                     <tr><td>TaxType[] (M2M)</td><td>TaxType[] (M2M)</td><td>Connect the same <code>TaxType.id</code> set &mdash; preserves stacked / compound tax</td></tr>
-                    <tr><td>DiscountAssignment rows (referenceModel = ItemizedEstimateChangeOrderRecordLineItem)</td><td>New DiscountAssignment rows (referenceModel = JobBillLineItem)</td><td>Same <code>discountId</code>, cloned not moved</td></tr>
+                    <tr><td>DiscountAssignment rows (referenceModel = ItemizedEstimateChangeOrderRecordLineItem)</td><td>New DiscountAssignment rows (referenceModel = JobBillLineItem)</td><td>Same <code>discountId</code>, <code>overrideValue</code> copied verbatim, cloned not moved</td></tr>
+                    <tr><td>contingencyPercent / contingencyDollarValue (line-level)</td><td>Rolled into <code>JobBill.contingencyDollarValue</code></td><td>Resolved to dollars by IE-3&#39;s engine and summed with estimate-level contingency &mdash; see Contingency carry-over below</td></tr>
                 </tbody>
             </table>
             <h3>Estimate-level discount stack</h3>
-            <p>Top-level <code>DiscountAssignment</code> rows attached to the <code>EstimateChangeOrderRecord</code> are cloned onto the new <code>JobBill</code> with <code>referenceModel = "JobBill"</code> and the same <code>discountId</code> values &mdash; preserving both the ordering and the exact stack the customer agreed to.</p>
+            <p>Top-level <code>DiscountAssignment</code> rows attached to the <code>EstimateChangeOrderRecord</code> are cloned onto the new <code>JobBill</code> with <code>referenceModel = "JobBill"</code> and the same <code>discountId</code> values (<code>overrideValue</code> copied verbatim) &mdash; preserving both the ordering and the exact stack the customer agreed to.</p>
+            <h3>Contingency carry-over</h3>
+            <p>Estimates hold contingency at two scopes (per-line + estimate-level, each XOR percent-or-dollar). The bill doesn&#39;t preserve that granularity &mdash; it preserves the <em>value</em>. At generation time, IE-3&#39;s totals engine resolves both scopes into dollar amounts; their sum is written to a new nullable <code>JobBill.contingencyDollarValue</code> column. Invoice rendering adds this to the bill grand total so the billed amount equals the quoted amount. When the source estimate had no contingency at either scope, the column is <code>null</code>.</p>
         </div>
     </div>
     <div class="uis-section" id="s4">

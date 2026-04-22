@@ -144,7 +144,7 @@ table.schema-table code { font-family: monospace; background: #f1f5f9; padding: 
             <h3>In Scope</h3>
             <ul>
                 <li><span class="scope-tag scope-in">IN</span> Prisma model <code>Discount</code> + enum <code>DiscountType</code> (<code>Percent</code>, <code>FixedAmount</code>) with name, description, value, optional <code>effectiveFrom</code> / <code>effectiveTo</code>, and <code>isAdHoc</code> flag</li>
-                <li><span class="scope-tag scope-in">IN</span> Prisma model <code>DiscountAssignment</code> with polymorphic <code>referenceModel</code> + <code>referenceId</code>, <code>discountId</code>, and <code>orderNo</code> for stack ordering</li>
+                <li><span class="scope-tag scope-in">IN</span> Prisma model <code>DiscountAssignment</code> with polymorphic <code>referenceModel</code> + <code>referenceId</code>, <code>discountId</code>, <code>orderNo</code> for stack ordering, and optional <code>overrideValue</code> for per-attachment value tweaks (e.g. &ldquo;HappyDiscount + 1%&rdquo;)</li>
                 <li><span class="scope-tag scope-in">IN</span> Validator enforcing <code>referenceModel</code> is one of the supported enum values, and that <code>referenceId</code> resolves to a live row in that table</li>
                 <li><span class="scope-tag scope-in">IN</span> Resolver <code>discountsForEntity(referenceModel, referenceId)</code> returning active assignments + hydrated <code>Discount</code></li>
                 <li><span class="scope-tag scope-in">IN</span> Resolver <code>suggestedDiscountsForLine(lineItemId)</code> &mdash; unions discounts attached to the line&#39;s Job AND the Job&#39;s Company, de-duped by <code>discountId</code>, filters out <code>isAdHoc = true</code> and expired-by-date rows</li>
@@ -215,6 +215,13 @@ model DiscountAssignment {
   discountId     String   @db.VarChar(21)
   Discount       Discount @relation(fields: [discountId], references: [id])
 
+  // Per-attachment value override. null = use parent Discount.value as-is.
+  // When set, totals math uses overrideValue in place of Discount.value;
+  // the DiscountType (Percent / FixedAmount) is always inherited from the
+  // parent Discount — overrideValue only tweaks magnitude, not semantics.
+  // Enables "HappyDiscount + 1%" without forking the underlying Discount row.
+  overrideValue  Decimal? @db.Decimal(10, 2)
+
   @@unique([referenceModel, referenceId, discountId])
   @@index([referenceModel, referenceId])
   @@index([discountId])
@@ -252,6 +259,7 @@ model DiscountAssignment {
 
             <h3>Application math lives in IE-3</h3>
             <p>SD-1 stores discounts; it does not compute totals. IE-3&#39;s totals engine consumes <code>DiscountAssignment</code> rows for an estimate and its lines, applies them in the <a href="uis-IE-2-canvas-itemized-estimate.html">IE-2 canvas</a>&#39;s ordering (line % &rarr; line sell; estimate-level on pre-tax; tax on discounted share), and produces subtotals. SD-1 exposes the raw data; it does not opine on how it&#39;s summed.</p>
+            <p><strong>Value resolution.</strong> For each assignment, the engine uses <code>assignment.overrideValue ?? assignment.Discount.value</code> as the magnitude, with the <code>Discount.type</code> (Percent / FixedAmount) driving how that number is applied. This lets the same named <code>Discount</code> (&ldquo;HappyDiscount&rdquo; at 5%) be attached to one line at 5% and another line at 6% without creating a second catalog row.</p>
 
             <h3>Expiry handling</h3>
             <p>Queries that resolve active discounts filter out rows whose <code>effectiveTo &lt; now</code> or whose <code>effectiveFrom &gt; now</code>. An existing <code>DiscountAssignment</code> on a past estimate still resolves its discount as of the date the estimate was authored &mdash; resolution is <em>point-in-time by write date of the assignment</em> for estimate pricing, never live. (Invoice-side recompute follows the same rule; estimates are snapshot documents.)</p>
@@ -284,6 +292,7 @@ type DiscountAssignment {
   orderNo: Int!
   discountId: ID!
   Discount: Discount!
+  overrideValue: Float
 }
 
 extend type Query {

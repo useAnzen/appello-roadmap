@@ -67,9 +67,14 @@ Add `ItemizedEstimateChangeOrderRecordLineItem` plus the `EstimateLineItemType` 
 - **Polymorphic price reference.** Instead of hard FKs to `TradeLevelRate` / `MaterialAttributePrice` / `EquipmentRateValue`, the line item stores `priceReferenceModel` (enum) + `priceReferenceId` (scalar). Extensible to new price sources (subcontractor quotes, vendor POs, job overrides) without future migrations; matches the pattern LEM-2 uses for `EquipmentRateValue.referenceModel` / `referenceId`. **Tradeoffs accepted:** no DB-level FK on `priceReferenceId` (enforced in app code), no Prisma `include` join for the price-source row (GraphQL resolver branches on `priceReferenceModel`).
 - **No `instanceId`.** Single-tenant app; add only if multi-tenancy arrives.
 - **Price reference points at rate-level rows, not entity-level.** Rates live on `TradeLevelRate.baseValue`, `MaterialAttributePrice.value`, `EquipmentRateValue.baseValue` — not on `TradeLevel` / `Material` / `Equipment`.
-- **`userId` stays separate** from the pricing reference — it is Labor worker identity (who), orthogonal to which rate was used (how much). Optional on `Labor` lines; **forbidden** on every other `lineItemType`. When provided on a `Labor` line, the resolver applies that worker's active employee agreement for a billable rate; when absent, it returns the base rate on the `TradeLevelRate`'s contract.
+- **`userId` vs `TradeLevelRate` on Labor lines.** Every `Labor` row must identify pricing via **at least one** of: `userId` (user-first), `priceReferenceModel = TradeLevelRate` + `priceReferenceId` (trade-first), or both. `userId` is **forbidden** on every other `lineItemType`. Resolver branches:
+    - *User only:* resolve the user's `UserTradeLevel` **as of the ECR's `createdAt`**, derive `TradeLevel` → look up the active `TradeLevelRate` on the relevant contract → billable rate (LEM-1 employee agreement applied when present).
+    - *Trade only:* return the selected `TradeLevelRate`'s contract base rate (no per-worker agreement layer).
+    - *Both:* write-side validator confirms the user's `UserTradeLevel` as of the ECR `createdAt` has the same `TradeLevel` as the selected `TradeLevelRate`; mismatch rejected. Rate resolution uses the user-first path (agreement-aware).
+
+  Point-in-time semantics (`createdAt`) match how estimates already work for discount effective windows — an estimate authored last April resolves the user's trade as of last April, not today.
 - **Tax surface mirrors `JobBillLineItem`.** Many-to-many `TaxType` relation (supports stacked / compound taxes) + cached `taxValue`. Tax base is `price` (post-markup) — industry standard. `taxValue` is a **write-time snapshot**: recomputed when `price`, markup fields, the `TaxType` set, **or any line-level `DiscountAssignment`** changes; **never** recomputed when a `TaxTypeItem` rate is edited. Preserves estimates as point-in-time documents and makes IE-5 invoice conversion a straight copy. `excludeTax` is intentionally skipped — legacy on `JobBillLineItem` with no active consumers.
-- **Sections & subsections via single polymorphic table.** IE-2's canvas has `+ Section` / `+ Sub` nested groupers where sections and priced lines are siblings at any depth. Modeled as one self-referential table with a `nodeType` discriminator (`Section` | `LineItem`) + `parentId`. **Tree depth capped at 3** from the ECR root (pending Corey/Chris confirmation — see spec §3 callout). Section nodes reject every priced/tax/reference field; `parentId` must point at a `Section`. Section rollups (subtotals, numbering) are **computed at read time**, never stored — IE-3 remains the single source of total math.
+- **Sections & subsections via single polymorphic table.** IE-2's canvas has `+ Section` / `+ Sub` nested groupers where sections and priced lines are siblings at any depth. Modeled as one self-referential table with a `nodeType` discriminator (`Section` | `LineItem`) + `parentRecordId`. **Tree depth capped at 3** from the ECR root (pending Corey/Chris confirmation — see spec §3 callout). Section nodes reject every priced/tax/reference field; `parentRecordId` must point at a `Section`. Section rollups (subtotals, numbering) are **computed at read time**, never stored — IE-3 remains the single source of total math.
 - **Discounts live in SD-1, not on this model.** Per-line, estimate-level, company-level, and job-level discounts all attach via SD-1's `DiscountAssignment` polymorphic join (`referenceModel = "ItemizedEstimateChangeOrderRecordLineItem"` or `"EstimateChangeOrderRecord"`). IE-1 adds zero discount-related columns; instead, the line's `taxValue` recompute triggers grow by one entry (any line-level `DiscountAssignment` change), and IE-3 consumes discounts for total math.
 - **All schema work for itemized estimates is consolidated in IE-1.** The `Itemized` value on `EstimateChangeOrderRecordCreationType` lives here (not in IE-3 as the original roadmap had it) so that every DB-touching change for this feature ships together in one migration. IE-3 becomes frontend + totals engine only. IE-1 also enforces the project-wide "never switch creation types" rule: `canEdit: false` on `EstimateChangeOrderRecord.creationType`, plus a gate validator that rejects `ItemizedEstimateChangeOrderRecordLineItem` writes when the parent ECR is `BidFirst` or `Full`.
 
@@ -128,17 +133,24 @@ model ItemizedEstimateChangeOrderRecordLineItem {
   // Tree structure — sections and lines share this table; parent chain length
   // from ECR root capped at 3 (Section → Subsection → LineItem). Validated in app code.
   nodeType                    LineItemNodeType          @default(LineItem)
-  parentId                    String?                   @db.VarChar(21)
+  parentRecordId                    String?                   @db.VarChar(21)
 
   lineItemType                EstimateLineItemType?     // null on Section nodes
 
-  // Polymorphic price reference — null for Custom, matched pair for other types.
-  // Always null on Section nodes.
+  // Polymorphic price reference. Nullable because:
+  //  • Custom lines leave both null (no pricing reference at all).
+  //  • Labor lines may leave both null when userId alone identifies pricing
+  //    (trade is derived from the user's UserTradeLevel as of the ECR's createdAt).
+  //  • Material and Equipment lines always populate both (matched pair).
+  //  • Always null on Section nodes.
   // No DB FK on priceReferenceId; integrity enforced in application code (Step 3b).
   priceReferenceModel         PriceReferenceModel?
   priceReferenceId            String?                   @db.VarChar(21)
 
-  // Labor worker identity — independent of pricing.
+  // Labor-only worker identity. When set, resolver uses the user's UserTradeLevel
+  // as of the ECR's createdAt to derive the TradeLevel → rate chain.
+  // At least one of (userId, priceReferenceModel=TradeLevelRate + priceReferenceId)
+  // is required on every Labor line — see validatePayload in Step 3b.
   userId                      String?                   @db.VarChar(21)
 
   description                 String?                   @db.VarChar(500)
@@ -154,18 +166,25 @@ model ItemizedEstimateChangeOrderRecordLineItem {
   // TaxTypeItem rate changes — the estimate is a point-in-time document.
   taxValue                    Decimal?                  @db.Decimal(10, 2)
 
+  // Line-level contingency (reserved margin for this line's unknowns).
+  // XOR: at most one may be non-null per row. Applied by IE-3's totals engine
+  // into the "Line contingency" rollup; estimate-level contingency is a separate
+  // pair on EstimateChangeOrderRecord owned by IE-3.
+  contingencyPercent          Decimal?                  @db.Decimal(10, 2)
+  contingencyDollarValue      Decimal?                  @db.Decimal(10, 2)
+
   orderNo                     Int                       @default(0)
 
   EstimateChangeOrderRecord   EstimateChangeOrderRecord @relation(fields: [estimateChangeOrderRecordId], references: [id])
   User                        User?                     @relation(fields: [userId], references: [id])
   TaxType                     TaxType[]                 @relation("ItemizedEstimateLineItemToTaxType")
-  Parent                      ItemizedEstimateChangeOrderRecordLineItem?  @relation("NodeTree", fields: [parentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  Children                    ItemizedEstimateChangeOrderRecordLineItem[] @relation("NodeTree")
+  ParentRecord                ItemizedEstimateChangeOrderRecordLineItem?  @relation("NodeTree", fields: [parentRecordId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  ChildRecords                ItemizedEstimateChangeOrderRecordLineItem[] @relation("NodeTree")
 
   @@index([estimateChangeOrderRecordId], map: "ItemizedEstimateLineItem_ecrId_fkey")
   @@index([userId], map: "ItemizedEstimateLineItem_userId_fkey")
   @@index([priceReferenceModel, priceReferenceId], map: "ItemizedEstimateLineItem_priceRef_idx")
-  @@index([parentId], map: "ItemizedEstimateLineItem_parentId_fkey")
+  @@index([parentRecordId], map: "ItemizedEstimateLineItem_parentRecordId_fkey")
 }
 ```
 
@@ -256,7 +275,7 @@ class ItemizedEstimateChangeOrderRecordLineItem extends BaseAuditableModel<IItem
         // nodeType and lineItemType are immutable after create —
         // base model strips them from edit payloads via `canEdit: false`.
         { name: "nodeType", type: "string", options: { canEdit: false } },
-        { name: "parentId", type: "string" },
+        { name: "parentRecordId", type: "string" },
         { name: "lineItemType", type: "string", options: { canEdit: false } },
         { name: "priceReferenceModel", type: "string" },
         { name: "priceReferenceId", type: "string" },
@@ -270,6 +289,8 @@ class ItemizedEstimateChangeOrderRecordLineItem extends BaseAuditableModel<IItem
         { name: "markupDollarValue", type: "float" },
         { name: "price", type: "float" },
         { name: "taxValue", type: "float" },
+        { name: "contingencyPercent", type: "float" },
+        { name: "contingencyDollarValue", type: "float" },
         { name: "orderNo", type: "float" }
     ];
 
@@ -318,7 +339,7 @@ public async validatePayload(
 ): Promise<void> {
     const {
         nodeType = existing?.nodeType ?? "LineItem",
-        parentId,
+        parentRecordId,
         lineItemType = existing?.lineItemType ?? undefined,
         priceReferenceModel,
         priceReferenceId,
@@ -331,6 +352,8 @@ public async validatePayload(
         markupDollarValue,
         price,
         taxValue,
+        contingencyPercent,
+        contingencyDollarValue,
         estimateChangeOrderRecordId
     } = input;
 
@@ -348,7 +371,9 @@ public async validatePayload(
             ["markupPercent", markupPercent],
             ["markupDollarValue", markupDollarValue],
             ["price", price],
-            ["taxValue", taxValue]
+            ["taxValue", taxValue],
+            ["contingencyPercent", contingencyPercent],
+            ["contingencyDollarValue", contingencyDollarValue]
         ];
         const offender = forbidden.find(([, v]) => v != null);
         if (offender) {
@@ -361,12 +386,12 @@ public async validatePayload(
             throw new BadUserInputError("Section nodes require a title (description).");
         }
         // Parent / depth checks (0b) still run below.
-        await this.validateParentAndDepth(parentId, nodeType, estimateChangeOrderRecordId);
+        await this.validateParentAndDepth(parentRecordId, nodeType, estimateChangeOrderRecordId);
         return;
     }
 
     // 0b. LineItem nodes: parent must be a Section on the same ECR, and depth cap holds.
-    await this.validateParentAndDepth(parentId, nodeType, estimateChangeOrderRecordId);
+    await this.validateParentAndDepth(parentRecordId, nodeType, estimateChangeOrderRecordId);
 
     if (!lineItemType) {
         throw new BadUserInputError("lineItemType is required on LineItem nodes.");
@@ -379,30 +404,53 @@ public async validatePayload(
                 "Custom line items must not set priceReferenceModel or priceReferenceId."
             );
         }
+        if (userId) {
+            throw new BadUserInputError("userId is only permitted on Labor line items.");
+        }
         return;
     }
-    if (!priceReferenceModel || !priceReferenceId) {
-        throw new BadUserInputError(
-            "Non-Custom line items require both priceReferenceModel and priceReferenceId."
-        );
-    }
 
-    // 2. Type ↔ model map
-    const expected =
-        ItemizedEstimateChangeOrderRecordLineItem.lineTypeToReferenceModel[
-            lineItemType as Exclude<EstimateLineItemType, "Custom">
-        ];
-    if (priceReferenceModel !== expected) {
-        throw new BadUserInputError(
-            `lineItemType=${lineItemType} requires priceReferenceModel=${expected}, got ${priceReferenceModel}.`
-        );
-    }
-
-    // 3. userId is Labor-only (never required, but never allowed elsewhere)
-    if (userId && lineItemType !== "Labor") {
-        throw new BadUserInputError(
-            `userId is only permitted on Labor line items; got lineItemType=${lineItemType}.`
-        );
+    // 2. Labor: at least one of (userId, TradeLevelRate reference) required.
+    //    Material / Equipment: both reference fields required (existing rule).
+    if (lineItemType === "Labor") {
+        const hasRef = !!(priceReferenceModel && priceReferenceId);
+        if (!userId && !hasRef) {
+            throw new BadUserInputError(
+                "Labor line items require at least one of: userId, or priceReferenceModel=TradeLevelRate + priceReferenceId."
+            );
+        }
+        if (hasRef && priceReferenceModel !== "TradeLevelRate") {
+            throw new BadUserInputError(
+                `Labor priceReferenceModel must be TradeLevelRate; got ${priceReferenceModel}.`
+            );
+        }
+        // Mismatched pair is always invalid (only one side set).
+        if (!!priceReferenceModel !== !!priceReferenceId) {
+            throw new BadUserInputError(
+                "priceReferenceModel and priceReferenceId must both be set or both null."
+            );
+        }
+    } else {
+        // Material / Equipment — existing rule: both required, pair matches type.
+        if (!priceReferenceModel || !priceReferenceId) {
+            throw new BadUserInputError(
+                "Non-Custom, non-Labor line items require both priceReferenceModel and priceReferenceId."
+            );
+        }
+        const expected =
+            ItemizedEstimateChangeOrderRecordLineItem.lineTypeToReferenceModel[
+                lineItemType as Exclude<EstimateLineItemType, "Custom" | "Labor">
+            ];
+        if (priceReferenceModel !== expected) {
+            throw new BadUserInputError(
+                `lineItemType=${lineItemType} requires priceReferenceModel=${expected}, got ${priceReferenceModel}.`
+            );
+        }
+        if (userId) {
+            throw new BadUserInputError(
+                `userId is only permitted on Labor line items; got lineItemType=${lineItemType}.`
+            );
+        }
     }
 
     // 4a. Creation-type gate — parent ECR must be Itemized.
@@ -424,19 +472,80 @@ public async validatePayload(
         }
     }
 
-    // 4b. Existence check — id resolves to a live row in the right table
-    // (falls through to delegate lookup below)
-    const delegate =
-        ItemizedEstimateChangeOrderRecordLineItem.priceReferenceDelegate[priceReferenceModel];
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const exists = await (delegate as any).findFirst({
-        where: { id: priceReferenceId, isDeleted: false, isArchived: false },
-        select: { id: true }
-    });
-    if (!exists) {
+    // 4b. Existence check — id resolves to a live row in the right table.
+    //     Labor with userId-only has no price reference; skip the delegate lookup.
+    if (priceReferenceModel && priceReferenceId) {
+        const delegate =
+            ItemizedEstimateChangeOrderRecordLineItem.priceReferenceDelegate[priceReferenceModel];
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const exists = await (delegate as any).findFirst({
+            where: { id: priceReferenceId, isDeleted: false, isArchived: false },
+            select: { id: true }
+        });
+        if (!exists) {
+            throw new BadUserInputError(
+                `priceReferenceId ${priceReferenceId} does not resolve in ${priceReferenceModel}.`
+            );
+        }
+    }
+
+    // 4c. Labor user/trade consistency — when both userId and a TradeLevelRate are set,
+    //     the user's UserTradeLevel as of the ECR's createdAt must have the same TradeLevel
+    //     as the selected TradeLevelRate.
+    if (
+        lineItemType === "Labor" &&
+        userId &&
+        priceReferenceModel === "TradeLevelRate" &&
+        priceReferenceId &&
+        estimateChangeOrderRecordId
+    ) {
+        const ecr = await prisma.estimateChangeOrderRecord.findUnique({
+            where: { id: estimateChangeOrderRecordId },
+            select: { createdAt: true }
+        });
+        const asOf = ecr?.createdAt ?? new Date();
+
+        // UserTradeLevel effective on `asOf`. Uses whatever effective-dating the
+        // UserTradeLevel table exposes (effectiveFrom / effectiveTo, or null = open);
+        // fall back to the user's current UserTradeLevel if the table isn't date-scoped.
+        const utl = await prisma.userTradeLevel.findFirst({
+            where: {
+                userId,
+                isDeleted: false,
+                isArchived: false,
+                OR: [{ effectiveFrom: null }, { effectiveFrom: { lte: asOf } }],
+                AND: [{ OR: [{ effectiveTo: null }, { effectiveTo: { gte: asOf } }] }]
+            },
+            select: { tradeLevelId: true }
+        });
+        if (!utl) {
+            throw new BadUserInputError(
+                `User ${userId} has no UserTradeLevel effective on ${asOf.toISOString()}.`
+            );
+        }
+        const rate = await prisma.tradeLevelRate.findUnique({
+            where: { id: priceReferenceId },
+            select: { tradeLevelId: true }
+        });
+        if (rate && rate.tradeLevelId !== utl.tradeLevelId) {
+            throw new BadUserInputError(
+                "Selected user's trade level does not match the selected TradeLevelRate as of the estimate's creation date."
+            );
+        }
+    }
+
+    // 5. Line-level contingency — XOR: at most one of (percent, dollar) non-null.
+    //    Mirrors the estimate-level rule enforced by EstimateChangeOrderRecord.validatePayload.
+    if (contingencyPercent != null && contingencyDollarValue != null) {
         throw new BadUserInputError(
-            `priceReferenceId ${priceReferenceId} does not resolve in ${priceReferenceModel}.`
+            "Line contingency: only one of contingencyPercent or contingencyDollarValue may be set."
         );
+    }
+    if (contingencyPercent != null && Number(contingencyPercent) < 0) {
+        throw new BadUserInputError("contingencyPercent must be non-negative.");
+    }
+    if (contingencyDollarValue != null && Number(contingencyDollarValue) < 0) {
+        throw new BadUserInputError("contingencyDollarValue must be non-negative.");
     }
 }
 ```
@@ -450,35 +559,35 @@ private static readonly MAX_TREE_DEPTH = 3; // ECR root → Section → Subsecti
 // Bump this constant if product confirms a deeper hierarchy.
 
 private async validateParentAndDepth(
-    parentId: string | null | undefined,
+    parentRecordId: string | null | undefined,
     nodeType: LineItemNodeType,
     estimateChangeOrderRecordId: string | undefined
 ): Promise<void> {
-    if (!parentId) return; // root-level node is always fine
+    if (!parentRecordId) return; // root-level node is always fine
 
     const parent = await this.prisma.findFirst({
-        where: { id: parentId, isDeleted: false, isArchived: false },
-        select: { id: true, nodeType: true, parentId: true, estimateChangeOrderRecordId: true }
+        where: { id: parentRecordId, isDeleted: false, isArchived: false },
+        select: { id: true, nodeType: true, parentRecordId: true, estimateChangeOrderRecordId: true }
     });
     if (!parent) {
-        throw new BadUserInputError(`parentId ${parentId} does not resolve to a live node.`);
+        throw new BadUserInputError(`parentRecordId ${parentRecordId} does not resolve to a live node.`);
     }
     if (parent.nodeType !== "Section") {
-        throw new BadUserInputError("parentId must reference a Section node.");
+        throw new BadUserInputError("parentRecordId must reference a Section node.");
     }
     if (
         estimateChangeOrderRecordId &&
         parent.estimateChangeOrderRecordId !== estimateChangeOrderRecordId
     ) {
-        throw new BadUserInputError("parentId must belong to the same EstimateChangeOrderRecord.");
+        throw new BadUserInputError("parentRecordId must belong to the same EstimateChangeOrderRecord.");
     }
 
     // Walk up the ancestor chain to enforce the depth cap.
     // Depth 1 = direct child of ECR root, Depth N = N-levels deep.
     // We're about to insert a child of `parent`, so the new depth = parent.depth + 1.
     let depth = 1;
-    let cursor: { parentId: string | null } | null = { parentId: parent.parentId };
-    while (cursor?.parentId) {
+    let cursor: { parentRecordId: string | null } | null = { parentRecordId: parent.parentRecordId };
+    while (cursor?.parentRecordId) {
         depth += 1;
         if (depth >= ItemizedEstimateChangeOrderRecordLineItem.MAX_TREE_DEPTH) {
             // Reading the new node's depth = depth + 1; stop before exceeding cap.
@@ -487,8 +596,8 @@ private async validateParentAndDepth(
             );
         }
         const next = await this.prisma.findUnique({
-            where: { id: cursor.parentId },
-            select: { parentId: true }
+            where: { id: cursor.parentRecordId },
+            select: { parentRecordId: true }
         });
         cursor = next;
     }
@@ -509,22 +618,43 @@ public async resolveUnitCost(input: {
 }): Promise<number | null> {
     switch (input.lineItemType) {
         case "Labor": {
-            if (!input.priceReferenceId) return null;
-            const rate = await prisma.tradeLevelRate.findFirstOrThrow({
+            // Labor has three valid shapes: user-only, trade-only, or both.
+            // (validatePayload already rejects neither-set.)
+            let tradeLevelRateId: string | null = input.priceReferenceId ?? null;
+
+            if (input.userId && !tradeLevelRateId) {
+                // User-only: derive TradeLevelRate via the user's UserTradeLevel
+                // as of the ECR's createdAt (point-in-time). resolveTradeLevelRateForUser
+                // is the LEM-1 helper that already does this for timesheets.
+                const ecr = await prisma.estimateChangeOrderRecord.findUnique({
+                    where: { id: input.estimateChangeOrderRecordId },
+                    select: { createdAt: true }
+                });
+                tradeLevelRateId = await resolveTradeLevelRateForUser({
+                    userId: input.userId,
+                    asOf: ecr?.createdAt ?? new Date()
+                });
+                if (!tradeLevelRateId) return null;
+            }
+
+            if (!tradeLevelRateId) return null;
+
+            await prisma.tradeLevelRate.findFirstOrThrow({
                 where: {
-                    id: input.priceReferenceId,
+                    id: tradeLevelRateId,
                     isDeleted: false,
                     isArchived: false
                 },
                 select: { id: true }
             });
-            // LEM-1: if userId is present, apply that worker's active employee agreement
-            // to derive the billable rate. If absent, fall back to the base rate from the
-            // contract attached to the TradeLevelRate. Delegates to the same service
-            // used by timesheets — do not inline the logic here.
+
+            // LEM-1: when userId is present (user-only or both), apply that worker's
+            // active employee agreement. When absent (trade-only), return the base rate
+            // on the TradeLevelRate's contract. Delegates to the same service used by
+            // timesheets — do not inline the logic here.
             return resolveLaborBillableValue({
                 userId: input.userId ?? null,
-                tradeLevelRateId: rate.id
+                tradeLevelRateId
             });
         }
         case "Equipment": {
@@ -745,7 +875,7 @@ export const ItemizedEstimateChangeOrderRecordLineItemResolvers: IModelResolverC
                 isArchived: Boolean
                 estimateChangeOrderRecordId: String
                 nodeType: LineItemNodeType
-                parentId: String
+                parentRecordId: String
                 lineItemType: EstimateLineItemType
                 priceReferenceModel: PriceReferenceModel
                 priceReferenceId: String
@@ -760,6 +890,8 @@ export const ItemizedEstimateChangeOrderRecordLineItemResolvers: IModelResolverC
                 markupDollarValue: Float
                 price: Float
                 taxValue: Float
+                contingencyPercent: Float
+                contingencyDollarValue: Float
                 TaxType: [TaxType]
                 orderNo: Int
             }
@@ -767,7 +899,7 @@ export const ItemizedEstimateChangeOrderRecordLineItemResolvers: IModelResolverC
             input CreateItemizedEstimateChangeOrderRecordLineItem {
                 estimateChangeOrderRecordId: String!
                 nodeType: LineItemNodeType
-                parentId: String
+                parentRecordId: String
                 lineItemType: EstimateLineItemType
                 priceReferenceModel: PriceReferenceModel
                 priceReferenceId: String
@@ -780,13 +912,15 @@ export const ItemizedEstimateChangeOrderRecordLineItemResolvers: IModelResolverC
                 markupPercent: Float
                 markupDollarValue: Float
                 price: Float
+                contingencyPercent: Float
+                contingencyDollarValue: Float
                 taxTypeIds: [String]
                 orderNo: Int
             }
 
             input EditItemizedEstimateChangeOrderRecordLineItem {
                 id: ID!
-                parentId: String
+                parentRecordId: String
                 lineItemType: EstimateLineItemType
                 priceReferenceModel: PriceReferenceModel
                 priceReferenceId: String
@@ -799,6 +933,8 @@ export const ItemizedEstimateChangeOrderRecordLineItemResolvers: IModelResolverC
                 markupPercent: Float
                 markupDollarValue: Float
                 price: Float
+                contingencyPercent: Float
+                contingencyDollarValue: Float
                 taxTypeIds: [String]
                 orderNo: Int
             }
@@ -964,12 +1100,12 @@ pnpm --filter api build
 
 - **Spec contract.** `tm-work-orders-uis/uis-IE-1-schema-model.html` §3's field-to-column matrix and example-rows-per-type are the contract IE-2 binds against. Keep them in lockstep with any post-merge Prisma rename.
 - **Resolver input per line type** (for `ResolveItemizedLineItemUnitCostInput`):
-    - **Labor:** `lineItemType=Labor`, `priceReferenceModel=TradeLevelRate`, `priceReferenceId`; optional `userId` (Labor-only; applies the worker's agreement when present, otherwise falls back to the contract base rate).
+    - **Labor:** `lineItemType=Labor` + at least one of: `userId` (resolver derives `TradeLevelRate` from the user's `UserTradeLevel` as of the ECR's `createdAt`); `priceReferenceModel=TradeLevelRate` + `priceReferenceId` (trade-only). When both set, the picker must constrain users to those with the selected trade level as of that date; validator re-checks. Rate resolution applies the worker's LEM-1 employee agreement when `userId` is present.
     - **Material:** `lineItemType=Material`, `priceReferenceModel=MaterialAttributePrice`, `priceReferenceId`; optional `quantity` for tiered pricing.
     - **Equipment:** `lineItemType=Equipment`, `priceReferenceModel=EquipmentRateValue`, `priceReferenceId`, `unit` (hr/day/…).
     - **Custom:** resolver not called; UI sends manual `unitCost`.
 - **Creation-type gate.** Lives in `validatePayload` (Step 3b, rule 4a) — rejects line item writes against non-`Itemized` ECRs. Paired with the `canEdit: false` on `EstimateChangeOrderRecord.creationType` (Step 3e) that prevents a saved `Itemized` ECR from ever being flipped back to `Full` / `BidFirst`. No IE-3 hand-off needed anymore — IE-1 is self-sufficient on the schema side.
-- **Tree rollups belong to IE-3.** Section subtotals, numbered row labels, and the grand-total rollup are **computed at read time**, not stored on `Section` rows. IE-3's totals panel is the canonical owner of that math. IE-1 exposes the raw tree via `itemizedEstimateChangeOrderRecordLineItems`; the consumer traverses `parentId`.
+- **Tree rollups belong to IE-3.** Section subtotals, numbered row labels, and the grand-total rollup are **computed at read time**, not stored on `Section` rows. IE-3's totals panel is the canonical owner of that math. IE-1 exposes the raw tree via `itemizedEstimateChangeOrderRecordLineItems`; the consumer traverses `parentRecordId`.
 - **Open question for product (see spec §3 callout).** Tree depth is currently capped at 3 (`Section → Subsection → LineItem`). If Corey / Chris relax this, bump `MAX_TREE_DEPTH` in the model — no other code changes required.
 - **Discount hook (SD-1 integration).** Line-level and estimate-level discounts are SD-1's `DiscountAssignment` rows, **not** fields on this model. When the model's create/edit path completes, if the caller provided discount data (e.g., IE-2's inline ad-hoc %) the resolver then calls SD-1's `createAdHocDiscountAndAttach` or `attachDiscount`. `recomputeTaxValue` must be invoked whenever a line-level `DiscountAssignment` is added / edited / removed; wire this via a post-commit hook in SD-1's mutations (SD-1's plan §3b has the seam — after `DiscountAssignment.create`/`edit`/`delete` where `referenceModel = "ItemizedEstimateChangeOrderRecordLineItem"`, call back into `ItemizedEstimateChangeOrderRecordLineItem.recomputeTaxValue`).
 
@@ -986,10 +1122,12 @@ pnpm --filter api build
 - [ ] `apps/api/src/types/ItemizedEstimateChangeOrderRecordLineItem.types.ts` exports const arrays + derived types; barrel re-exports from `types/index.ts`
 - [ ] `BaseAuditableModel` subclass implements all four lifecycle hooks (`archiveChildren`, `restoreChildren`, `deleteChildren`, `getRelatedDeleteCount`)
 - [ ] Null-shape validation: `Custom` with any `priceReference*` set → rejected
-- [ ] Null-shape validation: non-`Custom` with either `priceReference*` unset → rejected
-- [ ] Type ↔ model map: `Labor` ↔ `TradeLevelRate`, `Material` ↔ `MaterialAttributePrice`, `Equipment` ↔ `EquipmentRateValue` enforced
-- [ ] `userId` accepted on `Labor` lines (optional, never required)
+- [ ] Null-shape validation: `Material` / `Equipment` with either `priceReference*` unset → rejected
+- [ ] Null-shape validation: mismatched pair (one of `priceReferenceModel` / `priceReferenceId` set, the other null) → rejected for every line type
+- [ ] Type ↔ model map: `Material` ↔ `MaterialAttributePrice`, `Equipment` ↔ `EquipmentRateValue` enforced; Labor rows with `priceReferenceModel` set must use `TradeLevelRate`
 - [ ] `userId` rejected on `Material`, `Equipment`, or `Custom` lines
+- [ ] **Labor row with neither `userId` nor `TradeLevelRate` reference → rejected**
+- [ ] Labor user/trade consistency: when both `userId` and a `TradeLevelRate` are set, validator reads the user's `UserTradeLevel` effective on the ECR's `createdAt`; mismatched `TradeLevel` → rejected
 - [ ] Existence check: `priceReferenceId` that does not resolve in the table named by `priceReferenceModel` → rejected
 - [ ] Existence check: `priceReferenceId` pointing at a soft-deleted or archived row → rejected
 - [ ] `resolveItemizedLineItemUnitCost` returns a non-null `Float` for a well-formed Labor (`TradeLevelRate`) input
@@ -1005,14 +1143,18 @@ pnpm --filter api build
 - [ ] Editing the `taxTypeIds` set on an existing line diffs connect/disconnect correctly and recomputes `taxValue`
 - [ ] Tax base is `price` (post-markup), not `totalCost`
 - [ ] `LineItemNodeType` enum exists with `Section` and `LineItem`; `nodeType` defaults to `LineItem`
-- [ ] Self-referential `Parent` / `Children` relation (`NodeTree`) compiles; `parentId` index present
+- [ ] Self-referential `ParentRecord` / `ChildRecords` relation (`NodeTree`) compiles; `parentRecordId` index present
 - [ ] `Section` nodes reject every priced / tax / reference field, reject `lineItemType`, require `description`
 - [ ] `LineItem` nodes require `lineItemType` and run the existing reference/tax validation
-- [ ] `parentId` must reference a live `Section` on the same `EstimateChangeOrderRecord`
+- [ ] `parentRecordId` must reference a live `Section` on the same `EstimateChangeOrderRecord`
 - [ ] Tree depth cap (3) enforced by ancestor walk on create/edit; `MAX_TREE_DEPTH` constant documented so a product change is a one-line update
 - [ ] `nodeType` and `lineItemType` are immutable after creation — enforced via `canEdit: false` in `modelFields`; edit payloads carrying a different value are stripped by the base model (and the test suite confirms the stored value is unchanged)
 - [ ] Section rollups / totals are **not** stored on `Section` rows — computation is IE-3's responsibility (documented in handoff notes)
 - [ ] IE-1 carries **zero** discount-related columns; all discounts attach via SD-1's `DiscountAssignment`
+- [ ] `contingencyPercent` + `contingencyDollarValue` columns exist on `ItemizedEstimateChangeOrderRecordLineItem` (line-level contingency; estimate-level pair lives on `EstimateChangeOrderRecord` in IE-3)
+- [ ] `validatePayload` rejects a line that sets both `contingencyPercent` and `contingencyDollarValue` (XOR)
+- [ ] `validatePayload` rejects negative values on either contingency field
+- [ ] Section nodes reject `contingencyPercent` / `contingencyDollarValue` (grouper-only rule)
 - [ ] `recomputeTaxValue` is invoked whenever a line-level `DiscountAssignment` is added, edited, or removed (post-commit hook in SD-1's mutations where `referenceModel = "ItemizedEstimateChangeOrderRecordLineItem"`)
 - [ ] `Itemized` appears as a value of `EstimateChangeOrderRecordCreationType` in the generated `@prisma/client`
 - [ ] Creation-type gate: creating or editing a line item whose parent ECR has `creationType = Full` or `BidFirst` is rejected with a clear error
@@ -1033,8 +1175,14 @@ pnpm --filter api build
 5. **Validation — bogus id for correct model.** `Material` + `priceReferenceModel = MaterialAttributePrice` + a random string / a valid id from another table → rejected by existence check.
 6. **Validation — soft-deleted reference.** Seed a `TradeLevelRate`, soft-delete it; creating a `Labor` line referencing that id → rejected (matches LEM-1's active-only selection).
 7. **Validation — userId on non-Labor line.** `Material` / `Equipment` / `Custom` line with `userId` set → rejected.
-8. **Resolver — Labor with userId.** Seed `User`, `EmployeeAgreementContract`, `EmployeeAgreementRateLabel`, `TradeLevelRate`; call resolver with `Labor` + `userId` + `TradeLevelRate` reference; returned `Float` equals the billable rate derived via LEM-1's agreement logic for that worker.
-8b. **Resolver — Labor without userId.** Same seed minus `User`; call resolver with `Labor` + `TradeLevelRate` reference and no `userId`; returned `Float` equals the base rate from the contract attached to the `TradeLevelRate` (no worker-specific multipliers).
+7b. **Validation — Labor with neither userId nor TradeLevelRate.** `Labor` row where both `userId` and the price reference pair are null → rejected with "at least one of: userId, or priceReferenceModel=TradeLevelRate + priceReferenceId."
+7c. **Validation — Labor both, matching.** Seed `User` with a `UserTradeLevel` (tradeLevel=Journeyman) effective on ECR `createdAt`; `TradeLevelRate` for Journeyman. Create Labor line with both `userId` and `priceReferenceId=<that rate>` → accepted.
+7d. **Validation — Labor both, mismatched.** Same seed but `TradeLevelRate` for Foreman; create Labor line with that `userId` + rate → rejected with "trade level does not match."
+7e. **Validation — Labor user-only, no UserTradeLevel on date.** User has a `UserTradeLevel` effective only after the ECR's `createdAt`. Create Labor line with `userId` only → rejected with "has no UserTradeLevel effective on ...".
+8. **Resolver — Labor with both.** Seed `User`, `UserTradeLevel` effective at ECR `createdAt`, `EmployeeAgreementContract`, `EmployeeAgreementRateLabel`, matching `TradeLevelRate`; call resolver with `Labor` + `userId` + `TradeLevelRate` reference; returned `Float` equals the billable rate derived via LEM-1's agreement logic for that worker.
+8b. **Resolver — Labor trade-only.** Seed `TradeLevelRate`; call resolver with `Labor` + `TradeLevelRate` reference and no `userId`; returned `Float` equals the base rate from the contract attached to the `TradeLevelRate` (no worker-specific multipliers).
+8c. **Resolver — Labor user-only.** Seed `User` with `UserTradeLevel` effective at ECR `createdAt`, `EmployeeAgreementContract`, `EmployeeAgreementRateLabel`, `TradeLevelRate` for the derived trade level; call resolver with `Labor` + `userId` only; returned `Float` equals the billable rate via the LEM-1 agreement path (same value as 8).
+8d. **Resolver — Labor user-only, past estimate.** Seed two `UserTradeLevel` rows for the same user (Journeyman effective 2024-01-01→2025-06-30; Foreman effective 2025-07-01→null). Create an ECR with `createdAt = 2025-04-01`; resolver returns the Journeyman-based billable rate, not the Foreman one.
 9. **Resolver — Equipment unit conversion.** Seed `EquipmentRateValue` with `EquipmentRatePer = HOUR`; call resolver with `unit = "day"`; returned value equals LEM-2's hour→day conversion (not the raw hourly number).
 10. **Resolver — Material.** Seed `MaterialAttributePrice`; returned value equals stored `value`.
 11. **Resolver — Custom** returns `null`; the subsequent `create` mutation persists the manual `unitCost`.
@@ -1046,15 +1194,20 @@ pnpm --filter api build
 16. **Tax — snapshot invariant.** After scenario 14, add a new `TaxTypeItem` for the same `TaxType` at 15% with `effectiveDate = now`; re-read the line; `taxValue` is still `10` (no recompute). Then edit the line (e.g., bump `orderNo`) and confirm recompute now picks the 15% row.
 17. **Tax — edit re-diffs.** Create a line with `taxTypeIds = [A]`; edit with `taxTypeIds = [B]`; assert A is disconnected, B is connected, and `taxValue` reflects B.
 18. **Tax — null price.** Create a `Custom` line with no `price` set and `taxTypeIds = [A]`; `taxValue` stored as `null` (no divide / multiply against null).
-19. **Section — happy path.** Create a `Section` node with `description = "Sitework"`, `parentId = null`; add a `LineItem` (Custom) with `parentId = <section.id>`; list returns both rows and the line's `parentId` matches.
+19. **Section — happy path.** Create a `Section` node with `description = "Sitework"`, `parentRecordId = null`; add a `LineItem` (Custom) with `parentRecordId = <section.id>`; list returns both rows and the line's `parentRecordId` matches.
 20. **Section — priced field rejection.** Create a `Section` with any of `price`, `quantity`, `unitCost`, `priceReferenceModel`, `lineItemType`, `taxTypeIds` set → rejected.
 21. **Section — missing title.** Create a `Section` with empty or null `description` → rejected.
-22. **Parent must be a Section.** Create a `LineItem`; create a second `LineItem` with `parentId = <first.id>` → rejected with "parentId must reference a Section node."
-23. **Parent cross-ECR.** Create a `Section` on ECR A; create a `LineItem` on ECR B with `parentId = <section on A>` → rejected.
+22. **Parent must be a Section.** Create a `LineItem`; create a second `LineItem` with `parentRecordId = <first.id>` → rejected with "parentRecordId must reference a Section node."
+23. **Parent cross-ECR.** Create a `Section` on ECR A; create a `LineItem` on ECR B with `parentRecordId = <section on A>` → rejected.
 24. **Depth cap.** Create Section A (root) → Section B (child of A) → Section C (child of B). Attempting to attach a Section or LineItem as a child of C → rejected with "Tree depth cap exceeded." Attaching a LineItem as a child of B (depth 3) succeeds.
 25. **nodeType immutability.** Create a `LineItem`; call `editItem` with `nodeType = Section` in the payload → base model strips the field; the stored `nodeType` remains `LineItem`. Same round-trip for a `Section` with `nodeType = LineItem` in the edit.
 25b. **lineItemType immutability.** Create a `Labor` line; call `editItem` with `lineItemType = Material` in the payload → base model strips it; stored value remains `Labor`. Confirms IE-2's "no type change after create (delete + re-add)" rule.
-26. **Subtree reorder (sanity).** Create Section A with two LineItems under it; create Section B (root); edit LineItem to move under B via `parentId` change → success; list query returns the line under B.
+26. **Subtree reorder (sanity).** Create Section A with two LineItems under it; create Section B (root); edit LineItem to move under B via `parentRecordId` change → success; list query returns the line under B.
+27. **Line contingency — percent only.** Create a Labor line with `contingencyPercent = 10`, `contingencyDollarValue = null` → accepted; round-trips through the API.
+28. **Line contingency — dollar only.** Create a Labor line with `contingencyDollarValue = 250`, `contingencyPercent = null` → accepted.
+29. **Line contingency — XOR violation.** Create a Labor line with both `contingencyPercent = 10` and `contingencyDollarValue = 250` → rejected with "only one of contingencyPercent or contingencyDollarValue may be set."
+30. **Line contingency — negative.** Create a Labor line with `contingencyPercent = -1` → rejected.
+31. **Section rejects line contingency.** Create a Section node with `contingencyPercent = 5` set → rejected (grouper-only rule).
 
 ---
 

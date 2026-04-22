@@ -124,7 +124,7 @@ query ItemizedEstimateChangeOrderRecordLineItems($options: GetListOptions) {
     ... on ItemizedEstimateChangeOrderRecordLineItem {
       id
       nodeType
-      parentId
+      parentRecordId
       estimateChangeOrderRecordId
       lineItemType
       priceReferenceModel
@@ -334,7 +334,7 @@ export { EstimateLineItemEditor };
 Responsibilities:
 
 - Load initial tree via `itemizedEstimateChangeOrderRecordLineItems(options: { where: { estimateChangeOrderRecordId } })` and hydrate each line's `discountAssignments` via `discountsForEntity` (parallel fetch).
-- Maintain the tree as a flat array with `parentId` / `orderNo` (same shape the canvas uses; easier for diffing than a recursive tree).
+- Maintain the tree as a flat array with `parentRecordId` / `orderNo` (same shape the canvas uses; easier for diffing than a recursive tree).
 - Expose mutation methods that update local state optimistically and flag rows with `_dirty`.
 - Enforce tree depth cap: expose `maxTreeDepth = 3` and a `canAddSubAt(parentSectionId)` helper used by `SectionRow` to disable `+ Sub`.
 - **Save method** (called by parent-form `onSubmit`):
@@ -357,12 +357,12 @@ import { IconTrash } from "@useanzen/ui";
 import { FormControl } from "~root/components/Forms/_FormControls/FormControl";
 
 interface ISectionRowProps {
-    section: { id: string; title: string; parentId: string | null; depth: number };
+    section: { id: string; title: string; parentRecordId: string | null; depth: number };
     isEditMode: boolean;
     maxTreeDepth: number;
     onEdit: (id: string, patch: { title: string }) => void;
-    onAddSub: (parentId: string) => void;
-    onAddLine: (parentId: string) => void;
+    onAddSub: (parentRecordId: string) => void;
+    onAddLine: (parentRecordId: string) => void;
     onMove: (id: string, delta: -1 | 1) => void;
     onDelete: (id: string) => void;
 }
@@ -611,7 +611,7 @@ pnpm --filter frontend build
 
 IE-3 consumes from IE-2's tree:
 
-- **Subtotals by branch** — IE-3 reads the tree via `itemizedEstimateChangeOrderRecordLineItems` and walks `parentId` for section rollups. IE-2 does not persist section subtotals.
+- **Subtotals by branch** — IE-3 reads the tree via `itemizedEstimateChangeOrderRecordLineItems` and walks `parentRecordId` for section rollups. IE-2 does not persist section subtotals.
 - **Estimate-level discount list** — `discountsForEntity("EstimateChangeOrderRecord", <id>)` is IE-3's input for the "step 2 → step 3" math (line % → line sell → estimate-level on pre-tax → proportional tax split).
 - **Tax aggregates** — IE-3 reads each line's cached `taxValue` (IE-1 snapshot) + its `TaxType[]` set, aggregates by `TaxType`, re-computes under proportional discount split.
 - **Overhead %** — stays on `EstimateChangeOrderRecord.overheadMarkup` (existing). IE-3 owns policy for how overhead is applied (pre-/post-tax, per line, etc.).
@@ -680,7 +680,7 @@ IE-3 consumes from IE-2's tree:
 17. **Discount ad-hoc promotion (manual).** SD-1's `promoteAdHocDiscount` isn't surfaced in IE-2 v1; confirm this is a future-UX concern, not a blocker.
 18. **Discount dedupe.** Attach `Contractor rate`; try to add it again → dropdown filters it out.
 19. **Estimate-level discount.** Add an estimate discount "Early-bird 2%" via the totals panel → appears in stack; removing a line-level discount on any line does not affect this one.
-20. **Section + Line.** Click `+ Section` on toolbar → new section at root with editable title. Click `+ Line` inside the section → new blank line appears as a child; its parentId is the section id.
+20. **Section + Line.** Click `+ Section` on toolbar → new section at root with editable title. Click `+ Line` inside the section → new blank line appears as a child; its parentRecordId is the section id.
 21. **Section + Sub.** Inside a section, `+ Sub` → new subsection; inside the subsection, another `+ Sub` renders a depth-3 row; on that one, `+ Sub` button is disabled.
 22. **Section reorder with subtree.** Section A has 2 children; reorder A down below Section B → both children move with A.
 23. **Section delete cascade.** Delete a subsection containing 3 lines → confirm dialog shows "Delete section and 3 child items?" → accept → all 4 rows disappear from the UI and become `isDeleted: true` on save.

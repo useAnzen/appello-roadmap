@@ -436,14 +436,14 @@ var estimateDiscounts = [
     { id: "ad-1", type: "Percent", value: 2, name: "Early-bird" }
 ];
 
-function makeSection(title, parentId, orderNo) {
-    return { id: nid(), kind: "section", parentId: parentId, orderNo: orderNo, title: title };
+function makeSection(title, parentRecordId, orderNo) {
+    return { id: nid(), kind: "section", parentRecordId: parentRecordId, orderNo: orderNo, title: title };
 }
-function makeLine(hint, parentId, orderNo, overrides) {
+function makeLine(hint, parentRecordId, orderNo, overrides) {
     var base = {
         id: nid(),
         kind: "line",
-        parentId: parentId,
+        parentRecordId: parentRecordId,
         orderNo: orderNo,
         lineItemType: null,
         description: "",
@@ -569,14 +569,14 @@ function render() {
 function buildTree() {
     var byParent = {};
     rows.forEach(function (r) {
-        var key = r.parentId == null ? "_root_" : r.parentId;
+        var key = r.parentRecordId == null ? "_root_" : r.parentRecordId;
         (byParent[key] = byParent[key] || []).push(r);
     });
     Object.keys(byParent).forEach(function (k) {
         byParent[k].sort(function (a, b) { return a.orderNo - b.orderNo; });
     });
-    function expand(parentId) {
-        var key = parentId == null ? "_root_" : parentId;
+    function expand(parentRecordId) {
+        var key = parentRecordId == null ? "_root_" : parentRecordId;
         return (byParent[key] || []).map(function (r) {
             return { row: r, children: r.kind === "section" ? expand(r.id) : [] };
         });
@@ -989,14 +989,14 @@ function onAction(ev) {
             break;
         case "add-sub":
             if (sec) {
-                var existing = rows.filter(function (r) { return r.parentId === sec.id; });
+                var existing = rows.filter(function (r) { return r.parentRecordId === sec.id; });
                 rows.push(makeSection("New subsection", sec.id, existing.length));
                 render();
             }
             break;
         case "add-line":
             if (sec) {
-                var existing = rows.filter(function (r) { return r.parentId === sec.id; });
+                var existing = rows.filter(function (r) { return r.parentRecordId === sec.id; });
                 rows.push(makeLine("blank", sec.id, existing.length, {}));
                 // Reset the blank-line fields so it appears with Type picker
                 var last = rows[rows.length - 1];
@@ -1124,7 +1124,7 @@ function deleteSubtree(rootId) {
     while (changed) {
         changed = false;
         rows.forEach(function (r) {
-            if (r.parentId && toKill.has(r.parentId) && !toKill.has(r.id)) {
+            if (r.parentRecordId && toKill.has(r.parentRecordId) && !toKill.has(r.id)) {
                 toKill.add(r.id);
                 changed = true;
             }
@@ -1134,7 +1134,7 @@ function deleteSubtree(rootId) {
 }
 function moveSibling(row, delta) {
     if (!row) return;
-    var siblings = rows.filter(function (r) { return r.parentId === row.parentId; }).sort(function (a, b) { return a.orderNo - b.orderNo; });
+    var siblings = rows.filter(function (r) { return r.parentRecordId === row.parentRecordId; }).sort(function (a, b) { return a.orderNo - b.orderNo; });
     var idx = siblings.findIndex(function (r) { return r.id === row.id; });
     var j = idx + delta;
     if (j < 0 || j >= siblings.length) return;
@@ -1163,12 +1163,12 @@ document.addEventListener("click", function (ev) {
     onAction(ev);
 });
 document.getElementById("btnAddSection").addEventListener("click", function () {
-    var rootCount = rows.filter(function (r) { return r.parentId == null; }).length;
+    var rootCount = rows.filter(function (r) { return r.parentRecordId == null; }).length;
     rows.push(makeSection("New section", null, rootCount));
     render();
 });
 document.getElementById("btnAddRootLine").addEventListener("click", function () {
-    var rootCount = rows.filter(function (r) { return r.parentId == null; }).length;
+    var rootCount = rows.filter(function (r) { return r.parentRecordId == null; }).length;
     var ln = makeLine("blank", null, rootCount, {});
     ln.lineItemType = null; ln.unit = ""; ln.unitCost = 0; ln.quantity = 0; ln.taxTypeIds = []; ln.discounts = [];
     rows.push(ln);
@@ -1195,7 +1195,7 @@ document.getElementById("gridSearch").addEventListener("input", function () {
 (function seedDemo() {
     var mechId = nid();
     var elecId = nid();
-    rows.push({ id: mechId, kind: "section", parentId: null, orderNo: 0, title: "Mechanical" });
+    rows.push({ id: mechId, kind: "section", parentRecordId: null, orderNo: 0, title: "Mechanical" });
     rows.push(makeLine("seed", mechId, 0, {
         lineItemType: "Labor",
         tradeLevelId: "tl-weld-j",
@@ -1214,7 +1214,7 @@ document.getElementById("gridSearch").addEventListener("input", function () {
         quantity: 120,
         markupPercent: 12
     }));
-    rows.push({ id: elecId, kind: "section", parentId: null, orderNo: 1, title: "Electrical" });
+    rows.push({ id: elecId, kind: "section", parentRecordId: null, orderNo: 1, title: "Electrical" });
     rows.push(makeLine("seed", elecId, 0, {
         lineItemType: "Equipment",
         equipmentId: "eq-scissor",

@@ -69,6 +69,7 @@ Add a reusable `Discount` entity and a polymorphic `DiscountAssignment` join (mi
 - **Effective-date windowing.** `effectiveFrom` / `effectiveTo` on the `Discount` itself. Both nullable = open-ended. Lets seasonal promos auto-retire and pre-scheduled contract rates kick in on a future date.
 - **Suggestions, not auto-apply.** A `Discount` attached to a `Company` never silently applies to a new estimate — it becomes a pickable suggestion in IE-2's per-line picker (unioned with Job-level discounts for the same job). Attachment is always explicit.
 - **Math lives in IE-3.** SD-1 stores; IE-3's totals engine computes. SD-1 does not opine on stack ordering at the math layer (it just exposes `orderNo`), proportional tax split, or compound discount interaction.
+- **Per-attachment `overrideValue`.** `DiscountAssignment.overrideValue` is a nullable Decimal. When set, totals math uses it in place of the parent `Discount.value`; the `DiscountType` (Percent / FixedAmount) is always inherited from the parent. This lets a named discount like "HappyDiscount" (5%) attach to one line at 5% and another at 6% without forking the catalog. Validation applies the same bounds as `Discount.value` (Percent 0–100, all values non-negative).
 
 ---
 
@@ -129,6 +130,10 @@ model DiscountAssignment {
 
   discountId     String   @db.VarChar(21)
   Discount       Discount @relation(fields: [discountId], references: [id])
+
+  // Per-attachment magnitude override. null = use Discount.value as-is.
+  // Type (Percent / FixedAmount) is always inherited from the parent Discount.
+  overrideValue  Decimal? @db.Decimal(10, 2)
 
   @@unique([referenceModel, referenceId, discountId], map: "DiscountAssignment_ref_discount_unique")
   @@index([referenceModel, referenceId], map: "DiscountAssignment_ref_idx")
@@ -267,7 +272,8 @@ class DiscountAssignment extends BaseAuditableModel<IDiscountAssignment> {
         { name: "referenceModel", type: "string" },
         { name: "referenceId", type: "string" },
         { name: "orderNo", type: "float" },
-        { name: "discountId", type: "string" }
+        { name: "discountId", type: "string" },
+        { name: "overrideValue", type: "float" }
     ];
 
     // archiveChildren / restoreChildren / deleteChildren inherit from BaseAuditableModel.
@@ -285,7 +291,7 @@ class DiscountAssignment extends BaseAuditableModel<IDiscountAssignment> {
     } as const;
 
     public async validatePayload(input: Partial<IDiscountAssignment>): Promise<void> {
-        const { referenceModel, referenceId, discountId } = input;
+        const { referenceModel, referenceId, discountId, overrideValue } = input;
 
         if (!referenceModel || !referenceId) {
             throw new BadUserInputError("referenceModel and referenceId are required.");
@@ -314,12 +320,25 @@ class DiscountAssignment extends BaseAuditableModel<IDiscountAssignment> {
                 `referenceId ${referenceId} does not resolve in ${referenceModel}.`
             );
         }
-        const discountExists = await prisma.discount.findFirst({
+        const discount = await prisma.discount.findFirst({
             where: { id: discountId, isDeleted: false, isArchived: false },
-            select: { id: true }
+            select: { id: true, type: true }
         });
-        if (!discountExists) {
+        if (!discount) {
             throw new BadUserInputError(`discountId ${discountId} does not resolve.`);
+        }
+
+        // overrideValue — inherits type from parent Discount; same bounds as Discount.value.
+        if (overrideValue != null) {
+            const n = Number(overrideValue);
+            if (n < 0) {
+                throw new BadUserInputError("DiscountAssignment.overrideValue must be non-negative.");
+            }
+            if (discount.type === "Percent" && n > 100) {
+                throw new BadUserInputError(
+                    "DiscountAssignment.overrideValue must be 0–100 for a Percent discount."
+                );
+            }
         }
     }
 
@@ -578,6 +597,7 @@ export const DiscountAssignmentResolvers: IModelResolverConfig<IDiscountAssignme
             orderNo: Int
             discountId: String
             Discount: Discount
+            overrideValue: Float
         }
 
         input AttachDiscountInput {
@@ -585,6 +605,7 @@ export const DiscountAssignmentResolvers: IModelResolverConfig<IDiscountAssignme
             referenceId: ID!
             discountId: ID!
             orderNo: Int
+            overrideValue: Float
         }
 
         input CreateAdHocDiscountInput {
@@ -630,14 +651,16 @@ export const DiscountAssignmentResolvers: IModelResolverConfig<IDiscountAssignme
                 referenceModel: args.input.referenceModel,
                 referenceId: args.input.referenceId,
                 discountId: args.input.discountId,
-                orderNo: args.input.orderNo ?? 0
+                orderNo: args.input.orderNo ?? 0,
+                overrideValue: args.input.overrideValue ?? null
             });
             return model.createItem(
                 {
                     referenceModel: args.input.referenceModel,
                     referenceId: args.input.referenceId,
                     discountId: args.input.discountId,
-                    orderNo: args.input.orderNo ?? 0
+                    orderNo: args.input.orderNo ?? 0,
+                    overrideValue: args.input.overrideValue ?? null
                 },
                 context.userId()
             );
@@ -710,7 +733,7 @@ pnpm --filter api build
 
 - **IE-1 line-item model** consumes `DiscountAssignment` via `referenceModel = "ItemizedEstimateChangeOrderRecordLineItem"`. IE-1 adds no discount fields directly on the line; instead, whenever the set of assignments on a line changes, the line's `taxValue` cache recomputes (IE-1's existing `recomputeTaxValue` trigger list grows by one entry).
 - **IE-2 line editor** uses `suggestedDiscountsForLine` for the per-line picker and `createAdHocDiscountAndAttach` for inline "type 5%" entry. Estimate-level discounts use `attachDiscount` with `referenceModel = "EstimateChangeOrderRecord"` and `reorderDiscountAssignments` for stack reorder.
-- **IE-3 totals engine** is the canonical consumer of `discountsForEntity`. Application math (line % → line sell → estimate-level on pre-tax → tax on discounted share, proportional split) is IE-3's responsibility. SD-1 never computes totals.
+- **IE-3 totals engine** is the canonical consumer of `discountsForEntity`. Application math (line % → line sell → estimate-level on pre-tax → tax on discounted share, proportional split) is IE-3's responsibility. SD-1 never computes totals. The engine resolves each assignment's magnitude via `assignment.overrideValue ?? assignment.Discount.value`; `DiscountType` always comes from the parent `Discount`.
 - **IE-5 invoice conversion** copies `DiscountAssignment` rows pointing at an estimate and its lines onto the new `JobBill` and `JobBillLineItem` rows — same polymorphic shape, new `referenceId` values.
 - **Future Discount Library UX** (out of scope here) consumes `discounts(options)` for the reusable list, `createDiscount` / `editDiscount` for management, and `promoteAdHocDiscount` for the "save as reusable" affordance.
 
@@ -729,6 +752,7 @@ pnpm --filter api build
 - [ ] `DiscountAssignment.validatePayload` rejects `referenceModel` outside the allowlist
 - [ ] `DiscountAssignment.validatePayload` rejects `referenceId` that does not resolve in the table named by `referenceModel`
 - [ ] `DiscountAssignment.validatePayload` rejects a non-existent `discountId`
+- [ ] `DiscountAssignment.validatePayload` rejects negative `overrideValue` and (for Percent parent) rejects `overrideValue > 100`; accepts null
 - [ ] Unique constraint rejects the same `Discount` being attached twice to the same entity
 - [ ] `discountsForEntity` returns only active, non-archived, effective-window-active assignments + hydrated `Discount`, ordered by `orderNo`
 - [ ] `suggestedDiscountsForLine` unions Job-level and Company-level assignments for the line's job, de-dupes by `discountId`, excludes `isAdHoc = true`, respects effective window
@@ -761,6 +785,9 @@ pnpm --filter api build
 18. **Promote ad-hoc.** Promote the previous ad-hoc → `isAdHoc = false` + `name = "Repeat customer 5%"`; it now appears in `suggestedDiscountsForLine`.
 19. **Reorder assignments.** Attach three discounts to one `EstimateChangeOrderRecord`; call `reorderDiscountAssignments` with a shuffled id array; `discountsForEntity` returns them in the new order.
 20. **Soft delete cascade on detach.** `detachDiscount` soft-deletes the assignment; the underlying `Discount` is untouched; `discountsForEntity` no longer returns the detached row.
+21. **Override value — attach with override.** Create Percent `Discount` at `value = 5`; `attachDiscount` with `overrideValue = 6` to a line; `discountsForEntity` returns the assignment with `overrideValue = 6`. `Discount.value` on the catalog row is unchanged.
+22. **Override value — validation bounds.** `overrideValue = -1` → rejected (non-negative); Percent parent with `overrideValue = 150` → rejected; `overrideValue = null` → accepted.
+23. **Override value — same catalog row, two overrides.** Attach `Discount` "HappyDiscount" to line A with `overrideValue = 5` and to line B with `overrideValue = 6`; both assignments persist and round-trip distinct values.
 
 ---
 

@@ -54,7 +54,7 @@ td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
 
 ## Overview
 
-The Itemized totals engine, totals panel UI, overhead editor, "Set default markup %" modal, and the transactional upsert mutation that persists an Itemized `EstimateChangeOrderRecord` tree in one atomic write. All schema work for the itemized estimating feature is consolidated in IE-1 — IE-3's only schema touch is adding the two contingency fields (pending the business question in the spec callout) and a doc-comment on `estimateMarkup` documenting its creationType-dependent dual meaning.
+The Itemized totals engine, totals panel UI, overhead editor, "Set default markup %" modal, and the transactional upsert mutation that persists an Itemized `EstimateChangeOrderRecord` tree in one atomic write. Almost all schema work for the itemized estimating feature is consolidated in IE-1 — IE-3's schema touch is the **estimate-level** contingency pair on `EstimateChangeOrderRecord` plus a doc-comment on `estimateMarkup` documenting its creationType-dependent dual meaning. The **line-level** contingency pair on `ItemizedEstimateChangeOrderRecordLineItem` lives in IE-1's migration (same model, same XOR rule).
 
 **Estimated effort:** 4-5 days
 **Risk:** Medium — totals math is non-trivial (compound tax, proportional discount split, nested section rollups); getting it right once and reusing it for PDF / invoice is what earns the day count
@@ -66,12 +66,12 @@ The Itemized totals engine, totals panel UI, overhead editor, "Set default marku
 
 - **creationType is immutable — no mode-switching code lives in IE-3.** IE-1 enforces the rule (`canEdit: false` on `creationType` + write-side gate on line items). IE-3 reads `creationType` and renders; there is no switch UX, no confirm dialog, no data-migration logic anywhere in this plan.
 - **Totals math lives in `@useanzen/shared-utils`** — pure-function module importable by every app. Lives at `packages/shared-utils/src/estimates/itemizedTotalsEngine.ts` (namespaced under `estimates/` so the domain is obvious at a glance). The totals panel computes live on every keystroke with no GraphQL round-trip (qty / markup / tax / discount edits update the panel on the same React render as the edit). Backend re-runs the same function during the upsert for server-authoritative totals and as a sanity check against client drift. IE-4 (PDF) and IE-5 (invoice conversion) import the same module — math is written once, everybody else reads derived values.
-- **Section rollups are read-time.** IE-1 doesn't store subtotals on Section rows; the totals engine walks the `parentId` tree to build the numbered rollup the IE-2 canvas renders. If caching ever proves necessary, it goes in the engine, not the schema.
+- **Section rollups are read-time.** IE-1 doesn't store subtotals on Section rows; the totals engine walks the `parentRecordId` tree to build the numbered rollup the IE-2 canvas renders. If caching ever proves necessary, it goes in the engine, not the schema.
 - **Estimate-level discount stack uses SD-1 directly.** `DiscountAssignment` rows against `referenceModel = "EstimateChangeOrderRecord"` are the canonical store; IE-3's totals engine reads them via SD-1's `discountsForEntity` query. IE-2 already owns the UI for attaching / detaching / reordering — IE-3 reuses IE-2's `EstimateDiscountStack` component.
 - **`estimateMarkup` column is reused, not duplicated.** The existing Instance → ECR seeding (`Instance.defaultEstimateMarkup` / `defaultChangeOrderMarkup` → `ECR.estimateMarkup` at ECR create) keeps working unchanged; IE-3 reuses the column as the per-line-markup seed on Itemized records. A schema doc-comment documents the overload. The totals engine does **not** consult `ECR.estimateMarkup` on the Itemized path — each line's own `markupPercent` is what drives sell.
 - **Header `estimateMarkup` input hides on Itemized.** `EstimateChangeOrderDetails` guards the existing JSX block with `creationType !== "Itemized"`. The only Itemized edit surface for that column is the `Set default markup %` modal.
-- **Transactional upsert in one `$transaction`.** Header fields + full line-item tree (sections + lines, in parentId order) + line tax sets (M2M) + line discount assignments + estimate-level discount assignments all commit together or not at all. Partial failure rolls everything back.
-- **Contingency shape is pending product confirmation.** Plan below assumes the recommended answer: dedicated `contingencyPercent` + `contingencyDollarValue` on `EstimateChangeOrderRecord`, per-estimate. If the answer flips to "per-line" or "fold into `subsidy`", Step 1 changes; Step 2's engine stays structurally identical (the contingency step in the rollup reads from a different field).
+- **Transactional upsert in one `$transaction`.** Header fields + full line-item tree (sections + lines, in parentRecordId order) + line tax sets (M2M) + line discount assignments + estimate-level discount assignments all commit together or not at all. Partial failure rolls everything back.
+- **Contingency exists at both scopes with XOR validation.** `contingencyPercent` and `contingencyDollarValue` are nullable on both `EstimateChangeOrderRecord` (IE-3) and `ItemizedEstimateChangeOrderRecordLineItem` (IE-1). At most one of the two may be non-null per row on each model — validator rejects writes that set both. Distinct from `subsidy` (external funding); subsidy column is untouched. Totals engine renders two separate rollup rows: "Line contingency" (sum of per-line contingency amounts) and "Estimate contingency"; both always rendered (zero when empty), same "provenance visible" pattern as line vs. estimate discounts.
 
 ---
 
@@ -79,18 +79,43 @@ The Itemized totals engine, totals panel UI, overhead editor, "Set default marku
 
 **File:** `apps/api/prisma/schema.prisma`
 
-### 1a. Add contingency fields to `EstimateChangeOrderRecord`
+### 1a. Add estimate-level contingency fields to `EstimateChangeOrderRecord`
 
 ```prisma
 model EstimateChangeOrderRecord {
   // ... existing fields ...
+  /// Reserved margin for unknowns at the estimate level.
+  /// XOR with contingencyDollarValue — at most one may be non-null.
+  /// Distinct from `subsidy` (external funding source).
   contingencyPercent      Decimal?  @db.Decimal(10, 2)
   contingencyDollarValue  Decimal?  @db.Decimal(10, 2)
   // ... rest ...
 }
 ```
 
-Nullable on both; no backfill needed.
+Nullable on both; no backfill needed. **XOR validation** is enforced in `EstimateChangeOrderRecord.validatePayload` (see Step 1d).
+
+> **Line-level contingency** lives in IE-1 on `ItemizedEstimateChangeOrderRecordLineItem` with the same shape (`contingencyPercent` / `contingencyDollarValue`, nullable, XOR rule). IE-1's migration owns those columns; IE-3's engine sums them into the "Line contingency" rollup row.
+
+### 1d. XOR validation
+
+**Modify:** `apps/api/src/models/EstimateChangeOrderRecord.ts` — extend `validatePayload`:
+
+```typescript
+if (input.contingencyPercent != null && input.contingencyDollarValue != null) {
+    throw new BadUserInputError(
+        "EstimateChangeOrderRecord: only one of contingencyPercent or contingencyDollarValue may be set."
+    );
+}
+if (input.contingencyPercent != null && Number(input.contingencyPercent) < 0) {
+    throw new BadUserInputError("contingencyPercent must be non-negative.");
+}
+if (input.contingencyDollarValue != null && Number(input.contingencyDollarValue) < 0) {
+    throw new BadUserInputError("contingencyDollarValue must be non-negative.");
+}
+```
+
+The equivalent rule on `ItemizedEstimateChangeOrderRecordLineItem.validatePayload` is added in IE-1's validator (same shape; flagged in IE-1's acceptance criteria).
 
 ### 1b. Doc-comment the `estimateMarkup` overload
 
@@ -126,7 +151,6 @@ Verify:
 - Migration SQL ends with a newline, no schema references, no `DROP PRIMARY KEY`.
 - Run `pnpm --filter api prisma:cleanMigrationFile`.
 
-> **Gate:** if the §2 Business Question callout in the spec resolves to "fold into subsidy," skip 1a entirely and have the totals engine read `subsidy` where it would have read contingency. Everything else in this plan is unaffected.
 
 ---
 
@@ -150,16 +174,17 @@ This is the heart of IE-3. Every consumer (totals panel, server-side upsert, PDF
  * you're on the wrong branch — consult the spec §4 dual-meaning note.
  */
 export interface IItemizedTotalsInput {
-    lines: IItemizedTotalsLine[];        // FLAT list, parentId drives hierarchy
+    lines: IItemizedTotalsLine[];        // FLAT list, parentRecordId drives hierarchy
     estimateDiscounts: IItemizedDiscount[];  // SD-1 assignments where referenceModel = "EstimateChangeOrderRecord", sorted by orderNo
     overheadPercent: number;             // ECR.overheadMarkup (null → 0)
-    contingencyPercent: number;          // ECR.contingencyPercent (null → 0)
-    contingencyDollarValue: number;      // ECR.contingencyDollarValue (null → 0)
+    // Estimate-level contingency — XOR: at most one non-null; nulls passed as 0.
+    estimateContingencyPercent: number;      // ECR.contingencyPercent (null → 0)
+    estimateContingencyDollarValue: number;  // ECR.contingencyDollarValue (null → 0)
 }
 
 export interface IItemizedTotalsLine {
     id: string;
-    parentId: string | null;
+    parentRecordId: string | null;
     orderNo: number;
     nodeType: "Section" | "LineItem";
     lineItemType?: "Labor" | "Material" | "Equipment" | "Custom" | null;
@@ -177,6 +202,10 @@ export interface IItemizedTotalsLine {
 
     // Line-level discounts (SD-1 assignments), sorted by orderNo
     lineDiscounts: IItemizedDiscount[];
+
+    // Line-level contingency — XOR: at most one non-null per line.
+    contingencyPercent?: number | null;
+    contingencyDollarValue?: number | null;
 }
 
 export interface IItemizedDiscount {
@@ -207,8 +236,10 @@ export interface IItemizedTotalsOutput {
     taxTotal: number;
     subtotal: number;                   // step 3 (taxableSell + taxTotal)
     overheadAmount: number;             // step 4
-    contingencyAmount: number;          // step 5 (contingencyDollarValue + contingencyPercent × subtotal)
-    grandTotal: number;                 // subtotal + overhead + contingency
+    lineContingencyAmount: number;      // step 5a: sum over priced lines of (line.contingencyDollarValue OR line.contingencyPercent × line.price)
+    estimateContingencyAmount: number;  // step 5b: estimateContingencyDollarValue OR estimateContingencyPercent × (subtotal + overhead + lineContingency)
+    contingencyAmount: number;          // lineContingencyAmount + estimateContingencyAmount (convenience sum)
+    grandTotal: number;                 // subtotal + overhead + lineContingency + estimateContingency
     grossMarginPercent: number;         // (grandTotal - costSubtotal) / grandTotal × 100
 
     // Section tree rollup (for the IE-2 canvas numbered subtotals + PDF)
@@ -233,7 +264,7 @@ export function computeItemizedTotals(input: IItemizedTotalsInput): IItemizedTot
         (l) => l.nodeType === "LineItem" && (l.price ?? 0) > 0
     );
 
-    // 1. Per-line: apply line-level discounts, then derive tax base.
+    // 1. Per-line: apply line-level discounts, derive tax base, compute line contingency.
     const perLine = pricedLines.map((line) => {
         const sellBeforeDiscount = Number(line.price ?? 0);
         const costOfLine = Number(line.totalCost ?? 0);
@@ -247,13 +278,24 @@ export function computeItemizedTotals(input: IItemizedTotalsInput): IItemizedTot
             else runningSell = Math.max(0, runningSell - d.value);
             discountAmount += (before - runningSell);
         }
+
+        // Line contingency — XOR: at most one field populated.
+        // Percent is applied to the pre-discount sell so padding scales with scope value.
+        const lineContingencyAmount =
+            line.contingencyDollarValue != null
+                ? Number(line.contingencyDollarValue)
+                : line.contingencyPercent != null
+                ? sellBeforeDiscount * (Number(line.contingencyPercent) / 100)
+                : 0;
+
         return {
             lineId: line.id,
-            parentId: line.parentId,
+            parentRecordId: line.parentRecordId,
             sellBeforeDiscount,
             cost: costOfLine,
             sellAfterLineDiscounts: runningSell,
             lineDiscountAmount: discountAmount,
+            lineContingencyAmount,
             taxTypes: line.taxTypes
         };
     });
@@ -304,11 +346,20 @@ export function computeItemizedTotals(input: IItemizedTotalsInput): IItemizedTot
     }));
     const taxTotal = taxAggregates.reduce((s, a) => s + a.amount, 0);
 
-    // 4. Subtotal → overhead → contingency → grand total.
+    // 4. Subtotal → overhead → line contingency → estimate contingency → grand total.
     const subtotal = taxableSellAfterEstimateDiscounts + taxTotal;
     const overheadAmount = subtotal * (input.overheadPercent / 100);
-    const contingencyAmount =
-        subtotal * (input.contingencyPercent / 100) + input.contingencyDollarValue;
+    const lineContingencyAmount = sum(perLine, (p) => p.lineContingencyAmount);
+
+    // Estimate-level contingency applies on top of subtotal + overhead + line contingency.
+    // XOR: engine receives both values (nulls coerced to 0 upstream); at most one is non-zero.
+    const estimateContingencyBase = subtotal + overheadAmount + lineContingencyAmount;
+    const estimateContingencyAmount =
+        input.estimateContingencyDollarValue > 0
+            ? input.estimateContingencyDollarValue
+            : estimateContingencyBase * (input.estimateContingencyPercent / 100);
+
+    const contingencyAmount = lineContingencyAmount + estimateContingencyAmount;
     const grandTotal = subtotal + overheadAmount + contingencyAmount;
     const grossMarginPercent = grandTotal > 0 ? ((grandTotal - costSubtotal) / grandTotal) * 100 : 0;
 
@@ -326,6 +377,8 @@ export function computeItemizedTotals(input: IItemizedTotalsInput): IItemizedTot
         taxTotal,
         subtotal,
         overheadAmount,
+        lineContingencyAmount,
+        estimateContingencyAmount,
         contingencyAmount,
         grandTotal,
         grossMarginPercent,
@@ -335,9 +388,9 @@ export function computeItemizedTotals(input: IItemizedTotalsInput): IItemizedTot
 
 function buildSectionRollups(
     lines: IItemizedTotalsLine[],
-    perLine: Array<{ lineId: string; parentId: string | null; cost: number; sellBeforeDiscount: number }>
+    perLine: Array<{ lineId: string; parentRecordId: string | null; cost: number; sellBeforeDiscount: number }>
 ): Map<string, ISectionRollup> {
-    // Walk the parentId tree, order siblings by orderNo, assign "1", "1.1", etc. labels,
+    // Walk the parentRecordId tree, order siblings by orderNo, assign "1", "1.1", etc. labels,
     // sum cost + sell for each subtree including nested sections.
     // Implementation left as a straightforward recursion; tree depth capped at 3 per IE-1.
     // ...
@@ -357,7 +410,13 @@ function sum<T>(arr: T[], pick: (x: T) => number): number {
 Cover at minimum:
 
 - Empty input → all zeros, no NaN.
-- Single Custom line, no tax, no discount → `grandTotal = price + overhead + contingency`.
+- Single Custom line, no tax, no discount, no contingency → `grandTotal = price + overhead`.
+- Single priced line with `contingencyPercent = 10`, `price = 1000`, no estimate contingency → `lineContingencyAmount = 100`, `estimateContingencyAmount = 0`.
+- Single priced line with `contingencyDollarValue = 250` → `lineContingencyAmount = 250` regardless of price.
+- ECR with `estimateContingencyPercent = 5` on a subtotal of $10,000 → `estimateContingencyAmount = 500` (applied to `subtotal + overhead + lineContingency`).
+- ECR with `estimateContingencyDollarValue = 500` → `estimateContingencyAmount = 500`, independent of subtotal.
+- Both line-level and estimate-level populated simultaneously → both contribute to `grandTotal`; `contingencyAmount` equals their sum.
+- Zero contingency at both scopes → both rollup rows still present in output with value `0`.
 - Compound tax stacking matches `SimpleInvoice.tsx`'s handling of QST-on-base+GST.
 - Estimate-level Percent discount → proportional split: line A share = lineA.sell / sum(sells); tax on each line's adjusted base.
 - Estimate-level FixedAmount discount caps at the running sell; never goes negative.
@@ -400,7 +459,7 @@ public async upsertItemized(
 
         // 2. Tree diff: create new, update existing, soft-delete missing.
         //    Delegates to ItemizedEstimateChangeOrderRecordLineItem.upsertTree which:
-        //    - Walks the incoming tree in parentId order so section parents exist
+        //    - Walks the incoming tree in parentRecordId order so section parents exist
         //      before their children.
         //    - Per line: runs IE-1 validatePayload (creation-type gate, reference
         //      existence check, type↔model map, node-type shape).
@@ -446,14 +505,14 @@ New public method on the IE-1 model. Takes the incoming flat tree and reconciles
 ```typescript
 public async upsertTree(
     estimateChangeOrderRecordId: string,
-    incoming: IUpsertItemizedLineItemPayload[],  // sections + lines, flat with parentId
+    incoming: IUpsertItemizedLineItemPayload[],  // sections + lines, flat with parentRecordId
     currentUserId: string,
     tx: Prisma.TransactionClient
 ): Promise<FullModel<IItemizedEstimateChangeOrderRecordLineItem>[]> {
     // 1. Load existing tree for this ECR.
     const existing = await tx.itemizedEstimateChangeOrderRecordLineItem.findMany({
         where: { estimateChangeOrderRecordId, isDeleted: false },
-        select: { id: true, parentId: true, nodeType: true }
+        select: { id: true, parentRecordId: true, nodeType: true }
     });
     const existingById = new Map(existing.map((r) => [r.id, r]));
 
@@ -467,7 +526,7 @@ public async upsertTree(
         .map((r) => ({ id: r.id, isDeleted: true }));
 
     // 3. Writes must respect tree order: sections (no parent or parent already written)
-    //    before their children. A topological sort by parentId — depth cap of 3 keeps
+    //    before their children. A topological sort by parentRecordId — depth cap of 3 keeps
     //    this trivial (three passes worst case).
     const orderedCreates = topoSortByParent(toCreate);
 
@@ -579,7 +638,7 @@ typeDef: gql`
     input UpsertItemizedEstimateChangeOrderRecordLineItemInput {
         id: ID                # null = new
         nodeType: LineItemNodeType!
-        parentId: ID           # null = root
+        parentRecordId: ID           # null = root
         orderNo: Int!
         lineItemType: EstimateLineItemType    # null on Section
         priceReferenceModel: PriceReferenceModel
@@ -657,12 +716,16 @@ export const useItemizedTotals = (tree, estimateDiscountAssignments, headerField
                 lines: tree,
                 estimateDiscounts: estimateDiscountAssignments,
                 overheadPercent: headerFields.overheadMarkup ?? 0,
-                contingencyPercent: headerFields.contingencyPercent ?? 0,
-                contingencyDollarValue: headerFields.contingencyDollarValue ?? 0
+                // Estimate-level contingency — engine treats nulls as 0; UI XOR toggle
+                // guarantees at most one is non-null at a time.
+                estimateContingencyPercent: headerFields.contingencyPercent ?? 0,
+                estimateContingencyDollarValue: headerFields.contingencyDollarValue ?? 0
             }),
         [tree, estimateDiscountAssignments, headerFields]
     );
 ```
+
+Per-line contingency fields (`line.contingencyPercent`, `line.contingencyDollarValue`) travel on the `IItemizedTotalsLine` directly — the hook passes them through as part of the `tree` prop without any adapter layer.
 
 ### 4b. Panel component
 
@@ -742,9 +805,21 @@ const EstimateChangeOrderTotals: FC<IEstimateChangeOrderTotalsProps> = ({ ... })
                 label={`Overhead (${headerFields.overheadMarkup ?? 0}%)`}
                 value={totals.overheadAmount}
             />
-            {(headerFields.contingencyPercent || headerFields.contingencyDollarValue) && (
-                <TotalsRow step={5} label="Contingency" value={totals.contingencyAmount} />
-            )}
+            {/* Line contingency and estimate contingency are always rendered
+                (zero when empty) so the reader can tell which scope contributed
+                — same provenance-visible pattern as line vs. estimate discounts. */}
+            <TotalsRow
+                step={5}
+                label="Line contingency (Σ per-line)"
+                value={totals.lineContingencyAmount}
+                alwaysRender
+            />
+            <TotalsRow
+                step={6}
+                label="Estimate contingency"
+                value={totals.estimateContingencyAmount}
+                alwaysRender
+            />
             <TotalsRow grand label="Grand total" value={totals.grandTotal} />
             <TotalsRow label="Gross margin %" value={totals.grossMarginPercent} suffix="%" />
 
@@ -925,7 +1000,10 @@ pnpm --filter frontend build
 
 ## Verification Checklist
 
-- [ ] Migration adds `contingencyPercent` and `contingencyDollarValue` nullable decimals to `EstimateChangeOrderRecord` (or skipped per the §2 gate)
+- [ ] Migration adds `contingencyPercent` and `contingencyDollarValue` nullable decimals to `EstimateChangeOrderRecord`
+- [ ] `EstimateChangeOrderRecord.validatePayload` rejects a payload that sets both `contingencyPercent` and `contingencyDollarValue` (XOR rule)
+- [ ] Engine output includes `lineContingencyAmount` and `estimateContingencyAmount` as separate fields; `contingencyAmount` equals their sum
+- [ ] Totals panel renders "Line contingency" and "Estimate contingency" as two distinct rows, both `alwaysRender` (show $0.00 when empty)
 - [ ] `estimateMarkup` carries the triple-slash doc comment documenting its creationType-dependent dual meaning
 - [ ] `itemizedTotalsEngine.ts` has no Prisma / React imports; tests run with no backend wiring
 - [ ] Unit tests cover: empty input, single line, compound tax (matches `SimpleInvoice.tsx`), estimate-level Percent discount with proportional split, estimate-level FixedAmount cannot go below zero, stacked estimate discounts apply in `orderNo` order, section tree depth-3 rollup labels correctly
@@ -936,7 +1014,7 @@ pnpm --filter frontend build
 - [ ] Mutation diffs line tax M2M and line discount assignments per line
 - [ ] Mutation diffs estimate-level discount assignments against stored set
 - [ ] Mutation never updates `creationType` (IE-1's `canEdit: false` would strip it anyway; defensive belt-and-braces)
-- [ ] Totals panel renders the 5-step numbered rollup + tax aggregates + overhead + contingency + grand total + gross margin
+- [ ] Totals panel renders the numbered rollup + tax aggregates + overhead + line contingency + estimate contingency + grand total + gross margin
 - [ ] Totals panel always renders **Line discounts (Σ per-line)** and **Estimate-level discount (stack total)** as two distinct rows, even at $0.00, and never merges them
 - [ ] Totals panel always renders a **Tax (Σ per-line taxValue, weighted avg X.XX%)** summary row derived from `taxTotal / taxableSellAfterEstimateDiscounts`, below the per-TaxType breakdown
 - [ ] Totals panel re-computes live when qty / markup / tax / line discount / estimate discount / overhead / contingency changes
@@ -965,7 +1043,9 @@ pnpm --filter frontend build
 11. **Mutation — creationType never touched.** Pass `creationType: "Full"` in the mutation payload (shouldn't be in the input type but in a hand-rolled request). `canEdit: false` from IE-1 strips it; stored value remains `Itemized`.
 12. **UI — totals live-recalc.** Bump qty on any line → totals panel updates within one React render; no server round-trip.
 13. **UI — overhead recalc.** Type `15` into the sidebar overhead input → step 4 and grand total re-compute live.
-14. **UI — contingency both flavors.** Set `contingencyPercent = 3` and `contingencyDollarValue = 500` → step 5 = subtotal × 0.03 + 500.
+14. **UI — contingency XOR at estimate level.** Entering `contingencyPercent = 3` clears `contingencyDollarValue` in the form; entering a dollar value clears the percent. Submitting a payload with both non-null is rejected by `EstimateChangeOrderRecord.validatePayload` (server guard backs up the client XOR toggle).
+14b. **UI — contingency XOR at line level.** Same toggle behavior on the IE-2 line grid's contingency column; IE-1's `validatePayload` rejects a line that sets both.
+14c. **Engine — both scopes.** Configure one line with `contingencyPercent = 10` on $1,000 price; ECR with `contingencyDollarValue = 200`. Panel shows "Line contingency: $100", "Estimate contingency: $200", grand total = subtotal + overhead + 300.
 15. **UI — `estimateMarkup` header input hidden on Itemized.** Open an Itemized ECR → no "Estimate markup %" field in the header. Open a Full ECR → field appears (existing behavior preserved).
 16. **UI — Set default markup "Update future".** Modal opens prefilled at `ECR.estimateMarkup`. Change to 18, click Update future → `ECR.estimateMarkup` becomes 18 (dirty); existing lines' `markupPercent` unchanged. Save → persists. Add a new Labor line post-save → seeds at 18.
 17. **UI — Set default markup "Apply to all".** 5 priced lines, each with different `markupPercent`. Modal opens, user enters 12, clicks Apply to all → confirmation dialog mentions "Overwrite markup on 5 existing lines?". Accept → all 5 lines now at 12; Section rows' titles are unchanged. Save → each line's row writes back with the new markup; `taxValue` recomputed for all five.
@@ -985,7 +1065,7 @@ pnpm --filter frontend build
 | MODIFY | `packages/shared-utils/src/index.ts` | Re-export `computeItemizedTotals` and the engine's public types from `./estimates/itemizedTotalsEngine` so consumers `import { computeItemizedTotals } from "@useanzen/shared-utils"` |
 | CREATE | `packages/shared-utils/src/estimates/itemizedTotalsEngine.test.ts` | Unit tests covering compound tax, proportional split, discount stacking, section rollup, dual-meaning sentinel |
 | MODIFY | `apps/api/src/models/EstimateChangeOrderRecord.ts` | Add `upsertItemized` orchestrator that drives the one-transaction upsert |
-| MODIFY | `apps/api/src/models/ItemizedEstimateChangeOrderRecordLineItem.ts` | Add `upsertTree` helper that diffs the incoming tree against the persisted one, ordering creates parentId-first, deferring to `createItemWithTax` / `editItemWithTax` per row; extend those two to handle line-level `lineDiscounts` payloads via SD-1 |
+| MODIFY | `apps/api/src/models/ItemizedEstimateChangeOrderRecordLineItem.ts` | Add `upsertTree` helper that diffs the incoming tree against the persisted one, ordering creates parentRecordId-first, deferring to `createItemWithTax` / `editItemWithTax` per row; extend those two to handle line-level `lineDiscounts` payloads via SD-1 |
 | MODIFY | `apps/api/src/models/DiscountAssignment.ts` | Add `syncForEntity(referenceModel, referenceId, incoming, …)` helper that diffs polymorphic assignments for a single target — used for both estimate-level and line-level stacks |
 | MODIFY | `apps/api/src/graphql/models/EstimateChangeOrderRecord.ts` | Register `upsertItemizedEstimateChangeOrderRecord` mutation + input types |
 | CREATE | `apps/frontend/src/components/Estimates/Totals/EstimateChangeOrderTotals.tsx` | Totals panel (Itemized branch) |

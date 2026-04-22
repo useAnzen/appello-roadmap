@@ -141,20 +141,15 @@ table.schema-table code { font-family: monospace; background: #f1f5f9; padding: 
                 <p>Enforcement is handled upstream in <a href="uis-IE-1-schema-model.html">IE-1</a>: <code>EstimateChangeOrderRecord.creationType</code> carries <code>canEdit: false</code>, and a gate validator rejects line-item writes when the parent ECR isn&#39;t <code>Itemized</code>. IE-3 therefore has no &ldquo;switch mode&rdquo; UX, no confirm dialog, no data-migration logic &mdash; it simply reads <code>creationType</code> and renders.</p>
             </div>
             <div class="decision">
-                <h4>Business Question for Corey / Chris: Contingency fields</h4>
-                <p><code>EstimateChangeOrderRecord</code> today has <code>overheadMarkup</code>, <code>overheadDollarValue</code>, <code>markupDollarValue</code>, <code>estimateMarkup</code>, and <code>subsidy</code>. Roadmap language for IE-3 refers to &ldquo;overhead / contingency&rdquo; but no <code>contingency*</code> field exists.</p>
-                <p><strong>Part 1 &mdash; Where does it live schema-wise:</strong></p>
+                <h4>Decision: Contingency fields (resolved)</h4>
+                <p><strong>Part 1 &mdash; separate from <code>subsidy</code>.</strong> Subsidy and contingency are distinct concepts and stay distinct columns. <code>subsidy</code> reads as &ldquo;external funding source reducing the price&rdquo;; <code>contingency</code> reads as &ldquo;reserved margin for unknowns.&rdquo; Future reporting wants them separated; conflating them destroys audit history. We add <code>contingencyPercent</code> + <code>contingencyDollarValue</code> as new columns; <code>subsidy</code> is untouched.</p>
+                <p><strong>Part 2 &mdash; both line-level and estimate-level.</strong> Contingency fields exist at <strong>both</strong> scopes:</p>
                 <ul>
-                    <li><strong>Add <code>contingencyPercent</code> + <code>contingencyDollarValue</code></strong> (mirrors the <code>overhead*</code> pair). Cleanest audit trail; one extra migration field. <strong>Recommended.</strong></li>
-                    <li><strong>Fold into <code>subsidy</code></strong> (reuse existing column). No schema change, but conflates two semantically different concepts &mdash; subsidy tends to read as &ldquo;external funding source reducing the price,&rdquo; contingency reads as &ldquo;reserved margin for unknowns.&rdquo; Future reporting will want them separate.</li>
+                    <li><strong>Per line</strong> (on <code>ItemizedEstimateChangeOrderRecordLineItem</code>, added by <a href="uis-IE-1-schema-model.html">IE-1</a>) lets estimators pad riskier scope (rough-in, unknowns) without touching safer lines.</li>
+                    <li><strong>Per estimate</strong> (on <code>EstimateChangeOrderRecord</code>, added by IE-3) stacks a global pad on top for unknowns that aren&#39;t line-attributable.</li>
                 </ul>
-                <p><strong>Part 2 &mdash; Per estimate or per line item:</strong></p>
-                <ul>
-                    <li><strong>Per estimate</strong> (on <code>EstimateChangeOrderRecord</code>). Single contingency number applied to the whole estimate post-sell. Simpler UX (one input on the sidebar next to overhead %), matches most SMB estimating tools. <strong>Recommended for v1.</strong></li>
-                    <li><strong>Per line item</strong> (on <code>ItemizedEstimateChangeOrderRecordLineItem</code>). Each line carries its own contingency % / $, letting estimators mark riskier work (rough-in, unknowns) with more padding than straightforward scope. Truer to how trades think about risk, but a bigger UI surface &mdash; adds two more columns or a sub-row to the IE-2 grid, and IE-3&#39;s rollup has to sum per-line contingency separately from any estimate-wide contingency.</li>
-                    <li><strong>Both</strong> (per-line as an optional override, per-estimate as a floor). Most expressive; most UI. Probably overkill for v1 but worth asking about.</li>
-                </ul>
-                <p>Need confirms on both parts before finalizing the data model / UI. Spec and plan below are drafted assuming <strong>per-estimate, dedicated fields</strong>. If the answer flips to per-line, the fields belong in IE-1&#39;s model (additive migration) and IE-2 grows a Contingency column / sub-row.</p>
+                <p><strong>Dollar-or-percent, not both.</strong> Each scope independently accepts <em>either</em> a percent <em>or</em> a dollar value, never both at once. Validation enforces this XOR per scope on both models. (Existing <code>overhead*</code> fields remain as-is; they predate this rule and allow both.)</p>
+                <p>The totals engine renders two distinct contingency rows in the rollup, always shown (zero when empty) so the reader can tell which scope contributed &mdash; same &ldquo;provenance visible&rdquo; pattern used for line vs. estimate discounts.</p>
             </div>
             <h3>In Scope</h3>
             <ul>
@@ -162,9 +157,10 @@ table.schema-table code { font-family: monospace; background: #f1f5f9; padding: 
                 <li><span class="scope-tag scope-in">IN</span> Reusable totals engine module (pure functions) consumed by the totals panel, PDF (IE-4), and invoice conversion (IE-5) so the math is written once</li>
                 <li><span class="scope-tag scope-in">IN</span> Overhead % edit UI on the left sidebar (live re-calc on change; persist with record save)</li>
                 <li><span class="scope-tag scope-in">IN</span> Estimate-level discount stack control in the totals panel &mdash; consumes SD-1&#39;s <code>DiscountAssignment</code> against <code>referenceModel = "EstimateChangeOrderRecord"</code></li>
-                <li><span class="scope-tag scope-in">IN</span> Section / subsection rollups &mdash; numbered subtotals per node, computed at read time by walking the IE-1 tree (<code>parentId</code>)</li>
+                <li><span class="scope-tag scope-in">IN</span> Section / subsection rollups &mdash; numbered subtotals per node, computed at read time by walking the IE-1 tree (<code>parentRecordId</code>)</li>
                 <li><span class="scope-tag scope-in">IN</span> Transactional upsert surface: either extend <code>upsertFullEstimateChangeOrderRecord</code> or add dedicated <code>upsertItemizedEstimateChangeOrderRecord</code> that writes the ECR header + full line-item tree + tax M2M + discount assignments in one transaction</li>
-                <li><span class="scope-tag scope-in">IN</span> Contingency fields on <code>EstimateChangeOrderRecord</code> (pending callout above) &mdash; <code>contingencyPercent</code> + <code>contingencyDollarValue</code>, nullable</li>
+                <li><span class="scope-tag scope-in">IN</span> Estimate-level contingency fields on <code>EstimateChangeOrderRecord</code> &mdash; <code>contingencyPercent</code> + <code>contingencyDollarValue</code>, both nullable, XOR validation (one or the other, never both)</li>
+                <li><span class="scope-tag scope-in">IN</span> Totals engine sums per-line contingency (from IE-1&#39;s line-level <code>contingencyPercent</code> / <code>contingencyDollarValue</code>) into a distinct rollup row, separate from the estimate-level contingency row; both rows always rendered</li>
                 <li><span class="scope-tag scope-in">IN</span> Default markup % flow (&ldquo;Set default markup&rdquo; affordance next to the grid or totals panel) with product-chosen scope rule (only-unset / all / new-only)</li>
             </ul>
             <h3>Out of Scope</h3>
@@ -199,7 +195,8 @@ table.schema-table code { font-family: monospace; background: #f1f5f9; padding: 
                         <div class="mockup-totals-row"><span>Taxable sell (after all discounts)</span><span>$6,336.35</span></div>
                         <div class="mockup-totals-row"><span>Tax <span style="font-size:10px;color:#64748b;">(&Sigma; per-line <code>taxValue</code>, weighted avg 4.8%)</span></span><span>$304.14</span></div>
                         <div class="mockup-totals-row"><span>Overhead</span><span><span class="mockup-select" style="padding:2px 6px;">10%</span> &rarr; $666.98</span></div>
-                        <div class="mockup-totals-row"><span>Contingency</span><span>$0.00</span></div>
+                        <div class="mockup-totals-row"><span>Line contingency <span style="font-size:10px;color:#64748b;">(&Sigma; per-line)</span></span><span>$0.00</span></div>
+                        <div class="mockup-totals-row"><span>Estimate contingency</span><span>$0.00</span></div>
                         <div class="mockup-totals-row" style="font-weight:700;border-top:1px solid #cbd5e1;margin-top:4px;padding-top:4px;"><span>Grand total</span><span>$7,307.47</span></div>
                         <div class="mockup-totals-row"><span>Gross margin %</span><span>13.6%</span></div>
                     </div>
@@ -218,7 +215,8 @@ table.schema-table code { font-family: monospace; background: #f1f5f9; padding: 
             <thead><tr><th>Control</th><th>On change</th><th>Persist</th></tr></thead>
             <tbody>
                 <tr><td>Overhead %</td><td>Live-recalculate dependent rows in panel (client) to match Full worksheet UX</td><td>On parent <strong>Save</strong> with other header fields</td></tr>
-                <tr><td>Contingency % / $</td><td>Same as overhead when fields exist</td><td>Save with record</td></tr>
+                <tr><td>Estimate contingency % / $</td><td>One-or-the-other toggle (%/$). Entering one clears the other. Live-recalculate.</td><td>Save with record</td></tr>
+                <tr><td>Line contingency % / $ <span style="font-size:11px;color:#64748b;">(on the IE-2 grid, not the totals panel)</span></td><td>Same XOR rule per line. IE-2 adds a column (or sub-row); writes flow through the line item upsert.</td><td>Save with line</td></tr>
                 <tr><td>Bid / job value (if shown)</td><td>May stay derived from grand total for Itemized or remain manual &mdash; <strong>TBD</strong></td><td>Per existing ECO rules</td></tr>
             </tbody>
         </table>
@@ -259,7 +257,7 @@ table.schema-table code { font-family: monospace; background: #f1f5f9; padding: 
     <div class="uis-section" id="s3">
         <h2 class="collapsible-toggle open" onclick="toggleSection(this)">4. Data Model <span class="toggle-icon">&#9660;</span></h2>
         <div class="collapsible-body open">
-            <p>The <code>Itemized</code> value on <code>EstimateChangeOrderRecordCreationType</code> and the <code>canEdit: false</code> immutability on <code>creationType</code> both live in <a href="uis-IE-1-schema-model.html">IE-1</a> &mdash; all schema work for itemized estimates ships in a single IE-1 migration. IE-3 adds only the contingency fields below (assuming the Business Question callout in §2 lands on "add fields").</p>
+            <p>The <code>Itemized</code> value on <code>EstimateChangeOrderRecordCreationType</code> and the <code>canEdit: false</code> immutability on <code>creationType</code> both live in <a href="uis-IE-1-schema-model.html">IE-1</a>. <strong>Line-level</strong> <code>contingencyPercent</code> / <code>contingencyDollarValue</code> also live in IE-1&#39;s migration (they&#39;re columns on <code>ItemizedEstimateChangeOrderRecordLineItem</code>). IE-3 adds only the estimate-level contingency fields below.</p>
             <h3>Existing field, new meaning: <code>EstimateChangeOrderRecord.estimateMarkup</code></h3>
             <p>The existing <code>estimateMarkup</code> column is <strong>semantically overloaded</strong> by creationType and we&#39;re intentionally reusing it rather than adding a parallel field:</p>
             <ul>
@@ -273,13 +271,20 @@ table.schema-table code { font-family: monospace; background: #f1f5f9; padding: 
                 <li>Same note at IE-4 (PDF) and IE-5 (invoice) integration points</li>
             </ul>
             <p>On Itemized records, the existing <code>estimateMarkup</code> header input in <code>EstimateChangeOrderDetails</code> is <strong>hidden</strong>. The only edit surface is IE-3&#39;s &ldquo;Set default markup %&rdquo; modal (§3.3).</p>
-            <pre>// Add to the existing EstimateChangeOrderRecord model (pending confirmation):
+            <pre>// Estimate-level contingency on the existing EstimateChangeOrderRecord model.
+//   • Distinct from `subsidy` (external funding) — reserved margin for unknowns.
+//   • XOR rule: at most one of (contingencyPercent, contingencyDollarValue)
+//     may be non-null on a given ECR.
 model EstimateChangeOrderRecord {
   // ... existing fields ...
   contingencyPercent      Decimal?  @db.Decimal(10, 2)
   contingencyDollarValue  Decimal?  @db.Decimal(10, 2)
-}</pre>
-            <p>If the Business Question resolves the other way (fold into <code>subsidy</code>), this section becomes a no-op and IE-3 is frontend-only.</p>
+}
+
+// Line-level contingency lives in IE-1 (ItemizedEstimateChangeOrderRecordLineItem).
+// Same two nullable decimals, same XOR rule. IE-3's totals engine sums them into
+// the "Line contingency" rollup row; IE-1's migration owns the columns.</pre>
+            <p><strong>XOR validation</strong> fires on both models: when one of the two contingency fields is set, the other must be null. Mirrors the pattern in place for the <code>Discount</code> value resolution (percent vs dollar is a type distinction, not a dual value). Existing <code>overhead*</code> fields are exempt from this rule &mdash; they predate it and are allowed to coexist.</p>
         </div>
     </div>
     <div class="uis-section" id="s4">
@@ -298,7 +303,7 @@ model EstimateChangeOrderRecord {
   bid: Float
 
   # Full tree write — sections + lines + tax set + line-level discount set.
-  # parentId / orderNo drive hierarchy; implementation walks depth-first
+  # parentRecordId / orderNo drive hierarchy; implementation walks depth-first
   # and issues creates/edits/deletes + connectTaxTypes + attach/detach discount
   # within one Prisma $transaction.
   lineItemTree: [UpsertItemizedEstimateChangeOrderRecordLineItemInput!]!
@@ -314,7 +319,7 @@ model EstimateChangeOrderRecord {
         <h2 class="collapsible-toggle open" onclick="toggleSection(this)">6. Change Surface <span class="toggle-icon">&#9660;</span></h2>
         <div class="collapsible-body open">
             <ul>
-                <li><span class="action-mod">MOD</span> <code>apps/api/prisma/schema.prisma</code> &mdash; <code>contingencyPercent</code> / <code>contingencyDollarValue</code> on <code>EstimateChangeOrderRecord</code> (pending §2 callout)</li>
+                <li><span class="action-mod">MOD</span> <code>apps/api/prisma/schema.prisma</code> &mdash; <code>contingencyPercent</code> / <code>contingencyDollarValue</code> on <code>EstimateChangeOrderRecord</code> (estimate-level; line-level pair is IE-1)</li>
                 <li><span class="action-mod">MOD</span> <code>apps/api/src/models/EstimateChangeOrderRecord.ts</code> &mdash; new upsert method that writes header + tree + tax + discount atomically</li>
                 <li><span class="action-mod">MOD</span> <code>apps/api/src/graphql/models/EstimateChangeOrderRecord.ts</code> &mdash; new <code>upsertItemizedEstimateChangeOrderRecord</code> mutation registration</li>
                 <li><span class="action-new">NEW</span> <code>apps/api/src/models/itemizedTotalsEngine.ts</code> &mdash; pure-function totals module (line sell, aggregated tax with proportional split, section rollups, grand total, gross margin) reused by the totals panel, PDF (IE-4), and invoice conversion (IE-5)</li>
@@ -329,17 +334,20 @@ model EstimateChangeOrderRecord {
         <h2 class="collapsible-toggle open" onclick="toggleSection(this)">7. Acceptance Criteria <span class="toggle-icon">&#9660;</span></h2>
         <div class="collapsible-body open">
             <ul class="criteria-list">
-                <li><div class="criteria-check"></div><span>Itemized totals panel renders a numbered rollup matching the IE-2 canvas: extended sell after line-level discounts &rarr; cost subtotal &rarr; estimate-level discount stack &rarr; taxable sell after estimate discounts &rarr; aggregated tax per <code>TaxType</code> &rarr; subtotal &rarr; overhead &rarr; contingency &rarr; grand total &rarr; gross margin %</span></li>
+                <li><div class="criteria-check"></div><span>Itemized totals panel renders a numbered rollup matching the IE-2 canvas: extended sell after line-level discounts &rarr; cost subtotal &rarr; estimate-level discount stack &rarr; taxable sell after estimate discounts &rarr; aggregated tax per <code>TaxType</code> &rarr; subtotal &rarr; overhead &rarr; <strong>line contingency</strong> (sum of per-line <code>contingencyPercent</code> / <code>contingencyDollarValue</code>) &rarr; <strong>estimate contingency</strong> &rarr; grand total &rarr; gross margin %. Line contingency and estimate contingency appear as two distinct rows, always rendered (shows $0.00 when empty).</span></li>
                 <li><div class="criteria-check"></div><span>Tax aggregation groups lines by <code>TaxType</code>; compound taxes apply to base + sum(non-compound) per the IE-1 / <code>SimpleInvoice.tsx</code> rule</span></li>
                 <li><div class="criteria-check"></div><span><strong>Line discounts rollup</strong> (sum of per-line <code>DiscountAssignment</code> amounts) and <strong>estimate-level discount rollup</strong> (sum of the stack against <code>EstimateChangeOrderRecord</code>) appear as <em>two distinct rows</em> in the totals panel &mdash; never merged. Each row is always rendered (shows $0.00 when empty) so the reader can always tell which level the discount came from.</span></li>
                 <li><div class="criteria-check"></div><span><strong>Tax rollup is always derived from lines</strong>: panel shows the sum of per-line cached <code>taxValue</code> with a weighted-average rate annotation. There is no estimate-level tax control; tax never originates outside the line grid.</span></li>
                 <li><div class="criteria-check"></div><span>Estimate-level discounts apply in <code>orderNo</code> order to the pre-tax sell; each line&#39;s taxable base shifts by its proportional share of the estimate-level discount; aggregated tax reflects the shifted bases</span></li>
-                <li><div class="criteria-check"></div><span>Section / subsection rollups computed at read time by walking IE-1&#39;s <code>parentId</code> tree &mdash; no stored subtotals</span></li>
+                <li><div class="criteria-check"></div><span>Section / subsection rollups computed at read time by walking IE-1&#39;s <code>parentRecordId</code> tree &mdash; no stored subtotals</span></li>
                 <li><div class="criteria-check"></div><span>Overhead % edit on the sidebar re-computes the panel live; persists on record Save</span></li>
                 <li><div class="criteria-check"></div><span>Transactional upsert writes header + tree + line tax sets + line discount assignments + estimate-level discount assignments in one Prisma <code>$transaction</code>; partial failure rolls everything back</span></li>
                 <li><div class="criteria-check"></div><span>Gross margin % matches the agreed formula (document in plan once chosen)</span></li>
                 <li><div class="criteria-check"></div><span>Totals engine is a pure-function module importable by PDF (IE-4) and invoice conversion (IE-5) without duplicating math</span></li>
-                <li><div class="criteria-check"></div><span>Contingency fields (if added per §2 callout) round-trip through the upsert and surface in the totals panel</span></li>
+                <li><div class="criteria-check"></div><span>Estimate-level contingency fields round-trip through the upsert; XOR validation on <code>EstimateChangeOrderRecord</code> rejects any write where both <code>contingencyPercent</code> and <code>contingencyDollarValue</code> are non-null</span></li>
+                <li><div class="criteria-check"></div><span>Line-level contingency fields on <code>ItemizedEstimateChangeOrderRecordLineItem</code> (owned by IE-1) round-trip through the upsert tree; XOR validation applies per line</span></li>
+                <li><div class="criteria-check"></div><span>Engine test: a line with <code>contingencyPercent = 10</code> and a <code>price</code> of $1,000 contributes $100 to the "Line contingency" rollup row</span></li>
+                <li><div class="criteria-check"></div><span>Engine test: an ECR with <code>contingencyDollarValue = 500</code> contributes $500 to the "Estimate contingency" rollup row; with <code>contingencyPercent = 3</code> instead, contributes 3% of the pre-contingency subtotal</span></li>
                 <li><div class="criteria-check"></div><span>No &ldquo;switch creation type&rdquo; UI, no confirm dialog, no data-migration logic exists in IE-3 &mdash; the path is gated by IE-1&#39;s <code>canEdit: false</code> + gate validator</span></li>
                 <li><div class="criteria-check"></div><span><code>EstimateChangeOrderDetails</code> hides the existing <code>estimateMarkup</code> header input on Itemized records; no UI path exists to edit it outside the &ldquo;Set default markup %&rdquo; modal</span></li>
                 <li><div class="criteria-check"></div><span>&ldquo;Set default markup %&rdquo; modal prefills from <code>ECR.estimateMarkup</code>; two distinct actions are both visible (<strong>Update default for future lines</strong>, <strong>Apply default to all lines now</strong>); bulk-apply shows a secondary confirmation before overwriting</span></li>

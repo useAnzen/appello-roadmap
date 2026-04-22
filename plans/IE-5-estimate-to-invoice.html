@@ -89,6 +89,7 @@ We keep the skeleton (FC + `useModal` + `useMutation` + Cancel/Confirm footer) c
 - **Post-generation, the action is replaced by a View invoice link.** In every surface that exposes the primary action (header toolbar, Billing area panel), the presence of `generatedJobBillId` swaps the button for `<a href="/jobs/:jobId/billing/:jobBillId">View invoice INV-XXXX &rarr;</a>`. Single-shot generation is enforced on both sides &mdash; UI hides it, server rejects it.
 - **No new preview query.** The estimate details view already has the full itemized tree + totals loaded via IE-2/IE-3. We pass the already-computed totals into the modal as props; no extra round trip. (PR #7017 needs the preview query because the WO tab doesn't otherwise load aggregate counts.)
 - **Mapping is one-to-one, flat.** Each itemized `EstimateLineItem` with `nodeType: LineItem` becomes one `JobBillLineItem`. Section / SubSection nodes are skipped &mdash; the invoice template is **Simple**, not hierarchical. Section names are *not* concatenated into the description (we considered it; the Simple bill is flat by definition and users can edit after creation).
+- **Contingency is preserved on the bill, collapsed to one dollar value.** Estimates hold contingency at two scopes (per-line on `ItemizedEstimateChangeOrderRecordLineItem`, estimate-level on `EstimateChangeOrderRecord`), each XOR percent-or-dollar. The invoice doesn't need that granularity — it needs the *value* preserved so the billed total matches the quote. At conversion, IE-3's totals engine resolves both scopes into dollar amounts; their sum lands on a new nullable `JobBill.contingencyDollarValue` column. Invoice rendering adds it to the grand total. If contingency on the estimate was zero at both scopes, the column is `null`.
 - **Per-line tax and discount carry over as a straight copy.** Both IE-1 and SD-1 are designed with this conversion in mind:
     - IE-1 snapshots `taxValue` at write time ("makes IE-5 invoice conversion a straight copy"). IE-5 copies the `TaxType[]` connections + the cached `taxValue` directly onto the new `JobBillLineItem` &mdash; **not** recomputed, so the invoice reflects the exact tax basis the customer agreed to on the estimate.
     - SD-1 lists `"JobBillLineItem"` and `"JobBill"` in the `DiscountAssignment.referenceModel` allowlist specifically to support this conversion (SD-1 plan line 714). IE-5 re-points per-line discounts at the new `JobBillLineItem.id` and estimate-level discounts at the new `JobBill.id` &mdash; same `discountId`, new reference row.
@@ -126,6 +127,13 @@ ALTER TABLE `JobBill`
 
 CREATE INDEX `JobBill_sourceEstimateChangeOrderRecordId_idx`
     ON `JobBill`(`sourceEstimateChangeOrderRecordId`);
+
+-- JobBill.contingencyDollarValue — preserves contingency value when the bill is
+-- generated from an estimate. Resolved at generation time from both line-level
+-- and estimate-level contingency on the source ECR (IE-1 + IE-3). Nullable for
+-- bills that weren't generated from an estimate.
+ALTER TABLE `JobBill`
+    ADD COLUMN `contingencyDollarValue` DECIMAL(10, 2) NULL;
 ```
 
 **Why `UNIQUE` on `generatedJobBillId`:** enforces &ldquo;one estimate generates at most one invoice&rdquo; at the database layer. A concurrent duplicate call in a race condition will fail with a unique constraint violation; the resolver wraps that into the retry-friendly error.
@@ -148,6 +156,12 @@ model JobBill {
   sourceEstimateChangeOrderRecordId String?                    @db.VarChar(21)
   SourceEstimateChangeOrderRecord   EstimateChangeOrderRecord? @relation("EstimateGeneratedJobBill", fields: [sourceEstimateChangeOrderRecordId], references: [id])
 
+  /// Resolved dollar amount carried over from the source estimate's contingency
+  /// (line-level + estimate-level, collapsed to one value by IE-3's engine at
+  /// generation time). null on bills not generated from an estimate. Invoice
+  /// totals rendering adds this to the bill's grand total.
+  contingencyDollarValue            Decimal?                   @db.Decimal(10, 2)
+
   @@index([sourceEstimateChangeOrderRecordId])
 }
 ```
@@ -165,6 +179,8 @@ Run `pnpm --filter api prisma:format` + `pnpm --filter api prisma:validate` afte
 Add a new method next to the existing `generateInvoiceFromWorkOrder` (the PR #7017 sibling method). Borrow its structure; substitute the guards and line resolver.
 
 ```ts
+import { computeItemizedTotals } from "@useanzen/shared-utils";
+
 public async createInvoiceFromEstimate(
     estimateChangeOrderRecordId: string,
     currentUserId: string
@@ -179,7 +195,11 @@ public async createInvoiceFromEstimate(
             creationType: true,
             generatedJobBillId: true,
             isDeleted: true,
-            isArchived: true
+            isArchived: true,
+            // Needed to roll contingency into the bill — see Step 2c.
+            overheadMarkup: true,
+            contingencyPercent: true,
+            contingencyDollarValue: true
         }
     });
 
@@ -209,6 +229,7 @@ public async createInvoiceFromEstimate(
 
     // Pull the flat itemized tree; keep only leaf LineItem nodes for the Simple bill.
     // Include TaxType connections so we can mirror them onto JobBillLineItem rows.
+    // Pull line-level contingency fields so we can roll them into the bill total.
     const lineItems = await prisma.itemizedEstimateChangeOrderRecordLineItem.findMany({
         where: {
             estimateChangeOrderRecordId,
@@ -216,9 +237,9 @@ public async createInvoiceFromEstimate(
             isDeleted: false,
             isArchived: false
         },
-        orderBy: [{ parentId: "asc" }, { orderNo: "asc" }],
+        orderBy: [{ parentRecordId: "asc" }, { orderNo: "asc" }],
         include: {
-            TaxType: { select: { id: true } }
+            TaxType: { select: { id: true, rate: true, isCompound: true } }
         }
     });
     if (lineItems.length === 0) {
@@ -241,7 +262,15 @@ public async createInvoiceFromEstimate(
                 }
             ]
         },
-        select: { id: true, discountId: true, referenceModel: true, referenceId: true }
+        select: {
+            id: true,
+            discountId: true,
+            referenceModel: true,
+            referenceId: true,
+            orderNo: true,
+            overrideValue: true,
+            Discount: { select: { id: true, type: true, value: true } }
+        }
     });
 
     const perLineDiscounts = new Map<string, typeof discountAssignments>();
@@ -256,6 +285,54 @@ public async createInvoiceFromEstimate(
         }
     }
 
+    // Roll contingency into a single dollar amount preserved on the bill.
+    // Estimates hold contingency at two scopes (per-line + estimate-level, XOR
+    // percent-or-dollar at each scope). The bill doesn't care about provenance —
+    // it just needs the value preserved so the invoice total matches the quote.
+    // Resolve both scopes into one dollar figure via IE-3's totals engine.
+    const engineInput = {
+        lines: lineItems.map((l) => ({
+            id: l.id,
+            parentRecordId: l.parentRecordId,
+            orderNo: l.orderNo,
+            nodeType: "LineItem" as const,
+            quantity: Number(l.quantity ?? 0),
+            totalCost: Number(l.totalCost ?? 0),
+            markupPercent: Number(l.markupPercent ?? 0),
+            markupDollarValue: Number(l.markupDollarValue ?? 0),
+            price: Number(l.price ?? 0),
+            taxTypes: l.TaxType.map((t) => ({
+                id: t.id,
+                rate: Number(t.rate),
+                isCompound: t.isCompound
+            })),
+            lineDiscounts: (perLineDiscounts.get(l.id) ?? []).map((da) => ({
+                id: da.id,
+                type: da.Discount?.type ?? "Percent",
+                value: Number(da.overrideValue ?? da.Discount?.value ?? 0),
+                orderNo: da.orderNo
+            })),
+            contingencyPercent: l.contingencyPercent != null ? Number(l.contingencyPercent) : null,
+            contingencyDollarValue:
+                l.contingencyDollarValue != null ? Number(l.contingencyDollarValue) : null
+        })),
+        estimateDiscounts: estimateLevelDiscounts.map((da) => ({
+            id: da.id,
+            type: da.Discount?.type ?? "Percent",
+            value: Number(da.overrideValue ?? da.Discount?.value ?? 0),
+            orderNo: da.orderNo
+        })),
+        overheadPercent: Number(estimate.overheadMarkup ?? 0),
+        estimateContingencyPercent: Number(estimate.contingencyPercent ?? 0),
+        estimateContingencyDollarValue: Number(estimate.contingencyDollarValue ?? 0)
+    };
+    const totals = computeItemizedTotals(engineInput);
+    // Single resolved dollar figure carried onto the bill — collapses both scopes.
+    // Invoice-side totals rendering adds this to the bill's grand total so the
+    // customer never sees the quoted value disappear.
+    const resolvedContingencyDollarValue =
+        totals.lineContingencyAmount + totals.estimateContingencyAmount;
+
     // Create bill + mirror estimate-level discounts + create lines + mirror per-line
     // tax and discounts + link both sides — all atomic.
     return prisma.$transaction(async (tx) => {
@@ -265,7 +342,11 @@ public async createInvoiceFromEstimate(
                 template: "Simple",
                 invoiceDate: new Date(),
                 submittedByUserId: currentUserId,
-                sourceEstimateChangeOrderRecordId: estimate.id
+                sourceEstimateChangeOrderRecordId: estimate.id,
+                contingencyDollarValue:
+                    resolvedContingencyDollarValue > 0
+                        ? resolvedContingencyDollarValue
+                        : null
             },
             [],
             currentUserId,
@@ -281,7 +362,8 @@ public async createInvoiceFromEstimate(
                     id: nanoid(),
                     discountId: da.discountId,
                     referenceModel: "JobBill",
-                    referenceId: bill.id
+                    referenceId: bill.id,
+                    overrideValue: da.overrideValue
                 }
             });
         }
@@ -318,6 +400,7 @@ public async createInvoiceFromEstimate(
             }
 
             // Mirror per-line DiscountAssignment rows onto the new JobBillLineItem.
+            // Carry overrideValue verbatim — same polymorphic shape, new referenceId.
             const lineDiscounts = perLineDiscounts.get(item.id) ?? [];
             for (const da of lineDiscounts) {
                 await tx.discountAssignment.create({
@@ -325,7 +408,8 @@ public async createInvoiceFromEstimate(
                         id: nanoid(),
                         discountId: da.discountId,
                         referenceModel: "JobBillLineItem",
-                        referenceId: billLine.id
+                        referenceId: billLine.id,
+                        overrideValue: da.overrideValue
                     }
                 });
             }
@@ -355,7 +439,14 @@ public async createInvoiceFromEstimate(
 | `quantity * unitSell` | `value` | Re-derive rather than trusting a cached total column |
 | `taxValue` | `taxValue` | **Verbatim copy of the IE-1 snapshot** &mdash; do not recompute |
 | `TaxType[]` (M2M `"ItemizedEstimateLineItemToTaxType"`) | `TaxType[]` (M2M `"JobBillLineItemToTaxType"`) | `connect` the same `TaxType.id` set; preserves stacked / compound tax definitions |
-| `DiscountAssignment` rows where `referenceModel = "ItemizedEstimateChangeOrderRecordLineItem"` and `referenceId = lineItem.id` | New `DiscountAssignment` rows with `referenceModel = "JobBillLineItem"`, same `discountId` | One row per source row; cloned, not moved |
+| `DiscountAssignment` rows where `referenceModel = "ItemizedEstimateChangeOrderRecordLineItem"` and `referenceId = lineItem.id` | New `DiscountAssignment` rows with `referenceModel = "JobBillLineItem"`, same `discountId`, `overrideValue` copied verbatim | One row per source row; cloned, not moved |
+| `contingencyPercent` / `contingencyDollarValue` on each line | *Collapsed* — resolved to a dollar amount by IE-3's engine, summed with estimate-level contingency, and written once to `JobBill.contingencyDollarValue` | Line-level contingency **is not** carried onto `JobBillLineItem`. Preserves the total value without widening the bill line schema. |
+
+### Header mapping (ECR → JobBill)
+
+| `EstimateChangeOrderRecord` | `JobBill` | Notes |
+|---|---|---|
+| `contingencyPercent` + `contingencyDollarValue` (estimate-level) + per-line contingency on each `ItemizedEstimateChangeOrderRecordLineItem` | `contingencyDollarValue` (single resolved dollar total) | Sum of `totals.lineContingencyAmount + totals.estimateContingencyAmount` from IE-3's engine, computed at generation time. Null on the bill if both inputs were zero. |
 
 ### Estimate-level discount mapping
 
@@ -669,6 +760,10 @@ No separate success banner needed &mdash; `notify.success` inside the modal alre
 - [ ] Per-line `TaxType[]` connections on the new `JobBillLineItem` match the source `ItemizedEstimateChangeOrderRecordLineItem.TaxType` set exactly
 - [ ] Per-line `DiscountAssignment` rows cloned from `referenceModel: "ItemizedEstimateChangeOrderRecordLineItem"` to `referenceModel: "JobBillLineItem"`, same `discountId`
 - [ ] Estimate-level `DiscountAssignment` rows cloned from `referenceModel: "EstimateChangeOrderRecord"` to `referenceModel: "JobBill"`, same `discountId`
+- [ ] `overrideValue` on every cloned `DiscountAssignment` is copied verbatim (line-level and estimate-level)
+- [ ] Migration adds nullable `JobBill.contingencyDollarValue` column
+- [ ] `JobBill.contingencyDollarValue` on the generated bill equals `totals.lineContingencyAmount + totals.estimateContingencyAmount` from IE-3's engine run against the source estimate; null when both are zero
+- [ ] Bill grand total (invoice-side rendering) includes `contingencyDollarValue` so the billed amount matches the quoted amount
 - [ ] `customCreateItem` / `JobBillLineItemModel.createItem` accept the `tx` parameter (or writes refactored to `tx.*` directly if not)
 - [ ] UI action selector renders exactly one of: Generate button, View link, nothing &mdash; never a disabled Generate button
 - [ ] Error handler never displays server error text to the user &mdash; only the generic retry message
@@ -697,6 +792,11 @@ No separate success banner needed &mdash; `notify.success` inside the modal alre
 15. **No tax / no discount.** Line with `taxValue = null`, no `TaxType` connections, no `DiscountAssignment` rows. Invoice line has `taxValue = null`, empty `TaxType[]`, no discount rows. No spurious inserts.
 16. **Mixed line set.** Estimate with 6 lines &mdash; 2 taxed, 1 discounted, 1 both, 2 clean. Each `JobBillLineItem` mirrors only its own line's tax/discount state; cross-contamination is impossible because the per-line discount map is keyed by source line id.
 17. **PDF footprint.** The spec does not require the generated bill's PDF to reference the source estimate. If stakeholders want that later, it's a straight follow-up hanging off `sourceEstimateChangeOrderRecordId` &mdash; no schema change needed.
+18. **Line-level contingency carry-over.** Estimate with one line at `contingencyPercent = 10`, `price = $1,000` (all other contingency zero). Generate invoice. `JobBill.contingencyDollarValue = 100.00`. Billed grand total = estimate grand total.
+19. **Estimate-level contingency carry-over.** Estimate with zero line contingency and `contingencyDollarValue = 500` on the ECR. After generation, `JobBill.contingencyDollarValue = 500.00`.
+20. **Both scopes populated.** Line with `contingencyPercent = 10` on $1,000 price ($100 line) + ECR with `contingencyPercent = 5` on an $11,000 post-overhead base ($550 estimate). After generation, `JobBill.contingencyDollarValue = 650.00`. Two separate rollup rows on the estimate → one resolved number on the bill.
+21. **Zero contingency.** Estimate with no contingency at either scope. `JobBill.contingencyDollarValue = null` (not 0) — distinguishes "generated from an estimate with no contingency" from "not generated from an estimate."
+22. **Override value carry-over on discounts.** Line has a `DiscountAssignment` with `discountId = happy5pct` and `overrideValue = 6`. After generation, the cloned `DiscountAssignment` on `JobBillLineItem` has the same `discountId` and `overrideValue = 6` — the per-attachment tweak survives the copy.
 
 ---
 
@@ -707,8 +807,8 @@ No separate success banner needed &mdash; `notify.success` inside the modal alre
 - `apps/frontend/src/components/EstimateChangeOrder/EstimateInvoiceConfirmModal.tsx`
 
 ### Modified (5)
-- `apps/api/prisma/schema.prisma` &mdash; add `generatedJobBillId` on `EstimateChangeOrderRecord`, `sourceEstimateChangeOrderRecordId` on `JobBill`, shared relation `EstimateGeneratedJobBill`
-- `apps/api/src/models/JobBill.ts` &mdash; add `createInvoiceFromEstimate(estimateId, userId)`
+- `apps/api/prisma/schema.prisma` &mdash; add `generatedJobBillId` on `EstimateChangeOrderRecord`, `sourceEstimateChangeOrderRecordId` + `contingencyDollarValue` on `JobBill`, shared relation `EstimateGeneratedJobBill`
+- `apps/api/src/models/JobBill.ts` &mdash; add `createInvoiceFromEstimate(estimateId, userId)`; imports `computeItemizedTotals` from `@useanzen/shared-utils` to roll contingency onto the bill
 - `apps/api/src/graphql/models/JobBill.ts` &mdash; add mutation SDL + resolver; expose `SourceEstimateChangeOrderRecord` on `JobBill` type
 - `apps/api/src/graphql/models/EstimateChangeOrderRecord.ts` &mdash; expose `generatedJobBillId` + `GeneratedJobBill` on `EstimateChangeOrderRecord` type
 - `apps/frontend/src/components/DetailsPage/JobDetailsPage/Tabs/EstimatesAndChangeOrders/EstimateChangeOrderDetails.tsx` &mdash; extend query, compute action state, render Generate / View / nothing

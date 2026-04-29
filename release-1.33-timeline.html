@@ -86,6 +86,15 @@ h1 { font-size: 30px; font-weight: 800; color: #0f172a; margin: 0 0 8px; letter-
 .status-blocked { background: #fee2e2; color: #dc2626; }
 .status-parallel { background: #fef3c7; color: #92400e; }
 .status-backend { background: #fef3c7; color: #78350f; border: 1px solid #f59e0b40; }
+.status-deferred { background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; letter-spacing: 0.5px; }
+.status-shipped { background: #dcfce7; color: #14532d; border: 1px solid #86efac; }
+
+/* DEFERRED row visual treatment — strikethrough-light, muted background */
+.item-row.deferred .item-header { background: #f1f5f9 !important; opacity: 0.85; }
+.item-row.deferred .item-header:hover { background: #e2e8f0 !important; opacity: 1; }
+.item-row.deferred .item-name { color: #64748b; }
+.item-row.deferred .item-id { color: #94a3b8; }
+.deferred-banner { display: inline-block; font-size: 10px; font-weight: 800; letter-spacing: 1px; padding: 2px 8px; border-radius: 4px; background: #475569; color: #fff; margin-right: 8px; vertical-align: 1px; }
 
 /* Connectors */
 .connector { text-align: center; padding: 8px; color: #94a3b8; font-size: 20px; }
@@ -138,8 +147,8 @@ h1 { font-size: 30px; font-weight: 800; color: #0f172a; margin: 0 0 8px; letter-
     <div class="summary-cards">
         <div class="summary-card">
             <div class="sc-label">Total Features</div>
-            <div class="sc-value">40</div>
-            <div class="sc-detail">3 LEM + 12 WO + 5 IE + 8 Equip + 12 Backend</div>
+            <div class="sc-value">42</div>
+            <div class="sc-detail">3 LEM + 12 WO + 5 IE + 10 Equip + 12 Backend &middot; 4 deferred</div>
         </div>
         <div class="summary-card">
             <div class="sc-label">Phases</div>
@@ -169,6 +178,8 @@ h1 { font-size: 30px; font-weight: 800; color: #0f172a; margin: 0 0 8px; letter-
         <div class="legend-item"><span class="status-tag status-ready">READY</span> No blockers</div>
         <div class="legend-item"><span class="status-tag status-blocked">BLOCKED</span> Waiting on dependency</div>
         <div class="legend-item"><span class="status-tag status-backend">BACKEND</span> Backend only (no UI)</div>
+        <div class="legend-item"><span class="status-tag status-deferred">DEFERRED</span> Pushed to a later release</div>
+        <div class="legend-item"><span class="status-tag status-shipped">SHIPPED</span> Already merged to <code>Release-1.33</code></div>
         <div class="legend-item" style="color:#94a3b8;">&#9654; = has spec (click to expand)</div>
     </div>
 
@@ -798,7 +809,7 @@ h1 { font-size: 30px; font-weight: 800; color: #0f172a; margin: 0 0 8px; letter-
             <span class="phase-badge badge-customer">Phase 4</span>
             Equipment Maintenance &amp; Mobile (Lower Priority)
         </h2>
-        <p class="phase-desc">These are valuable but not on the critical path for Work Orders. Can be deferred to 1.33 if timeline is tight.</p>
+        <p class="phase-desc">These are valuable but not on the critical path for Work Orders. UIS-15G has been split into the Maintenance Flow MVP (shipped) and a deferred Reports half. UIS-15F and UIS-15E are tentatively marked DEFERRED pending confirmation &mdash; left in this roadmap for visibility.</p>
 
         <div class="header-row">
             <span></span>
@@ -823,32 +834,54 @@ h1 { font-size: 30px; font-weight: 800; color: #0f172a; margin: 0 0 8px; letter-
             <div class="item-row" data-spec="equipment:uis-15g-equipment-maintenance-scheduling.html" data-plan="equipment:plans/uis-15g-equipment-maintenance-scheduling.html">
                 <div class="item-header">
                     <span class="item-chevron">&#9654;</span>
-                    <span class="item-id">UIS-15G</span>
-                    <span class="item-name">Equipment Maintenance Scheduling &mdash; Schedule instances, calendar view, completion workflow, downtime tracking, cost/downtime reports, reminders</span>
-                    <span class="item-est">6-8 days</span>
-                    <span class="item-status"><span class="status-tag status-blocked">BLOCKED</span></span>
+                    <span class="item-id">UIS-15G-1</span>
+                    <span class="item-name"><strong>Maintenance Flow (MVP)</strong> &mdash; MaintenanceSchedule model, calendar view, create/edit/reschedule, mark complete inline, schedule follow-up via <code>parentMaintenanceScheduleId</code>, auto-project next from threshold, hourly reminder job + auto-flip OVERDUE, in-app + AppNotificationSubscriber wiring</span>
+                    <span class="item-est">5 days</span>
+                    <span class="item-status"><span class="status-tag status-shipped">SHIPPED</span></span>
                     <span class="item-dep">UIS-15D</span>
                 </div>
                 <div class="item-detail"></div>
             </div>
-            <div class="item-row" data-spec="equipment:uis-15f-daily-equipment-checklist.html">
+            <div class="item-row deferred" data-spec="equipment:uis-15g-equipment-maintenance-scheduling.html" data-plan="equipment:plans/uis-15g-equipment-maintenance-scheduling.html">
+                <div class="item-header">
+                    <span class="item-chevron">&#9654;</span>
+                    <span class="item-id">UIS-15G-2</span>
+                    <span class="item-name"><span class="deferred-banner">DEFERRED</span><strong>Downtime &amp; Cost Reports</strong> &mdash; <code>DowntimeRecord</code> model + recording flyout, <code>downtimeRecordId</code> link on Expense, downtime report (totals, lost-revenue estimate), maintenance cost report (spend by equipment / type / month). Re-evaluate after customers exercise the MVP.</span>
+                    <span class="item-est">3 days</span>
+                    <span class="item-status"><span class="status-tag status-deferred">DEFERRED</span></span>
+                    <span class="item-dep">UIS-15G-1</span>
+                </div>
+                <div class="item-detail"></div>
+            </div>
+            <div class="item-row" data-spec="equipment:uis-15i-equipment-distance-maintenance.html" data-plan="equipment:plans/uis-15i-equipment-distance-maintenance.html">
+                <div class="item-header">
+                    <span class="item-chevron">&#9654;</span>
+                    <span class="item-id">UIS-15I</span>
+                    <span class="item-name">Distance-Based Maintenance Triggers &mdash; Add <code>DISTANCE_BASED</code> threshold type for odometer-driven service intervals (e.g. 30,000 km oil change). MeterType on EquipmentCategory, snapshot + nullable override on EquipmentTimeEntry, <code>metersAtService</code> on MaintenanceSchedule, distance branch in status computation + 90-day usage-rate projection. Backend override scaffolded; no UI in v1.</span>
+                    <span class="item-est">4-5 days</span>
+                    <span class="item-status"><span class="status-tag status-blocked">BLOCKED</span></span>
+                    <span class="item-dep">UIS-15D, UIS-15G, UIS-15H</span>
+                </div>
+                <div class="item-detail"></div>
+            </div>
+            <div class="item-row deferred" data-spec="equipment:uis-15f-daily-equipment-checklist.html">
                 <div class="item-header">
                     <span class="item-chevron">&#9654;</span>
                     <span class="item-id">UIS-15F</span>
-                    <span class="item-name">Daily Equipment Checklist &mdash; Digital inspections via SafetyForm system, defaultInspectionFormId on EquipmentCategory</span>
+                    <span class="item-name"><span class="deferred-banner">DEFERRED</span>Daily Equipment Checklist &mdash; Digital inspections via SafetyForm system, defaultInspectionFormId on EquipmentCategory. Pending confirmation that this can drop out of 1.33.</span>
                     <span class="item-est">3-4 days</span>
-                    <span class="item-status"><span class="status-tag status-blocked">BLOCKED</span></span>
+                    <span class="item-status"><span class="status-tag status-deferred">DEFERRED</span></span>
                     <span class="item-dep">UIS-15D</span>
                 </div>
                 <div class="item-detail"></div>
             </div>
-            <div class="item-row" data-spec="equipment:uis-15e-equipment-search-mobile.html" data-plan="equipment:plans/uis-15e-equipment-search-mobile.html">
+            <div class="item-row deferred" data-spec="equipment:uis-15e-equipment-search-mobile.html" data-plan="equipment:plans/uis-15e-equipment-search-mobile.html">
                 <div class="item-header">
                     <span class="item-chevron">&#9654;</span>
                     <span class="item-id">UIS-15E</span>
-                    <span class="item-name">Equipment Search &amp; Mobile QoL &mdash; QR scanner, mobile detail views, quick actions, history tabs, start form</span>
+                    <span class="item-name"><span class="deferred-banner">DEFERRED</span>Equipment Search &amp; Mobile QoL &mdash; QR scanner, mobile detail views, quick actions, history tabs, start form. Pending confirmation that this can drop out of 1.33.</span>
                     <span class="item-est">4-5 days</span>
-                    <span class="item-status"><span class="status-tag status-blocked">BLOCKED</span></span>
+                    <span class="item-status"><span class="status-tag status-deferred">DEFERRED</span></span>
                     <span class="item-dep">UIS-15H, UIS-15D, UIS-15F</span>
                 </div>
                 <div class="item-detail"></div>

@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UIS-LEM-3b: Material Billable Rates &mdash; UI</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+.in-iframe .top-nav { display: none !important; }
+.top-nav { position: sticky; top: 0; z-index: 100; background: #0f172a; border-bottom: 1px solid #1e293b; padding: 0 24px; display: flex; align-items: center; gap: 0; }
+.top-nav a { display: inline-flex; align-items: center; padding: 12px 18px; font-size: 13px; font-weight: 600; color: #94a3b8; text-decoration: none; border-bottom: 2px solid transparent; transition: all 0.15s; white-space: nowrap; }
+.top-nav a:hover { color: #f8fafc; background: #1e293b; }
+.top-nav .nav-logo { font-size: 11px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: #475569; padding-right: 18px; margin-right: 4px; border-right: 1px solid #1e293b; }
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Inter', -apple-system, sans-serif; background: #f1f5f9; color: #0f172a; }
+.uis-wrap { max-width: 960px; margin: 0 auto; padding: 40px 24px 80px; }
+.uis-hero { margin-bottom: 32px; }
+.uis-badges { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+.uis-badge { font-size: 11px; font-weight: 700; padding: 4px 12px; border-radius: 6px; display: inline-flex; align-items: center; gap: 5px; }
+.badge-q { background: #0f172a; color: #fff; }
+.badge-lane { background: #10b981; color: #fff; }
+.badge-status { background: #fef3c7; color: #92400e; }
+.badge-priority { background: #fee2e2; color: #dc2626; }
+.badge-prereq { background: #3b82f6; color: #fff; }
+.uis-h1 { font-size: 30px; font-weight: 800; color: #0f172a; margin: 0 0 8px; letter-spacing: -0.01em; }
+.uis-sub { font-size: 15px; color: #64748b; line-height: 1.5; margin: 0; }
+.uis-meta { display: flex; gap: 24px; flex-wrap: wrap; margin-top: 14px; font-size: 13px; color: #64748b; }
+.uis-meta strong { color: #0f172a; }
+.uis-toc { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px 28px; margin-bottom: 16px; }
+.uis-toc h3 { font-size: 13px; font-weight: 700; color: #0f172a; margin: 0 0 10px; text-transform: uppercase; letter-spacing: 0.5px; }
+.uis-toc ol { margin: 0; padding-left: 20px; }
+.uis-toc li { font-size: 14px; color: #3b82f6; margin-bottom: 4px; }
+.uis-toc a { color: #3b82f6; text-decoration: none; }
+.uis-section { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px 28px; margin-bottom: 16px; }
+.uis-section h2 { font-size: 17px; font-weight: 700; color: #0f172a; margin: 0 0 14px; padding-bottom: 10px; border-bottom: 2px solid #e2e8f0; }
+.uis-section h3 { font-size: 15px; font-weight: 700; color: #0f172a; margin: 16px 0 8px; }
+.uis-section p, .uis-section li { font-size: 14px; color: #334155; line-height: 1.65; }
+.uis-section ul, .uis-section ol { padding-left: 20px; margin: 8px 0; }
+pre { background: #0f172a; border: 1px solid #1e293b; border-radius: 8px; padding: 16px; overflow-x: auto; font-size: 13px; line-height: 1.5; font-family: 'SF Mono', monospace; color: #e2e8f0; margin: 12px 0; }
+table.schema-table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 12px 0; }
+table.schema-table th { text-align: left; padding: 8px 12px; background: #f8fafc; border-bottom: 2px solid #e2e8f0; font-weight: 600; }
+table.schema-table td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; }
+table.schema-table code { font-family: monospace; background: #f1f5f9; padding: 1px 5px; border-radius: 3px; font-size: 12px; color: #7c3aed; }
+.blast-summary { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 16px 20px; margin-bottom: 16px; }
+.blast-row { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; }
+.blast-row:not(:last-child) { border-bottom: 1px solid #f1f5f9; }
+.blast-label { font-size: 13px; color: #64748b; }
+.blast-value { font-size: 13px; font-weight: 700; color: #0f172a; }
+.action-new { background: #dcfce7; color: #166534; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 4px; }
+.action-mod { background: #fef3c7; color: #92400e; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 4px; }
+.criteria-list { list-style: none; padding: 0; }
+.criteria-list li { padding: 8px 0; border-bottom: 1px solid #f1f5f9; display: flex; gap: 10px; align-items: flex-start; font-size: 14px; color: #334155; }
+.criteria-list li:last-child { border-bottom: none; }
+.criteria-check { width: 18px; height: 18px; border: 2px solid #cbd5e1; border-radius: 4px; flex-shrink: 0; margin-top: 1px; }
+.dep-tag { display: inline-block; font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 5px; margin-right: 6px; margin-bottom: 6px; text-decoration: none; }
+.dep-requires { background: #fee2e2; color: #dc2626; }
+.dep-enables { background: #dcfce7; color: #166534; }
+.mockup-container { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; margin: 14px 0; }
+.mockup-bar { background: #f1f5f9; padding: 8px 14px; font-size: 12px; font-weight: 600; color: #64748b; border-bottom: 1px solid #e2e8f0; display: flex; align-items: center; gap: 8px; }
+.mockup-dots { display: flex; gap: 5px; }
+.mockup-dot { width: 8px; height: 8px; border-radius: 50%; }
+.mockup-dot-r { background: #f87171; }
+.mockup-dot-y { background: #fbbf24; }
+.mockup-dot-g { background: #34d399; }
+.mockup-body { padding: 24px; min-height: 200px; font-size: 13px; color: #334155; line-height: 1.6; }
+.scope-tag { display: inline-block; font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 5px; margin-right: 6px; }
+.scope-in { background: #dcfce7; color: #166534; }
+.scope-out { background: #fee2e2; color: #dc2626; }
+.callout { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 14px 18px; margin: 14px 0; font-size: 13px; color: #1e40af; }
+.callout strong { color: #1e3a8a; }
+    </style>
+</head>
+<body>
+
+<script>if(self!==top)document.documentElement.classList.add("in-iframe")</script>
+<nav class="top-nav">
+    <span class="nav-logo">Appello SDLC</span>
+    <a href="index.html">Roadmap</a>
+    <a href="release-1.33-timeline.html">Release 1.33</a>
+    <a href="release-1.34-timeline.html">Release 1.34</a>
+    <a href="master-spec-reconciliation.html">Spec Reconciliation</a>
+    <a href="ui-interface-library.html">UI Library</a>
+    <a href="cross-release-continuity-audit.html">Continuity Audit</a>
+</nav>
+<div class="uis-wrap">
+
+    <!-- Hero -->
+    <div class="uis-hero">
+        <div class="uis-badges">
+            <span class="uis-badge badge-q">LEM-3b</span>
+            <span class="uis-badge badge-lane">UI</span>
+            <span class="uis-badge badge-status">Draft</span>
+        </div>
+        <h1 class="uis-h1">Material Billable Rates &mdash; UI</h1>
+        <p class="uis-sub">UI half of LEM-3. <code>MaterialPricingCard</code> on the Material detail page (cost / sell / margin + pricing-mode radios) and Default Markup % on the MaterialGroup add/edit form. Job Material Markup % is delivered by the DataModel SETTINGS form/view configured in <a href="uis-LEM-3a-material-billable-rates-backend.html">LEM-3a</a> &mdash; no JobDetailsPage code change here. Can run in parallel with WO-2/WO-3 once 3a is merged.</p>
+        <div class="uis-meta">
+            <span><strong>Estimate:</strong> 1 day</span>
+            <span><strong>Sequence:</strong> Parallel with WO-2/WO-3 once LEM-3a is merged</span>
+            <span><strong>Requires:</strong> LEM-3a (schema + service + Job DataModel wiring)</span>
+            <span><strong>New files:</strong> ~1</span>
+            <span><strong>Modified files:</strong> ~2</span>
+        </div>
+    </div>
+
+    <!-- TOC -->
+    <div class="uis-toc">
+        <h3>Contents</h3>
+        <ol>
+            <li><a href="#scope">Scope</a></li>
+            <li><a href="#ui-spec">UI Specification</a></li>
+            <li><a href="#ui-mockup">UI Mockups</a></li>
+            <li><a href="#change-surface">Change Surface</a></li>
+            <li><a href="#acceptance-criteria">Acceptance Criteria</a></li>
+            <li><a href="#dependencies">Dependencies</a></li>
+        </ol>
+    </div>
+
+    <!-- Section 1: Scope -->
+    <div class="uis-section" id="scope">
+        <h2>1. Scope</h2>
+        <div class="callout">
+            <strong>This spec covers LEM-3b only.</strong> Backend schema, service, and GraphQL resolvers are in <a href="uis-LEM-3a-material-billable-rates-backend.html">LEM-3a</a> and must be merged before this work starts. After 3a is in, this UI can run in parallel with WO-2/WO-3 since the fields and computed resolvers already exist on the GraphQL schema.
+        </div>
+
+        <h3>In Scope</h3>
+        <ul>
+            <li><span class="scope-tag scope-in">IN</span> Pricing card on the Material detail page showing cost, sell price, and margin</li>
+            <li><span class="scope-tag scope-in">IN</span> Pricing-mode radio buttons (group default / fixed sell price / custom markup %)</li>
+            <li><span class="scope-tag scope-in">IN</span> Default Markup % field on the MaterialGroup add/edit form</li>
+        </ul>
+
+        <h3>Out of Scope</h3>
+        <ul>
+            <li><span class="scope-tag scope-out">OUT</span> Schema migration, <code>MaterialPricingService</code>, GraphQL resolvers (covered by LEM-3a)</li>
+            <li><span class="scope-tag scope-out">OUT</span> Material Markup % field on Job &mdash; rendered automatically by the DataModel SETTINGS form / view-page section configured in LEM-3a. No JobDetailsPage code lives here.</li>
+            <li><span class="scope-tag scope-out">OUT</span> Any &ldquo;materials assigned to a job&rdquo; UI &mdash; that concept does not exist in the data model. The job-level markup applies to <em>all</em> materials priced against the job at line-item time; there is no curated material list per job.</li>
+            <li><span class="scope-tag scope-out">OUT</span> WO line item auto-populate from the cascade (handled by WO-2)</li>
+            <li><span class="scope-tag scope-out">OUT</span> Customer-level pricing tiers (future)</li>
+        </ul>
+    </div>
+
+    <!-- Section 2: UI Specification -->
+    <div class="uis-section" id="ui-spec">
+        <h2>2. UI Specification</h2>
+
+        <h3>2a. Material Detail Page &mdash; Pricing Card</h3>
+        <p>Add a &ldquo;Pricing&rdquo; card to the Material detail page showing cost, sell price, and margin. The user selects their pricing strategy via radio buttons.</p>
+        <ul>
+            <li><strong>Best Cost</strong> (read-only): resolved from <code>DistributorPrice</code> or <code>MaterialAttributePrice</code></li>
+            <li><strong>Sell Price</strong> (editable or computed): depends on the selected pricing mode</li>
+            <li><strong>Margin</strong> (computed): dollar amount and percentage, shown inline</li>
+        </ul>
+        <p>Pricing mode radio buttons:</p>
+        <ul>
+            <li><strong>Use group default</strong> &mdash; inherits <code>MaterialGroup.defaultMarkupPercent</code></li>
+            <li><strong>Fixed sell price</strong> &mdash; user enters <code>sellPriceOverride</code></li>
+            <li><strong>Custom markup %</strong> &mdash; user enters <code>markupPercentOverride</code></li>
+        </ul>
+
+        <h3>2b. MaterialGroup Form &mdash; Default Markup</h3>
+        <p>Add a <code>Default Markup %</code> field to the MaterialGroup add/edit form. This sets the Tier 1 default for all materials in the group.</p>
+
+        <h3>2c. Job Settings &mdash; Material Markup Override (delivered by LEM-3a)</h3>
+        <p>The Tier 3 job-level override is exposed automatically by the Job DataModel SETTINGS form and rendered on the Job Settings detail-page section configured in <a href="uis-LEM-3a-material-billable-rates-backend.html#datamodel-wiring">LEM-3a &sect;6</a>. <strong>Nothing to build here.</strong> The field appears as a percent input next to <code>job-estimate-markup</code>, <code>job-overhead-markup</code>, and <code>hold-back-percent</code>, and saves to <code>Job.materialMarkupPercent</code>.</p>
+
+        <h3>2d. Downstream &mdash; WO Material Line Item Editor</h3>
+        <p>When a user selects a Material from the catalog on a WO line item (handled by WO-2, listed here for context):</p>
+        <ul>
+            <li><code>unitPrice</code> (sell price) auto-populates from <code>resolveMaterialSellPrice()</code></li>
+            <li><code>costPrice</code> (cost) auto-populates from the cost basis</li>
+            <li>Both fields are editable &mdash; the user can override the auto-populated values</li>
+            <li>Margin is shown inline if the user has <code>viewWageDetails</code> permission</li>
+        </ul>
+    </div>
+
+    <!-- Section 3: UI Mockups -->
+    <div class="uis-section" id="ui-mockup">
+        <h2>3. UI Mockups</h2>
+
+        <h3>3a. Material Detail &mdash; Pricing Card</h3>
+        <div class="mockup-container">
+            <div class="mockup-bar">
+                <div class="mockup-dots"><div class="mockup-dot mockup-dot-r"></div><div class="mockup-dot mockup-dot-y"></div><div class="mockup-dot mockup-dot-g"></div></div>
+                Material Detail &mdash; Roxul ComfortBatt R-22
+            </div>
+            <div class="mockup-body">
+                <div style="font-size:15px; font-weight:700; margin-bottom:16px;">Pricing</div>
+                <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:16px; margin-bottom:16px;">
+                    <div>
+                        <div style="font-size:11px; color:#64748b; text-transform:uppercase; letter-spacing:0.5px;">Best Cost</div>
+                        <div style="font-size:22px; font-weight:800;">$36.00<span style="font-size:12px; color:#64748b; font-weight:400;">/bag</span></div>
+                        <div style="font-size:11px; color:#94a3b8;">Crossroads Distribution</div>
+                    </div>
+                    <div>
+                        <div style="font-size:11px; color:#64748b; text-transform:uppercase; letter-spacing:0.5px;">Sell Price</div>
+                        <div style="font-size:22px; font-weight:800; color:#2563eb;">$45.00<span style="font-size:12px; color:#64748b; font-weight:400;">/bag</span></div>
+                        <div style="font-size:11px; color:#94a3b8;">Fixed override</div>
+                    </div>
+                    <div>
+                        <div style="font-size:11px; color:#64748b; text-transform:uppercase; letter-spacing:0.5px;">Margin</div>
+                        <div style="font-size:22px; font-weight:800; color:#16a34a;">$9.00 <span style="font-size:14px; background:#dcfce7; color:#166534; padding:2px 8px; border-radius:4px;">25.0%</span></div>
+                    </div>
+                </div>
+                <div style="border-top:1px solid #e2e8f0; padding-top:14px;">
+                    <div style="font-size:12px; font-weight:600; margin-bottom:10px;">Pricing Mode</div>
+                    <div style="display:flex; flex-direction:column; gap:8px;">
+                        <label style="display:flex; align-items:center; gap:8px; font-size:13px;">
+                            <span style="width:16px; height:16px; border:2px solid #cbd5e1; border-radius:50%; display:inline-block;"></span>
+                            Use group default (25%) <span style="color:#94a3b8;">&mdash; Insulation</span>
+                        </label>
+                        <label style="display:flex; align-items:center; gap:8px; font-size:13px;">
+                            <span style="width:16px; height:16px; border:2px solid #2563eb; border-radius:50%; display:inline-block; background:radial-gradient(circle, #2563eb 4px, transparent 4px);"></span>
+                            <strong>Fixed sell price</strong>
+                            <span style="border:1px solid #cbd5e1; border-radius:4px; padding:2px 8px; font-size:12px; width:80px; text-align:right;">$45.00</span>
+                        </label>
+                        <label style="display:flex; align-items:center; gap:8px; font-size:13px;">
+                            <span style="width:16px; height:16px; border:2px solid #cbd5e1; border-radius:50%; display:inline-block;"></span>
+                            Custom markup %
+                            <span style="border:1px solid #e2e8f0; border-radius:4px; padding:2px 8px; font-size:12px; width:60px; text-align:right; color:#94a3b8;">%</span>
+                        </label>
+                    </div>
+                </div>
+                <div style="margin-top:12px; font-size:11px; color:#94a3b8;">Overridden on 2 jobs</div>
+            </div>
+        </div>
+
+        <h3>3b. MaterialGroup Form &mdash; Default Markup Field</h3>
+        <div class="mockup-container">
+            <div class="mockup-bar">
+                <div class="mockup-dots"><div class="mockup-dot mockup-dot-r"></div><div class="mockup-dot mockup-dot-y"></div><div class="mockup-dot mockup-dot-g"></div></div>
+                Edit Material Group &mdash; Insulation
+            </div>
+            <div class="mockup-body" style="min-height:100px;">
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+                    <div>
+                        <div style="font-size:12px; font-weight:600; margin-bottom:4px;">Name</div>
+                        <div style="border:1px solid #cbd5e1; border-radius:6px; padding:8px 12px; font-size:13px;">Insulation</div>
+                    </div>
+                    <div>
+                        <div style="font-size:12px; font-weight:600; margin-bottom:4px;">Default Markup %</div>
+                        <div style="border:1px solid #cbd5e1; border-radius:6px; padding:8px 12px; font-size:13px; width:100px; text-align:right;">25.00</div>
+                        <div style="font-size:11px; color:#94a3b8; margin-top:4px;">Applied to all materials in this group unless overridden</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <h3>3c. Job Settings &mdash; Material Markup Override</h3>
+        <p style="background:#eff6ff; border:1px solid #bfdbfe; border-left:3px solid #3b82f6; padding:12px 16px; border-radius:0 8px 8px 0; font-size:13px; color:#1e40af; margin:8px 0;">
+            Rendered by the Job DataModel SETTINGS form / view-page section. The DAA <code>job-material-markup-percent</code> (<code>type: percent</code>) appears as a single percent input alongside <code>job-estimate-markup</code>, <code>job-overhead-markup</code>, and <code>hold-back-percent</code>. There is no bespoke mockup &mdash; the form-builder UI determines layout. <strong>Removed:</strong> the previous &ldquo;Materials on Job&rdquo; / &ldquo;Pricing Cascade Preview&rdquo; mockup &mdash; the data model has no concept of materials curated to a specific job, so those panels were never grounded in real entities.
+        </p>
+    </div>
+
+    <!-- Section 4: Change Surface -->
+    <div class="uis-section" id="change-surface">
+        <h2>4. Change Surface</h2>
+
+        <div class="blast-summary">
+            <div class="blast-row">
+                <span class="blast-label">New Files</span>
+                <span class="blast-value">1</span>
+            </div>
+            <div class="blast-row">
+                <span class="blast-label">Modified Files</span>
+                <span class="blast-value">2</span>
+            </div>
+            <div class="blast-row">
+                <span class="blast-label">Total Touched</span>
+                <span class="blast-value">3</span>
+            </div>
+        </div>
+
+        <table class="schema-table">
+            <thead><tr><th>Action</th><th>File</th><th>Change</th></tr></thead>
+            <tbody>
+                <tr><td><span class="action-new">NEW</span></td><td><code>apps/frontend/src/components/Materials/MaterialPricingCard.tsx</code></td><td>Pricing card component for Material detail page (cost, sell, margin, pricing mode radio buttons)</td></tr>
+                <tr><td><span class="action-mod">MOD</span></td><td><code>apps/frontend/src/pages/materials/[id]/index.tsx</code></td><td>Add <code>MaterialPricingCard</code> to Material detail page</td></tr>
+                <tr><td><span class="action-mod">MOD</span></td><td><code>apps/frontend/src/components/Forms/MaterialGroupAddEditForm/MaterialGroupAddEditForm.tsx</code></td><td>Add Default Markup % field</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Section 5: Acceptance Criteria -->
+    <div class="uis-section" id="acceptance-criteria">
+        <h2>5. Acceptance Criteria</h2>
+        <ul class="criteria-list">
+            <li><div class="criteria-check"></div>The Material detail page shows a Pricing card with cost, sell price, and margin ($ and %)</li>
+            <li><div class="criteria-check"></div>The Material detail page pricing mode radio buttons correctly switch between group default, fixed sell price, and custom markup %</li>
+            <li><div class="criteria-check"></div>Changing the pricing mode and saving persists the correct fields (<code>sellPriceOverride</code> or <code>markupPercentOverride</code>)</li>
+            <li><div class="criteria-check"></div>The MaterialGroup add/edit form includes a Default Markup % field</li>
+            <li><div class="criteria-check"></div>The Job Settings detail page renders the Material Markup field via the DataModel section-renderer (delivered by LEM-3a; no JobDetailsPage code change required here)</li>
+        </ul>
+    </div>
+
+    <!-- Section 6: Dependencies -->
+    <div class="uis-section" id="dependencies">
+        <h2>6. Dependencies</h2>
+
+        <h3>Requires</h3>
+        <p>
+            <a class="dep-tag dep-requires" href="uis-LEM-3a-material-billable-rates-backend.html">LEM-3a &mdash; Schema, service, and GraphQL resolvers</a>
+        </p>
+
+        <h3>Enables</h3>
+        <p>
+            <a class="dep-tag dep-enables" href="uis-20b-line-item-tables.html">WO-2 &mdash; Users can configure markups that drive WO line item auto-pricing</a>
+        </p>
+    </div>
+
+</div>
+</body>
+</html>

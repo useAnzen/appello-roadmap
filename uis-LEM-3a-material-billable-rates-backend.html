@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UIS-LEM-3a: Material Billable Rates &mdash; Schema + Service</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+.in-iframe .top-nav { display: none !important; }
+.top-nav { position: sticky; top: 0; z-index: 100; background: #0f172a; border-bottom: 1px solid #1e293b; padding: 0 24px; display: flex; align-items: center; gap: 0; }
+.top-nav a { display: inline-flex; align-items: center; padding: 12px 18px; font-size: 13px; font-weight: 600; color: #94a3b8; text-decoration: none; border-bottom: 2px solid transparent; transition: all 0.15s; white-space: nowrap; }
+.top-nav a:hover { color: #f8fafc; background: #1e293b; }
+.top-nav .nav-logo { font-size: 11px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: #475569; padding-right: 18px; margin-right: 4px; border-right: 1px solid #1e293b; }
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Inter', -apple-system, sans-serif; background: #f1f5f9; color: #0f172a; }
+.uis-wrap { max-width: 960px; margin: 0 auto; padding: 40px 24px 80px; }
+.uis-hero { margin-bottom: 32px; }
+.uis-badges { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+.uis-badge { font-size: 11px; font-weight: 700; padding: 4px 12px; border-radius: 6px; display: inline-flex; align-items: center; gap: 5px; }
+.badge-q { background: #0f172a; color: #fff; }
+.badge-lane { background: #10b981; color: #fff; }
+.badge-status { background: #fef3c7; color: #92400e; }
+.badge-priority { background: #fee2e2; color: #dc2626; }
+.badge-prereq { background: #3b82f6; color: #fff; }
+.uis-h1 { font-size: 30px; font-weight: 800; color: #0f172a; margin: 0 0 8px; letter-spacing: -0.01em; }
+.uis-sub { font-size: 15px; color: #64748b; line-height: 1.5; margin: 0; }
+.uis-meta { display: flex; gap: 24px; flex-wrap: wrap; margin-top: 14px; font-size: 13px; color: #64748b; }
+.uis-meta strong { color: #0f172a; }
+.uis-toc { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px 28px; margin-bottom: 16px; }
+.uis-toc h3 { font-size: 13px; font-weight: 700; color: #0f172a; margin: 0 0 10px; text-transform: uppercase; letter-spacing: 0.5px; }
+.uis-toc ol { margin: 0; padding-left: 20px; }
+.uis-toc li { font-size: 14px; color: #3b82f6; margin-bottom: 4px; }
+.uis-toc a { color: #3b82f6; text-decoration: none; }
+.uis-section { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px 28px; margin-bottom: 16px; }
+.uis-section h2 { font-size: 17px; font-weight: 700; color: #0f172a; margin: 0 0 14px; padding-bottom: 10px; border-bottom: 2px solid #e2e8f0; }
+.uis-section h3 { font-size: 15px; font-weight: 700; color: #0f172a; margin: 16px 0 8px; }
+.uis-section p, .uis-section li { font-size: 14px; color: #334155; line-height: 1.65; }
+.uis-section ul, .uis-section ol { padding-left: 20px; margin: 8px 0; }
+.customer-quote { background: #fef3c7; border-left: 3px solid #f59e0b; padding: 12px 16px; border-radius: 0 8px 8px 0; margin: 14px 0; font-style: italic; font-size: 14px; color: #92400e; }
+.customer-quote .attribution { font-style: normal; font-weight: 600; display: block; margin-top: 6px; }
+pre { background: #0f172a; border: 1px solid #1e293b; border-radius: 8px; padding: 16px; overflow-x: auto; font-size: 13px; line-height: 1.5; font-family: 'SF Mono', monospace; color: #e2e8f0; margin: 12px 0; }
+table.schema-table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 12px 0; }
+table.schema-table th { text-align: left; padding: 8px 12px; background: #f8fafc; border-bottom: 2px solid #e2e8f0; font-weight: 600; }
+table.schema-table td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; }
+table.schema-table code { font-family: monospace; background: #f1f5f9; padding: 1px 5px; border-radius: 3px; font-size: 12px; color: #7c3aed; }
+pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
+.blast-summary { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 16px 20px; margin-bottom: 16px; }
+.blast-row { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; }
+.blast-row:not(:last-child) { border-bottom: 1px solid #f1f5f9; }
+.blast-label { font-size: 13px; color: #64748b; }
+.blast-value { font-size: 13px; font-weight: 700; color: #0f172a; }
+.action-new { background: #dcfce7; color: #166534; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 4px; }
+.action-mod { background: #fef3c7; color: #92400e; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 4px; }
+.criteria-list { list-style: none; padding: 0; }
+.criteria-list li { padding: 8px 0; border-bottom: 1px solid #f1f5f9; display: flex; gap: 10px; align-items: flex-start; font-size: 14px; color: #334155; }
+.criteria-list li:last-child { border-bottom: none; }
+.criteria-check { width: 18px; height: 18px; border: 2px solid #cbd5e1; border-radius: 4px; flex-shrink: 0; margin-top: 1px; }
+.dep-tag { display: inline-block; font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 5px; margin-right: 6px; margin-bottom: 6px; text-decoration: none; }
+.dep-requires { background: #fee2e2; color: #dc2626; }
+.dep-enables { background: #dcfce7; color: #166534; }
+.scope-tag { display: inline-block; font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 5px; margin-right: 6px; }
+.scope-in { background: #dcfce7; color: #166534; }
+.scope-out { background: #fee2e2; color: #dc2626; }
+.callout { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 14px 18px; margin: 14px 0; font-size: 13px; color: #1e40af; }
+.callout strong { color: #1e3a8a; }
+.tier-cascade { display: flex; flex-direction: column; gap: 0; margin: 16px 0; }
+.tier { border: 1px solid #e2e8f0; padding: 14px 18px; font-size: 13px; }
+.tier:first-child { border-radius: 10px 10px 0 0; }
+.tier:last-child { border-radius: 0 0 10px 10px; }
+.tier-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+.tier-1 { background: #f0fdf4; border-color: #bbf7d0; }
+.tier-1 .tier-label { color: #166534; }
+.tier-2 { background: #eff6ff; border-color: #bfdbfe; }
+.tier-2 .tier-label { color: #1e40af; }
+.tier-3 { background: #fef3c7; border-color: #fde68a; }
+.tier-3 .tier-label { color: #92400e; }
+.tier-fallback { background: #f1f5f9; border-color: #e2e8f0; border-radius: 0 0 10px 10px; }
+.tier-fallback .tier-label { color: #64748b; }
+    </style>
+</head>
+<body>
+
+<script>if(self!==top)document.documentElement.classList.add("in-iframe")</script>
+<nav class="top-nav">
+    <span class="nav-logo">Appello SDLC</span>
+    <a href="index.html">Roadmap</a>
+    <a href="release-1.33-timeline.html">Release 1.33</a>
+    <a href="release-1.34-timeline.html">Release 1.34</a>
+    <a href="master-spec-reconciliation.html">Spec Reconciliation</a>
+    <a href="ui-interface-library.html">UI Library</a>
+    <a href="cross-release-continuity-audit.html">Continuity Audit</a>
+</nav>
+<div class="uis-wrap">
+
+    <!-- Hero -->
+    <div class="uis-hero">
+        <div class="uis-badges">
+            <span class="uis-badge badge-q">LEM-3a</span>
+            <span class="uis-badge badge-prereq">Backend Only</span>
+            <span class="uis-badge badge-priority">P0 &mdash; WO-2 Prerequisite</span>
+            <span class="uis-badge badge-status">Draft</span>
+        </div>
+        <h1 class="uis-h1">Material Billable Rates &mdash; Schema + Service</h1>
+        <p class="uis-sub">Backend half of LEM-3. Migration (4 nullable columns across 3 models), <code>MaterialPricingService</code> with <code>resolveMaterialSellPrice()</code> and <code>bestAvailableCost()</code>, GraphQL computed resolvers. <strong>Hard prerequisite for WO-2</strong> &mdash; material line items need <code>resolveMaterialSellPrice()</code> to auto-populate sell prices. UI work lives in <a href="uis-LEM-3b-material-billable-rates-ui.html">LEM-3b</a>.</p>
+        <div class="uis-meta">
+            <span><strong>Estimate:</strong> ~1 day</span>
+            <span><strong>Sequence:</strong> Backend first, gates WO-2</span>
+            <span><strong>Enables:</strong> WO-2 Line Items, WO-7 Conversion, MAT-2a LEM Report, LEM-3b (UI)</span>
+            <span><strong>New files:</strong> ~2</span>
+            <span><strong>Modified files:</strong> ~5</span>
+        </div>
+    </div>
+
+    <!-- TOC -->
+    <div class="uis-toc">
+        <h3>Contents</h3>
+        <ol>
+            <li><a href="#business-case">Business Case</a></li>
+            <li><a href="#scope">Scope</a></li>
+            <li><a href="#data-model">Data Model Changes</a></li>
+            <li><a href="#resolution">Resolution Engine</a></li>
+            <li><a href="#api-surface">API Surface</a></li>
+            <li><a href="#datamodel-wiring">Job DataModel Wiring</a></li>
+            <li><a href="#change-surface">Change Surface</a></li>
+            <li><a href="#acceptance-criteria">Acceptance Criteria</a></li>
+            <li><a href="#dependencies">Dependencies</a></li>
+        </ol>
+    </div>
+
+    <!-- Section 1: Business Case -->
+    <div class="uis-section" id="business-case">
+        <h2>1. Business Case</h2>
+        <p>Labor has cost vs. billable separation (LEM-1 adds <code>billableValue</code> to <code>TradeLevelRate</code>). Equipment has cost vs. billable separation (LEM-2 adds equipment billable rates). Materials have <strong>no equivalent</strong>. Today, the only material prices in the system are <em>cost prices</em> &mdash; what the contractor pays distributors. There is no mechanism to define what the contractor <em>charges the customer</em> for those materials.</p>
+
+        <p>Without material charge-out rates, Work Order material line items either require manual price entry on every line (error-prone, inconsistent) or pass through at cost (zero margin). Neither is acceptable for a production system.</p>
+
+        <div class="customer-quote">
+            "In construction, they call it labor equipment material, LEM. Right now, we don&rsquo;t have structured data for labor rates. We don&rsquo;t have structured data for material rates or equipment rates. It&rsquo;s like we kind of have to add all three of these for work orders to be functional."
+            <span class="attribution">&mdash; Corey Shelson, March 30, 2026</span>
+        </div>
+
+        <h3>The Gap</h3>
+        <table class="schema-table">
+            <thead><tr><th>Category</th><th>Cost Rate</th><th>Charge-Out Rate</th><th>Resolution</th></tr></thead>
+            <tbody>
+                <tr><td>Labor</td><td><code>TradeLevelRate.baseValue</code></td><td><code>TradeLevelRate.billableValue</code> (LEM-1)</td><td>Auto at WO-7</td></tr>
+                <tr><td>Equipment</td><td>Equipment cost rates</td><td>Equipment billable rates (LEM-2)</td><td>Auto at WO-7</td></tr>
+                <tr><td><strong>Materials</strong></td><td><code>MaterialAttributePrice.value</code> / <code>DistributorPrice.effectivePrice</code></td><td><strong>Nothing</strong></td><td><strong>Manual unitCost on WO</strong></td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Section 2: Scope -->
+    <div class="uis-section" id="scope">
+        <h2>2. Scope</h2>
+        <div class="callout" style="background:#f0fdf4; border-color:#bbf7d0; color:#166534;">
+            <strong>This spec covers LEM-3a (~1 day, backend only).</strong> No React components, no form fields. Migration, service, GraphQL resolvers. Must land before WO-2 starts so <code>resolveMaterialSellPrice()</code> is available for material line item auto-populate. UI configuration of the markup percentages lives in <a href="uis-LEM-3b-material-billable-rates-ui.html">LEM-3b</a> and can run in parallel with WO-2/WO-3.
+        </div>
+
+        <h3>In Scope</h3>
+        <ul>
+            <li><span class="scope-tag scope-in">IN</span> Migration SQL for new fields (4 nullable columns on 3 existing tables)</li>
+            <li><span class="scope-tag scope-in">IN</span> <code>defaultMarkupPercent</code> field on <code>MaterialGroup</code> (Tier 1)</li>
+            <li><span class="scope-tag scope-in">IN</span> <code>sellPriceOverride</code> and <code>markupPercentOverride</code> fields on <code>Material</code> (Tier 2)</li>
+            <li><span class="scope-tag scope-in">IN</span> <code>materialMarkupPercent</code> field on <code>Job</code> (Tier 3)</li>
+            <li><span class="scope-tag scope-in">IN</span> <code>MaterialPricingService</code> with <code>resolveMaterialSellPrice()</code> and <code>bestAvailableCost()</code></li>
+            <li><span class="scope-tag scope-in">IN</span> GraphQL computed fields on Material type (<code>sellPrice</code>, <code>costBasis</code>, <code>marginPercent</code>, <code>pricingSource</code>)</li>
+            <li><span class="scope-tag scope-in">IN</span> Extended input types (<code>EditMaterialGroupInput</code>, <code>EditMaterialInput</code>, <code>EditJobInput</code>)</li>
+            <li><span class="scope-tag scope-in">IN</span> Job DataModel wiring for <code>materialMarkupPercent</code>: new <code>DocumentAttributeAssignment</code>, <code>DocumentModelFormElements</code> on every Job form (CREATE / EDIT / SETTINGS), active on SETTINGS only, placed in the <code>job-settings</code> section so it renders on the SETTINGS view page</li>
+        </ul>
+
+        <h3>Out of Scope</h3>
+        <ul>
+            <li><span class="scope-tag scope-out">OUT</span> All React components and form fields (covered by LEM-3b)</li>
+            <li><span class="scope-tag scope-out">OUT</span> Customer-level pricing tiers (future: per-company price lists)</li>
+            <li><span class="scope-tag scope-out">OUT</span> Time-based pricing (promotional/seasonal rates)</li>
+            <li><span class="scope-tag scope-out">OUT</span> Quantity-based pricing breaks on the sell side</li>
+        </ul>
+    </div>
+
+    <!-- Section 3: Data Model -->
+    <div class="uis-section" id="data-model">
+        <h2>3. Data Model Changes</h2>
+
+        <h3>Three-Tier Pricing Cascade</h3>
+        <div class="tier-cascade">
+            <div class="tier tier-3">
+                <div class="tier-label">Tier 3 &mdash; Job Override (Highest Priority)</div>
+                <p><code>Job.materialMarkupPercent</code> &mdash; applies to all materials on this job. For tight-margin projects or preferred customers.</p>
+            </div>
+            <div class="tier tier-2">
+                <div class="tier-label">Tier 2 &mdash; Material Override</div>
+                <p><code>Material.sellPriceOverride</code> (fixed $) OR <code>Material.markupPercentOverride</code> (%) &mdash; for specific products with non-standard margins.</p>
+            </div>
+            <div class="tier tier-1">
+                <div class="tier-label">Tier 1 &mdash; MaterialGroup Default</div>
+                <p><code>MaterialGroup.defaultMarkupPercent</code> &mdash; set once per category (e.g., &ldquo;Insulation: 25%&rdquo;). Covers all materials in the group.</p>
+            </div>
+            <div class="tier tier-fallback">
+                <div class="tier-label">Fallback &mdash; Pass-Through</div>
+                <p>If no markup is configured at any tier, the sell price equals the cost price (zero margin).</p>
+            </div>
+        </div>
+
+        <h3>Schema Additions</h3>
+<pre>// MaterialGroup (existing model &mdash; add field)
+model MaterialGroup {
+  // ... existing fields ...
+  defaultMarkupPercent    Decimal?  @db.Decimal(5, 2)
+}
+
+// Material (existing model &mdash; add fields)
+model Material {
+  // ... existing fields ...
+  sellPriceOverride       Decimal?  @db.Decimal(10, 2)
+  markupPercentOverride   Decimal?  @db.Decimal(5, 2)
+}
+
+// Job (existing model &mdash; add field)
+model Job {
+  // ... existing fields ...
+  materialMarkupPercent   Decimal?  @db.Decimal(5, 2)
+}</pre>
+
+        <table class="schema-table">
+            <thead><tr><th>Field</th><th>Model</th><th>Type</th><th>Purpose</th></tr></thead>
+            <tbody>
+                <tr><td><code>defaultMarkupPercent</code></td><td>MaterialGroup</td><td>Decimal(5,2)?</td><td>Default markup % for all materials in this group (e.g., 25.00 = 25%)</td></tr>
+                <tr><td><code>sellPriceOverride</code></td><td>Material</td><td>Decimal(10,2)?</td><td>Fixed sell price, overrides group default. Null = use group %.</td></tr>
+                <tr><td><code>markupPercentOverride</code></td><td>Material</td><td>Decimal(5,2)?</td><td>Per-material markup %, overrides group default. Null = use group %.</td></tr>
+                <tr><td><code>materialMarkupPercent</code></td><td>Job</td><td>Decimal(5,2)?</td><td>Job-wide material markup override. Null = use material/group defaults.</td></tr>
+            </tbody>
+        </table>
+
+        <h3>Migration SQL</h3>
+<pre>-- Tier 1: MaterialGroup default markup
+ALTER TABLE `MaterialGroup` ADD COLUMN `defaultMarkupPercent` DECIMAL(5, 2) NULL;
+
+-- Tier 2: Material-level overrides
+ALTER TABLE `Material` ADD COLUMN `sellPriceOverride` DECIMAL(10, 2) NULL;
+ALTER TABLE `Material` ADD COLUMN `markupPercentOverride` DECIMAL(5, 2) NULL;
+
+-- Tier 3: Job-level material markup
+ALTER TABLE `Job` ADD COLUMN `materialMarkupPercent` DECIMAL(5, 2) NULL;</pre>
+
+        <div class="callout">
+            <strong>Why Decimal(5,2)?</strong> Supports markup percentages from 0.01% to 999.99%. Most construction markups range from 5% to 50%, but some specialty items can have higher margins. Matches the precision used for <code>discountPercent</code> on <code>DistributorPrice</code>.
+        </div>
+    </div>
+
+    <!-- Section 4: Resolution Engine -->
+    <div class="uis-section" id="resolution">
+        <h2>4. Resolution Engine</h2>
+
+        <h3>Cost Basis Resolution</h3>
+        <p>The cost basis is the &ldquo;best available cost&rdquo; for a material, resolved in this order:</p>
+        <ol>
+            <li><strong>DistributorPrice.effectivePrice</strong> (preferred distributor, after discounts) &mdash; available when MAT-0 + MAT-9 are shipped in 1.34</li>
+            <li><strong>MaterialAttributePrice.value</strong> (dimension-based catalog price) &mdash; available today in the existing system</li>
+            <li><strong>Manual entry</strong> &mdash; if no catalog price exists, the user enters cost manually</li>
+        </ol>
+
+        <h3>Sell Price Resolution</h3>
+<pre>function resolveMaterialSellPrice(
+    material: Material,
+    materialGroup: MaterialGroup,
+    job: Job | null,
+    costPrice: Decimal
+): { sellPrice: Decimal; source: string } {
+
+    // Tier 3: Job override (highest priority)
+    if (job?.materialMarkupPercent != null) {
+        return {
+            sellPrice: costPrice.mul(1 + job.materialMarkupPercent / 100),
+            source: "job"
+        };
+    }
+
+    // Tier 2a: Material fixed sell price
+    if (material.sellPriceOverride != null) {
+        return {
+            sellPrice: material.sellPriceOverride,
+            source: "material-fixed"
+        };
+    }
+
+    // Tier 2b: Material markup %
+    if (material.markupPercentOverride != null) {
+        return {
+            sellPrice: costPrice.mul(1 + material.markupPercentOverride / 100),
+            source: "material-percent"
+        };
+    }
+
+    // Tier 1: MaterialGroup default
+    if (materialGroup.defaultMarkupPercent != null) {
+        return {
+            sellPrice: costPrice.mul(1 + materialGroup.defaultMarkupPercent / 100),
+            source: "group"
+        };
+    }
+
+    // Fallback: pass-through at cost
+    return { sellPrice: costPrice, source: "cost" };
+}</pre>
+
+        <div class="callout">
+            <strong>Pattern precedent:</strong> This cascade mirrors the equipment rate resolution in LEM-2 (category default &rarr; equipment override &rarr; job override). Emma already knows the pattern.
+        </div>
+
+        <h3>Where the Resolution is Called</h3>
+        <table class="schema-table">
+            <thead><tr><th>Consumer</th><th>When</th><th>What it does</th></tr></thead>
+            <tbody>
+                <tr><td>WO-2 Line Item Editor</td><td>User selects a Material from the catalog</td><td>Auto-populates <code>unitPrice</code> (sell) and <code>costPrice</code> (cost) on the line item</td></tr>
+                <tr><td>WO-7 Conversion</td><td>Work Order &rarr; Invoice/CO</td><td>Resolves sell price for structured material lines; blank lines use manual <code>unitPrice</code></td></tr>
+                <tr><td>MAT-2a LEM Report</td><td>LEM combined report generation</td><td>Computes <code>materialBillableValue</code> alongside <code>materialCost</code></td></tr>
+                <tr><td>Material Detail Page (LEM-3b)</td><td>Viewing a material in the catalog</td><td>Shows computed <code>sellPrice</code> and margin inline via <code>MaterialPricingCard</code></td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Section 5: API Surface -->
+    <div class="uis-section" id="api-surface">
+        <h2>5. API Surface</h2>
+
+        <h3>Extended GraphQL Types</h3>
+<pre>extend type MaterialGroup {
+    defaultMarkupPercent: Float
+}
+
+extend type Material {
+    sellPriceOverride: Float
+    markupPercentOverride: Float
+    sellPrice(jobId: String): Float
+    marginPercent(jobId: String): Float
+    costBasis: Float
+    pricingSource: String
+}
+
+extend type Job {
+    materialMarkupPercent: Float
+}</pre>
+
+        <h3>Extended Input Types</h3>
+<pre>extend input EditMaterialGroupInput {
+    defaultMarkupPercent: Float
+}
+
+extend input EditMaterialInput {
+    sellPriceOverride: Float
+    markupPercentOverride: Float
+}
+
+extend input EditJobInput {
+    materialMarkupPercent: Float
+}</pre>
+
+        <h3>New Query</h3>
+<pre>extend type Query {
+    resolveMaterialSellPrice(
+        materialId: String!
+        jobId: String
+    ): MaterialPriceResolution!
+}
+
+type MaterialPriceResolution {
+    costPrice: Float!
+    sellPrice: Float!
+    marginDollar: Float!
+    marginPercent: Float!
+    source: String!
+}</pre>
+    </div>
+
+    <!-- Section 6: Job DataModel Wiring -->
+    <div class="uis-section" id="datamodel-wiring">
+        <h2>6. Job DataModel Wiring</h2>
+
+        <p>Job is a DataModel-driven model after Emma&rsquo;s refactor (precedent: <code>apps/api/prisma/migrations/20260317000000_job_data_model_forms/migration.sql</code>). Adding a column to the Job table is not enough &mdash; the column has to be exposed via a <code>DocumentAttributeAssignment</code> + <code>DocumentModelFormElements</code> for any form (Create / Edit / Settings) or detail-page section to render it. We follow the exact pattern already in that migration for <code>job-estimate-markup</code> and <code>job-overhead-markup</code>.</p>
+
+        <h3>What we add</h3>
+        <ul>
+            <li>A <code>DocumentAttributeAssignment</code> for <code>materialMarkupPercent</code>: <code>type = 'percent'</code>, <code>referenceColumn = 'materialMarkupPercent'</code>, <code>slug = 'job-material-markup-percent'</code>, parented under the <code>job-settings</code> <code>DocumentSection</code> (which has <code>viewSectionType = 'SETTINGS'</code>).</li>
+            <li>A row in <code>_DocumentAttributeAssignmentToObjectDownloadTemplate</code> linking the DAA to the Job Default Template (id <code>WTrFPuHXRIH6x4CdGk__v</code>).</li>
+            <li><code>DocumentModelFormElements</code> rows on every Job form &mdash; CREATE, EDIT, and SETTINGS &mdash; with <code>isDeleted = 0</code> only on SETTINGS. The other two forms register the field as available-but-off so a form-builder admin can flip it on later without another migration.</li>
+        </ul>
+
+        <h3>What it gives us &mdash; for free</h3>
+        <ul>
+            <li>The <strong>Settings form</strong> renders &ldquo;Material Markup&rdquo; as a percent input alongside <code>job-estimate-markup</code>, <code>job-overhead-markup</code>, <code>hold-back-percent</code>, etc.</li>
+            <li>The <strong>Settings detail-page view</strong> (the SETTINGS section on JobDetailsPage) shows the saved value automatically &mdash; no JobDetailsPage code change needed.</li>
+            <li>The <strong>Create / Edit forms</strong> can be opted into by a form-builder admin via the existing UI without any further engineering work.</li>
+        </ul>
+
+        <div class="callout">
+            <strong>Why all three form types?</strong> The Job DataModel migration sets a clear convention (PART C): every Job DAA is inserted as a form element on every Job form, and <code>isDeleted</code> controls visibility. This keeps the form-builder admin UI consistent &mdash; every field that <em>could</em> live on a form actually shows up there as a togglable option.
+        </div>
+    </div>
+
+    <!-- Section 7: Change Surface -->
+    <div class="uis-section" id="change-surface">
+        <h2>7. Change Surface</h2>
+
+        <div class="blast-summary">
+            <div class="blast-row">
+                <span class="blast-label">New Files</span>
+                <span class="blast-value">2</span>
+            </div>
+            <div class="blast-row">
+                <span class="blast-label">Modified Files</span>
+                <span class="blast-value">5</span>
+            </div>
+            <div class="blast-row">
+                <span class="blast-label">Total Touched</span>
+                <span class="blast-value">7</span>
+            </div>
+        </div>
+
+        <table class="schema-table">
+            <thead><tr><th>Action</th><th>File</th><th>Change</th></tr></thead>
+            <tbody>
+                <tr><td><span class="action-new">NEW</span></td><td><code>apps/api/prisma/migrations/&hellip;_add_material_billable_rates/migration.sql</code></td><td>Add <code>defaultMarkupPercent</code> to MaterialGroup, <code>sellPriceOverride</code> + <code>markupPercentOverride</code> to Material, <code>materialMarkupPercent</code> to Job</td></tr>
+                <tr><td><span class="action-new">NEW</span></td><td><code>apps/api/src/services/MaterialPricingService.ts</code></td><td><code>resolveMaterialSellPrice()</code>, <code>bestAvailableCost()</code>, margin computation</td></tr>
+                <tr><td><span class="action-mod">MOD</span></td><td><code>apps/api/prisma/schema.prisma</code></td><td>Add new fields to MaterialGroup, Material, Job models</td></tr>
+                <tr><td><span class="action-mod">MOD</span></td><td><code>apps/api/src/graphql/models/Material.ts</code></td><td>Add <code>sellPrice</code>, <code>marginPercent</code>, <code>costBasis</code>, <code>pricingSource</code> computed resolvers</td></tr>
+                <tr><td><span class="action-mod">MOD</span></td><td><code>apps/api/src/graphql/models/MaterialGroup.ts</code></td><td>Expose <code>defaultMarkupPercent</code> in type + input</td></tr>
+                <tr><td><span class="action-mod">MOD</span></td><td><code>apps/api/src/graphql/models/Job.ts</code></td><td>Expose <code>materialMarkupPercent</code> in type + input</td></tr>
+                <tr><td><span class="action-mod">MOD</span></td><td><code>apps/api/src/graphql/schema.ts</code></td><td>Register new resolver fields</td></tr>
+                <tr><td><span class="action-mod">MOD</span></td><td>(same migration file)</td><td>Insert <code>DocumentAttributeAssignment</code> for <code>materialMarkupPercent</code>, link to Job Default Template, insert <code>DocumentModelFormElements</code> on CREATE / EDIT / SETTINGS (active only on SETTINGS)</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Section 8: Acceptance Criteria -->
+    <div class="uis-section" id="acceptance-criteria">
+        <h2>8. Acceptance Criteria</h2>
+        <ul class="criteria-list">
+            <li><div class="criteria-check"></div>Migration adds 4 nullable columns to MaterialGroup, Material, and Job tables without breaking existing data</li>
+            <li><div class="criteria-check"></div><code>resolveMaterialSellPrice(materialId, jobId?)</code> correctly walks the cascade: Job &gt; Material fixed &gt; Material % &gt; Group % &gt; cost pass-through</li>
+            <li><div class="criteria-check"></div><code>bestAvailableCost(materialId)</code> returns the lowest available cost from distributor prices or attribute prices</li>
+            <li><div class="criteria-check"></div>The <code>sellPrice</code> GraphQL computed field on Material returns the correctly resolved sell price</li>
+            <li><div class="criteria-check"></div><code>costBasis</code>, <code>marginPercent</code>, and <code>pricingSource</code> computed fields return correct values</li>
+            <li><div class="criteria-check"></div>If no markup is configured at any tier, the sell price equals the cost price (zero margin, not an error)</li>
+            <li><div class="criteria-check"></div><code>EditMaterialGroupInput</code>, <code>EditMaterialInput</code>, and <code>EditJobInput</code> accept the new pricing fields</li>
+            <li><div class="criteria-check"></div>A <code>DocumentAttributeAssignment</code> with slug <code>job-material-markup-percent</code> exists on Job, type <code>percent</code>, <code>referenceColumn = materialMarkupPercent</code>, in the <code>job-settings</code> section</li>
+            <li><div class="criteria-check"></div>The DAA is linked to the Job Default Template via <code>_DocumentAttributeAssignmentToObjectDownloadTemplate</code></li>
+            <li><div class="criteria-check"></div><code>DocumentModelFormElements</code> rows exist for the Job CREATE, EDIT, and SETTINGS forms; only SETTINGS has <code>isDeleted = 0</code></li>
+            <li><div class="criteria-check"></div>The Job Settings detail page renders the Material Markup field automatically via the DataModel section-renderer (no JobDetailsPage code change)</li>
+            <li><div class="criteria-check"></div>Saving the Settings form persists the value to <code>Job.materialMarkupPercent</code> and feeds <code>resolveMaterialSellPrice()</code> when <code>jobId</code> is supplied</li>
+        </ul>
+    </div>
+
+    <!-- Section 9: Dependencies -->
+    <div class="uis-section" id="dependencies">
+        <h2>9. Dependencies</h2>
+
+        <h3>Requires (can start without these &mdash; uses existing MaterialAttributePrice as cost basis)</h3>
+        <p>
+            <a class="dep-tag dep-requires" href="uis-LEM-1-labor-billable-rates.html">LEM-1 &mdash; Establishes the cost vs. billable pattern</a>
+        </p>
+
+        <h3>Enhanced By (not blocked)</h3>
+        <p>
+            <a class="dep-tag dep-enables" href="uis-MAT-0-supply-chain-model.html">MAT-0 &mdash; Upgrades cost basis to DistributorPrice</a>
+            <a class="dep-tag dep-enables" href="uis-MAT-9-discount-management.html">MAT-9 &mdash; Feeds effectivePrice into cost basis</a>
+        </p>
+
+        <h3>Enables</h3>
+        <p>
+            <a class="dep-tag dep-enables" href="uis-LEM-3b-material-billable-rates-ui.html">LEM-3b &mdash; UI for configuring markups</a>
+            <a class="dep-tag dep-enables" href="uis-20b-line-item-tables.html">WO-2 &mdash; Auto-pricing on material line items</a>
+            <a class="dep-tag dep-enables" href="uis-20g-conversion.html">WO-7 &mdash; Material rate resolution at invoice generation</a>
+            <a class="dep-tag dep-enables" href="uis-MAT-2a-lem-consumption-desktop.html">MAT-2a &mdash; Cost vs. billable in LEM combined report</a>
+        </p>
+    </div>
+
+</div>
+</body>
+</html>

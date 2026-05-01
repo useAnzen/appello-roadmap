@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LEM-3b: Material Billable Rates &mdash; UI Plan</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+.in-iframe .top-nav { display: none !important; }
+.top-nav { position: sticky; top: 0; z-index: 100; background: #0f172a; border-bottom: 1px solid #1e293b; padding: 0 24px; display: flex; align-items: center; gap: 0; }
+.top-nav a { display: inline-flex; align-items: center; padding: 12px 18px; font-size: 13px; font-weight: 600; color: #94a3b8; text-decoration: none; border-bottom: 2px solid transparent; transition: all 0.15s; white-space: nowrap; }
+.top-nav a:hover { color: #f8fafc; background: #1e293b; }
+.top-nav .nav-logo { font-size: 11px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: #475569; padding-right: 18px; margin-right: 4px; border-right: 1px solid #1e293b; }
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Inter', -apple-system, sans-serif; background: #f8fafc; color: #0f172a; }
+.plan-wrap { max-width: 920px; margin: 0 auto; padding: 40px 24px 80px; }
+h1 { font-size: 24px; font-weight: 800; color: #0f172a; margin: 0 0 16px; letter-spacing: -0.01em; }
+h2 { font-size: 18px; font-weight: 700; color: #0f172a; margin: 28px 0 12px; padding-bottom: 8px; border-bottom: 2px solid #e2e8f0; }
+h3 { font-size: 15px; font-weight: 700; color: #0f172a; margin: 20px 0 8px; padding-top: 10px; border-top: 1px solid #f1f5f9; }
+h4 { font-size: 14px; font-weight: 700; color: #0f172a; margin: 14px 0 6px; }
+p { font-size: 14px; color: #334155; line-height: 1.7; margin: 6px 0; }
+ul, ol { padding-left: 20px; margin: 8px 0; }
+li { font-size: 14px; color: #334155; line-height: 1.7; margin: 3px 0; }
+strong { color: #0f172a; }
+code { font-family: 'SF Mono', monospace; background: #f1f5f9; padding: 1px 6px; border-radius: 4px; font-size: 12px; color: #7c3aed; }
+pre { background: #0f172a; color: #f8fafc; border-radius: 8px; padding: 16px; overflow-x: auto; font-size: 12.5px; line-height: 1.55; margin: 12px 0; font-family: 'SF Mono', monospace; }
+pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
+hr { border: none; border-top: 1px solid #e2e8f0; margin: 24px 0; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 12px 0; }
+th { text-align: left; padding: 8px 12px; background: #f1f5f9; border-bottom: 2px solid #e2e8f0; font-weight: 600; }
+td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
+.check-item { display: flex; gap: 8px; align-items: flex-start; padding: 5px 0; }
+.check-box { width: 16px; height: 16px; border: 2px solid #cbd5e1; border-radius: 3px; flex-shrink: 0; margin-top: 2px; }
+.callout { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 14px 18px; margin: 14px 0; font-size: 13px; color: #1e40af; }
+.callout strong { color: #1e3a8a; }
+.callout.warn { background: #fffbeb; border-color: #fde68a; color: #92400e; }
+.callout.warn strong { color: #78350f; }
+.callout.green { background: #f0fdf4; border-color: #bbf7d0; color: #166534; }
+.callout.green strong { color: #14532d; }
+.step-meta { display: grid; grid-template-columns: 110px 1fr; gap: 6px 12px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 16px; margin: 10px 0 14px; font-size: 13px; }
+.step-meta div:nth-child(odd) { font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.5px; font-size: 11px; padding-top: 2px; }
+.step-meta div:nth-child(even) { color: #334155; }
+    </style>
+</head>
+<body>
+
+<script>if(self!==top)document.documentElement.classList.add("in-iframe")</script>
+<nav class="top-nav">
+    <span class="nav-logo">Appello SDLC</span>
+    <a href="../index.html">Roadmap</a>
+    <a href="../release-1.33-timeline.html">Release 1.33</a>
+    <a href="../release-1.34-timeline.html">Release 1.34</a>
+    <a href="../master-spec-reconciliation.html">Spec Reconciliation</a>
+    <a href="../cross-release-continuity-audit.html">Continuity Audit</a>
+    <a href="../ui-interface-library.html">UI Library</a>
+</nav>
+<div class="plan-wrap">
+
+<h1>LEM-3b: Material Billable Rates &mdash; UI Plan</h1>
+
+<p style="font-size:14px; color:#475569;">Self-contained execution plan. Another agent should be able to pick this up cold once <a href="LEM-3a-material-billable-rates-backend.html">LEM-3a</a> is merged. Read the <strong>Pre-flight</strong> section first.</p>
+
+<h2>Overview &amp; Outcome</h2>
+<p>UI half of LEM-3. After this lands:</p>
+<ul>
+    <li>Material detail page (<code>/materials/[id]</code>) shows a Pricing card with Best Cost, Sell Price, Margin, and three pricing-mode radios.</li>
+    <li>MaterialGroup add/edit form has a Default Markup % field.</li>
+    <li>The Job Settings page already shows a Material Markup % input (delivered by LEM-3a's DataModel wiring) &mdash; verify only.</li>
+</ul>
+
+<div class="callout green">
+    <strong>Estimate: ~1 day</strong>. Pure frontend &mdash; no schema, no service, no JobDetailsPage code. Consumes the GraphQL surface added by LEM-3a.
+</div>
+
+<div class="callout warn">
+    <strong>Removed from earlier draft:</strong> the &ldquo;Materials on Job&rdquo; / &ldquo;Pricing Cascade Preview&rdquo; mockup. The data model has no concept of materials curated to a specific job &mdash; the job-level markup applies at line-item time when a material is priced against the job, not from a job-scoped material list. Don&rsquo;t reintroduce that view.
+</div>
+
+<hr>
+
+<h2>Pre-flight (do this first)</h2>
+
+<h3>Repo &amp; branch</h3>
+<ul>
+    <li>Working repo: <code>~/Documents/git-repos/appello/repo-2</code>.</li>
+    <li>Branch off whatever the active &ldquo;Release 1.33&rdquo; integration branch is &mdash; <strong>confirm with the user</strong>, do not assume <code>main</code>.</li>
+    <li>Spec to keep open: <a href="../uis-LEM-3b-material-billable-rates-ui.html">uis-LEM-3b-material-billable-rates-ui.html</a>. Mockups <code>3a</code> and <code>3b</code> there are the visual targets.</li>
+</ul>
+
+<h3>Hard prerequisite: LEM-3a must be merged</h3>
+<ul>
+    <li>Verify by querying the GraphQL schema for the new fields. From <code>apps/frontend</code> run <code>pnpm run dev</code> against an API where 3a is deployed, then in the Apollo Sandbox introspect <code>type Material</code> and confirm <code>sellPrice(jobId: String): Float</code>, <code>marginPercent</code>, <code>costBasis</code>, <code>pricingSource</code>, <code>sellPriceOverride</code>, <code>markupPercentOverride</code> are present.</li>
+    <li>If any are missing &mdash; stop. Pull the latest <code>schema.graphql</code> via <code>pnpm run codegen</code> in <code>apps/frontend</code>; if codegen fails to find the fields, the upstream branch doesn&rsquo;t have 3a yet.</li>
+</ul>
+
+<h3>Reference files (read before writing)</h3>
+<ul>
+    <li><strong>Detail-page host:</strong> <code>apps/frontend/src/pages/materials/[id]/index.tsx</code> &mdash; this is where the new Pricing card mounts. Existing layout uses <code>useLazyQuery(gql\`&hellip;\`)</code> with a hand-rolled <code>GetMaterialData</code> query. You&rsquo;ll either add fields to that query or fetch separately inside <code>MaterialPricingCard</code> (preferred &mdash; keeps the card self-contained).</li>
+    <li><strong>Form pattern:</strong> <code>apps/frontend/src/components/Forms/MaterialGroupAddEditForm/MaterialGroupAddEditForm.tsx</code> &mdash; copy how it uses <code>useEditMaterialGroupMutation</code>, <code>FormControl</code>, <code>FormStack</code>, <code>useForm</code>. Add the new field next to existing scalar fields (e.g. near <code>unitOfMeasure</code> if it&rsquo;s rendered).</li>
+    <li><strong>Sibling examples already in <code>components/Materials/</code>:</strong> <code>MaterialPriceGrid</code>, <code>MaterialCurrencyInput</code>, <code>MaterialZAxisSetting</code>. Use these for spacing / typography conventions and currency formatting.</li>
+    <li><strong>UI primitives:</strong> imported from <code>@useanzen/ui</code> (<code>Card</code>, <code>Tooltip</code>, <code>Button</code>, etc.) and <code>~root/components/_FormControls</code> (<code>FormControl</code>, <code>FormStack</code>, <code>FormLabel</code>, <code>Toggle</code>).</li>
+    <li><strong>Class-name helper:</strong> <code>ClassNames</code> from <code>@useanzen/shared-utils</code>. Used per house style.</li>
+</ul>
+
+<h3>Codegen workflow</h3>
+<p>The frontend uses <code>graphql-codegen</code> to generate typed hooks (e.g. <code>useEditMaterialGroupMutation</code>). After 3a is merged you may need to refresh:</p>
+<pre><code>cd apps/frontend
+pnpm run codegen   # copies schema.graphql from apps/api and regenerates hooks</code></pre>
+<p>If you add new <code>gql</code> documents to the codebase, codegen should pick them up automatically. Generated files live under <code>apps/frontend/src/graphql/{queries,mutations}/__generated__/</code>.</p>
+
+<h3>Component conventions (per <code>~/.claude/CLAUDE.md</code>)</h3>
+<ul>
+    <li>Use <code>FC</code> arrow-function pattern, import <code>FC</code> directly from <code>"react"</code>.</li>
+    <li><strong>Place custom <code>gql</code> definitions at the bottom of the file.</strong></li>
+    <li>Boolean flag props go at the bottom of the JSX prop list.</li>
+    <li>Default to no comments; if you write one, keep it to a single line about <em>why</em>.</li>
+    <li>No GraphQL <code>"""</code> triple-quote descriptions in <code>gql</code> template literals &mdash; use <code>#</code> single-line comments if needed.</li>
+</ul>
+
+<h3>What you are NOT doing</h3>
+<ul>
+    <li>No schema changes, no service changes, no Prisma migrations.</li>
+    <li>No JobDetailsPage edits. The Material Markup field on Job Settings is rendered by the existing DataModel section-renderer using the DAA created in 3a.</li>
+    <li>No "Materials on Job" stat panel, no Cascade Preview table, no per-job material list. Those entities don't exist.</li>
+    <li>No Work-Order line-item integration (WO-2 owns that).</li>
+</ul>
+
+<hr>
+
+<h2>Step 1 &mdash; <code>MaterialPricingCard</code> component</h2>
+
+<div class="step-meta">
+    <div>Goal</div><div>Self-contained pricing card. Reads cost/sell/margin via GraphQL; saves overrides via <code>editMaterial</code>.</div>
+    <div>New file</div><div><code>apps/frontend/src/components/Materials/MaterialPricingCard.tsx</code></div>
+    <div>Visual target</div><div>Mockup 3a in <a href="../uis-LEM-3b-material-billable-rates-ui.html#ui-mockup">the spec</a>.</div>
+</div>
+
+<h3>1.1 Props</h3>
+<pre><code>interface IMaterialPricingCardProps {
+    materialId: string;
+    className?: string | ClassNames;
+}</code></pre>
+
+<h3>1.2 Data fetch</h3>
+<p>Use a colocated <code>gql</code> query at the bottom of the file:</p>
+
+<pre><code>const GET_MATERIAL_PRICING = gql`
+    query GetMaterialPricing($id: ID!) {
+        material(id: $id) {
+            id
+            sellPriceOverride
+            markupPercentOverride
+            costBasis
+            sellPrice
+            marginPercent
+            pricingSource
+            MaterialGroup {
+                id
+                name
+                defaultMarkupPercent
+            }
+        }
+    }
+`;</code></pre>
+
+<p>For mutation use the existing <code>editMaterial</code>. After codegen runs, the typed hook should be <code>useEditMaterialMutation</code> (mirrors <code>useEditMaterialGroupMutation</code> in <code>MaterialGroupAddEditForm.tsx</code>). If the hook isn&rsquo;t generated yet, write the mutation by hand:</p>
+
+<pre><code>const EDIT_MATERIAL_PRICING = gql`
+    mutation EditMaterialPricing($data: EditMaterial!) {
+        editMaterial(data: $data) {
+            id
+            sellPriceOverride
+            markupPercentOverride
+            sellPrice
+            marginPercent
+            pricingSource
+        }
+    }
+`;</code></pre>
+
+<h3>1.3 Layout</h3>
+<p>Three-column summary row + radio block + (optional) "Overridden on N jobs" footer (skip the count for v1 if it would require a new query).</p>
+
+<pre><code>// Summary row (mockup 3a top half):
+//   [Best Cost]      [Sell Price]      [Margin]
+//   $36.00/bag       $45.00/bag        $9.00 (25.0%)
+//   pricingSource    label per mode    green pill if &gt;0, slate if 0
+
+// Radio block (mockup 3a bottom half):
+//   ( ) Use group default (X%) — &lt;Group name&gt;
+//   ( ) Fixed sell price            [____] $
+//   ( ) Custom markup %             [____] %</code></pre>
+
+<h3>1.4 Pricing-mode logic</h3>
+<table>
+    <thead><tr><th>Selected radio</th><th>On save</th></tr></thead>
+    <tbody>
+        <tr><td>Use group default</td><td><code>sellPriceOverride: null, markupPercentOverride: null</code></td></tr>
+        <tr><td>Fixed sell price</td><td><code>sellPriceOverride: &lt;value&gt;, markupPercentOverride: null</code></td></tr>
+        <tr><td>Custom markup %</td><td><code>sellPriceOverride: null, markupPercentOverride: &lt;value&gt;</code></td></tr>
+    </tbody>
+</table>
+
+<p>Initial radio state derives from the loaded data:</p>
+<ul>
+    <li><code>sellPriceOverride != null</code> &rarr; Fixed sell price.</li>
+    <li><code>markupPercentOverride != null</code> &rarr; Custom markup %.</li>
+    <li>Otherwise &rarr; Use group default.</li>
+</ul>
+
+<p>If the group has no <code>defaultMarkupPercent</code> set, surface a hint under the radio (&ldquo;Group has no default &mdash; pass-through at cost&rdquo;).</p>
+
+<h3>1.5 Save UX</h3>
+<ul>
+    <li>Use <code>useNotification()</code> to show a success toast on save (consistent with <code>MaterialGroupAddEditForm.tsx</code>).</li>
+    <li>Refetch on save so <code>sellPrice</code> / <code>marginPercent</code> / <code>pricingSource</code> reflect the new state. Apollo&rsquo;s <code>refetchQueries: [GET_MATERIAL_PRICING]</code> is the simplest path.</li>
+    <li>Disable Save while <code>loading</code>.</li>
+</ul>
+
+<h3>1.6 Skeleton</h3>
+
+<pre><code>import { FC, useEffect, useState } from "react";
+import { gql, useQuery, useMutation } from "@apollo/client";
+import { ClassNames } from "@useanzen/shared-utils";
+import { Card, Button, SaveCancelButtons } from "@useanzen/ui";
+
+import { FormControl, FormStack } from "~root/components/_FormControls";
+import { useNotification } from "~root/hooks";
+
+interface IMaterialPricingCardProps {
+    materialId: string;
+    className?: string | ClassNames;
+}
+
+type Mode = "group" | "fixed" | "percent";
+
+const MaterialPricingCard: FC&lt;IMaterialPricingCardProps&gt; = ({
+    materialId,
+    className = ""
+}) =&gt; {
+    const { data, loading, refetch } = useQuery(GET_MATERIAL_PRICING, {
+        variables: { id: materialId }
+    });
+    const [editMaterial, { loading: saving }] = useMutation(EDIT_MATERIAL_PRICING);
+    const { notify } = useNotification();
+
+    const [mode, setMode] = useState&lt;Mode&gt;("group");
+    const [fixed, setFixed] = useState&lt;string&gt;("");
+    const [percent, setPercent] = useState&lt;string&gt;("");
+
+    useEffect(() =&gt; {
+        const m = data?.material;
+        if (!m) return;
+        if (m.sellPriceOverride != null) {
+            setMode("fixed");
+            setFixed(String(m.sellPriceOverride));
+        } else if (m.markupPercentOverride != null) {
+            setMode("percent");
+            setPercent(String(m.markupPercentOverride));
+        } else {
+            setMode("group");
+        }
+    }, [data?.material?.id]);
+
+    const handleSave = async () =&gt; {
+        const patch = {
+            id: materialId,
+            sellPriceOverride: mode === "fixed" ? parseFloat(fixed) : null,
+            markupPercentOverride: mode === "percent" ? parseFloat(percent) : null
+        };
+        await editMaterial({ variables: { data: patch } });
+        await refetch();
+        notify({ type: "success", message: "Pricing updated" });
+    };
+
+    // ... render summary row + radio block ...
+
+    return (
+        &lt;Card className={new ClassNames().add(className).list()}&gt;
+            {/* layout per mockup 3a */}
+        &lt;/Card&gt;
+    );
+};
+
+export { MaterialPricingCard };
+
+// gql definitions stay here at the bottom (per house style)
+const GET_MATERIAL_PRICING = gql`...`;
+const EDIT_MATERIAL_PRICING = gql`...`;
+</code></pre>
+
+<hr>
+
+<h2>Step 2 &mdash; Mount the card on the Material detail page</h2>
+
+<div class="step-meta">
+    <div>Goal</div><div>Pricing card visible on <code>/materials/[id]</code>.</div>
+    <div>File</div><div><code>apps/frontend/src/pages/materials/[id]/index.tsx</code></div>
+    <div>Validation</div><div>Card renders, summary numbers populate, save round-trips.</div>
+</div>
+
+<h3>2.1 Add the import</h3>
+<pre><code>import { MaterialPricingCard } from "~root/components/Materials/MaterialPricingCard";</code></pre>
+
+<h3>2.2 Place it in the layout</h3>
+<p>Render <code>&lt;MaterialPricingCard materialId={id as string} /&gt;</code> near the existing <code>MaterialPriceGrid</code> placement &mdash; typically a section that appears after the header / breadcrumb block. Match the spacing convention used by sibling cards on the page.</p>
+
+<h3>2.3 Permission gating</h3>
+<p>Wrap the card in <code>hasPermissions(...)</code> if material pricing is gated on a permission (check <code>useAuth().permissions</code>). If you&rsquo;re unsure, leave it unconditional &mdash; the menu/route already gates access to the page.</p>
+
+<hr>
+
+<h2>Step 3 &mdash; Default Markup % field on MaterialGroup form</h2>
+
+<div class="step-meta">
+    <div>Goal</div><div>Add &ldquo;Default Markup %&rdquo; to the MaterialGroup add/edit form.</div>
+    <div>File</div><div><code>apps/frontend/src/components/Forms/MaterialGroupAddEditForm/MaterialGroupAddEditForm.tsx</code></div>
+    <div>Visual target</div><div>Mockup 3b in <a href="../uis-LEM-3b-material-billable-rates-ui.html#ui-mockup">the spec</a>.</div>
+</div>
+
+<h3>3.1 State + form schema</h3>
+<p>Find where the form&rsquo;s field state is initialized (look for <code>useForm</code> setup or the existing scalar fields like <code>unitOfMeasure</code>). Add <code>defaultMarkupPercent</code> alongside.</p>
+
+<h3>3.2 JSX</h3>
+<p>Insert a new <code>FormControl</code> next to <code>unitOfMeasure</code> (or wherever scalar fields cluster):</p>
+
+<pre><code>&lt;FormControl
+    name="defaultMarkupPercent"
+    label="Default Markup %"
+    type="number"
+    step={0.01}
+    hint="Applied to all materials in this group unless overridden"
+    value={form.defaultMarkupPercent ?? ""}
+    onChange={(v) =&gt; setForm({ ...form, defaultMarkupPercent: v === "" ? null : Number(v) })}
+/&gt;</code></pre>
+
+<p>Match exact prop names to the existing <code>FormControl</code> API in <code>_FormControls</code> &mdash; the snippet above is illustrative; use the same shape as adjacent fields.</p>
+
+<h3>3.3 Mutation payload</h3>
+<p>Confirm the <code>useEditMaterialGroupMutation</code> / <code>useCreateMaterialGroupMutation</code> calls forward <code>defaultMarkupPercent</code>. The codegen-generated input types will already include it once the schema is regenerated.</p>
+
+<hr>
+
+<h2>Step 4 &mdash; Verify the Job Settings page (no code, verification only)</h2>
+
+<div class="step-meta">
+    <div>Goal</div><div>Confirm the DataModel SETTINGS form/view renders the &ldquo;Material Markup&rdquo; field that LEM-3a wired up.</div>
+    <div>Files</div><div>None. This is a verification step.</div>
+</div>
+
+<ol>
+    <li>Open any Job&rsquo;s Settings page in the running app.</li>
+    <li>Confirm a <strong>Material Markup</strong> percent input is present alongside Estimate Markup, Overhead Markup, and Hold-Back Percent.</li>
+    <li>Set it to <code>30</code> and save. Reload &mdash; value persists.</li>
+    <li>In Apollo Sandbox: <code>{ job(id: "...") { id materialMarkupPercent } }</code> &rarr; expect <code>30</code>.</li>
+    <li>If any of these fail, the issue is in LEM-3a's DataModel wiring &mdash; <strong>do not patch around it here</strong>. File a bug against 3a.</li>
+</ol>
+
+<hr>
+
+<h2>Step 5 &mdash; End-to-end smoke test</h2>
+
+<ol>
+    <li>From <code>apps/frontend</code>: <code>pnpm run dev</code>. Open the app and sign in.</li>
+    <li>Navigate to a MaterialGroup, edit it, set <strong>Default Markup %</strong> to <code>25</code>, save.</li>
+    <li>Open a Material in that group. The Pricing card should show <code>Sell Price = costBasis &times; 1.25</code> and <code>pricingSource = group</code>.</li>
+    <li>Switch the radio to <strong>Custom markup %</strong>, enter <code>40</code>, save. Refresh &mdash; numbers update; <code>pricingSource = material-percent</code>.</li>
+    <li>Switch to <strong>Fixed sell price</strong>, enter a value below cost, save. Margin should show negative (red) &mdash; this is intentional, no validation.</li>
+    <li>Open a Job, set <strong>Material Markup %</strong> on Settings to <code>10</code>. Re-query the same material with <code>jobId</code> in Apollo Sandbox &mdash; <code>pricingSource = job</code>, sell price uses the job rate.</li>
+</ol>
+
+<hr>
+
+<h2>Acceptance Checklist</h2>
+
+<h3>Material detail</h3>
+<div class="check-item"><div class="check-box"></div><span>Pricing card renders Best Cost, Sell Price, Margin ($ and %).</span></div>
+<div class="check-item"><div class="check-box"></div><span>Pricing-mode radios load with the correct initial selection based on saved overrides.</span></div>
+<div class="check-item"><div class="check-box"></div><span>Saving each mode persists the correct nullability pattern (the other override field is cleared).</span></div>
+<div class="check-item"><div class="check-box"></div><span>After save, the summary row reflects the new <code>sellPrice</code> / <code>marginPercent</code> / <code>pricingSource</code> without a manual page reload.</span></div>
+
+<h3>MaterialGroup form</h3>
+<div class="check-item"><div class="check-box"></div><span>Default Markup % field appears on add and edit forms.</span></div>
+<div class="check-item"><div class="check-box"></div><span>Empty input clears the value to <code>null</code> rather than persisting <code>0</code> (preserves &ldquo;not set, fall through&rdquo; semantics).</span></div>
+
+<h3>Verification (no code)</h3>
+<div class="check-item"><div class="check-box"></div><span>Job Settings page renders Material Markup field via DataModel section-renderer; saves to <code>Job.materialMarkupPercent</code>.</span></div>
+<div class="check-item"><div class="check-box"></div><span>End-to-end cascade exercised across all four sources (job &rarr; material-fixed &rarr; material-percent &rarr; group &rarr; cost) returns expected values from the GraphQL API.</span></div>
+
+<h3>Hygiene</h3>
+<div class="check-item"><div class="check-box"></div><span>No schema, service, migration, or Prisma changes in this PR.</span></div>
+<div class="check-item"><div class="check-box"></div><span>No JobDetailsPage / Job-page React file changes.</span></div>
+<div class="check-item"><div class="check-box"></div><span>Component follows the FC arrow-function pattern, gql definitions at file bottom, single-line <code>#</code> comments only inside <code>gql</code>.</span></div>
+<div class="check-item"><div class="check-box"></div><span>PR description links the LEM-3b spec, screenshots the Pricing card and the MaterialGroup form change, and confirms LEM-3a verification step passed.</span></div>
+
+</div>
+</body>
+</html>

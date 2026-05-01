@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LEM-3a: Material Billable Rates &mdash; Schema + Service Plan</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+.in-iframe .top-nav { display: none !important; }
+.top-nav { position: sticky; top: 0; z-index: 100; background: #0f172a; border-bottom: 1px solid #1e293b; padding: 0 24px; display: flex; align-items: center; gap: 0; }
+.top-nav a { display: inline-flex; align-items: center; padding: 12px 18px; font-size: 13px; font-weight: 600; color: #94a3b8; text-decoration: none; border-bottom: 2px solid transparent; transition: all 0.15s; white-space: nowrap; }
+.top-nav a:hover { color: #f8fafc; background: #1e293b; }
+.top-nav .nav-logo { font-size: 11px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: #475569; padding-right: 18px; margin-right: 4px; border-right: 1px solid #1e293b; }
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Inter', -apple-system, sans-serif; background: #f8fafc; color: #0f172a; }
+.plan-wrap { max-width: 920px; margin: 0 auto; padding: 40px 24px 80px; }
+h1 { font-size: 24px; font-weight: 800; color: #0f172a; margin: 0 0 16px; letter-spacing: -0.01em; }
+h2 { font-size: 18px; font-weight: 700; color: #0f172a; margin: 28px 0 12px; padding-bottom: 8px; border-bottom: 2px solid #e2e8f0; }
+h3 { font-size: 15px; font-weight: 700; color: #0f172a; margin: 20px 0 8px; padding-top: 10px; border-top: 1px solid #f1f5f9; }
+h4 { font-size: 14px; font-weight: 700; color: #0f172a; margin: 14px 0 6px; }
+p { font-size: 14px; color: #334155; line-height: 1.7; margin: 6px 0; }
+ul, ol { padding-left: 20px; margin: 8px 0; }
+li { font-size: 14px; color: #334155; line-height: 1.7; margin: 3px 0; }
+strong { color: #0f172a; }
+code { font-family: 'SF Mono', monospace; background: #f1f5f9; padding: 1px 6px; border-radius: 4px; font-size: 12px; color: #7c3aed; }
+pre { background: #0f172a; color: #f8fafc; border-radius: 8px; padding: 16px; overflow-x: auto; font-size: 12.5px; line-height: 1.55; margin: 12px 0; font-family: 'SF Mono', monospace; }
+pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
+hr { border: none; border-top: 1px solid #e2e8f0; margin: 24px 0; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 12px 0; }
+th { text-align: left; padding: 8px 12px; background: #f1f5f9; border-bottom: 2px solid #e2e8f0; font-weight: 600; }
+td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
+.check-item { display: flex; gap: 8px; align-items: flex-start; padding: 5px 0; }
+.check-box { width: 16px; height: 16px; border: 2px solid #cbd5e1; border-radius: 3px; flex-shrink: 0; margin-top: 2px; }
+.callout { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 14px 18px; margin: 14px 0; font-size: 13px; color: #1e40af; }
+.callout strong { color: #1e3a8a; }
+.callout.warn { background: #fffbeb; border-color: #fde68a; color: #92400e; }
+.callout.warn strong { color: #78350f; }
+.callout.green { background: #f0fdf4; border-color: #bbf7d0; color: #166534; }
+.callout.green strong { color: #14532d; }
+.step-meta { display: grid; grid-template-columns: 110px 1fr; gap: 6px 12px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 16px; margin: 10px 0 14px; font-size: 13px; }
+.step-meta div:nth-child(odd) { font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.5px; font-size: 11px; padding-top: 2px; }
+.step-meta div:nth-child(even) { color: #334155; }
+    </style>
+</head>
+<body>
+
+<script>if(self!==top)document.documentElement.classList.add("in-iframe")</script>
+<nav class="top-nav">
+    <span class="nav-logo">Appello SDLC</span>
+    <a href="../index.html">Roadmap</a>
+    <a href="../release-1.33-timeline.html">Release 1.33</a>
+    <a href="../release-1.34-timeline.html">Release 1.34</a>
+    <a href="../master-spec-reconciliation.html">Spec Reconciliation</a>
+    <a href="../cross-release-continuity-audit.html">Continuity Audit</a>
+    <a href="../ui-interface-library.html">UI Library</a>
+</nav>
+<div class="plan-wrap">
+
+<h1>LEM-3a: Material Billable Rates &mdash; Schema + Service (Backend Plan)</h1>
+
+<p style="font-size:14px; color:#475569;">Self-contained execution plan. Another agent should be able to pick this up cold, run through the steps in order, and ship a PR. Every file path is relative to the repo root unless prefixed with another repo's name. Read the <strong>Pre-flight</strong> section first.</p>
+
+<h2>Overview &amp; Outcome</h2>
+<p>Backend half of LEM-3. After this lands:</p>
+<ul>
+    <li>Three-tier material pricing cascade (MaterialGroup &rarr; Material &rarr; Job) is queryable via <code>resolveMaterialSellPrice(materialId, jobId?)</code>.</li>
+    <li>Material GraphQL type exposes computed <code>sellPrice</code>, <code>marginPercent</code>, <code>costBasis</code>, <code>pricingSource</code>.</li>
+    <li>The Job DataModel SETTINGS form/view automatically renders a &ldquo;Material Markup&rdquo; percent input that writes to <code>Job.materialMarkupPercent</code>.</li>
+    <li>WO-2 can start work because <code>resolveMaterialSellPrice()</code> is callable from line-item code.</li>
+</ul>
+
+<div class="callout green">
+    <strong>Estimate: ~1 day</strong>. Pure backend &mdash; no React. Migration, service, GraphQL resolvers, plus a single set of <code>DocumentAttributeAssignment</code> + <code>DocumentModelFormElements</code> rows for the Job <code>materialMarkupPercent</code> column.
+</div>
+
+<hr>
+
+<h2>Pre-flight (do this first)</h2>
+
+<h3>Repo</h3>
+<ul>
+    <li>Working repo: <code>~/Documents/git-repos/appello/repo-2</code> (the Appello monorepo &mdash; pnpm + turbo).</li>
+    <li>Branch off whatever the active &ldquo;Release 1.33&rdquo; integration branch is. <strong>Confirm with the user</strong> &mdash; do not assume <code>main</code>.</li>
+    <li>Spec to keep open in another tab: <a href="../uis-LEM-3a-material-billable-rates-backend.html">uis-LEM-3a-material-billable-rates-backend.html</a> (this file is the <em>plan</em>; that file is the <em>spec</em>).</li>
+</ul>
+
+<h3>Reference precedent &mdash; read before writing anything</h3>
+<ul>
+    <li><strong>Migration to copy patterns from:</strong> <code>apps/api/prisma/migrations/20260317000000_job_data_model_forms/migration.sql</code>. Specifically PART A (DAA insert), the <code>_DocumentAttributeAssignmentToObjectDownloadTemplate</code> link, PART B (DocumentModelForm), PART C (DocumentModelFormElements with isDeleted gating), and PART C2 (DocumentSection with <code>viewSectionType = 'SETTINGS'</code>).</li>
+    <li><strong>Closest precedent for our DAA:</strong> <code>job-estimate-markup</code> and <code>job-overhead-markup</code> (lines 50&ndash;51 of that migration). Same <code>type: 'percent'</code>, same <code>referenceColumn</code> shape (Decimal column lives directly on Job).</li>
+    <li><strong>Job model definition:</strong> <code>apps/api/prisma/schema.prisma</code> &mdash; Job starts at <strong>line ~1145</strong>, MaterialGroup at <strong>~2713</strong>, Material at <strong>~2810</strong>. The DataModel models (DocumentAttributeAssignment, DocumentModelForm, DocumentModelFormElements, DocumentSection) start around <strong>line ~3497&ndash;3624</strong> &mdash; read those before touching Prisma.</li>
+    <li><strong>GraphQL pattern:</strong> <code>apps/api/src/graphql/models/Material.ts</code>. Note the <code>IModelResolverConfig&lt;IMaterial&gt;</code> typeDef + Resolvers + Query + Mutation shape. <code>extend type</code> / <code>extend input</code> are used for Material/Job already &mdash; you&rsquo;ll add fields directly to the existing typeDef blocks (these specific files don&rsquo;t use <code>extend</code> for their own type, they declare it).</li>
+</ul>
+
+<h3>Hard constants you will reference</h3>
+<table>
+    <thead><tr><th>What</th><th>Value</th><th>Source</th></tr></thead>
+    <tbody>
+        <tr><td>Job Default Template ID</td><td><code>WTrFPuHXRIH6x4CdGk__v</code></td><td>Line 58 of the precedent migration</td></tr>
+        <tr><td><code>job-settings</code> DocumentSection</td><td><code>SELECT id FROM DocumentSection WHERE referenceModel = 'Job' AND name = 'job-settings'</code></td><td>Created by PART C2 of the precedent migration. Already exists in 1.33; <strong>do not re-create</strong>.</td></tr>
+        <tr><td>DAA <code>defaultAttributeType</code> for our field</td><td><code>'percent'</code></td><td>Matches <code>job-estimate-markup</code> / <code>job-overhead-markup</code></td></tr>
+        <tr><td>DAA <code>slug</code> for our field</td><td><code>job-material-markup-percent</code></td><td>Convention &mdash; matches <code>job-estimate-markup</code> shape</td></tr>
+        <tr><td>Job column name</td><td><code>materialMarkupPercent</code></td><td>This plan</td></tr>
+    </tbody>
+</table>
+
+<h3>Local DB workflow</h3>
+<ul>
+    <li>From <code>apps/api</code>: <code>pnpm run prisma:migrate &lt;migration_name&gt;</code> creates a timestamped folder under <code>prisma/migrations/</code> with an empty <code>migration.sql</code> (uses <code>--create-only</code>; will not auto-run).</li>
+    <li>You will <strong>edit</strong> the generated <code>migration.sql</code> to include the schema column ALTERs <em>and</em> the DataModel wiring.</li>
+    <li><code>pnpm run prisma:deploy</code> applies pending migrations.</li>
+    <li><code>pnpm run prisma:resetdb</code> rebuilds from scratch (use only if you need a clean slate).</li>
+    <li>After Prisma changes: <code>pnpm run prisma:generate</code> regenerates the client. The <code>dev</code> script does this automatically.</li>
+</ul>
+
+<h3>What you are NOT doing in this PR</h3>
+<ul>
+    <li>No React components (those live in LEM-3b).</li>
+    <li>No JobDetailsPage code edits (the SETTINGS view picks up the new DAA via the existing DataModel section-renderer).</li>
+    <li>No WO-2 line-item wiring (WO-2 will call <code>resolveMaterialSellPrice()</code> after this lands).</li>
+    <li>No <code>DistributorPrice</code> integration in <code>bestAvailableCost()</code> &mdash; MAT-0 ships that, leave the TODO clearly commented.</li>
+</ul>
+
+<hr>
+
+<h2>Step 1 &mdash; Generate the migration scaffold</h2>
+
+<div class="step-meta">
+    <div>Goal</div><div>Empty migration folder + <code>schema.prisma</code> deltas staged.</div>
+    <div>Files</div><div><code>apps/api/prisma/schema.prisma</code>, new <code>apps/api/prisma/migrations/&lt;ts&gt;_lem_3a_material_billable_rates/migration.sql</code></div>
+    <div>Validation</div><div><code>pnpm run prisma:validate</code> succeeds; the new folder exists with an empty SQL file.</div>
+</div>
+
+<h3>1.1 Add the four new columns to <code>schema.prisma</code></h3>
+<p>Edit <code>apps/api/prisma/schema.prisma</code>. <strong>Use Decimal(5,2)</strong> for all percent fields (matches <code>holdBackPercent</code>, <code>estimateMarkup</code>, <code>overheadMarkup</code>); <strong>Decimal(10,2)</strong> for fixed-dollar overrides.</p>
+
+<pre><code>// In model MaterialGroup (~line 2713), in the field block (after `unitOfMeasure`):
+defaultMarkupPercent        Decimal?                    @db.Decimal(5, 2)
+
+// In model Material (~line 2810), in the field block (after `config`):
+sellPriceOverride           Decimal?                    @db.Decimal(10, 2)
+markupPercentOverride       Decimal?                    @db.Decimal(5, 2)
+
+// In model Job (~line 1145), alongside `estimateMarkup` / `overheadMarkup`:
+materialMarkupPercent       Decimal?                    @db.Decimal(5, 2)
+</code></pre>
+
+<div class="callout">
+    <strong>Why nullable?</strong> Distinguish &ldquo;not set, fall through cascade&rdquo; from &ldquo;set to zero, charge at cost.&rdquo; The existing <code>estimateMarkup</code> / <code>overheadMarkup</code> are non-null with default 0; we deliberately differ here because zero is a meaningful distinct value for material markup (intentional pass-through).
+</div>
+
+<h3>1.2 Create the migration folder</h3>
+<pre><code>cd apps/api
+pnpm run prisma:migrate lem_3a_material_billable_rates</code></pre>
+
+<p>This emits <code>prisma/migrations/&lt;timestamp&gt;_lem_3a_material_billable_rates/migration.sql</code> with the auto-generated <code>ALTER TABLE</code> statements. Keep them, then append the DataModel wiring (Step 2). Confirm the file starts with something like:</p>
+
+<pre><code>-- AlterTable
+ALTER TABLE `Job` ADD COLUMN `materialMarkupPercent` DECIMAL(5, 2) NULL;
+ALTER TABLE `Material` ADD COLUMN `markupPercentOverride` DECIMAL(5, 2) NULL,
+    ADD COLUMN `sellPriceOverride` DECIMAL(10, 2) NULL;
+ALTER TABLE `MaterialGroup` ADD COLUMN `defaultMarkupPercent` DECIMAL(5, 2) NULL;
+</code></pre>
+
+<p>Run <code>pnpm run prisma:cleanMigrationFile</code> after editing if needed to keep formatting consistent.</p>
+
+<hr>
+
+<h2>Step 2 &mdash; Append the Job DataModel wiring to the migration</h2>
+
+<div class="step-meta">
+    <div>Goal</div><div>Single <code>DocumentAttributeAssignment</code> for <code>materialMarkupPercent</code>, link to Job Default Template, form elements on CREATE / EDIT / SETTINGS (only SETTINGS active).</div>
+    <div>Files</div><div>The same <code>migration.sql</code> created in Step 1.</div>
+    <div>Validation</div><div>Step 5 SQL queries return the expected rows after <code>prisma:deploy</code>.</div>
+</div>
+
+<p>Append the following block to the end of the migration file. <strong>Read this block carefully.</strong> The insert into <code>DocumentModelFormElements</code> uses a <code>CASE</code> on <code>formType</code> so we don&rsquo;t need three separate inserts. The DAA is parented to the <code>job-settings</code> section so it lands on the Settings detail-page view automatically.</p>
+
+<pre><code>-- =====================================================
+-- LEM-3a: Wire materialMarkupPercent into Job DataModel forms
+-- =====================================================
+-- Pattern follows job-estimate-markup / job-overhead-markup from
+-- 20260317000000_job_data_model_forms/migration.sql.
+
+-- 2a: Create DAA pointing at Job.materialMarkupPercent.
+-- Section = job-settings (viewSectionType='SETTINGS') so the field renders
+-- on the Settings detail-page section, not the overview.
+INSERT IGNORE INTO DocumentAttributeAssignment (
+    id, referenceModel, orderNo, sectionId, slug,
+    defaultAttribute, defaultAttributeLabel, defaultAttributeType,
+    defaultAttributeIsRequired, defaultAttributeIsDerived, referenceColumn
+) VALUES (
+    LEFT(MD5(UUID()), 21),
+    'Job',
+    20,                                                            -- order after estimate/overhead markups
+    (SELECT id FROM DocumentSection WHERE referenceModel = 'Job' AND name = 'job-settings'),
+    'job-material-markup-percent',
+    'job-material-markup-percent',
+    'Material Markup',
+    'percent',
+    0,                                                             -- not required
+    0,                                                             -- not derived
+    'materialMarkupPercent'
+);
+
+-- 2b: Link to the Job Default Template
+INSERT IGNORE INTO `_DocumentAttributeAssignmentToObjectDownloadTemplate` (`A`, `B`)
+SELECT id, 'WTrFPuHXRIH6x4CdGk__v'
+FROM DocumentAttributeAssignment
+WHERE referenceModel = 'Job' AND slug = 'job-material-markup-percent';
+
+-- 2c: Insert one DocumentModelFormElements row per Job form
+-- (CREATE, EDIT, SETTINGS). Active (isDeleted=0) only on SETTINGS;
+-- on CREATE/EDIT the row is registered but hidden so a form-builder admin
+-- can flip it on later without another migration.
+INSERT IGNORE INTO DocumentModelFormElements (
+    id, documentModelFormId, documentAttributeAssignmentId, isDeleted
+)
+SELECT
+    LEFT(MD5(UUID()), 21),
+    dmf.id,
+    daa.id,
+    CASE WHEN dmf.formType = 'SETTINGS' THEN 0 ELSE 1 END
+FROM DocumentModelForm dmf
+JOIN DocumentAttributeAssignment daa
+    ON daa.referenceModel = 'Job' AND daa.slug = 'job-material-markup-percent'
+WHERE dmf.referenceModel = 'Job'
+AND dmf.formType IN ('CREATE', 'EDIT', 'SETTINGS');
+</code></pre>
+
+<div class="callout warn">
+    <strong>Pre-flight check before running deploy:</strong> if <code>SELECT id FROM DocumentSection WHERE referenceModel = 'Job' AND name = 'job-settings'</code> returns no row in your local DB, the Job DataModel migration (<code>20260317000000_job_data_model_forms</code>) has not been applied. Run <code>pnpm run prisma:deploy</code> first &mdash; it&rsquo;s a hard prerequisite. Do not work around this by creating the section manually.
+</div>
+
+<h3>2.1 Apply the migration locally</h3>
+<pre><code>cd apps/api
+pnpm run prisma:deploy
+pnpm run prisma:generate</code></pre>
+
+<hr>
+
+<h2>Step 3 &mdash; <code>MaterialPricingService</code></h2>
+
+<div class="step-meta">
+    <div>Goal</div><div>One service exporting <code>resolveMaterialSellPrice()</code> + <code>bestAvailableCost()</code>, with margin computation.</div>
+    <div>New file</div><div><code>apps/api/src/services/MaterialPricingService.ts</code></div>
+    <div>Validation</div><div>Compiles (<code>pnpm exec tsc --noEmit</code>); a spot-check unit test passes for one cascade case.</div>
+</div>
+
+<p>Drop in this skeleton. It uses the same <code>prisma</code> import path and Decimal pattern as <code>apps/api/src/services/CostCalculationHelper.ts</code>.</p>
+
+<pre><code>import { prisma } from "../models/_prismaClient";
+import { Decimal } from "@prisma/client/runtime/library";
+
+export type MaterialPricingSource =
+    | "job"
+    | "material-fixed"
+    | "material-percent"
+    | "group"
+    | "cost";
+
+export interface MaterialPriceResolution {
+    costPrice: Decimal;
+    sellPrice: Decimal;
+    marginDollar: Decimal;
+    marginPercent: Decimal;
+    source: MaterialPricingSource;
+}
+
+/**
+ * Resolves the cost basis for a material.
+ * Order: DistributorPrice (MAT-0, not yet built) -> MaterialAttributePrice -> null.
+ */
+export async function bestAvailableCost(
+    materialId: string
+): Promise&lt;Decimal | null&gt; {
+    // TODO(MAT-0): When DistributorPrice is available, query for isPreferred=true
+    // for this material's ManufacturerProduct first; fall through to MaterialAttributePrice.
+
+    const attrPrice = await prisma.materialAttributePrice.findFirst({
+        where: { materialId, isDeleted: false, isArchived: false },
+        orderBy: { updatedAt: "desc" }
+    });
+    return attrPrice?.value ?? null;
+}
+
+/**
+ * Three-tier material sell-price cascade:
+ *   1. Job override (Job.materialMarkupPercent)
+ *   2. Material override (sellPriceOverride OR markupPercentOverride)
+ *   3. MaterialGroup default (defaultMarkupPercent)
+ *   4. Pass-through at cost
+ *
+ * Returns null only when no cost basis is resolvable.
+ */
+export async function resolveMaterialSellPrice(
+    materialId: string,
+    jobId?: string | null
+): Promise&lt;MaterialPriceResolution | null&gt; {
+    const material = await prisma.material.findUnique({
+        where: { id: materialId },
+        include: { MaterialGroup: true }
+    });
+    if (!material) return null;
+
+    const costPrice = await bestAvailableCost(materialId);
+    if (!costPrice) return null;
+
+    // Tier 3: Job override
+    if (jobId) {
+        const job = await prisma.job.findUnique({
+            where: { id: jobId },
+            select: { materialMarkupPercent: true }
+        });
+        if (job?.materialMarkupPercent != null) {
+            const sell = costPrice.mul(
+                new Decimal(1).plus(job.materialMarkupPercent.div(100))
+            );
+            return buildResult(costPrice, sell, "job");
+        }
+    }
+
+    // Tier 2a: Material fixed sell price
+    if (material.sellPriceOverride != null) {
+        return buildResult(costPrice, material.sellPriceOverride, "material-fixed");
+    }
+
+    // Tier 2b: Material markup %
+    if (material.markupPercentOverride != null) {
+        const sell = costPrice.mul(
+            new Decimal(1).plus(material.markupPercentOverride.div(100))
+        );
+        return buildResult(costPrice, sell, "material-percent");
+    }
+
+    // Tier 1: Group default
+    if (material.MaterialGroup?.defaultMarkupPercent != null) {
+        const sell = costPrice.mul(
+            new Decimal(1).plus(material.MaterialGroup.defaultMarkupPercent.div(100))
+        );
+        return buildResult(costPrice, sell, "group");
+    }
+
+    // Fallback: pass-through at cost
+    return buildResult(costPrice, costPrice, "cost");
+}
+
+function buildResult(
+    costPrice: Decimal,
+    sellPrice: Decimal,
+    source: MaterialPricingSource
+): MaterialPriceResolution {
+    const marginDollar = sellPrice.minus(costPrice);
+    const marginPercent = sellPrice.gt(0)
+        ? marginDollar.div(sellPrice).mul(100)
+        : new Decimal(0);
+    return { costPrice, sellPrice, marginDollar, marginPercent, source };
+}
+</code></pre>
+
+<div class="callout">
+    <strong>Margin convention:</strong> margin% is computed against <em>sell</em> price, not cost. This matches Shopify's "Margin" display, the convention referenced in the spec, and is what the customer-facing UI in LEM-3b expects.
+</div>
+
+<h3>3.1 Smoke test (optional but recommended)</h3>
+<p>Add a colocated <code>MaterialPricingService.test.ts</code> following the pattern in <code>apps/api/src/services/overtimeCalculation.test.ts</code>. One assertion per cascade source is sufficient for this PR &mdash; deeper coverage can come with WO-2.</p>
+
+<hr>
+
+<h2>Step 4 &mdash; GraphQL surface</h2>
+
+<div class="step-meta">
+    <div>Goal</div><div>Material exposes 4 computed fields. Material/MaterialGroup/Job inputs accept the new override fields. New top-level <code>resolveMaterialSellPrice</code> query.</div>
+    <div>Files</div><div><code>apps/api/src/graphql/models/Material.ts</code>, <code>MaterialGroup.ts</code>, <code>Job.ts</code></div>
+    <div>Validation</div><div><code>pnpm exec tsc --noEmit</code> in <code>apps/api</code>; introspection query in Step 6 returns the new fields.</div>
+</div>
+
+<h3>4.1 <code>Material.ts</code> &mdash; add fields, inputs, and resolvers</h3>
+
+<p>In the <code>typeDef</code> block (~line 10): inside <code>type Material</code>, add the four computed fields and the two new override fields:</p>
+
+<pre><code>type Material {
+    # ... existing fields ...
+    sellPriceOverride: Float
+    markupPercentOverride: Float
+    sellPrice(jobId: String): Float
+    marginPercent(jobId: String): Float
+    costBasis: Float
+    pricingSource: String
+}</code></pre>
+
+<p>In <code>input CreateMaterial</code> and <code>input EditMaterial</code> (~lines 37 / 50): add the two override fields.</p>
+
+<pre><code>input CreateMaterial {
+    # ... existing ...
+    sellPriceOverride: Float
+    markupPercentOverride: Float
+}
+
+input EditMaterial {
+    id: ID!
+    # ... existing ...
+    sellPriceOverride: Float
+    markupPercentOverride: Float
+}</code></pre>
+
+<p>In the <code>Resolvers</code> object: add four computed-field resolvers and import the service. Keep existing resolvers unchanged.</p>
+
+<pre><code>import {
+    bestAvailableCost,
+    resolveMaterialSellPrice
+} from "../../services/MaterialPricingService";
+
+// ... in Resolvers: ...
+sellPrice: async (parent: { id: string }, args: { jobId?: string | null }) =&gt; {
+    const r = await resolveMaterialSellPrice(parent.id, args.jobId ?? null);
+    return r?.sellPrice?.toNumber() ?? null;
+},
+marginPercent: async (parent: { id: string }, args: { jobId?: string | null }) =&gt; {
+    const r = await resolveMaterialSellPrice(parent.id, args.jobId ?? null);
+    return r?.marginPercent?.toNumber() ?? null;
+},
+costBasis: async (parent: { id: string }) =&gt; {
+    const cost = await bestAvailableCost(parent.id);
+    return cost?.toNumber() ?? null;
+},
+pricingSource: async (parent: { id: string }, args: { jobId?: string | null }) =&gt; {
+    const r = await resolveMaterialSellPrice(parent.id, args.jobId ?? null);
+    return r?.source ?? "cost";
+}</code></pre>
+
+<p>Add a top-level <code>resolveMaterialSellPrice</code> query for callers that don't have a Material loaded:</p>
+
+<pre><code>// In typeDef, alongside `extend type Query`:
+type MaterialPriceResolution {
+    costPrice: Float!
+    sellPrice: Float!
+    marginDollar: Float!
+    marginPercent: Float!
+    source: String!
+}
+
+extend type Query {
+    materials(options: GetListOptions): GetListResult
+    material(id: ID!): Material
+    getMaterialRelatedDeleteCount(ids: [ID!]!): JSON
+    resolveMaterialSellPrice(materialId: String!, jobId: String): MaterialPriceResolution
+}
+
+// In Query: ...
+resolveMaterialSellPrice: async (_, { materialId, jobId }) =&gt; {
+    const r = await resolveMaterialSellPrice(materialId, jobId);
+    if (!r) return null;
+    return {
+        costPrice: r.costPrice.toNumber(),
+        sellPrice: r.sellPrice.toNumber(),
+        marginDollar: r.marginDollar.toNumber(),
+        marginPercent: r.marginPercent.toNumber(),
+        source: r.source
+    };
+}</code></pre>
+
+<div class="callout warn">
+    <strong>Naming:</strong> the service function and the GraphQL query share a name. Either alias the import or call the service via a namespaced import to avoid the shadowing &mdash; <code>import * as MaterialPricing from "../../services/MaterialPricingService";</code> and call <code>MaterialPricing.resolveMaterialSellPrice(&hellip;)</code>. Pick whichever style matches surrounding files.
+</div>
+
+<h3>4.2 <code>MaterialGroup.ts</code> &mdash; add <code>defaultMarkupPercent</code></h3>
+<p>Add the field to <code>type MaterialGroup</code>, <code>input CreateMaterialGroup</code>, and <code>input EditMaterialGroup</code>. No resolver code needed &mdash; Prisma exposes scalar columns automatically. Same pattern as the existing <code>unitOfMeasure</code> field.</p>
+
+<h3>4.3 <code>Job.ts</code> &mdash; add <code>materialMarkupPercent</code></h3>
+<p>Add the field to <code>type Job</code>, <code>input CreateJob</code>, <code>input EditJob</code>, and the patch-style update input around line 215 (mirroring how <code>estimateMarkup</code>, <code>overheadMarkup</code>, <code>holdBackPercent</code> are listed three times in this file). No resolver code needed.</p>
+
+<hr>
+
+<h2>Step 5 &mdash; Verify the DataModel wiring landed</h2>
+
+<div class="step-meta">
+    <div>Goal</div><div>Confirm the DAA + form elements exist with the right attributes after migration deploy.</div>
+    <div>Validation</div><div>Three queries below return the expected counts.</div>
+</div>
+
+<p>Run from <code>prisma:studio</code> or any MySQL client:</p>
+
+<pre><code>-- 5a: DAA exists with right shape (1 row)
+SELECT id, slug, defaultAttributeType, referenceColumn, sectionId
+FROM DocumentAttributeAssignment
+WHERE referenceModel = 'Job' AND slug = 'job-material-markup-percent';
+-- Expect: defaultAttributeType='percent', referenceColumn='materialMarkupPercent',
+--         sectionId = id of the 'job-settings' DocumentSection.
+
+-- 5b: DAA linked to Job Default Template (1 row)
+SELECT *
+FROM `_DocumentAttributeAssignmentToObjectDownloadTemplate`
+WHERE A IN (SELECT id FROM DocumentAttributeAssignment WHERE slug = 'job-material-markup-percent')
+  AND B = 'WTrFPuHXRIH6x4CdGk__v';
+
+-- 5c: Form elements on all three forms; only SETTINGS active (3 rows)
+SELECT dmf.formType, dmfe.isDeleted
+FROM DocumentModelFormElements dmfe
+JOIN DocumentModelForm dmf ON dmf.id = dmfe.documentModelFormId
+WHERE dmfe.documentAttributeAssignmentId IN (
+    SELECT id FROM DocumentAttributeAssignment WHERE slug = 'job-material-markup-percent'
+)
+ORDER BY dmf.formType;
+-- Expect: CREATE / 1 (deleted), EDIT / 1 (deleted), SETTINGS / 0 (active)</code></pre>
+
+<hr>
+
+<h2>Step 6 &mdash; End-to-end smoke test (manual)</h2>
+
+<div class="step-meta">
+    <div>Goal</div><div>Round-trip the full cascade through GraphQL.</div>
+    <div>Tools</div><div>Apollo Sandbox / GraphQL playground at the local dev server URL.</div>
+</div>
+
+<p>Boot <code>pnpm run dev</code> from <code>apps/api</code>. Then exercise:</p>
+
+<pre><code># Sanity: introspection
+{
+    __type(name: "Material") {
+        fields { name type { name kind ofType { name } } }
+    }
+}
+# Expect sellPrice, marginPercent, costBasis, pricingSource, sellPriceOverride, markupPercentOverride
+
+# Pick any existing material with a MaterialAttributePrice row
+query CostBasis {
+    material(id: "&lt;a real material id&gt;") {
+        id name
+        costBasis
+        sellPrice
+        marginPercent
+        pricingSource
+    }
+}
+# Expect pricingSource='cost' if no markup configured anywhere; sellPrice == costBasis.
+
+# Configure a group default
+mutation {
+    editMaterialGroup(data: {
+        id: "&lt;the material's group id&gt;",
+        defaultMarkupPercent: 25
+    }) { id defaultMarkupPercent }
+}
+
+# Re-query the same material; expect pricingSource='group', sellPrice = costBasis * 1.25.
+
+# Configure a job override and pass jobId
+query JobCascade {
+    material(id: "&lt;material id&gt;") {
+        sellPrice(jobId: "&lt;a real job id with materialMarkupPercent set&gt;")
+        pricingSource(jobId: "&lt;same job id&gt;")
+    }
+}
+# Expect pricingSource='job'.
+</code></pre>
+
+<p>Then in the running app, navigate to the Job Settings detail page for that job. Confirm a "Material Markup" percent input shows up alongside Estimate Markup / Overhead Markup, and saving it persists to <code>Job.materialMarkupPercent</code>. (This proves the DataModel wiring &mdash; no JobDetailsPage code change should have been needed.)</p>
+
+<hr>
+
+<h2>Downstream impacts (for awareness, NOT this PR)</h2>
+
+<table>
+    <thead><tr><th>Spec</th><th>What changes when</th></tr></thead>
+    <tbody>
+        <tr><td><a href="LEM-3b-material-billable-rates-ui.html">LEM-3b</a></td><td>Builds <code>MaterialPricingCard</code> + MaterialGroup form field. Consumes the GraphQL surface added here. Job-side UI is already done by the SETTINGS form/view.</td></tr>
+        <tr><td>WO-2</td><td><code>WorkOrderMaterialItem</code>: add <code>costPrice</code>, rename <code>unitCost</code> &rarr; <code>unitPrice</code>. Auto-populate via <code>resolveMaterialSellPrice()</code>.</td></tr>
+        <tr><td>WO-3 (Material editor)</td><td>Auto-populate sell price on material select.</td></tr>
+        <tr><td>WO-7 (Conversion)</td><td>Structured material lines use <code>resolveMaterialSellPrice()</code>; blank lines pass through manual <code>unitPrice</code>.</td></tr>
+        <tr><td>MAT-2a (LEM Report)</td><td>Add <code>materialBillableValue</code> column alongside <code>materialCost</code>.</td></tr>
+        <tr><td>MAT-0 / MAT-9 (1.34)</td><td>Upgrades <code>bestAvailableCost()</code> to prefer <code>DistributorPrice.effectivePrice</code>. Service signature does not change.</td></tr>
+    </tbody>
+</table>
+
+<hr>
+
+<h2>Acceptance Checklist &mdash; Gate for LEM-3b and WO-2</h2>
+
+<h3>Schema</h3>
+<div class="check-item"><div class="check-box"></div><span>Migration adds 4 new nullable columns to MaterialGroup, Material, Job. Existing data unaffected.</span></div>
+<div class="check-item"><div class="check-box"></div><span><code>prisma:validate</code> passes; <code>prisma:generate</code> regenerates the client.</span></div>
+
+<h3>Service</h3>
+<div class="check-item"><div class="check-box"></div><span><code>resolveMaterialSellPrice()</code> walks the cascade: Job &gt; Material fixed &gt; Material % &gt; Group % &gt; cost.</span></div>
+<div class="check-item"><div class="check-box"></div><span><code>bestAvailableCost()</code> returns <code>MaterialAttributePrice.value</code> for existing materials; returns <code>null</code> when no cost data exists.</span></div>
+<div class="check-item"><div class="check-box"></div><span>No-markup-anywhere case returns <code>sellPrice == costPrice</code>, <code>source: 'cost'</code>, no error.</span></div>
+<div class="check-item"><div class="check-box"></div><span>TODO(MAT-0) comment is in <code>bestAvailableCost()</code> indicating where DistributorPrice will slot in.</span></div>
+
+<h3>GraphQL</h3>
+<div class="check-item"><div class="check-box"></div><span>Material exposes <code>sellPrice</code>, <code>marginPercent</code>, <code>costBasis</code>, <code>pricingSource</code>; <code>sellPrice</code> and <code>marginPercent</code> accept optional <code>jobId</code>.</span></div>
+<div class="check-item"><div class="check-box"></div><span><code>EditMaterial</code>, <code>EditMaterialGroup</code>, <code>EditJob</code> accept the new pricing fields.</span></div>
+<div class="check-item"><div class="check-box"></div><span>Top-level <code>resolveMaterialSellPrice(materialId, jobId)</code> query exists and returns <code>MaterialPriceResolution</code>.</span></div>
+
+<h3>DataModel wiring</h3>
+<div class="check-item"><div class="check-box"></div><span>One DAA exists with slug <code>job-material-markup-percent</code>, <code>type='percent'</code>, <code>referenceColumn='materialMarkupPercent'</code>, parented to the <code>job-settings</code> section.</span></div>
+<div class="check-item"><div class="check-box"></div><span>DAA is linked to <code>WTrFPuHXRIH6x4CdGk__v</code> via <code>_DocumentAttributeAssignmentToObjectDownloadTemplate</code>.</span></div>
+<div class="check-item"><div class="check-box"></div><span>Three <code>DocumentModelFormElements</code> rows exist (CREATE, EDIT, SETTINGS); only SETTINGS has <code>isDeleted = 0</code>.</span></div>
+<div class="check-item"><div class="check-box"></div><span>The Job Settings detail page renders the field via the existing DataModel section-renderer, with no JobDetailsPage code change.</span></div>
+<div class="check-item"><div class="check-box"></div><span>Saving the Settings form persists to <code>Job.materialMarkupPercent</code>; the value flows through <code>resolveMaterialSellPrice(materialId, jobId)</code>.</span></div>
+
+<h3>Hygiene</h3>
+<div class="check-item"><div class="check-box"></div><span>Migration file is timestamped, lives under <code>apps/api/prisma/migrations/</code>, runs cleanly on a DB that has the <code>20260317000000_job_data_model_forms</code> migration applied.</span></div>
+<div class="check-item"><div class="check-box"></div><span>No JobDetailsPage / MaterialDetail / MaterialGroupForm React files were touched (those are LEM-3b).</span></div>
+<div class="check-item"><div class="check-box"></div><span>PR description links the LEM-3a spec, calls out the DataModel wiring as the headline change, and notes that LEM-3b + WO-2 unblock on merge.</span></div>
+
+</div>
+</body>
+</html>

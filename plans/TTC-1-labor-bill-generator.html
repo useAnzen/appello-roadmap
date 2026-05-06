@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TTC-1: Labor Bill Generator &mdash; Implementation Plan</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+.in-iframe .top-nav { display: none !important; }
+.top-nav { position: sticky; top: 0; z-index: 100; background: #0f172a; border-bottom: 1px solid #1e293b; padding: 0 24px; display: flex; align-items: center; gap: 0; }
+.top-nav a { display: inline-flex; align-items: center; padding: 12px 18px; font-size: 13px; font-weight: 600; color: #94a3b8; text-decoration: none; border-bottom: 2px solid transparent; transition: all 0.15s; white-space: nowrap; }
+.top-nav a:hover { color: #f8fafc; background: #1e293b; }
+.top-nav .nav-logo { font-size: 11px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: #475569; padding-right: 18px; margin-right: 4px; border-right: 1px solid #1e293b; }
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Inter', -apple-system, sans-serif; background: #f8fafc; color: #0f172a; }
+.plan-wrap { max-width: 880px; margin: 0 auto; padding: 40px 24px 80px; }
+h1 { font-size: 24px; font-weight: 800; margin: 0 0 16px; }
+h2 { font-size: 18px; font-weight: 700; margin: 28px 0 12px; padding-bottom: 8px; border-bottom: 2px solid #e2e8f0; }
+h3 { font-size: 15px; font-weight: 700; margin: 20px 0 8px; padding-top: 10px; border-top: 1px solid #f1f5f9; }
+h4 { font-size: 14px; font-weight: 700; margin: 14px 0 6px; }
+p { font-size: 14px; color: #334155; line-height: 1.7; margin: 6px 0; }
+ul, ol { padding-left: 20px; margin: 8px 0; }
+li { font-size: 14px; color: #334155; line-height: 1.7; margin: 3px 0; }
+strong { color: #0f172a; }
+code { font-family: 'SF Mono', monospace; background: #f1f5f9; padding: 1px 6px; border-radius: 4px; font-size: 12px; color: #7c3aed; }
+pre { background: #0f172a; color: #f8fafc; border-radius: 8px; padding: 16px; overflow-x: auto; font-size: 13px; line-height: 1.6; margin: 12px 0; font-family: 'SF Mono', monospace; }
+pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
+hr { border: none; border-top: 1px solid #e2e8f0; margin: 24px 0; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 12px 0; }
+th { text-align: left; padding: 8px 12px; background: #f1f5f9; border-bottom: 2px solid #e2e8f0; font-weight: 600; }
+td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
+.callout { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 14px 18px; margin: 14px 0; font-size: 13px; color: #1e40af; }
+.callout strong { color: #1e3a8a; }
+.callout.warn { background: #fef3c7; border-color: #fde68a; color: #92400e; }
+.callout.warn strong { color: #78350f; }
+    </style>
+</head>
+<body>
+
+<script>if(self!==top)document.documentElement.classList.add("in-iframe")</script>
+<nav class="top-nav">
+    <span class="nav-logo">Appello SDLC</span>
+    <a href="../index.html">Roadmap</a>
+    <a href="../release-1.33-timeline.html">Release 1.33</a>
+    <a href="../release-1.34-timeline.html">Release 1.34</a>
+    <a href="../master-spec-reconciliation.html">Spec Reconciliation</a>
+    <a href="../cross-release-continuity-audit.html">Continuity Audit</a>
+    <a href="../ui-interface-library.html">UI Library</a>
+</nav>
+<div class="plan-wrap" id="rendered"></div>
+
+<script type="text/plain" id="plan-md">
+# TTC-1: Labor Bill Generator &mdash; Implementation Plan
+
+## Overview
+
+Add a `createLaborBillFromJob(jobId, periodStart, periodEnd, grouping, includeDisbursements)` mutation that creates a Simple `JobBill` from approved timesheet entries in scope, priced via `TradeLevelRate.billableValue`. Records every contributing `TimeSheetDetailRecord` on a new `JobBillLineItemTimeSheetSource` join row for audit. Surfaces a **Generate Labor Bill** action on the Job Billing tab.
+
+**Estimated effort:** 5&ndash;6 days
+**Risk:** Low &mdash; pattern is established by IE-5 (`createInvoiceFromEstimate`) and PR #7017 (`generateInvoiceFromWorkOrder`). We borrow their shape and substitute the source (timesheets instead of estimate lines / WO lines).
+**Spec:** `uis-TTC-1-labor-bill-generator.html`
+**Requires:** LEM-1 (Labor Billable Rates &mdash; in QA). Lands **after** IE-5 to reuse the validated `BaseModel + transaction + provenance link` pattern.
+
+### Relationship to IE-5 and WO-7
+
+- **IE-5** introduces `JobBillModel.createInvoiceFromEstimate` &mdash; same shape: validate source, run a totals engine, create Simple bill in transaction, copy line attributes, link both sides. We use IE-5 as the reference for the resolver skeleton.
+- **WO-7** (PR #7017) introduces `generateInvoiceFromWorkOrder` &mdash; broader duplicate guard ("any non-deleted JobBill on this job"). TTC-1 deliberately **does not** add a duplicate guard: a job can have many labor bills (one per period), so we allow concurrent creates and let the user disambiguate via period + invoice number.
+- **Decision:** build a new `LaborBillModal.tsx` + new `JobBillModel.createLaborBillFromJob` rather than overloading either sibling. Three flows now share an architectural pattern but never share component code &mdash; the divergence in source data (timesheets vs WO lines vs estimate lines) is too significant to abstract.
+
+### Key design decisions
+
+- **No new `JobBill.template` value.** Generated bills are `template: Simple`. Provenance lives on line items via `JobBillLineItemTimeSheetSource`, not on the bill template. PDF renders via existing Simple template unchanged.
+- **Provenance is M:N, append-only.** A `TimeSheetDetailRecord` can appear on multiple bills (e.g. user mistakenly bills the same period twice; we don't fight them, the provenance records both). The unique constraint is `(jobBillLineItemId, timeSheetDetailRecordId)` to prevent a single line from listing the same source row twice &mdash; that would be a resolver bug.
+- **No retroactive sync.** Once a bill is created, its line items are independent rows. Editing or soft-deleting a source `TimeSheetDetailRecord` does not change the bill. This matches how Simple bills behave today and avoids a rabbit hole of "what counts as material change to a billed line".
+- **Re-validate at mutation time.** The resolver re-reads the contributing TSDR rows from the database and re-checks `ApprovalStatus.Approved`, ignoring any preview payload from the client. The preview is purely advisory.
+- **Grouping is computed client-side from the same data the preview returns.** The preview always returns one row per (user, trade level, rate label) tuple plus a quantity. Switching the grouping radio re-issues the preview query with the new grouping; the resolver groups in SQL using `GROUP BY` over `TimeSheetDetailRecord` joined to `TimeSheetDetailRecordValue`.
+- **Pending: markup behavior when `billableValue` is null.** See spec &sect;2 decision. Plan assumes option 3 (`Job.defaultLaborMarkupPercent` falling back to 0). The migration adds the column nullable; the `MaterialPricingService`-style resolver helper (`resolveLaborSellRate(tradeLevelId, rateLabelId, jobId)`) returns `billableValue ?? baseValue * (1 + markup/100)`. If the team picks option 1 or 2, drop the column from the migration and adjust the helper.
+
+---
+
+## Step 1: Schema migration &mdash; provenance + (conditional) markup
+
+**Create:** `apps/api/prisma/migrations/YYYYMMDDHHMMSS_add_labor_bill_provenance/migration.sql`
+
+```sql
+-- New join table: bill line item ↔ source timesheet detail record
+CREATE TABLE `JobBillLineItemTimeSheetSource` (
+    `id` VARCHAR(21) NOT NULL,
+    `isDeleted` BOOLEAN NOT NULL DEFAULT FALSE,
+    `isArchived` BOOLEAN NOT NULL DEFAULT FALSE,
+    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `updatedAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `jobBillLineItemId` VARCHAR(21) NOT NULL,
+    `timeSheetDetailRecordId` VARCHAR(21) NOT NULL,
+    `secondsContributed` INT NOT NULL,
+    `rateApplied` DECIMAL(10, 2) NOT NULL,
+    `rateLabelId` VARCHAR(21) NULL,
+    PRIMARY KEY (`id`),
+    UNIQUE INDEX `JobBillLineItemTimeSheetSource_line_tsdr_key`(`jobBillLineItemId`, `timeSheetDetailRecordId`),
+    INDEX `JobBillLineItemTimeSheetSource_timeSheetDetailRecordId_idx`(`timeSheetDetailRecordId`),
+    CONSTRAINT `JobBillLineItemTimeSheetSource_jobBillLineItemId_fkey`
+        FOREIGN KEY (`jobBillLineItemId`) REFERENCES `JobBillLineItem`(`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT `JobBillLineItemTimeSheetSource_timeSheetDetailRecordId_fkey`
+        FOREIGN KEY (`timeSheetDetailRecordId`) REFERENCES `TimeSheetDetailRecord`(`id`) ON UPDATE CASCADE,
+    CONSTRAINT `JobBillLineItemTimeSheetSource_rateLabelId_fkey`
+        FOREIGN KEY (`rateLabelId`) REFERENCES `EmployeeAgreementRateLabel`(`id`) ON UPDATE CASCADE
+) ENGINE = InnoDB;
+
+-- Conditional: only if business decision picks option 3 (per-job markup)
+ALTER TABLE `Job` ADD COLUMN `defaultLaborMarkupPercent` DECIMAL(5, 2) NULL;
+```
+
+### Prisma schema edits
+
+**Modify:** `apps/api/prisma/schema.prisma`
+
+Add new model + inverse relations on three existing models (snippets only; place in the appropriate areas of the schema):
+
+```prisma
+model JobBillLineItemTimeSheetSource {
+    id                          String                @id @db.VarChar(21)
+    isDeleted                   Boolean               @default(false)
+    isArchived                  Boolean               @default(false)
+    createdAt                   DateTime              @default(now())
+    updatedAt                   DateTime              @updatedAt
+    jobBillLineItemId           String                @db.VarChar(21)
+    JobBillLineItem             JobBillLineItem       @relation(fields: [jobBillLineItemId], references: [id], onDelete: Cascade)
+    timeSheetDetailRecordId     String                @db.VarChar(21)
+    TimeSheetDetailRecord       TimeSheetDetailRecord @relation(fields: [timeSheetDetailRecordId], references: [id])
+    secondsContributed          Int
+    rateApplied                 Decimal               @db.Decimal(10, 2)
+    rateLabelId                 String?               @db.VarChar(21)
+    EmployeeAgreementRateLabel  EmployeeAgreementRateLabel? @relation(fields: [rateLabelId], references: [id])
+
+    @@unique([jobBillLineItemId, timeSheetDetailRecordId])
+    @@index([timeSheetDetailRecordId])
+}
+
+// On JobBillLineItem
+SourceTimeSheetEntries  JobBillLineItemTimeSheetSource[]
+
+// On TimeSheetDetailRecord
+BilledOnLineItems       JobBillLineItemTimeSheetSource[]
+
+// On EmployeeAgreementRateLabel
+BilledLineItemSources   JobBillLineItemTimeSheetSource[]
+
+// On Job (conditional &mdash; see Step 0 decision)
+defaultLaborMarkupPercent Decimal? @db.Decimal(5, 2)
+```
+
+Run `pnpm --filter api prisma:format` and `pnpm --filter api prisma:validate` after editing.
+
+---
+
+## Step 2: Types
+
+**Create:** `apps/api/src/types/JobBillLineItemTimeSheetSource.types.ts`
+
+```ts
+export interface IJobBillLineItemTimeSheetSource {
+    jobBillLineItemId: string;
+    timeSheetDetailRecordId: string;
+    secondsContributed: number;
+    rateApplied: number;
+    rateLabelId: string | null;
+}
+
+export const LABOR_BILL_GROUPINGS = ["User", "TradeLevel", "Day"] as const;
+export type LaborBillGrouping = (typeof LABOR_BILL_GROUPINGS)[number];
+
+export interface ILaborBillPreviewLine {
+    description: string;
+    quantity: number;          // hours
+    rate: number;              // $ per hour
+    value: number;             // quantity * rate
+    rateLabelId: string | null;
+    sourceTimeSheetDetailRecordIds: string[];
+}
+
+export interface ILaborBillPreview {
+    lines: ILaborBillPreviewLine[];
+    subtotal: number;
+    expenseLines: ILaborBillPreviewLine[];
+    expenseSubtotal: number;
+    timesheetEntryCount: number;
+    warnings: string[];
+}
+```
+
+---
+
+## Step 3: Model class for the join table
+
+**Create:** `apps/api/src/models/JobBillLineItemTimeSheetSource.ts`
+
+Boilerplate `BaseModel` subclass (mirror `apps/api/src/models/JobBillLineItem.ts` for shape). `modelFields` registers `secondsContributed` (int), `rateApplied` (float), `rateLabelId` (string optional). No special hooks &mdash; it's a pure provenance row.
+
+---
+
+## Step 4: API &mdash; `JobBillModel.previewLaborBillFromJob` + `createLaborBillFromJob`
+
+**Modify:** `apps/api/src/models/JobBill.ts`
+
+Add two methods next to the existing `generateInvoiceFromWorkOrder` (PR #7017) and `createInvoiceFromEstimate` (IE-5) siblings.
+
+```ts
+import {
+    LABOR_BILL_GROUPINGS,
+    LaborBillGrouping,
+    ILaborBillPreview,
+    ILaborBillPreviewLine
+} from "../types/JobBillLineItemTimeSheetSource.types";
+
+private async resolveLaborSellRate(
+    tradeLevelRateId: string,
+    jobId: string,
+    tx?: Prisma.TransactionClient
+): Promise&lt;{ rate: number; warning?: string }&gt; {
+    const client = tx ?? prisma;
+    const tlr = await client.tradeLevelRate.findUnique({
+        where: { id: tradeLevelRateId },
+        select: {
+            id: true,
+            baseValue: true,
+            billableValue: true,
+            TradeLevel: { select: { name: true } }
+        }
+    });
+    if (!tlr) throw new Error("TradeLevelRate not found.");
+    if (tlr.billableValue != null) {
+        return { rate: Number(tlr.billableValue) };
+    }
+    // Fallback per &sect;2 business decision (option 3 assumed)
+    const job = await client.job.findUnique({
+        where: { id: jobId },
+        select: { defaultLaborMarkupPercent: true }
+    });
+    const markup = Number(job?.defaultLaborMarkupPercent ?? 0);
+    const rate = Number(tlr.baseValue) * (1 + markup / 100);
+    return {
+        rate,
+        warning: `${tlr.TradeLevel?.name ?? "Trade level"} has no billable rate; using cost &times; ${(1 + markup / 100).toFixed(2)} (markup ${markup}%).`
+    };
+}
+
+public async previewLaborBillFromJob(
+    jobId: string,
+    periodStart: Date,
+    periodEnd: Date,
+    grouping: LaborBillGrouping,
+    includeDisbursements: boolean
+): Promise&lt;ILaborBillPreview&gt; {
+    // Pull approved timesheet rows joined to per-rate-label values
+    // (TSDRV rows hold the actual seconds split across rate labels — straight time, OT, DT)
+    const rows = await prisma.timeSheetDetailRecordValue.findMany({
+        where: {
+            isDeleted: false,
+            TimeSheetDetailRecord: {
+                jobId,
+                isDeleted: false,
+                approvalStatus: "Approved",
+                serviceDate: { gte: periodStart, lte: periodEnd }
+            }
+        },
+        select: {
+            id: true,
+            secondsAtService: true,
+            employeeAgreementRateLabelId: true,
+            EmployeeAgreementRateLabel: { select: { id: true, name: true } },
+            TimeSheetDetailRecord: {
+                select: {
+                    id: true,
+                    serviceDate: true,
+                    User: { select: { id: true, firstName: true, lastName: true } },
+                    overrideTradeLevelId: true,
+                    UserTradeLevel: {
+                        select: {
+                            tradeLevelId: true,
+                            TradeLevel: { select: { id: true, name: true } }
+                        }
+                    }
+                }
+            }
+        }
+    });
+
+    if (rows.length === 0) {
+        return {
+            lines: [],
+            subtotal: 0,
+            expenseLines: [],
+            expenseSubtotal: 0,
+            timesheetEntryCount: 0,
+            warnings: []
+        };
+    }
+
+    // Resolve unique (tradeLevelId, rateLabelId) pairs to billable rates.
+    // ... rate resolution loop populates rateMap: key = `${tradeLevelId}|${rateLabelId}`
+    // (full implementation omitted in this preview &mdash; mirrors the LEM-2 rate cache pattern)
+
+    // Group per the picked grouping + emit ILaborBillPreviewLine[]
+    // For "User" grouping: key = `${userId}|${rateLabelId}`
+    // For "TradeLevel" grouping: key = `${tradeLevelId}|${rateLabelId}`
+    // For "Day" grouping: key = `${userId}|${rateLabelId}|${YYYY-MM-DD(serviceDate)}`
+    // Each line aggregates secondsContributed and tracks sourceTimeSheetDetailRecordIds.
+    // Hide lines where computed `value === 0` per AC #4.
+
+    // Optionally append expense lines from approved JobExpense rows in the period.
+    // No markup; description = expense.description.
+
+    return {
+        lines,
+        subtotal: lines.reduce((acc, l) =&gt; acc + l.value, 0),
+        expenseLines,
+        expenseSubtotal: expenseLines.reduce((acc, l) =&gt; acc + l.value, 0),
+        timesheetEntryCount: rows.length,
+        warnings
+    };
+}
+
+public async createLaborBillFromJob(
+    jobId: string,
+    periodStart: Date,
+    periodEnd: Date,
+    grouping: LaborBillGrouping,
+    includeDisbursements: boolean,
+    currentUserId: string
+): Promise&lt;FullModel&lt;IJobBill&gt;&gt; {
+    // Re-run preview server-side (do NOT trust client payload)
+    const preview = await this.previewLaborBillFromJob(
+        jobId, periodStart, periodEnd, grouping, includeDisbursements
+    );
+    if (preview.lines.length === 0 &amp;&amp; preview.expenseLines.length === 0) {
+        throw new Error("No billable timesheet rows or expenses in the selected period.");
+    }
+
+    return prisma.$transaction(async (tx) =&gt; {
+        const bill = await this.customCreateItem(
+            {
+                jobId,
+                template: "Simple",
+                invoiceDate: new Date(),
+                submittedByUserId: currentUserId,
+                // Optional: a future column (sourceLaborPeriodStart / End) could record the period;
+                // for now we record it in description / notes only.
+            },
+            [],
+            currentUserId,
+            true,
+            tx
+        );
+
+        const lineItemModel = new JobBillLineItemModel();
+        const sourceModel = new JobBillLineItemTimeSheetSourceModel();
+
+        for (const line of preview.lines) {
+            const billLine = await lineItemModel.createItem(
+                {
+                    jobBillId: bill.id,
+                    description: line.description,
+                    quantity: line.quantity,
+                    rate: line.rate,
+                    value: line.value,
+                    taxValue: null
+                },
+                currentUserId,
+                tx
+            );
+            // Record provenance — one row per source TSDR
+            for (const tsdrId of line.sourceTimeSheetDetailRecordIds) {
+                await sourceModel.createItem(
+                    {
+                        jobBillLineItemId: billLine.id,
+                        timeSheetDetailRecordId: tsdrId,
+                        secondsContributed: 0,  // backfilled below or in a single batch
+                        rateApplied: line.rate,
+                        rateLabelId: line.rateLabelId
+                    },
+                    currentUserId,
+                    tx
+                );
+            }
+        }
+
+        // Disbursements (no provenance to TSDR; they're JobExpense rows)
+        if (includeDisbursements) {
+            for (const exp of preview.expenseLines) {
+                await lineItemModel.createItem(
+                    {
+                        jobBillId: bill.id,
+                        description: exp.description,
+                        quantity: 1,
+                        rate: exp.value,
+                        value: exp.value,
+                        taxValue: null
+                    },
+                    currentUserId,
+                    tx
+                );
+            }
+        }
+
+        return bill;
+    });
+}
+```
+
+**Transaction scope:** bill creation, all line item inserts, all provenance inserts share one `tx`. If any step throws, no partial bill is left behind.
+
+**`customCreateItem` / `createItem` `tx` parameter:** confirm the in-flight WO-7 / IE-5 PRs settle this signature. If they don't accept `tx`, refactor the writes to `tx.jobBill.create({ ... })` / `tx.jobBillLineItem.createMany({ ... })` directly.
+
+---
+
+## Step 5: GraphQL resolver + schema
+
+**Modify:** `apps/api/src/graphql/models/JobBill.ts`
+
+Add the new query, mutation, and enum:
+
+```ts
+enum LaborBillGrouping {
+    User
+    TradeLevel
+    Day
+}
+
+type LaborBillPreviewLine {
+    description: String!
+    quantity: Float!
+    rate: Float!
+    value: Float!
+    rateLabelId: ID
+    sourceTimeSheetDetailRecordIds: [ID!]!
+}
+
+type LaborBillPreview {
+    lines: [LaborBillPreviewLine!]!
+    subtotal: Float!
+    expenseLines: [LaborBillPreviewLine!]!
+    expenseSubtotal: Float!
+    timesheetEntryCount: Int!
+    warnings: [String!]!
+}
+
+extend type Query {
+    laborBillPreview(
+        jobId: ID!
+        periodStart: DateTime!
+        periodEnd: DateTime!
+        grouping: LaborBillGrouping!
+        includeDisbursements: Boolean
+    ): LaborBillPreview!
+}
+
+extend type Mutation {
+    createLaborBillFromJob(
+        jobId: ID!
+        periodStart: DateTime!
+        periodEnd: DateTime!
+        grouping: LaborBillGrouping!
+        includeDisbursements: Boolean
+    ): JobBill!
+}
+```
+
+Resolvers delegate to `JobBillModel.previewLaborBillFromJob` / `createLaborBillFromJob` with the user from context.
+
+**Create:** `apps/api/src/graphql/models/JobBillLineItemTimeSheetSource.ts` &mdash; type SDL + default Prisma resolver wiring. Register in `apps/api/src/graphql/schema.ts` (typeDefs only; no Query/Mutation).
+
+**Modify:** `apps/api/src/graphql/models/JobBillLineItem.ts` &mdash; expose `SourceTimeSheetEntries: [JobBillLineItemTimeSheetSource!]!` on the `JobBillLineItem` type so the bill detail can render the FROM TIMESHEET tooltip.
+
+---
+
+## Step 6: Frontend &mdash; `LaborBillModal`
+
+**Create:** `apps/frontend/src/components/JobBill/LaborBillModal.tsx`
+
+Mirrors the skeleton of the IE-5 `EstimateInvoiceConfirmModal.tsx`. Uses `useModal` from `@useanzen/ui`, `useLazyQuery(LABOR_BILL_PREVIEW)` (re-fires on grouping / period change &mdash; debounce 300 ms), and `useMutation(CREATE_LABOR_BILL_FROM_JOB)` to fire the create.
+
+Key UX rules from the spec:
+
+- Default period = last full calendar month.
+- Default grouping = `User`.
+- Disbursements toggle hidden when expense count is 0.
+- $0 lines hidden in the preview table.
+- Warnings render as a yellow callout above the preview table.
+- Confirm button disabled when `lines.length === 0` OR `isSubmitting`.
+- On success: `notify.success`, `closeModal`, `router.push(/jobs/${jobId}/billing?jobBillId=${createdId})`.
+
+**Create:** `apps/frontend/src/graphql/queries/laborBillPreview.graphql`
+**Create:** `apps/frontend/src/graphql/mutations/createLaborBillFromJob.graphql`
+
+Run `pnpm run codegen` after both land.
+
+---
+
+## Step 7: Wire into `BillingTab` and `BillDetails`
+
+**Modify:** `apps/frontend/src/components/DetailsPage/JobDetailsPage/Tabs/Billing/BillingTab.tsx`
+
+Add the **Generate Labor Bill** button next to **+ New Bill** and **Duplicate**. Visible iff `hasPermissions({ JobBill: { create: true } }, permissions)` AND the job has at least one approved timesheet (cheap query `count(TSDR where jobId, approvalStatus=Approved)`; cache on the page for 60 s). Click opens the new `LaborBillModal`.
+
+**Modify:** `apps/frontend/src/components/DetailsPage/JobDetailsPage/Tabs/Billing/BillDetails.tsx`
+
+For each `JobBillLineItem` rendered in the bill detail, when `SourceTimeSheetEntries.length &gt; 0`:
+
+- Append a `<span class="badge-small">FROM TIMESHEET</span>` next to the description.
+- Wrap in `<Tooltip description={...}>` listing source TSDRs as a small table (date, user, hours, rate label).
+
+---
+
+## Step 8: Verification checklist
+
+- [ ] Prisma validate passes: `pnpm --filter api prisma:validate`
+- [ ] Prisma schema formatted: `pnpm --filter api prisma:format`
+- [ ] Migration SQL cleaned: `pnpm --filter api prisma:cleanMigrationFile`
+- [ ] API TypeScript compiles: `pnpm --filter api build`
+- [ ] Frontend TypeScript compiles: `pnpm --filter frontend build`
+- [ ] Codegen refreshed: `pnpm run codegen`
+- [ ] `JobBillLineItemTimeSheetSource` table exists with `(jobBillLineItemId, timeSheetDetailRecordId)` UNIQUE
+- [ ] `Job.defaultLaborMarkupPercent` exists (or migration drops it if business chose option 1/2)
+- [ ] Resolver re-validates `ApprovalStatus.Approved` at mutation time &mdash; no client trust
+- [ ] Bill creation, line item inserts, and provenance inserts run inside a single `prisma.$transaction`
+- [ ] Generated bill uses `template: Simple` &mdash; **no** new template enum value
+- [ ] `LaborBillPreview` warnings array is populated when any contributing trade level lacks `billableValue`
+- [ ] $0 preview lines are filtered out
+- [ ] Disbursements toggle is hidden when zero approved expenses exist in the period
+- [ ] FROM TIMESHEET badge renders on bill detail for every line with provenance rows
+- [ ] Tooltip lists every source TSDR with date, user, hours, rate label
+- [ ] No tabs (bun `fileChecker`), no `console.log`, files end with newline
+
+---
+
+## Step 9: E2E scenarios
+
+1. **Happy path &mdash; one user, one rate label.** Job with 5 approved timesheet rows for J. Kowalski (Survey Tech II, 1x rate $95) totaling 42.5 h in April. Open modal &rarr; defaults to Apr 1&ndash;30 + User grouping &rarr; preview shows one line "J. Kowalski (Survey Tech II) &mdash; 42.5 h &times; $95.00 = $4,037.50" &rarr; Confirm &rarr; bill created with one line, five `JobBillLineItemTimeSheetSource` rows, navigate to bill detail.
+2. **Happy path &mdash; mixed rate labels.** Same job adds 3 OT rows at 1.5x ($142.50). Preview shows two lines (1x and OT). Both visible; OT line shows the OT rate.
+3. **Grouping by Trade Level collapses users.** Two surveyors at the same trade level &rarr; one combined line. Provenance still records individual TSDRs.
+4. **Grouping by Day expands rows.** 5-day work week &rarr; 5 lines per user.
+5. **Missing billable rate &mdash; option 3 fallback.** Trade level "Apprentice" has no `billableValue`. Job has `defaultLaborMarkupPercent = 25`. Preview computes rate = `baseValue &times; 1.25`. Warning surfaces in modal.
+6. **Missing billable rate &mdash; no markup.** Same as #5 but `defaultLaborMarkupPercent = 0`. Rate = `baseValue` (cost). Warning still surfaces.
+7. **No approved timesheets.** Period has only Pending rows. Preview returns empty arrays. Confirm button disabled. Mutation also rejects if invoked anyway.
+8. **Disbursements off (default).** 3 approved expense rows in the period &mdash; toggle visible but unchecked. Bill has only labor lines.
+9. **Disbursements on.** Same scenario; toggle on. Bill includes 3 additional line items at recorded amount, no markup.
+10. **Concurrent generation.** Two users open the modal for the same job + period. Both confirm. Two independent Simple bills land on the job. Both have provenance to overlapping TSDRs (UNIQUE on `(billLineId, tsdrId)` allows it because the `billLineId` differs). No errors.
+11. **Source TSDR edited after bill creation.** User edits the timesheet to change hours. Bill line is unchanged. Provenance link still resolves; tooltip shows current TSDR data (which now differs from `secondsContributed` on the source row &mdash; that field is the snapshot, the live TSDR data may have drifted).
+12. **Source TSDR soft-deleted.** Provenance row inherits soft-delete via the standard `BaseModel` listener. Bill line unchanged. Tooltip skips deleted rows but still shows the others.
+13. **Bill line edited after creation.** User changes the line's quantity manually. Provenance link survives; the line is now decoupled from the source data (audit trail still shows what was originally there).
+14. **Bill line deleted after creation.** Cascade deletes provenance rows for that line. Other lines unaffected.
+15. **Permission gate.** User without `JobBill: { create: true }` does not see the Generate Labor Bill button. Mutation rejects if invoked.
+16. **Period spans multiple months.** Apr 15 &mdash; Jun 15 (76 days). All approved TSDRs in the range included. Tested as one bill with one period descriptor.
+17. **PDF render.** Bill PDF renders via existing Simple template. Provenance is internal-only. Customer never sees "FROM TIMESHEET" markings.
+18. **Mid-flow approval revoke.** User opens modal; another user un-approves a TSDR (sets `approvalStatus = Pending`). Confirm button is fired &mdash; resolver re-reads, the un-approved row is excluded, bill is created without that row's contribution. (Optional UX enhancement: show the user a delta before commit.)
+
+---
+
+## Files Summary
+
+### Created (5)
+- `apps/api/prisma/migrations/YYYYMMDDHHMMSS_add_labor_bill_provenance/migration.sql`
+- `apps/api/src/types/JobBillLineItemTimeSheetSource.types.ts`
+- `apps/api/src/models/JobBillLineItemTimeSheetSource.ts`
+- `apps/api/src/graphql/models/JobBillLineItemTimeSheetSource.ts`
+- `apps/frontend/src/components/JobBill/LaborBillModal.tsx`
+- `apps/frontend/src/graphql/queries/laborBillPreview.graphql`
+- `apps/frontend/src/graphql/mutations/createLaborBillFromJob.graphql`
+
+### Modified (6)
+- `apps/api/prisma/schema.prisma` &mdash; new model + 3 inverse relations + (conditional) `Job.defaultLaborMarkupPercent`
+- `apps/api/src/models/JobBill.ts` &mdash; add `previewLaborBillFromJob` + `createLaborBillFromJob` + `resolveLaborSellRate`
+- `apps/api/src/graphql/models/JobBill.ts` &mdash; new types, query, mutation
+- `apps/api/src/graphql/models/JobBillLineItem.ts` &mdash; expose `SourceTimeSheetEntries`
+- `apps/api/src/graphql/schema.ts` &mdash; register `JobBillLineItemTimeSheetSource` resolvers
+- `apps/frontend/src/components/DetailsPage/JobDetailsPage/Tabs/Billing/BillingTab.tsx` &mdash; Generate Labor Bill button
+- `apps/frontend/src/components/DetailsPage/JobDetailsPage/Tabs/Billing/BillDetails.tsx` &mdash; FROM TIMESHEET badge + tooltip
+
+### Not touched
+- PDF templates &mdash; existing Simple template covers
+- Tax pipeline &mdash; existing `TaxType` M2M flows unchanged
+- Approval workflow &mdash; Simple bill follows existing flow
+- IE-5 / WO-7 sibling resolvers &mdash; pattern reference only, not extended
+</script>
+<script src="plan-renderer.js"></script>
+<script>renderPlan();</script>
+</body>
+</html>

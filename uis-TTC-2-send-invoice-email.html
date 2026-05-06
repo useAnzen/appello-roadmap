@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>TTC-2 - Send Invoice via Email</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Inter', -apple-system, sans-serif; background: #f1f5f9; color: #0f172a; line-height: 1.6; }
+.layout { display: grid; grid-template-columns: 260px 1fr; gap: 24px; max-width: 1320px; margin: 0 auto; padding: 32px 24px 80px; }
+aside.nav { position: sticky; top: 24px; align-self: start; background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 18px; max-height: calc(100vh - 48px); overflow-y: auto; }
+aside.nav h4 { font-size: 11px; font-weight: 700; letter-spacing: 1px; color: #64748b; text-transform: uppercase; margin: 14px 0 8px; }
+aside.nav h4:first-child { margin-top: 0; }
+aside.nav a { display: flex; align-items: center; justify-content: space-between; gap: 6px; padding: 6px 8px; font-size: 13px; color: #334155; text-decoration: none; border-radius: 6px; margin-bottom: 2px; }
+aside.nav a:hover { background: #f1f5f9; color: #0f172a; }
+aside.nav a.current { background: #eff6ff; color: #1e40af; font-weight: 700; }
+aside.nav .pill { font-size: 9px; font-weight: 700; padding: 2px 6px; border-radius: 4px; }
+.pill-shipped { background: #dcfce7; color: #166534; }
+.pill-prog { background: #fef3c7; color: #92400e; }
+.pill-new { background: #ede9fe; color: #6b21a8; }
+.pill-future { background: #f1f5f9; color: #64748b; }
+.nav-index { display: block; padding: 8px 10px; background: #1e293b; color: #fff !important; border-radius: 6px; font-size: 12px; font-weight: 700; text-align: center; margin-bottom: 14px; }
+.nav-index:hover { background: #334155 !important; }
+main { min-width: 0; }
+.hero { background: linear-gradient(135deg, #0e7490, #0891b2); color: #fff; border-radius: 16px; padding: 32px 36px; margin-bottom: 24px; }
+.hero .badges { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+.hero .badge { font-size: 10px; font-weight: 700; padding: 4px 10px; border-radius: 5px; background: rgba(255,255,255,0.18); letter-spacing: 0.5px; }
+.hero h1 { font-size: 30px; font-weight: 800; letter-spacing: -0.01em; margin-bottom: 10px; }
+.hero .pitch { font-size: 16px; line-height: 1.65; color: #cffafe; max-width: 720px; }
+.hero .meta { display: flex; gap: 22px; margin-top: 18px; font-size: 13px; color: #a5f3fc; }
+.hero .meta strong { color: #fff; }
+section.card { background: #fff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 24px 28px; margin-bottom: 18px; }
+section.card h2 { font-size: 20px; font-weight: 800; color: #0f172a; margin-bottom: 12px; padding-bottom: 10px; border-bottom: 2px solid #f1f5f9; }
+section.card h3 { font-size: 15px; font-weight: 700; color: #0f172a; margin: 18px 0 8px; }
+section.card p { font-size: 14px; color: #334155; }
+section.card ul, section.card ol { padding-left: 20px; margin: 8px 0; }
+section.card li { font-size: 14px; color: #334155; margin-bottom: 4px; }
+.quote { background: #fef3c7; border-left: 3px solid #f59e0b; padding: 12px 16px; border-radius: 0 8px 8px 0; margin: 14px 0; font-style: italic; font-size: 14px; color: #78350f; }
+.quote .who { font-style: normal; font-weight: 700; display: block; margin-top: 6px; font-size: 12px; }
+.story { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; margin: 12px 0; }
+.story .item { padding: 14px 16px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; }
+.story .role { font-size: 11px; font-weight: 700; color: #0e7490; text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 6px; }
+.story .text { font-size: 14px; color: #0f172a; line-height: 1.55; }
+.story .text strong { color: #0e7490; }
+.compare { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 14px 0; }
+.compare .col { border-radius: 12px; padding: 18px 20px; }
+.compare .today { background: #fee2e2; border: 1px solid #fecaca; }
+.compare .tmrw { background: #dcfce7; border: 1px solid #bbf7d0; }
+.compare h4 { font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px; }
+.compare .today h4 { color: #991b1b; }
+.compare .tmrw h4 { color: #166534; }
+.compare ol { padding-left: 20px; }
+.compare li { font-size: 13px; line-height: 1.55; margin-bottom: 6px; color: #1f2937; }
+.compare .stat { display: inline-block; margin-top: 10px; padding: 6px 12px; background: rgba(255,255,255,0.7); border-radius: 6px; font-size: 13px; font-weight: 700; }
+.compare .today .stat { color: #991b1b; }
+.compare .tmrw .stat { color: #166534; }
+.flow-step { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; margin: 14px 0; overflow: hidden; }
+.flow-step .step-head { background: #f1f5f9; padding: 12px 18px; display: flex; align-items: center; gap: 14px; border-bottom: 1px solid #e2e8f0; }
+.flow-step .step-num { background: #0e7490; color: #fff; width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 13px; }
+.flow-step .step-title { font-size: 14px; font-weight: 700; color: #0f172a; }
+.flow-step .step-body { padding: 18px 22px; }
+.flow-step .step-body p { font-size: 14px; color: #334155; margin-bottom: 10px; }
+.mockup { background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 8px; overflow: hidden; margin: 12px 0; }
+.mockup .top-bar { background: #fff; border-bottom: 1px solid #e2e8f0; padding: 10px 16px; display: flex; align-items: center; gap: 8px; font-size: 12px; color: #64748b; }
+.mockup .dots { display: flex; gap: 4px; margin-right: 8px; }
+.mockup .dot { width: 9px; height: 9px; border-radius: 50%; }
+.mockup .d1 { background: #f87171; }
+.mockup .d2 { background: #fbbf24; }
+.mockup .d3 { background: #34d399; }
+.mockup .url { background: #f1f5f9; padding: 3px 10px; border-radius: 4px; font-size: 11px; font-family: monospace; color: #475569; }
+.mockup .body { padding: 18px 20px; min-height: 180px; }
+.btn { display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; border-radius: 6px; font-size: 13px; font-weight: 600; border: none; cursor: default; }
+.btn-primary { background: #0e7490; color: #fff; }
+.btn-secondary { background: #fff; color: #334155; border: 1px solid #cbd5e1; }
+.btn-ghost { background: #f8fafc; color: #475569; border: 1px solid #cbd5e1; }
+.modal { background: #fff; border-radius: 8px; padding: 0; box-shadow: 0 12px 40px rgba(0,0,0,0.18); }
+.modal .m-head { padding: 14px 20px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; }
+.modal .m-head h5 { font-size: 16px; font-weight: 700; color: #0f172a; }
+.modal .m-head .x { font-size: 16px; color: #94a3b8; cursor: default; }
+.modal .m-body { padding: 20px; }
+.modal .m-foot { padding: 12px 20px; background: #f8fafc; border-top: 1px solid #e2e8f0; display: flex; justify-content: flex-end; gap: 8px; }
+.field { margin-bottom: 14px; }
+.field label { display: block; font-size: 12px; font-weight: 700; color: #475569; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.4px; }
+.field .input { padding: 7px 10px; border: 1px solid #cbd5e1; border-radius: 5px; background: #fff; font-size: 13px; color: #0f172a; }
+.chip { display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; background: #ecfeff; color: #0e7490; border: 1px solid #a5f3fc; border-radius: 999px; font-size: 11px; font-weight: 600; margin-right: 4px; }
+.attach-list { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px 12px; font-size: 12px; }
+.attach-row { display: flex; justify-content: space-between; padding: 4px 0; color: #475569; }
+.tip-tap { border: 1px solid #cbd5e1; border-radius: 6px; min-height: 100px; padding: 10px 12px; background: #fff; font-size: 13px; color: #1f2937; }
+.tip-tap .toolbar { display: flex; gap: 6px; padding-bottom: 6px; border-bottom: 1px solid #f1f5f9; margin-bottom: 8px; font-size: 12px; color: #94a3b8; }
+.scope { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.scope .col { border-radius: 10px; padding: 16px 18px; }
+.scope .in { background: #f0fdf4; border: 1px solid #bbf7d0; }
+.scope .out { background: #f8fafc; border: 1px solid #e2e8f0; }
+.scope h4 { font-size: 13px; font-weight: 800; margin-bottom: 8px; }
+.scope .in h4 { color: #166534; }
+.scope .out h4 { color: #475569; }
+.scope li { font-size: 13px; margin-bottom: 4px; }
+.decisions { background: #fef3c7; border: 1px solid #fcd34d; border-radius: 10px; padding: 16px 20px; margin: 14px 0; }
+.decisions .item { padding: 10px 0; border-top: 1px solid #fde68a; }
+.decisions .item:first-of-type { border-top: none; }
+.decisions .q { font-weight: 700; color: #78350f; font-size: 14px; margin-bottom: 4px; }
+.decisions .a { font-size: 13px; color: #92400e; }
+.eng { background: #0f172a; color: #e2e8f0; border-radius: 14px; padding: 28px 32px; margin-top: 28px; }
+.eng h2 { color: #fff; font-size: 18px; font-weight: 800; padding-bottom: 12px; border-bottom: 1px solid #334155; margin-bottom: 16px; }
+.eng h3 { color: #c7d2fe; font-size: 14px; font-weight: 700; margin: 16px 0 8px; text-transform: uppercase; letter-spacing: 0.5px; }
+.eng p, .eng li { color: #cbd5e1; font-size: 13px; line-height: 1.6; }
+.eng pre { background: #1e293b; border-radius: 8px; padding: 14px 16px; overflow-x: auto; font-size: 12px; color: #e0e7ff; margin: 10px 0; font-family: 'SF Mono', monospace; }
+.eng table { width: 100%; border-collapse: collapse; font-size: 12px; margin: 8px 0; }
+.eng table th { text-align: left; padding: 7px 10px; background: #1e293b; color: #c7d2fe; font-weight: 700; }
+.eng table td { padding: 7px 10px; border-top: 1px solid #1e293b; color: #cbd5e1; }
+.eng code { font-family: monospace; background: #1e293b; padding: 1px 5px; border-radius: 3px; color: #fbbf24; font-size: 12px; }
+</style></head><body>
+<div class="layout">
+<aside class="nav">
+    <a class="nav-index" href="uis-TTC-index.html">← All Time-to-Cash UIS</a>
+    <h4>You are here</h4>
+    <a class="current" href="#">TTC-2 · Send Invoice Email <span class="pill pill-new">NEW</span></a>
+    <h4>Foundations (live today)</h4>
+    <a href="uis-LEM-1-labor-billable-rates.html">LEM-1 · Labor rates <span class="pill pill-shipped">PROD</span></a>
+    <a href="uis-12-leave-timesheet.html">UIS-12 · Timesheets <span class="pill pill-shipped">PROD</span></a>
+    <a href="uis-QW-quick-wins.html">QW · Quick Wins <span class="pill pill-shipped">SHIPPING</span></a>
+    <h4>In flight (1.33)</h4>
+    <a href="uis-IE-5-estimate-to-invoice.html">IE-5 · Est → Invoice <span class="pill pill-prog">WIP</span></a>
+    <h4>Time-to-Cash track</h4>
+    <a href="uis-TTC-1-labor-bill-generator.html">TTC-1 · Labor Bill Gen <span class="pill pill-new">NEW</span></a>
+    <a href="uis-TTC-3-invoice-cover-letter.html">TTC-3 · Cover Letter <span class="pill pill-new">NEW</span></a>
+    <a href="uis-TTC-4-ar-reminder-engine.html">TTC-4 · A/R Reminders <span class="pill pill-new">NEW</span></a>
+    <a href="uis-TTC-5-lem-combined-report.html">TTC-5 · LEM Combined <span class="pill pill-new">NEW</span></a>
+    <h4>Adjacent Jira</h4>
+    <a href="#">Q21030-7709 · Email Invoices</a>
+    <a href="#">Q21030-8385 · Track Payment</a>
+</aside>
+<main>
+<div class="hero">
+    <div class="badges">
+        <span class="badge">Q21030 · TTC-2</span>
+        <span class="badge">Closes Q21030-7709</span>
+        <span class="badge">Status: Design</span>
+        <span class="badge">Mak commitment #1 (part 1)</span>
+    </div>
+    <h1>Send Invoice via Email</h1>
+    <p class="pitch">A "Send" button on every bill. One click opens a modal pre-filled with the customer's contact, a templated subject and body, and the invoice PDF already attached. Every send is logged with delivery status. No more "download → switch to Outlook → attach → write → send" choreography.</p>
+    <div class="meta">
+        <span><strong>Customer drivers:</strong> Mak, Owens, Rival, all Vanos</span>
+        <span><strong>Effort:</strong> 3-4 days · 1 engineer</span>
+        <span><strong>Existing infra:</strong> Mailgun + EmailService + PDF pipeline (all live)</span>
+    </div>
+</div>
+<section class="card">
+    <h2>1. Why this matters</h2>
+    <p>Sending an invoice today means a five-app dance: open the bill in Appello, hit Download, find the file in your Downloads folder, switch to Outlook, write a new email, attach the PDF, paste in the customer's address, type a body, send, then come back to Appello and manually mark the bill as "Sent." Six switches per invoice, ~300 invoices a month for a shop like Mak.</p>
+    <div class="quote">
+        "Like QuickBooks - it's a one-click thing... if we could do the same thing with Appello, that's huge for us."
+        <span class="who">— Robert Owens, Owens Insulation (May 2025)</span>
+    </div>
+    <div class="quote">
+        "We need direct email integration - send the invoice and letter to the client's email straight from Appello, plus reminder emails."
+        <span class="who">— Mak Surveying (May 5, 2026 commitment call)</span>
+    </div>
+    <p>Every customer doing T&M billing has asked for this. <strong>Q21030-7709</strong> has been sitting in Tech Review (Emma Mann, Vanos project). Closing it now removes the most-shared friction in the AR loop and unlocks TTC-3 (cover letters) and TTC-4 (auto reminders), both of which depend on this send pipeline.</p>
+</section>
+<section class="card">
+    <h2>2. Who this is for</h2>
+    <ul>
+        <li><strong>Billing admins</strong> - the same people who use TTC-1. Send is the next click after Generate.</li>
+        <li><strong>Project managers</strong> - sometimes review and send the invoice themselves, especially on T&M jobs.</li>
+        <li><strong>Owners / principals</strong> - want a "did the customer get it / open it" answer without picking up the phone.</li>
+        <li><strong>Customer-facing contacts (recipients)</strong> - they want a clean, branded email with the PDF attached, not a forwarded mess.</li>
+    </ul>
+</section>
+<section class="card">
+    <h2>3. User stories</h2>
+    <p>Six stories. The first two are the table-stakes "send a bill" path. The rest cover edits, attachments, audit, and resend.</p>
+    <div class="story">
+        <div class="item">
+            <div class="role">As a billing admin</div>
+            <div class="text">I want to <strong>email an invoice directly from the bill page</strong>, with the PDF auto-attached, so I never leave Appello to send a bill.</div>
+        </div>
+        <div class="item">
+            <div class="role">As a billing admin</div>
+            <div class="text">I want the <strong>recipient pre-filled from the Job's primary billing contact</strong>, so I don't have to look up email addresses every time.</div>
+        </div>
+        <div class="item">
+            <div class="role">As a billing admin</div>
+            <div class="text">I want to <strong>edit the subject and body</strong> before sending and add CC/BCC, so I can write a one-off note when needed.</div>
+        </div>
+        <div class="item">
+            <div class="role">As a project manager</div>
+            <div class="text">I want to <strong>attach extra documents</strong> (signed delivery slips, photos) from the job's Documents tab, so the customer gets everything in one email.</div>
+        </div>
+        <div class="item">
+            <div class="role">As a billing admin</div>
+            <div class="text">I want to <strong>see a send history per bill</strong> (who sent it, when, to whom, did it deliver/open), so I can answer "did they get it?" without calling.</div>
+        </div>
+        <div class="item">
+            <div class="role">As an owner</div>
+            <div class="text">I want to <strong>resend an invoice</strong> with one click if a customer says "I lost it," so I don't recreate the email from scratch.</div>
+        </div>
+    </div>
+</section>
+<section class="card">
+    <h2>4. A day in the life: today vs. tomorrow</h2>
+    <p>Mary at Mak just finished generating 30 labor bills with TTC-1. Now she has to send each one to the property developer's accountant.</p>
+    <div class="compare">
+        <div class="col today">
+            <h4>Today (no TTC-2)</h4>
+            <ol>
+                <li>Open bill flyout → click Download PDF</li>
+                <li>Wait for browser to save the file</li>
+                <li>Switch to Outlook → New Email</li>
+                <li>Type recipient address from memory or look up in HubSpot</li>
+                <li>Type subject "Invoice INV-1042 - April Survey Work"</li>
+                <li>Type body, paste boilerplate signature</li>
+                <li>Drag the PDF in from Downloads</li>
+                <li>Send</li>
+                <li>Switch back to Appello → mark bill as "Sent" manually</li>
+                <li>Repeat 29 more times</li>
+            </ol>
+            <span class="stat">~3 min per bill · ~90 min for the batch</span>
+        </div>
+        <div class="col tmrw">
+            <h4>Tomorrow (with TTC-2)</h4>
+            <ol>
+                <li>Open bill flyout → click Send</li>
+                <li>Modal opens with To, Subject, Body, PDF attached</li>
+                <li>Confirm or tweak → click Send</li>
+                <li>Bill auto-flips to "Sent" status</li>
+                <li>Repeat 29 more times</li>
+            </ol>
+            <span class="stat">~15 sec per bill · ~8 min for the batch</span>
+        </div>
+    </div>
+</section>
+<section class="card">
+    <h2>5. The flow, screen by screen</h2>
+    <p>Mockups match the actual bill flyout in Appello today (Job → Invoicing → click row). The only new pieces are the cyan "Send" button in the flyout header and the Send modal that opens.</p>
+
+    <div class="flow-step">
+        <div class="step-head"><div class="step-num">1</div><div class="step-title">Bill flyout gets a Send button next to Download / Edit / Duplicate.</div></div>
+        <div class="step-body">
+            <div class="mockup">
+                <div class="top-bar"><div class="dots"><span class="dot d1"></span><span class="dot d2"></span><span class="dot d3"></span></div><span class="url">app.useappello.com/jobs/J-2104?jobBillId=INV-1042</span></div>
+                <div class="body">
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding-bottom: 14px; border-bottom: 1px solid #e2e8f0; margin-bottom: 14px;">
+                        <div><div style="font-size: 11px; color: #64748b; font-weight: 700; text-transform: uppercase;">Invoice</div><div style="font-size: 22px; font-weight: 800; color: #0f172a; margin-top: 2px;">INV-1042 · Cedar Ridge Dev</div><div style="font-size: 13px; color: #64748b; margin-top: 2px;">$5,287.50 · Due May 30, 2026 · Status: Draft</div></div>
+                        <div style="display: flex; gap: 6px;">
+                            <button class="btn btn-ghost">⤓ Download</button>
+                            <button class="btn btn-ghost">⎘ Duplicate</button>
+                            <button class="btn btn-ghost">✎ Edit</button>
+                            <button class="btn btn-primary">✉ Send</button>
+                        </div>
+                    </div>
+                    <div style="font-size: 13px; color: #64748b;">[Bill body / line items render here as today]</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="flow-step">
+        <div class="step-head"><div class="step-num">2</div><div class="step-title">Send modal opens. Recipient pre-filled from Job's primary billing contact. PDF already attached.</div></div>
+        <div class="step-body">
+            <div class="modal" style="max-width: 680px;">
+                <div class="m-head"><h5>Send Invoice INV-1042</h5><span class="x">×</span></div>
+                <div class="m-body">
+                    <div class="field"><label>To</label><div class="input">Mary Pyzik &lt;mary@cedarridge.dev&gt; <span class="chip">Job billing contact</span></div></div>
+                    <div class="field"><label>CC / BCC</label><div class="input" style="color: #94a3b8;">Click to add (you, your office, etc.)</div></div>
+                    <div class="field"><label>From</label><div class="input">Mary at Mak Surveying &lt;mary@maksurveying.com&gt; <span class="chip">Reply-to: you</span></div></div>
+                    <div class="field"><label>Subject</label><div class="input">Mak Surveying — Invoice INV-1042 (April 2026)</div></div>
+                    <div class="field"><label>Cover letter template</label><div class="input">Standard Transmittal (Mak default) <span class="chip">→ TTC-3</span></div></div>
+                    <div class="field"><label>Body</label>
+                        <div class="tip-tap">
+                            <div class="toolbar">B / I / U · Link · List · Merge tag</div>
+                            Hi Mary,<br><br>Please find attached invoice INV-1042 covering field survey work for Cedar Ridge for the period April 1 - April 30, 2026. The total amount due is $5,287.50, payable by May 30, 2026.<br><br>Let me know if you have any questions.<br><br>Thanks,<br>Mary Pyzik<br>Mak Surveying
+                        </div>
+                    </div>
+                    <div class="field"><label>Attachments (2)</label>
+                        <div class="attach-list">
+                            <div class="attach-row"><span>📄 INV-1042.pdf</span><span style="color: #166534; font-weight: 700;">Invoice PDF · auto</span></div>
+                            <div class="attach-row"><span>📄 Cover-Letter-INV-1042.pdf</span><span style="color: #166534; font-weight: 700;">From cover letter template</span></div>
+                            <div class="attach-row" style="border-top: 1px solid #e2e8f0; margin-top: 4px; padding-top: 8px;"><span style="color: #0e7490; cursor: pointer;">+ Add document from this job…</span></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="m-foot">
+                    <button class="btn btn-secondary">Save Draft</button>
+                    <button class="btn btn-secondary">Preview</button>
+                    <button class="btn btn-primary">Send →</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="flow-step">
+        <div class="step-head"><div class="step-num">3</div><div class="step-title">After sending, the bill flips to "Sent" automatically and a Send Activity panel appears in the flyout.</div></div>
+        <div class="step-body">
+            <p>The status pill on the bill list (and inside the flyout) updates to <strong>Sent</strong> with the timestamp. A new "Activity" section in the flyout lists every send, who sent it, to whom, and the Mailgun delivery state (Delivered → Opened, or Bounced if it fails). On bounce, the admin sees a red banner with "Resend" and an editable address.</p>
+            <div class="mockup">
+                <div class="body" style="padding: 14px 18px;">
+                    <div style="font-size: 12px; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px;">Send activity (1)</div>
+                    <div style="font-size: 13px; padding: 10px 12px; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 6px; margin-bottom: 8px;">
+                        <div style="display: flex; justify-content: space-between;"><strong style="color: #166534;">✓ Delivered & opened</strong><span style="color: #64748b;">May 5, 2026 @ 10:42 AM</span></div>
+                        <div style="color: #475569; margin-top: 4px;">Sent by Mary Pyzik to mary@cedarridge.dev · Opened 12 min later</div>
+                    </div>
+                    <button class="btn btn-ghost" style="font-size: 12px;">↻ Resend</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="flow-step">
+        <div class="step-head"><div class="step-num">4</div><div class="step-title">If the customer email bounces, the bill stays "Sent" but a red warning shows up.</div></div>
+        <div class="step-body">
+            <p>Mailgun webhooks tell us within seconds if a delivery fails. Mary sees a banner: "INV-1042 bounced — recipient address rejected." She clicks Resend, fixes the address, sends again. Both events are logged.</p>
+        </div>
+    </div>
+</section>
+<section class="card">
+    <h2>6. What's in / out of scope</h2>
+    <div class="scope">
+        <div class="col in">
+            <h4>✓ In scope (v1)</h4>
+            <ul>
+                <li>Send button on the bill flyout (and on the bill list row's overflow menu)</li>
+                <li>Send modal: To / CC / BCC / Subject / Body (TipTap) / Attachments</li>
+                <li>Recipient pre-fill from Job's primary billing contact + secondary contacts</li>
+                <li>From-address: instance-default (Mailgun) with reply-to set to the sender</li>
+                <li>Auto-attached invoice PDF (rendered fresh at send time)</li>
+                <li>Optional cover letter (driven by TTC-3, can be skipped if no template configured)</li>
+                <li>Add additional attachments from the job's Documents tab (multi-select)</li>
+                <li>Auto-flip bill status from Draft → Sent on successful send</li>
+                <li>Per-bill Send Activity panel (sends + delivery + opens + bounces)</li>
+                <li>Resend (clones last send with editable recipient/body)</li>
+                <li>Mailgun webhook ingestion for delivery / bounce / open events</li>
+            </ul>
+        </div>
+        <div class="col out">
+            <h4>✗ Out of scope (later)</h4>
+            <ul>
+                <li>Send-as-user via per-user SMTP / OAuth (Rival's eventual ask)</li>
+                <li>Bulk send across multiple bills in one operation (TTC-4-adjacent)</li>
+                <li>Auto-send on bill creation (TTC-4 reminder schedules cover this)</li>
+                <li>Customer reply threading inside Appello (CRM territory)</li>
+                <li>Rich activity log on Company / Contact records (Rival's CRM ask, separate spec)</li>
+                <li>SMS reminders</li>
+                <li>Read receipts beyond Mailgun's "open" event</li>
+            </ul>
+        </div>
+    </div>
+</section>
+<section class="card">
+    <h2>7. Decisions needed</h2>
+    <div class="decisions">
+        <div class="item">
+            <div class="q">D1 · From-address strategy</div>
+            <div class="a">Three options: (a) generic <code>noreply@instance.useappello.com</code> Mailgun-default; (b) per-instance branded sender with reply-to set to the user; (c) full SMTP-as-user via OAuth. Recommend (b) for v1 — looks branded, replies go to the right human, no per-user setup. (c) is a follow-up.</div>
+        </div>
+        <div class="item">
+            <div class="q">D2 · Auto-mark bill as "Sent" on successful send?</div>
+            <div class="a">Recommend yes. Drops a manual step. If a customer needs to keep a sent bill in "Draft" (rare), they can set status manually after.</div>
+        </div>
+        <div class="item">
+            <div class="q">D3 · Cover letter — required, optional, or off by default?</div>
+            <div class="a">Recommend optional with smart default: if the customer has a cover letter template assigned (per TTC-3), use it; otherwise no cover letter, just the invoice PDF.</div>
+        </div>
+        <div class="item">
+            <div class="q">D4 · Permission model</div>
+            <div class="a">Reuse <code>jobBill.send</code> (new permission). Default ON for users with <code>jobBill.edit</code>. Keeps it simple.</div>
+        </div>
+        <div class="item">
+            <div class="q">D5 · Mailgun webhook ingestion path</div>
+            <div class="a">Existing infra has Mailgun webhooks for HR signed docs. Reuse the same webhook receiver pattern — just route <code>jobBill</code> events to a new handler.</div>
+        </div>
+    </div>
+</section>
+<section class="card">
+    <h2>8. Acceptance criteria (the QA list)</h2>
+    <ol>
+        <li>"Send" button appears on the bill flyout for users with <code>jobBill.send</code>.</li>
+        <li>Clicking Send opens a modal with To pre-filled from the Job's primary billing contact.</li>
+        <li>Subject defaults to <em>"[Instance Name] — Invoice [#] ([period])"</em>; user can edit.</li>
+        <li>Body defaults to a sensible boilerplate (or to the cover letter template if one is assigned per TTC-3); user can edit in TipTap.</li>
+        <li>Invoice PDF is freshly rendered at send time and attached automatically — never stale.</li>
+        <li>"Add document from this job" lets the user multi-select additional attachments from the Job's Documents tab.</li>
+        <li>Send button is disabled if To is empty or no PDF attached.</li>
+        <li>On successful send, the modal closes and the bill status flips to Sent.</li>
+        <li>A Send Activity entry is added to the bill flyout immediately, in "Queued" state.</li>
+        <li>Mailgun webhook events update the activity entry to Delivered / Opened / Bounced as they arrive.</li>
+        <li>On Bounce, a banner appears on the bill flyout with a Resend action.</li>
+        <li>Resend pre-fills the modal with the last-sent recipient/body so the user can correct and re-send.</li>
+        <li>Send history is per-bill and never deleted (audit trail).</li>
+        <li>Permission denial returns a clear error in the GraphQL response, not a silent fail.</li>
+        <li>If Mailgun is down, the send is queued and retried; the activity shows "Pending retry."</li>
+    </ol>
+</section>
+<section class="eng">
+    <h2>Engineering notes</h2>
+
+    <h3>Data model</h3>
+    <p>One new model for the audit trail. <code>JobBill</code> gets a derived "lastSentAt" via the relation, no scalar denormalization needed.</p>
+<pre>model JobBillEmailRecord {
+  id                  String       @id @db.VarChar(21)
+  isDeleted           Boolean      @default(false)
+  createdAt           DateTime     @default(now())
+  updatedAt           DateTime     @updatedAt
+
+  jobBillId           String       @db.VarChar(21)
+  JobBill             JobBill      @relation(fields: [jobBillId], references: [id], onDelete: Cascade)
+
+  sentByUserId        String       @db.VarChar(21)
+  SentByUser          User         @relation(fields: [sentByUserId], references: [id])
+
+  toAddresses         Json         // [{ name, address }, ...]
+  ccAddresses         Json?
+  bccAddresses        Json?
+  subject             String       @db.VarChar(500)
+  bodyHtml            String       @db.LongText
+  attachmentNames     Json         // ["INV-1042.pdf", "Cover-Letter.pdf"]
+  coverLetterTemplateId String?    @db.VarChar(21)
+
+  mailgunMessageId    String?      @db.VarChar(255)
+  status              JobBillEmailStatus @default(QUEUED)  // QUEUED, DELIVERED, OPENED, BOUNCED, FAILED
+  deliveredAt         DateTime?
+  openedAt            DateTime?
+  bouncedAt           DateTime?
+  bounceReason        String?      @db.VarChar(500)
+
+  @@index([jobBillId])
+  @@index([mailgunMessageId])
+}
+
+enum JobBillEmailStatus { QUEUED DELIVERED OPENED BOUNCED FAILED }</pre>
+
+    <h3>API surface</h3>
+    <table>
+        <thead><tr><th>Op</th><th>Type</th><th>Purpose</th></tr></thead>
+        <tbody>
+            <tr><td><code>sendJobBill</code></td><td>Mutation</td><td>Sends the bill. Validates inputs, renders fresh PDF, calls EmailService, creates the JobBillEmailRecord, optionally flips status to Sent.</td></tr>
+            <tr><td><code>jobBillSendPreview</code></td><td>Query</td><td>Returns the prefilled To / Subject / Body for the modal (uses TTC-3 template if one assigned).</td></tr>
+            <tr><td><code>JobBill.EmailRecords</code></td><td>Field</td><td>Send activity list, ordered desc by createdAt.</td></tr>
+            <tr><td><code>JobBill.lastSentAt</code></td><td>Field</td><td>Resolver-level derived field for the bill list status pill.</td></tr>
+            <tr><td><code>POST /api/webhooks/mailgun/jobBill</code></td><td>REST</td><td>Webhook receiver. Updates JobBillEmailRecord by mailgunMessageId on delivered / opened / bounced.</td></tr>
+        </tbody>
+    </table>
+
+    <h3>Model methods (in <code>apps/api/src/models/JobBill.ts</code>)</h3>
+    <ul>
+        <li><code>sendJobBill(input, userId)</code> — validates permission, renders PDF via existing pdf-export, calls <code>new EmailService(user).sendEmail(...)</code> with attachments, creates the record, optionally calls <code>editItem</code> to flip status. Wraps in transaction with rollback if Mailgun call throws.</li>
+        <li><code>resolvePrefilledSendInputs(jobBillId, userId)</code> — reads job + customer + assigned cover letter template, returns <code>{ to, cc, subject, body, coverLetterTemplateId }</code>.</li>
+        <li><code>handleMailgunWebhook(event)</code> — webhook router; updates the record by <code>mailgunMessageId</code>.</li>
+    </ul>
+
+    <h3>Frontend touch points</h3>
+    <ul>
+        <li><code>BillDetails.tsx</code> — add "Send" button to the flyout header toolbar, and a "Send activity" panel below the bill body.</li>
+        <li><code>SendInvoiceModal.tsx</code> (new) — the send modal. Uses <code>useLazyQuery(jobBillSendPreview)</code> on open and <code>useMutation(sendJobBill)</code> on submit. TipTap editor reuses the existing notes editor pattern.</li>
+        <li><code>JobBillStatusDropdown.tsx</code> — reads <code>lastSentAt</code> for the "Sent" badge.</li>
+        <li><code>JobBillList.tsx</code> — list row's overflow menu gets a "Send" item.</li>
+    </ul>
+
+    <h3>Mailgun integration reuse</h3>
+    <p>The existing <code>EmailService</code> at <code>apps/api/src/lib/emailService.ts</code> already supports multipart with attachments (used by HR's <code>SignedDocumentEmailer</code> + UserCertification). No new infrastructure — TTC-2 is just a new caller.</p>
+
+    <h3>Permissions</h3>
+    <ul>
+        <li>New permission key: <code>jobBill.send</code>. Default ON for any user with <code>jobBill.edit</code>.</li>
+        <li>Webhook endpoint validates Mailgun signature; no auth otherwise (Mailgun's standard flow).</li>
+    </ul>
+
+    <h3>Testing surface</h3>
+    <ul>
+        <li>Unit: <code>resolvePrefilledSendInputs</code> with / without assigned cover letter, with no contact email.</li>
+        <li>Unit: webhook handler updates the right record on each event type.</li>
+        <li>Integration: full <code>sendJobBill</code> path with mocked Mailgun; verify record is created and status flips.</li>
+        <li>E2E: open bill flyout, click Send, modal pre-fills, hit Send, status flips, activity entry shows Queued → Delivered.</li>
+    </ul>
+</section>
+</main></div></body></html>

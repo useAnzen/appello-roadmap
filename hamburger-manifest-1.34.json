@@ -1,15 +1,220 @@
 {
     "featureId": "MAT-1.34",
-    "featureTitle": "Material Management & Supply Chain",
-    "featureSlug": "material-supply-chain",
+    "featureTitle": "Time-to-Cash + Material Management & Supply Chain",
+    "featureSlug": "time-to-cash-and-material-supply-chain",
     "release": "1.34",
-    "totalComplexityScore": 72,
-    "estimatedDays": 66,
+    "totalComplexityScore": 96,
+    "estimatedDays": 86,
     "prerequisite": "Release 1.33 merged (T&M Work Orders + Equipment Financial Layer + LEM Foundation)",
     "hamburgers": [
         {
-            "slug": "mat-0-supply-chain-model",
+            "slug": "ttc-1-labor-bill-generator",
             "sequenceNumber": 0,
+            "title": "TTC-1: Labor Bill Generator",
+            "description": "One-click invoice from approved timesheets. New Generate Labor Bill button on Job Invoicing tab opens a modal with period range, grouping (per user / trade level / role / total), live preview pulling hours from approved TimeSheetDetailRecords priced via LEM-1 billableValue. Creates a Simple JobBill with lines linked back to source timesheet entries.",
+            "predecessors": [
+                "lem-1-labor-billable-rates"
+            ],
+            "hasUiInterfaces": true,
+            "complexityScore": 6,
+            "estimatedDays": 6,
+            "changeSurface": {
+                "new": [
+                    "apps/api/prisma/migrations/YYYYMMDDHHMMSS_add_jobbill_timesheet_source/migration.sql",
+                    "apps/frontend/src/components/DetailsPage/JobDetailsPage/Tabs/Billing/LaborBillModal.tsx"
+                ],
+                "modified": [
+                    "apps/api/prisma/schema.prisma",
+                    "apps/api/src/models/JobBill.ts",
+                    "apps/api/src/graphql/models/JobBill.ts",
+                    "apps/api/src/graphql/models/JobBillLineItem.ts",
+                    "apps/api/src/graphql/schema.ts",
+                    "apps/frontend/src/components/DetailsPage/JobDetailsPage/Tabs/Billing/BillingTab.tsx",
+                    "apps/frontend/src/components/DetailsPage/JobDetailsPage/Tabs/Billing/BillDetails.tsx"
+                ],
+                "deleted": []
+            },
+            "acceptanceCriteria": [
+                "Generate Labor Bill button appears on Job Invoicing tab for users with jobBill.create",
+                "Modal supports per-user, per-trade-level, per-role, and one-total grouping",
+                "Preview refreshes within 1 second on a 500-line timesheet job",
+                "Only approved timesheet entries on the selected job in the period are included",
+                "Lines with no billable rate use cost x markup fallback with a yellow warning",
+                "Generated bill opens in standard Bill flyout, fully editable",
+                "Re-generating skips timesheet entries already linked to a non-deleted bill",
+                "Deleting a generated bill releases timesheet entries for re-billing"
+            ],
+            "plan": "plans/TTC-1-labor-bill-generator.html",
+            "uis": "uis-TTC-1-labor-bill-generator.html"
+        },
+        {
+            "slug": "ttc-2-send-invoice-email",
+            "sequenceNumber": 1,
+            "title": "TTC-2: Send Invoice via Email",
+            "description": "One-click email send for any JobBill. Send button on bill flyout opens a modal pre-filled with the Job's primary billing contact, subject template, body (uses TTC-3 cover letter if assigned), and the freshly-rendered invoice PDF. New JobBillEmailRecord model captures the audit trail; Mailgun webhooks update delivered/opened/bounced state. Auto-flips bill status to Sent. Closes Q21030-7709.",
+            "predecessors": [],
+            "hasUiInterfaces": true,
+            "complexityScore": 4,
+            "estimatedDays": 4,
+            "changeSurface": {
+                "new": [
+                    "apps/api/prisma/migrations/YYYYMMDDHHMMSS_add_jobbill_email_record/migration.sql",
+                    "apps/frontend/src/components/DetailsPage/JobDetailsPage/Tabs/Billing/SendInvoiceModal.tsx",
+                    "apps/api/src/restAPI/webhooks/mailgunJobBill.ts"
+                ],
+                "modified": [
+                    "apps/api/prisma/schema.prisma",
+                    "apps/api/src/models/JobBill.ts",
+                    "apps/api/src/graphql/models/JobBill.ts",
+                    "apps/api/src/graphql/schema.ts",
+                    "apps/frontend/src/components/DetailsPage/JobDetailsPage/Tabs/Billing/BillDetails.tsx",
+                    "apps/frontend/src/components/DetailsPage/JobDetailsPage/Tabs/Billing/JobBillStatusDropdown.tsx",
+                    "apps/frontend/src/components/DetailsPage/JobDetailsPage/Tabs/Billing/JobBillList.tsx"
+                ],
+                "deleted": []
+            },
+            "acceptanceCriteria": [
+                "Send button on bill flyout for users with jobBill.send permission",
+                "Send modal pre-fills To from Job's primary billing contact",
+                "PDF rendered fresh at send time and auto-attached",
+                "On successful send, bill flips to Sent and Send Activity entry appears immediately",
+                "Mailgun webhooks update activity to Delivered / Opened / Bounced as events arrive",
+                "Bounced sends show a banner with one-click Resend",
+                "Send history is per-bill and never deleted (audit trail)"
+            ],
+            "plan": "plans/TTC-2-send-invoice-email.html",
+            "uis": "uis-TTC-2-send-invoice-email.html"
+        },
+        {
+            "slug": "ttc-3-invoice-cover-letter",
+            "sequenceNumber": 2,
+            "title": "TTC-3: Invoice Cover Letter Templates",
+            "description": "New DocumentTemplate kind for invoice transmittal letters. ~12 invoice merge tags (invoiceNumber, amount, dueDate, periodStart/End, customer, contact, jobNumber, sender, instance, PO). Per-customer default via Company.defaultInvoiceCoverLetterTemplateId, with instance-level fallback. TTC-2 Send modal auto-resolves the cascade and pre-fills the body.",
+            "predecessors": [],
+            "hasUiInterfaces": true,
+            "complexityScore": 3,
+            "estimatedDays": 2,
+            "changeSurface": {
+                "new": [
+                    "apps/api/prisma/migrations/YYYYMMDDHHMMSS_add_documenttemplate_kind_invoice_cover/migration.sql",
+                    "apps/frontend/src/components/Settings/DocumentTemplates/InvoiceCoverLetterEditor.tsx"
+                ],
+                "modified": [
+                    "apps/api/prisma/schema.prisma",
+                    "apps/api/src/models/DocumentTemplate.ts",
+                    "apps/api/src/models/JobBill.ts",
+                    "apps/api/src/models/Company.ts",
+                    "apps/api/src/graphql/models/DocumentTemplate.ts",
+                    "apps/api/src/graphql/models/JobBill.ts",
+                    "apps/api/src/graphql/models/Company.ts",
+                    "apps/frontend/src/pages/settings/document-templates.tsx",
+                    "apps/frontend/src/components/DetailsPage/CompanyDetailsPage/Tabs/Billing.tsx"
+                ],
+                "deleted": []
+            },
+            "acceptanceCriteria": [
+                "Invoice Cover Letters tab on Settings -> Document Templates",
+                "Editor supports rich-text body and merge-tag chip insertion",
+                "Preview against any real bill renders merged HTML correctly",
+                "Customer detail page lets admin assign a default cover letter",
+                "TTC-2 Send modal pre-fills body via cascade resolution (customer -> instance -> none)",
+                "Missing merge tag values render empty (no error in production sends)",
+                "New instances seeded with built-in Standard Transmittal template"
+            ],
+            "plan": "plans/TTC-3-invoice-cover-letter.html",
+            "uis": "uis-TTC-3-invoice-cover-letter.html"
+        },
+        {
+            "slug": "ttc-4-ar-reminder-engine",
+            "sequenceNumber": 3,
+            "title": "TTC-4: A/R Reminder Engine",
+            "description": "Configurable reminder schedules per customer (e.g. +7 friendly / +14 second / +30 final past due). Daily processor (driven by external scheduled trigger) finds eligible bills and fires reminders via the TTC-2 send pipeline using TTC-3 templates. Per-bill suppression toggle, weekly admin digest, full timeline panel on bill flyout. Idempotency guarantee on (jobBillId, ruleId).",
+            "predecessors": [
+                "ttc-2-send-invoice-email",
+                "ttc-3-invoice-cover-letter"
+            ],
+            "hasUiInterfaces": true,
+            "complexityScore": 5,
+            "estimatedDays": 3,
+            "changeSurface": {
+                "new": [
+                    "apps/api/prisma/migrations/YYYYMMDDHHMMSS_add_ar_reminder_engine/migration.sql",
+                    "apps/api/src/models/JobBillReminder.ts",
+                    "apps/api/src/graphql/models/JobBillReminder.ts",
+                    "apps/api/src/restAPI/internal/runArReminders.ts",
+                    "apps/frontend/src/pages/settings/ar-reminders.tsx",
+                    "apps/frontend/src/pages/ar/todays-reminders.tsx",
+                    "apps/frontend/src/components/DetailsPage/JobDetailsPage/Tabs/Billing/ReminderTimelinePanel.tsx"
+                ],
+                "modified": [
+                    "apps/api/prisma/schema.prisma",
+                    "apps/api/src/graphql/schema.ts",
+                    "apps/api/src/lib/permissions.ts",
+                    "apps/frontend/src/components/DetailsPage/JobDetailsPage/Tabs/Billing/BillDetails.tsx",
+                    "apps/frontend/src/components/DetailsPage/CompanyDetailsPage/Tabs/Billing.tsx",
+                    "apps/frontend/src/lib/static-data/staticSideBarData.ts"
+                ],
+                "deleted": []
+            },
+            "acceptanceCriteria": [
+                "Settings -> A/R Reminders page for users with jobBillReminder.configure",
+                "Schedule definition: name + ordered list of (offsetDays, tone, templateId)",
+                "Customer detail page assigns one schedule (or no reminders)",
+                "Daily processor (external scheduled trigger) is idempotent on (jobBillId, ruleId)",
+                "Reminders auto-stop on Paid bills",
+                "Per-bill Pause Reminders toggle stops further reminders for that bill",
+                "Today's Reminders admin page lists firing today/this week with skip actions",
+                "Weekly digest email summarizes reminders sent + still overdue + bills missing due dates"
+            ],
+            "plan": "plans/TTC-4-ar-reminder-engine.html",
+            "uis": "uis-TTC-4-ar-reminder-engine.html"
+        },
+        {
+            "slug": "ttc-5-lem-combined-report",
+            "sequenceNumber": 4,
+            "title": "TTC-5: LEM Combined Report",
+            "description": "Single page at /reports/lem-combined showing Labor / Equipment / Material side-by-side as cost vs billable, by job or cost code, drillable to source records. Phase 1 ships Labor + Equipment standalone (LEM-1/2 already in QA). Phase 2 adds Material columns when MAT-2a lands. Closes Q21030-7740 (Job Labour Report) and Thomas's canonical LEM ask.",
+            "predecessors": [
+                "lem-1-labor-billable-rates",
+                "lem-2-equipment-billable-rates"
+            ],
+            "hasUiInterfaces": true,
+            "complexityScore": 6,
+            "estimatedDays": 5,
+            "changeSurface": {
+                "new": [
+                    "apps/api/prisma/views/Z_LemCombinedReport.sql",
+                    "apps/api/src/models/LemCombinedReport.ts",
+                    "apps/api/src/graphql/models/LemCombinedReport.ts",
+                    "apps/frontend/src/pages/reports/lem-combined.tsx",
+                    "apps/frontend/src/components/Reports/LemCombined/LemReportFilterBar.tsx",
+                    "apps/frontend/src/components/Reports/LemCombined/LemReportGrid.tsx",
+                    "apps/frontend/src/components/Reports/LemCombined/LemDrillDownFlyout.tsx"
+                ],
+                "modified": [
+                    "apps/api/src/graphql/schema.ts",
+                    "apps/api/src/lib/permissions.ts",
+                    "apps/frontend/src/lib/routes.ts",
+                    "apps/frontend/src/lib/static-data/staticSideBarData.ts"
+                ],
+                "deleted": []
+            },
+            "acceptanceCriteria": [
+                "/reports/lem-combined page exists for users with report.lemCombined.view",
+                "Filter bar: Job multi-select, Period (this/last/custom), Group By (Cost Code / Job), Include toggles",
+                "Numbers tie out exactly to FinancialSummaryFeed for cost-side and LEM-1/2 for billable-side",
+                "Margin % cells color-coded green / yellow / red with instance-configurable thresholds",
+                "Cell-level drill-down lists source records (timesheets, equipment time entries)",
+                "Excel export produces a single sheet with all visible rows + columns + totals",
+                "Loads in <= 3 seconds on a 5,000-timesheet job",
+                "Material columns enable in Phase 2 when MAT-2a is live for the instance"
+            ],
+            "plan": "plans/TTC-5-lem-combined-report.html",
+            "uis": "uis-TTC-5-lem-combined-report.html"
+        },
+        {
+            "slug": "mat-0-supply-chain-model",
+            "sequenceNumber": 5,
             "title": "MAT-0: Three-Level Supply Chain Model",
             "description": "Create ManufacturerProduct and DistributorPrice models linking Materials to Companies. Add Manufacturer company type. Products tabs on Company detail, Supply Chain section on Material detail.",
             "predecessors": [],
@@ -47,7 +252,7 @@
         },
         {
             "slug": "mat-1-customer-po-entity",
-            "sequenceNumber": 1,
+            "sequenceNumber": 6,
             "title": "MAT-1: Customer PO Entity",
             "description": "Replace Job.purchaseOrder string with first-class PurchaseOrder model. Multiple POs per job, PO detail page, PO-aware invoicing.",
             "predecessors": [],
@@ -83,8 +288,8 @@
         },
         {
             "slug": "mat-2a-lem-consumption-desktop",
-            "sequenceNumber": 2,
-            "title": "MAT-2a: LEM Material Consumption — Desktop",
+            "sequenceNumber": 7,
+            "title": "MAT-2a: LEM Material Consumption \u2014 Desktop",
             "description": "MaterialConsumptionEntry model, desktop entry UI, LEM combined report joining labor + equipment + material, P&L integration.",
             "predecessors": [],
             "hasUiInterfaces": true,
@@ -117,10 +322,12 @@
         },
         {
             "slug": "mat-2b-lem-consumption-mobile",
-            "sequenceNumber": 3,
-            "title": "MAT-2b: LEM Material Consumption — Mobile",
+            "sequenceNumber": 8,
+            "title": "MAT-2b: LEM Material Consumption \u2014 Mobile",
             "description": "Mobile form for field workers to log material consumption per job per day. Uses MaterialConsumptionEntry from MAT-2a.",
-            "predecessors": ["mat-2a-lem-consumption-desktop"],
+            "predecessors": [
+                "mat-2a-lem-consumption-desktop"
+            ],
             "hasUiInterfaces": true,
             "complexityScore": 4,
             "estimatedDays": 4,
@@ -146,10 +353,12 @@
         },
         {
             "slug": "mat-3-price-book-import",
-            "sequenceNumber": 4,
+            "sequenceNumber": 9,
             "title": "MAT-3: Price Book Import",
             "description": "CSV/Excel import wizard for distributor pricing into ManufacturerProduct + DistributorPrice. Column mapping, preview, validation, import history.",
-            "predecessors": ["mat-0-supply-chain-model"],
+            "predecessors": [
+                "mat-0-supply-chain-model"
+            ],
             "hasUiInterfaces": true,
             "complexityScore": 7,
             "estimatedDays": 6,
@@ -180,7 +389,7 @@
         },
         {
             "slug": "mat-4-mobile-material-requests",
-            "sequenceNumber": 5,
+            "sequenceNumber": 10,
             "title": "MAT-4: Mobile Material Requests",
             "description": "Field-to-office material request workflow. Mobile submission with photo attachments, desktop inbox with triage.",
             "predecessors": [],
@@ -217,10 +426,12 @@
         },
         {
             "slug": "mat-9-discount-management",
-            "sequenceNumber": 6,
+            "sequenceNumber": 11,
             "title": "MAT-9: Discount Management",
             "description": "DistributorDiscount model with Global/Category/Product scopes. Cascading resolution for effective pricing. Discounts tab on Supplier company detail.",
-            "predecessors": ["mat-0-supply-chain-model"],
+            "predecessors": [
+                "mat-0-supply-chain-model"
+            ],
             "hasUiInterfaces": true,
             "complexityScore": 5,
             "estimatedDays": 4,
@@ -252,10 +463,14 @@
         },
         {
             "slug": "mat-5-supplier-po",
-            "sequenceNumber": 7,
+            "sequenceNumber": 12,
             "title": "MAT-5: Supplier PO (CRUD + PDF + Email)",
             "description": "Outbound purchase orders to suppliers. PDF generation, email to vendor. Uses shared PurchaseOrder model with type=SupplierPO.",
-            "predecessors": ["mat-0-supply-chain-model", "mat-1-customer-po-entity", "mat-9-discount-management"],
+            "predecessors": [
+                "mat-0-supply-chain-model",
+                "mat-1-customer-po-entity",
+                "mat-9-discount-management"
+            ],
             "hasUiInterfaces": true,
             "complexityScore": 7,
             "estimatedDays": 6,
@@ -286,10 +501,12 @@
         },
         {
             "slug": "mat-6-receiving-workflow",
-            "sequenceNumber": 8,
+            "sequenceNumber": 13,
             "title": "MAT-6: Receiving + Three-Way Match",
             "description": "Receive deliveries against Supplier POs. Partial/complete receipts, three-way match (PO vs received vs invoiced), back-order tracking.",
-            "predecessors": ["mat-5-supplier-po"],
+            "predecessors": [
+                "mat-5-supplier-po"
+            ],
             "hasUiInterfaces": true,
             "complexityScore": 5,
             "estimatedDays": 5,
@@ -320,10 +537,12 @@
         },
         {
             "slug": "mat-7-inventory-management",
-            "sequenceNumber": 9,
+            "sequenceNumber": 14,
             "title": "MAT-7: Inventory Management",
             "description": "Stock tracking by location. Receiving intake, job checkout, transfer, adjustment. Movement ledger, min/max alerts, mobile QR check.",
-            "predecessors": ["mat-6-receiving-workflow"],
+            "predecessors": [
+                "mat-6-receiving-workflow"
+            ],
             "hasUiInterfaces": true,
             "complexityScore": 10,
             "estimatedDays": 9,
@@ -364,10 +583,13 @@
         },
         {
             "slug": "mat-8-vendor-credits",
-            "sequenceNumber": 10,
+            "sequenceNumber": 15,
             "title": "MAT-8: Vendor Credits & Returns",
             "description": "Returns workflow with credit memo tracking, job cost adjustment, inventory return movements, AP reconciliation.",
-            "predecessors": ["mat-5-supplier-po", "mat-7-inventory-management"],
+            "predecessors": [
+                "mat-5-supplier-po",
+                "mat-7-inventory-management"
+            ],
             "hasUiInterfaces": true,
             "complexityScore": 6,
             "estimatedDays": 5,

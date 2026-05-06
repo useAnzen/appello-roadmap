@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>TTC-4 - A/R Reminder Engine</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Inter', -apple-system, sans-serif; background: #f1f5f9; color: #0f172a; line-height: 1.6; }
+.layout { display: grid; grid-template-columns: 260px 1fr; gap: 24px; max-width: 1320px; margin: 0 auto; padding: 32px 24px 80px; }
+aside.nav { position: sticky; top: 24px; align-self: start; background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 18px; max-height: calc(100vh - 48px); overflow-y: auto; }
+aside.nav h4 { font-size: 11px; font-weight: 700; letter-spacing: 1px; color: #64748b; text-transform: uppercase; margin: 14px 0 8px; }
+aside.nav h4:first-child { margin-top: 0; }
+aside.nav a { display: flex; align-items: center; justify-content: space-between; gap: 6px; padding: 6px 8px; font-size: 13px; color: #334155; text-decoration: none; border-radius: 6px; margin-bottom: 2px; }
+aside.nav a:hover { background: #f1f5f9; color: #0f172a; }
+aside.nav a.current { background: #eff6ff; color: #1e40af; font-weight: 700; }
+aside.nav .pill { font-size: 9px; font-weight: 700; padding: 2px 6px; border-radius: 4px; }
+.pill-shipped { background: #dcfce7; color: #166534; }
+.pill-prog { background: #fef3c7; color: #92400e; }
+.pill-new { background: #ede9fe; color: #6b21a8; }
+.pill-future { background: #f1f5f9; color: #64748b; }
+.nav-index { display: block; padding: 8px 10px; background: #1e293b; color: #fff !important; border-radius: 6px; font-size: 12px; font-weight: 700; text-align: center; margin-bottom: 14px; }
+.nav-index:hover { background: #334155 !important; }
+main { min-width: 0; }
+.hero { background: linear-gradient(135deg, #b45309, #d97706); color: #fff; border-radius: 16px; padding: 32px 36px; margin-bottom: 24px; }
+.hero .badges { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+.hero .badge { font-size: 10px; font-weight: 700; padding: 4px 10px; border-radius: 5px; background: rgba(255,255,255,0.18); letter-spacing: 0.5px; }
+.hero h1 { font-size: 30px; font-weight: 800; letter-spacing: -0.01em; margin-bottom: 10px; }
+.hero .pitch { font-size: 16px; line-height: 1.65; color: #fef3c7; max-width: 720px; }
+.hero .meta { display: flex; gap: 22px; margin-top: 18px; font-size: 13px; color: #fde68a; }
+.hero .meta strong { color: #fff; }
+section.card { background: #fff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 24px 28px; margin-bottom: 18px; }
+section.card h2 { font-size: 20px; font-weight: 800; color: #0f172a; margin-bottom: 12px; padding-bottom: 10px; border-bottom: 2px solid #f1f5f9; }
+section.card h3 { font-size: 15px; font-weight: 700; color: #0f172a; margin: 18px 0 8px; }
+section.card p { font-size: 14px; color: #334155; }
+section.card ul, section.card ol { padding-left: 20px; margin: 8px 0; }
+section.card li { font-size: 14px; color: #334155; margin-bottom: 4px; }
+.quote { background: #fef3c7; border-left: 3px solid #f59e0b; padding: 12px 16px; border-radius: 0 8px 8px 0; margin: 14px 0; font-style: italic; font-size: 14px; color: #78350f; }
+.quote .who { font-style: normal; font-weight: 700; display: block; margin-top: 6px; font-size: 12px; }
+.story { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; margin: 12px 0; }
+.story .item { padding: 14px 16px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; }
+.story .role { font-size: 11px; font-weight: 700; color: #b45309; text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 6px; }
+.story .text { font-size: 14px; color: #0f172a; line-height: 1.55; }
+.story .text strong { color: #b45309; }
+.compare { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 14px 0; }
+.compare .col { border-radius: 12px; padding: 18px 20px; }
+.compare .today { background: #fee2e2; border: 1px solid #fecaca; }
+.compare .tmrw { background: #dcfce7; border: 1px solid #bbf7d0; }
+.compare h4 { font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px; }
+.compare .today h4 { color: #991b1b; }
+.compare .tmrw h4 { color: #166534; }
+.compare ol { padding-left: 20px; }
+.compare li { font-size: 13px; line-height: 1.55; margin-bottom: 6px; color: #1f2937; }
+.compare .stat { display: inline-block; margin-top: 10px; padding: 6px 12px; background: rgba(255,255,255,0.7); border-radius: 6px; font-size: 13px; font-weight: 700; }
+.compare .today .stat { color: #991b1b; }
+.compare .tmrw .stat { color: #166534; }
+.flow-step { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; margin: 14px 0; overflow: hidden; }
+.flow-step .step-head { background: #f1f5f9; padding: 12px 18px; display: flex; align-items: center; gap: 14px; border-bottom: 1px solid #e2e8f0; }
+.flow-step .step-num { background: #b45309; color: #fff; width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 13px; }
+.flow-step .step-title { font-size: 14px; font-weight: 700; color: #0f172a; }
+.flow-step .step-body { padding: 18px 22px; }
+.flow-step .step-body p { font-size: 14px; color: #334155; margin-bottom: 10px; }
+.mockup { background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 8px; overflow: hidden; margin: 12px 0; }
+.mockup .top-bar { background: #fff; border-bottom: 1px solid #e2e8f0; padding: 10px 16px; display: flex; align-items: center; gap: 8px; font-size: 12px; color: #64748b; }
+.mockup .dots { display: flex; gap: 4px; margin-right: 8px; }
+.mockup .dot { width: 9px; height: 9px; border-radius: 50%; }
+.mockup .d1 { background: #f87171; }
+.mockup .d2 { background: #fbbf24; }
+.mockup .d3 { background: #34d399; }
+.mockup .url { background: #f1f5f9; padding: 3px 10px; border-radius: 4px; font-size: 11px; font-family: monospace; color: #475569; }
+.mockup .body { padding: 18px 20px; min-height: 180px; }
+.btn { display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; border-radius: 6px; font-size: 13px; font-weight: 600; border: none; cursor: default; }
+.btn-primary { background: #b45309; color: #fff; }
+.btn-secondary { background: #fff; color: #334155; border: 1px solid #cbd5e1; }
+.btn-ghost { background: #f8fafc; color: #475569; border: 1px solid #cbd5e1; }
+.modal { background: #fff; border-radius: 8px; padding: 0; box-shadow: 0 12px 40px rgba(0,0,0,0.18); }
+.modal .m-head { padding: 14px 20px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; }
+.modal .m-head h5 { font-size: 16px; font-weight: 700; color: #0f172a; }
+.modal .m-head .x { font-size: 16px; color: #94a3b8; cursor: default; }
+.modal .m-body { padding: 20px; }
+.modal .m-foot { padding: 12px 20px; background: #f8fafc; border-top: 1px solid #e2e8f0; display: flex; justify-content: flex-end; gap: 8px; }
+.field { margin-bottom: 14px; }
+.field label { display: block; font-size: 12px; font-weight: 700; color: #475569; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.4px; }
+.field .input { padding: 7px 10px; border: 1px solid #cbd5e1; border-radius: 5px; background: #fff; font-size: 13px; color: #0f172a; }
+.chip { display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; background: #fffbeb; color: #b45309; border: 1px solid #fde68a; border-radius: 999px; font-size: 11px; font-weight: 600; margin-right: 4px; }
+.attach-list { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px 12px; font-size: 12px; }
+.attach-row { display: flex; justify-content: space-between; padding: 4px 0; color: #475569; }
+.tip-tap { border: 1px solid #cbd5e1; border-radius: 6px; min-height: 100px; padding: 10px 12px; background: #fff; font-size: 13px; color: #1f2937; }
+.tip-tap .toolbar { display: flex; gap: 6px; padding-bottom: 6px; border-bottom: 1px solid #f1f5f9; margin-bottom: 8px; font-size: 12px; color: #94a3b8; }
+.scope { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.scope .col { border-radius: 10px; padding: 16px 18px; }
+.scope .in { background: #f0fdf4; border: 1px solid #bbf7d0; }
+.scope .out { background: #f8fafc; border: 1px solid #e2e8f0; }
+.scope h4 { font-size: 13px; font-weight: 800; margin-bottom: 8px; }
+.scope .in h4 { color: #166534; }
+.scope .out h4 { color: #475569; }
+.scope li { font-size: 13px; margin-bottom: 4px; }
+.decisions { background: #fef3c7; border: 1px solid #fcd34d; border-radius: 10px; padding: 16px 20px; margin: 14px 0; }
+.decisions .item { padding: 10px 0; border-top: 1px solid #fde68a; }
+.decisions .item:first-of-type { border-top: none; }
+.decisions .q { font-weight: 700; color: #78350f; font-size: 14px; margin-bottom: 4px; }
+.decisions .a { font-size: 13px; color: #92400e; }
+.eng { background: #0f172a; color: #e2e8f0; border-radius: 14px; padding: 28px 32px; margin-top: 28px; }
+.eng h2 { color: #fff; font-size: 18px; font-weight: 800; padding-bottom: 12px; border-bottom: 1px solid #334155; margin-bottom: 16px; }
+.eng h3 { color: #c7d2fe; font-size: 14px; font-weight: 700; margin: 16px 0 8px; text-transform: uppercase; letter-spacing: 0.5px; }
+.eng p, .eng li { color: #cbd5e1; font-size: 13px; line-height: 1.6; }
+.eng pre { background: #1e293b; border-radius: 8px; padding: 14px 16px; overflow-x: auto; font-size: 12px; color: #e0e7ff; margin: 10px 0; font-family: 'SF Mono', monospace; }
+.eng table { width: 100%; border-collapse: collapse; font-size: 12px; margin: 8px 0; }
+.eng table th { text-align: left; padding: 7px 10px; background: #1e293b; color: #c7d2fe; font-weight: 700; }
+.eng table td { padding: 7px 10px; border-top: 1px solid #1e293b; color: #cbd5e1; }
+.eng code { font-family: monospace; background: #1e293b; padding: 1px 5px; border-radius: 3px; color: #fbbf24; font-size: 12px; }
+</style></head><body>
+<div class="layout">
+<aside class="nav">
+    <a class="nav-index" href="uis-TTC-index.html">← All Time-to-Cash UIS</a>
+    <h4>You are here</h4>
+    <a class="current" href="#">TTC-4 · A/R Reminders <span class="pill pill-new">NEW</span></a>
+    <h4>Foundations (live today)</h4>
+    <a href="#">Q21030-9309 · Payment Terms <span class="pill pill-shipped">PROD</span></a>
+    <a href="#">Mailgun pipeline <span class="pill pill-shipped">PROD</span></a>
+    <h4>Direct dependencies</h4>
+    <a href="uis-TTC-2-send-invoice-email.html">TTC-2 · Send pipeline <span class="pill pill-new">REQ</span></a>
+    <a href="uis-TTC-3-invoice-cover-letter.html">TTC-3 · Reminder templates <span class="pill pill-new">REQ</span></a>
+    <h4>Time-to-Cash track</h4>
+    <a href="uis-TTC-1-labor-bill-generator.html">TTC-1 · Labor Bill Gen <span class="pill pill-new">NEW</span></a>
+    <a href="uis-TTC-5-lem-combined-report.html">TTC-5 · LEM Combined <span class="pill pill-new">NEW</span></a>
+    <h4>Adjacent</h4>
+    <a href="#">Q21030-9315 · AR Aging Report</a>
+    <a href="#">Q21030-8385 · Track Payment</a>
+</aside>
+<main>
+<div class="hero">
+    <div class="badges">
+        <span class="badge">Q21030 · TTC-4</span>
+        <span class="badge">Mak commitment #1 (reminder emails)</span>
+        <span class="badge">Status: Design</span>
+        <span class="badge">Depends on TTC-2 + TTC-3</span>
+    </div>
+    <h1>A/R Reminder Engine</h1>
+    <p class="pitch">Configurable reminder schedules per customer. When an invoice goes overdue (or is approaching its due date), Appello automatically sends a reminder email using the TTC-2 send pipeline and a TTC-3 reminder-letter template. Every fired reminder is logged. Admins see a single "what's about to go out" panel to predict the day's nudges.</p>
+    <div class="meta">
+        <span><strong>Customer drivers:</strong> Mak (commitment), every billing customer</span>
+        <span><strong>Effort:</strong> 3 days · 1 engineer (after scheduler decision)</span>
+        <span><strong>Dependency:</strong> TTC-2 + TTC-3 must ship first</span>
+    </div>
+</div>
+<section class="card">
+    <h2>1. Why this matters</h2>
+    <p>Today, when an invoice goes unpaid, Appello does nothing. The admin has to remember, on a Monday morning, to pull up an aging spreadsheet, sort by days overdue, then manually email each customer the same "friendly reminder" they emailed last week. Most shops don't do this consistently — invoices age, cash slows, and chase calls happen way too late.</p>
+    <div class="quote">
+        "Send the invoice and letter to the client's email - reminder emails as well."
+        <span class="who">— Mak Surveying (May 5, 2026 commitment call)</span>
+    </div>
+    <p>Existing data already contains everything needed: <code>JobBill.dueByDate</code> is set on every invoice, <code>JobBill.paidValue</code> tracks what's collected, and configurable payment terms (Q21030-9309) are already in production. The missing piece is the loop that wakes up daily, finds bills past a configurable offset, and fires off the right reminder via TTC-2's send pipeline using a TTC-3 cover-letter template.</p>
+    <p>This is the single biggest cash-flow lever in the Time-to-Cash story. Even a simple "+14 day friendly nudge" rule typically pulls Days Sales Outstanding down by 5-10 days for trade-services shops.</p>
+</section>
+<section class="card">
+    <h2>2. Who this is for</h2>
+    <ul>
+        <li><strong>Office managers / owners</strong> — set the reminder schedule once, monitor it via a dashboard, intervene only on the customers that don't respond.</li>
+        <li><strong>Billing admins</strong> — get back the Monday-morning aging spreadsheet hour. Their role shifts from "send the same email 30 times" to "follow up on the 3 customers the system flagged."</li>
+        <li><strong>Customers (recipients)</strong> — get a polite, branded nudge before the situation escalates to a phone call.</li>
+        <li><strong>Project managers</strong> — see "this customer is 30 days behind on three invoices" before signing the next change order.</li>
+    </ul>
+</section>
+<section class="card">
+    <h2>3. User stories</h2>
+    <div class="story">
+        <div class="item">
+            <div class="role">As an office manager</div>
+            <div class="text">I want to <strong>configure a reminder schedule</strong> like "+7 friendly, +14 second notice, +30 final," so the system handles routine A/R follow-up without me thinking about it.</div>
+        </div>
+        <div class="item">
+            <div class="role">As an office manager</div>
+            <div class="text">I want to <strong>set a different schedule per customer</strong>, so my biggest developer client gets a gentler cadence than my one-off retail customer.</div>
+        </div>
+        <div class="item">
+            <div class="role">As a billing admin</div>
+            <div class="text">I want to <strong>see "what's going out today / this week"</strong> in a queue, so I can suppress a reminder that I know is in dispute before it embarrasses us.</div>
+        </div>
+        <div class="item">
+            <div class="role">As a billing admin</div>
+            <div class="text">I want to <strong>pause reminders on a single bill</strong> with a one-click toggle and a note, so I can stop the loop while a customer disputes a charge.</div>
+        </div>
+        <div class="item">
+            <div class="role">As a billing admin</div>
+            <div class="text">I want reminders to <strong>stop automatically when a bill is marked paid</strong>, so I never accidentally chase someone who already paid.</div>
+        </div>
+        <div class="item">
+            <div class="role">As an owner</div>
+            <div class="text">I want a <strong>weekly digest email</strong> summarizing what reminders went out, who's still overdue, and which accounts need a phone call, so I have a "Monday morning A/R briefing" delivered to me.</div>
+        </div>
+        <div class="item">
+            <div class="role">As an admin</div>
+            <div class="text">I want to <strong>see the full reminder history per bill</strong> in the bill flyout, so I have a paper trail of every nudge sent.</div>
+        </div>
+    </div>
+</section>
+<section class="card">
+    <h2>4. A day in the life: today vs. tomorrow</h2>
+    <p>Sarah is the office manager at a 50-person mechanical contractor. She has 80 open invoices in flight at any time, with ~20 of them overdue.</p>
+    <div class="compare">
+        <div class="col today">
+            <h4>Today (no TTC-4)</h4>
+            <ol>
+                <li>Monday 8 AM: open the AR Aging spreadsheet (manually exported from Sage)</li>
+                <li>Sort by days-overdue descending</li>
+                <li>For each overdue bill, decide whether to send a reminder, call, or skip</li>
+                <li>Open Outlook, paste the customer's address, type a "friendly reminder" body, attach the invoice (which she has to find first)</li>
+                <li>Send</li>
+                <li>Update a separate spreadsheet to track "I reminded them on May 5"</li>
+                <li>Repeat 20 times</li>
+                <li>Forget to follow up two weeks later</li>
+            </ol>
+            <span class="stat">~2 hours weekly · uneven coverage · DSO drift</span>
+        </div>
+        <div class="col tmrw">
+            <h4>Tomorrow (with TTC-4)</h4>
+            <ol>
+                <li>Once at setup: configure "+7 / +14 / +30" schedule, assign templates</li>
+                <li>Daily processor finds eligible bills and fires reminders automatically</li>
+                <li>Every Monday Sarah gets a digest: 12 reminders sent last week, 3 customers still overdue, 1 dispute flagged</li>
+                <li>Sarah skims the digest in 5 min, calls only the 1 customer that needs a human</li>
+                <li>Bill flyout shows the reminder history; admin can pause individual bills if needed</li>
+            </ol>
+            <span class="stat">~10 min weekly · consistent coverage · DSO drops 5-10 days</span>
+        </div>
+    </div>
+</section>
+<section class="card">
+    <h2>5. The flow, screen by screen</h2>
+    <p>TTC-4 surfaces in three places: <strong>Settings → Reminders</strong> (define schedule rules), <strong>Customer detail page</strong> (override per customer), and <strong>Bill flyout</strong> (per-bill suppression + history).</p>
+
+    <div class="flow-step">
+        <div class="step-head"><div class="step-num">1</div><div class="step-title">Settings → A/R Reminders. Define instance-wide rule sets, link them to TTC-3 templates.</div></div>
+        <div class="step-body">
+            <div class="mockup">
+                <div class="top-bar"><div class="dots"><span class="dot d1"></span><span class="dot d2"></span><span class="dot d3"></span></div><span class="url">app.useappello.com/settings/ar-reminders</span></div>
+                <div class="body">
+                    <h4 style="font-size: 16px; font-weight: 700; margin-bottom: 12px;">A/R Reminder Schedules</h4>
+                    <div style="background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px 18px; margin-bottom: 10px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;"><strong style="font-size: 14px;">Standard (default)</strong><span class="chip">Used by 12 customers</span></div>
+                        <table style="width: 100%; font-size: 13px;">
+                            <thead><tr><th style="text-align: left; padding: 4px 8px; font-weight: 600; color: #64748b;">Trigger</th><th style="text-align: left; padding: 4px 8px; font-weight: 600; color: #64748b;">Tone</th><th style="text-align: left; padding: 4px 8px; font-weight: 600; color: #64748b;">Template (TTC-3)</th></tr></thead>
+                            <tbody>
+                                <tr><td style="padding: 4px 8px;">+7 days past due</td><td style="padding: 4px 8px;"><span class="chip">Friendly</span></td><td style="padding: 4px 8px;">Reminder · Friendly Nudge</td></tr>
+                                <tr><td style="padding: 4px 8px;">+14 days past due</td><td style="padding: 4px 8px;"><span class="chip">Second Notice</span></td><td style="padding: 4px 8px;">Reminder · Second Notice</td></tr>
+                                <tr><td style="padding: 4px 8px;">+30 days past due</td><td style="padding: 4px 8px;"><span class="chip">Final</span></td><td style="padding: 4px 8px;">Reminder · Final Notice (overdue)</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div style="background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px 18px; margin-bottom: 10px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center;"><strong style="font-size: 14px;">Gentle (key accounts)</strong><span class="chip">Used by 3 customers</span></div>
+                        <p style="font-size: 12px; color: #64748b; margin-top: 4px;">+14 / +30 only · skips the +7 friendly nudge</p>
+                    </div>
+                    <button class="btn btn-primary">+ New Schedule</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="flow-step">
+        <div class="step-head"><div class="step-num">2</div><div class="step-title">Customer detail: assign a schedule (or "no reminders").</div></div>
+        <div class="step-body">
+            <div class="mockup">
+                <div class="body">
+                    <div style="font-size: 14px; font-weight: 700; margin-bottom: 8px;">Cedar Ridge Development Inc. → Billing settings</div>
+                    <div class="field"><label>Default invoice cover letter (TTC-3)</label><div class="input">Standard Transmittal ▼</div></div>
+                    <div class="field"><label>A/R reminder schedule</label><div class="input">Gentle (key accounts) ▼</div></div>
+                    <div class="field"><label>Payment terms</label><div class="input">Net 30 ▼</div></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="flow-step">
+        <div class="step-head"><div class="step-num">3</div><div class="step-title">Bill flyout: see the reminder timeline + suppress with one click.</div></div>
+        <div class="step-body">
+            <div class="mockup">
+                <div class="body">
+                    <div style="font-size: 12px; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px;">Reminder timeline</div>
+                    <div style="display: flex; flex-direction: column; gap: 8px;">
+                        <div style="font-size: 13px; padding: 10px 12px; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 6px;">
+                            <div style="display: flex; justify-content: space-between;"><strong style="color: #166534;">✓ Sent · Friendly Nudge</strong><span style="color: #64748b;">May 12, 2026 (was +7)</span></div>
+                        </div>
+                        <div style="font-size: 13px; padding: 10px 12px; background: #fef3c7; border: 1px solid #fcd34d; border-radius: 6px;">
+                            <div style="display: flex; justify-content: space-between;"><strong style="color: #92400e;">⏱ Scheduled · Second Notice</strong><span style="color: #64748b;">Will fire May 19, 2026</span></div>
+                            <button class="btn btn-secondary" style="font-size: 11px; margin-top: 6px;">Pause this reminder…</button>
+                        </div>
+                        <div style="font-size: 13px; padding: 10px 12px; background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 6px; color: #94a3b8;">
+                            <div style="display: flex; justify-content: space-between;"><span>⏱ Scheduled · Final Notice</span><span>June 4, 2026</span></div>
+                        </div>
+                    </div>
+                    <div style="margin-top: 14px; padding: 10px 12px; background: #fafafa; border-left: 3px solid #cbd5e1; font-size: 12px; color: #475569;">Reminders will stop automatically when this bill is marked Paid. To pause this bill manually, toggle "Pause reminders" above.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="flow-step">
+        <div class="step-head"><div class="step-num">4</div><div class="step-title">A/R Dashboard: today's queue + this week's projection.</div></div>
+        <div class="step-body">
+            <p>A new <em>A/R → Today's Reminders</em> page lists everything firing today/this week. Admins can pause, skip, or manually trigger any row.</p>
+            <div class="mockup">
+                <div class="body">
+                    <h4 style="font-size: 16px; font-weight: 700; margin-bottom: 12px;">Today's Reminders (3)</h4>
+                    <table style="width: 100%; font-size: 13px; background: #fff; border: 1px solid #e2e8f0; border-radius: 6px; overflow: hidden;">
+                        <thead><tr style="background: #f8fafc;"><th style="text-align: left; padding: 8px 12px;">Bill</th><th style="text-align: left; padding: 8px 12px;">Customer</th><th style="text-align: left; padding: 8px 12px;">Days Overdue</th><th style="text-align: left; padding: 8px 12px;">Tone</th><th style="text-align: left; padding: 8px 12px;">Action</th></tr></thead>
+                        <tbody>
+                            <tr style="border-top: 1px solid #f1f5f9;"><td style="padding: 8px 12px;">INV-1042</td><td style="padding: 8px 12px;">Cedar Ridge Dev</td><td style="padding: 8px 12px;">7</td><td style="padding: 8px 12px;"><span class="chip">Friendly</span></td><td style="padding: 8px 12px;"><button class="btn btn-ghost" style="font-size: 11px;">Skip</button></td></tr>
+                            <tr style="border-top: 1px solid #f1f5f9;"><td style="padding: 8px 12px;">INV-1011</td><td style="padding: 8px 12px;">North Valley Devs</td><td style="padding: 8px 12px;">14</td><td style="padding: 8px 12px;"><span class="chip">2nd Notice</span></td><td style="padding: 8px 12px;"><button class="btn btn-ghost" style="font-size: 11px;">Skip</button></td></tr>
+                            <tr style="border-top: 1px solid #f1f5f9;"><td style="padding: 8px 12px;">INV-0987</td><td style="padding: 8px 12px;">Apex Realty</td><td style="padding: 8px 12px;">31</td><td style="padding: 8px 12px;"><span class="chip">Final</span></td><td style="padding: 8px 12px;"><button class="btn btn-ghost" style="font-size: 11px;">Skip</button></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+<section class="card">
+    <h2>6. What's in / out of scope</h2>
+    <div class="scope">
+        <div class="col in">
+            <h4>✓ In scope (v1)</h4>
+            <ul>
+                <li>Reminder schedule definition: name + ordered list of (offsetDays, tone, templateId)</li>
+                <li>Schedules at instance level (defaults) and customer level (overrides)</li>
+                <li>Daily processor that runs once per day, finds eligible bills, fires reminders via TTC-2</li>
+                <li>Auto-stop when bill is marked Paid or fully Voided</li>
+                <li>Per-bill suppression toggle ("Pause reminders") with optional note</li>
+                <li>Reminder timeline panel on the bill flyout (sent + scheduled events)</li>
+                <li>"Today's Reminders" page under A/R for admins to skim and skip</li>
+                <li>Weekly digest email to a configurable distribution list</li>
+                <li>Reuse of TTC-3 templates (with new <code>kind = ReminderLetter</code>)</li>
+                <li>Reuse of TTC-2 send pipeline + audit trail (each reminder is a JobBillEmailRecord)</li>
+                <li>Permission gate: <code>jobBillReminder.configure</code> for schedule editing</li>
+            </ul>
+        </div>
+        <div class="col out">
+            <h4>✗ Out of scope (later)</h4>
+            <ul>
+                <li>Customer-facing payment portal / "pay now" link in the email</li>
+                <li>SMS reminders</li>
+                <li>Per-bill custom schedules (only customer-level + suppress in v1)</li>
+                <li>Escalation to humans (Slack pings, calendar tasks) — separate spec</li>
+                <li>Configurable cadence based on customer payment behavior (ML scoring)</li>
+                <li>Multi-currency edge cases beyond what TTC-2 already handles</li>
+                <li>Auto-pause on dispute (requires a Dispute model that doesn't exist yet)</li>
+            </ul>
+        </div>
+    </div>
+</section>
+<section class="card">
+    <h2>7. Decisions needed</h2>
+    <div class="decisions">
+        <div class="item">
+            <div class="q">D1 · Scheduler infrastructure (the big one)</div>
+            <div class="a">Appello has <strong>no scheduler library installed today</strong> — verified via codebase search. Three options:
+                <br><strong>(a)</strong> add <code>node-cron</code> in the existing <code>metrics</code> Hono server (lowest cost, runs once per day from a single instance — fine for v1);
+                <br><strong>(b)</strong> add BullMQ + Redis (most robust but new infra);
+                <br><strong>(c)</strong> external trigger (Digital Ocean scheduled function or AWS EventBridge) calling a new <code>POST /internal/run-ar-reminders</code> endpoint.
+                <br>Recommend <strong>(c)</strong> for v1 — zero new infra, externally scheduled, easy to disable per-instance, and the per-instance worker process is just a normal API mutation. (a) is the fallback if (c) is awkward operationally.</div>
+        </div>
+        <div class="item">
+            <div class="q">D2 · Time-of-day for reminders</div>
+            <div class="a">Recommend a single configurable instance-wide send hour (default 9 AM in the instance's timezone). Per-customer scheduling is overkill for v1.</div>
+        </div>
+        <div class="item">
+            <div class="q">D3 · What counts as "overdue" if no <code>dueByDate</code>?</div>
+            <div class="a">Recommend skip — bill needs an explicit due date or it's never eligible. Surface "missing due date" in the digest so admins can fix it.</div>
+        </div>
+        <div class="item">
+            <div class="q">D4 · Should reminders go from the original sender, the office manager, or a generic A/R address?</div>
+            <div class="a">Recommend <strong>configurable per schedule</strong>, defaulting to the bill's original sender (so the customer recognizes the email). Schedule definition includes a <code>fromUserId</code> override.</div>
+        </div>
+        <div class="item">
+            <div class="q">D5 · Auto-pause when bill is "Sent" but not yet past the original due date?</div>
+            <div class="a">Recommend yes — only fire reminders for bills where status = Sent AND <code>dueByDate &lt; today - offsetDays</code> AND <code>paidValue &lt; totalValue</code>. Bill must have been delivered (delivered Mailgun event from TTC-2) — don't remind on bills that bounced.</div>
+        </div>
+    </div>
+</section>
+<section class="card">
+    <h2>8. Acceptance criteria</h2>
+    <ol>
+        <li>"A/R Reminders" page exists under Settings for users with <code>jobBillReminder.configure</code>.</li>
+        <li>Admin can create a schedule: name + ordered list of (offsetDays, tone, templateId).</li>
+        <li>Templates pickable from the list are <code>DocumentTemplate</code> rows with <code>kind = ReminderLetter</code>.</li>
+        <li>Customer detail page lets the admin assign one of the schedules (or "no reminders").</li>
+        <li>The daily processor runs once per day at the configured hour (per Decision D2).</li>
+        <li>The processor finds bills where: status = Sent, last delivery succeeded, <code>dueByDate</code> is past by exactly N days for some rule N in the assigned schedule, no reminder for that rule has been sent yet, bill not Paid, bill not paused, customer has a schedule assigned.</li>
+        <li>For each match, a reminder email goes out via the TTC-2 send pipeline using the rule's template, and a <code>JobBillReminderEvent</code> row is written.</li>
+        <li>Bill flyout shows a "Reminder timeline" panel with sent + scheduled events.</li>
+        <li>One-click "Pause reminders" toggle on a bill stops further reminders for that bill (with optional note).</li>
+        <li>Marking a bill as Paid auto-cancels all scheduled reminders.</li>
+        <li>"Today's Reminders" admin page lists everything firing today/this week with skip actions.</li>
+        <li>Weekly digest email is sent to a configurable list with: count of reminders sent, top overdue customers, bills missing due dates, bills with bounced sends.</li>
+        <li>Permission denial returns a clear error.</li>
+        <li>If TTC-2's send fails (Mailgun down, bounce), the reminder event is logged with status FAILED and is retried by the next day's run.</li>
+        <li>Reminders never fire on the same bill+rule twice (idempotent on <code>(jobBillId, ruleId)</code>).</li>
+    </ol>
+</section>
+<section class="eng">
+    <h2>Engineering notes</h2>
+
+    <h3>Data model</h3>
+    <p>Three new models. Schedules and rules are configuration; events are the audit log of every fired reminder.</p>
+<pre>model JobBillReminderSchedule {
+  id           String  @id @db.VarChar(21)
+  isDeleted    Boolean @default(false)
+  isArchived   Boolean @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  name         String  @db.VarChar(191)
+  description  String? @db.Text
+  fromUserId   String? @db.VarChar(21)   // null = use bill's original sender
+  isInstanceDefault Boolean @default(false)
+
+  Rules    JobBillReminderRule[]
+  Companies Company[]   // customers using this schedule
+}
+
+model JobBillReminderRule {
+  id          String  @id @db.VarChar(21)
+  scheduleId  String  @db.VarChar(21)
+  Schedule    JobBillReminderSchedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+
+  offsetDays  Int           // positive = past due, negative = pre-due (future)
+  tone        ReminderTone
+  templateId  String        @db.VarChar(21)
+  Template    DocumentTemplate @relation(fields: [templateId], references: [id])
+
+  sortOrder   Int
+
+  @@index([scheduleId])
+}
+
+enum ReminderTone { FRIENDLY SECOND_NOTICE FINAL CUSTOM }
+
+model JobBillReminderEvent {
+  id          String   @id @db.VarChar(21)
+  jobBillId   String   @db.VarChar(21)
+  JobBill     JobBill  @relation(fields: [jobBillId], references: [id], onDelete: Cascade)
+
+  ruleId      String   @db.VarChar(21)
+  Rule        JobBillReminderRule @relation(fields: [ruleId], references: [id])
+
+  scheduledFor DateTime
+  firedAt      DateTime?
+  status       ReminderEventStatus @default(SCHEDULED)
+  emailRecordId String?  @db.VarChar(21)   // links to JobBillEmailRecord (TTC-2)
+  EmailRecord   JobBillEmailRecord? @relation(fields: [emailRecordId], references: [id])
+  failureReason String?  @db.VarChar(500)
+
+  @@unique([jobBillId, ruleId])  // idempotency guarantee
+  @@index([scheduledFor, status])
+}
+
+enum ReminderEventStatus { SCHEDULED SENT SKIPPED PAUSED FAILED CANCELLED }
+
+model Company {
+  // ...
+  reminderScheduleId String? @db.VarChar(21)
+  ReminderSchedule   JobBillReminderSchedule? @relation(fields: [reminderScheduleId], references: [id])
+}
+
+model JobBill {
+  // ...
+  pauseReminders         Boolean @default(false)
+  pauseRemindersNote     String? @db.VarChar(500)
+}</pre>
+
+    <h3>API surface</h3>
+    <table>
+        <thead><tr><th>Op</th><th>Type</th><th>Purpose</th></tr></thead>
+        <tbody>
+            <tr><td><code>jobBillReminderSchedules</code></td><td>Query</td><td>List configured schedules. Standard <code>GetListOptions</code>.</td></tr>
+            <tr><td><code>todaysReminders / upcomingReminders</code></td><td>Query</td><td>The "Today's Reminders" admin page data.</td></tr>
+            <tr><td><code>JobBill.ReminderEvents</code></td><td>Field</td><td>Timeline panel data.</td></tr>
+            <tr><td><code>upsertJobBillReminderSchedule</code></td><td>Mutation</td><td>CRUD for schedules + rules.</td></tr>
+            <tr><td><code>setCustomerReminderSchedule</code></td><td>Mutation</td><td>Sets <code>Company.reminderScheduleId</code>.</td></tr>
+            <tr><td><code>pauseJobBillReminders</code> / <code>resumeJobBillReminders</code></td><td>Mutation</td><td>Per-bill suppression.</td></tr>
+            <tr><td><code>skipReminder</code></td><td>Mutation</td><td>Cancels a single scheduled event.</td></tr>
+            <tr><td><code>runArReminders</code></td><td>Mutation</td><td>Internal mutation invoked by the scheduler. Idempotent. Returns counts of fired/skipped/failed.</td></tr>
+        </tbody>
+    </table>
+
+    <h3>Daily processor (<code>JobBillReminderModel.runArReminders</code>)</h3>
+    <p>One pass per day per instance. Pseudocode:</p>
+<pre>async runArReminders(instanceId, today = new Date()) {
+  // 1. Find candidate bills
+  const bills = await prisma.jobBill.findMany({
+    where: {
+      isDeleted: false,
+      pauseReminders: false,
+      paidValue: { lt: prisma.jobBill.fields.totalValue },
+      Job: { Customer: { reminderScheduleId: { not: null } } },
+      EmailRecords: { some: { status: "DELIVERED" } },  // bill was actually delivered
+      dueByDate: { not: null }
+    },
+    include: { Job: { include: { Customer: { include: { ReminderSchedule: { include: { Rules: true } } } } } } }
+  });
+
+  // 2. For each bill × rule, check eligibility
+  for (const bill of bills) {
+    const rules = bill.Job.Customer.ReminderSchedule.Rules;
+    for (const rule of rules) {
+      const targetDate = addDays(bill.dueByDate, rule.offsetDays);
+      if (!isSameDay(targetDate, today)) continue;
+
+      // Idempotency: skip if event already exists
+      const existing = await prisma.jobBillReminderEvent.findUnique({
+        where: { jobBillId_ruleId: { jobBillId: bill.id, ruleId: rule.id } }
+      });
+      if (existing) continue;
+
+      // 3. Fire via TTC-2
+      try {
+        const emailRecord = await JobBillModel.sendJobBill({
+          jobBillId: bill.id,
+          coverLetterTemplateId: rule.templateId,
+          fromUserId: rule.Schedule.fromUserId ?? bill.lastSentByUserId,
+          // subject/body resolved from template via TTC-3 merge engine
+        }, SYSTEM_USER_ID);
+
+        await prisma.jobBillReminderEvent.create({
+          data: { jobBillId: bill.id, ruleId: rule.id, scheduledFor: today,
+                  firedAt: new Date(), status: "SENT", emailRecordId: emailRecord.id }
+        });
+      } catch (err) {
+        await prisma.jobBillReminderEvent.create({
+          data: { jobBillId: bill.id, ruleId: rule.id, scheduledFor: today,
+                  status: "FAILED", failureReason: err.message }
+        });
+      }
+    }
+  }
+}</pre>
+
+    <h3>Scheduler invocation (per Decision D1)</h3>
+    <p>Recommended v1: <strong>external scheduled trigger</strong>. Add a new authenticated endpoint <code>POST /internal/ar-reminders/run</code> that is called once per day at the configured hour by an external scheduler (DigitalOcean scheduled function, GitHub Action cron, or AWS EventBridge). Authenticated via a service-account token. The endpoint just calls <code>JobBillReminderModel.runArReminders()</code>. This avoids introducing Redis, BullMQ, or in-process cron.</p>
+
+    <h3>Frontend touch points</h3>
+    <ul>
+        <li><code>ArReminderSchedulesPage.tsx</code> (new) — Settings page; list + edit schedules.</li>
+        <li><code>ReminderTimelinePanel.tsx</code> (new) — added to <code>BillDetails.tsx</code>.</li>
+        <li><code>BillingTab.tsx</code> + <code>JobBillStatusDropdown.tsx</code> — show "Reminders paused" badge if <code>pauseReminders</code>.</li>
+        <li><code>CompanyBillingSettingsForm.tsx</code> — add the schedule dropdown next to TTC-3 cover letter dropdown.</li>
+        <li><code>TodaysRemindersPage.tsx</code> (new) — A/R admin page with skip actions.</li>
+    </ul>
+
+    <h3>Permissions</h3>
+    <ul>
+        <li><code>jobBillReminder.configure</code> — schedule editing (new permission).</li>
+        <li><code>jobBillReminder.pauseBill</code> — per-bill pause (default ON for users with <code>jobBill.edit</code>).</li>
+        <li><code>jobBillReminder.skipEvent</code> — skip a queued event (defaults same as above).</li>
+    </ul>
+
+    <h3>Testing surface</h3>
+    <ul>
+        <li>Unit: rule matching — bill on day N matches rule with offsetDays N.</li>
+        <li>Unit: idempotency — running processor twice on the same day fires each rule at most once.</li>
+        <li>Unit: paused bill, paid bill, missing-due-date bill, no-schedule customer all skip cleanly.</li>
+        <li>Integration: full processor run with mocked TTC-2 sender; verifies events are written.</li>
+        <li>Integration: failed send creates FAILED event; next day's run re-attempts.</li>
+        <li>E2E: configure schedule, assign to customer, fast-forward time, verify reminder lands.</li>
+    </ul>
+</section>
+</main></div></body></html>

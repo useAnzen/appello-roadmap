@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TTC-1 · Labor Bill Generator</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Inter', -apple-system, sans-serif; background: #f1f5f9; color: #0f172a; line-height: 1.6; }
+.layout { display: grid; grid-template-columns: 260px 1fr; gap: 24px; max-width: 1320px; margin: 0 auto; padding: 32px 24px 80px; }
+
+aside.nav { position: sticky; top: 24px; align-self: start; background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 18px 18px; max-height: calc(100vh - 48px); overflow-y: auto; }
+aside.nav h4 { font-size: 11px; font-weight: 700; letter-spacing: 1px; color: #64748b; text-transform: uppercase; margin: 14px 0 8px; }
+aside.nav h4:first-child { margin-top: 0; }
+aside.nav a { display: flex; align-items: center; justify-content: space-between; gap: 6px; padding: 6px 8px; font-size: 13px; color: #334155; text-decoration: none; border-radius: 6px; margin-bottom: 2px; }
+aside.nav a:hover { background: #f1f5f9; color: #0f172a; }
+aside.nav a.current { background: #eff6ff; color: #1e40af; font-weight: 700; }
+aside.nav .pill { font-size: 9px; font-weight: 700; padding: 2px 6px; border-radius: 4px; }
+.pill-shipped { background: #dcfce7; color: #166534; }
+.pill-prog { background: #fef3c7; color: #92400e; }
+.pill-new { background: #ede9fe; color: #6b21a8; }
+.pill-future { background: #f1f5f9; color: #64748b; }
+.nav-index { display: block; padding: 8px 10px; background: #1e293b; color: #fff !important; border-radius: 6px; font-size: 12px; font-weight: 700; text-align: center; margin-bottom: 14px; }
+.nav-index:hover { background: #334155 !important; }
+
+main { min-width: 0; }
+
+.hero { background: linear-gradient(135deg, #4338ca, #7c3aed); color: #fff; border-radius: 16px; padding: 32px 36px; margin-bottom: 24px; }
+.hero .badges { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+.hero .badge { font-size: 10px; font-weight: 700; padding: 4px 10px; border-radius: 5px; background: rgba(255,255,255,0.18); letter-spacing: 0.5px; }
+.hero h1 { font-size: 30px; font-weight: 800; letter-spacing: -0.01em; margin-bottom: 10px; }
+.hero .pitch { font-size: 16px; line-height: 1.65; color: #e0e7ff; max-width: 720px; }
+.hero .meta { display: flex; gap: 22px; margin-top: 18px; font-size: 13px; color: #c7d2fe; }
+.hero .meta strong { color: #fff; }
+
+section.card { background: #fff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 24px 28px; margin-bottom: 18px; }
+section.card h2 { font-size: 20px; font-weight: 800; color: #0f172a; margin-bottom: 12px; padding-bottom: 10px; border-bottom: 2px solid #f1f5f9; }
+section.card h3 { font-size: 15px; font-weight: 700; color: #0f172a; margin: 18px 0 8px; }
+section.card p { font-size: 14px; color: #334155; }
+section.card ul, section.card ol { padding-left: 20px; margin: 8px 0; }
+section.card li { font-size: 14px; color: #334155; margin-bottom: 4px; }
+
+.quote { background: #fef3c7; border-left: 3px solid #f59e0b; padding: 12px 16px; border-radius: 0 8px 8px 0; margin: 14px 0; font-style: italic; font-size: 14px; color: #78350f; }
+.quote .who { font-style: normal; font-weight: 700; display: block; margin-top: 6px; font-size: 12px; }
+
+.story { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; margin: 12px 0; }
+.story .item { padding: 14px 16px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; }
+.story .role { font-size: 11px; font-weight: 700; color: #4338ca; text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 6px; }
+.story .text { font-size: 14px; color: #0f172a; line-height: 1.55; }
+.story .text strong { color: #4338ca; }
+
+.compare { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 14px 0; }
+.compare .col { border-radius: 12px; padding: 18px 20px; }
+.compare .today { background: #fee2e2; border: 1px solid #fecaca; }
+.compare .tmrw { background: #dcfce7; border: 1px solid #bbf7d0; }
+.compare h4 { font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px; }
+.compare .today h4 { color: #991b1b; }
+.compare .tmrw h4 { color: #166534; }
+.compare ol { padding-left: 20px; }
+.compare li { font-size: 13px; line-height: 1.55; margin-bottom: 6px; color: #1f2937; }
+.compare .stat { display: inline-block; margin-top: 10px; padding: 6px 12px; background: rgba(255,255,255,0.7); border-radius: 6px; font-size: 13px; font-weight: 700; }
+.compare .today .stat { color: #991b1b; }
+.compare .tmrw .stat { color: #166534; }
+
+.flow-step { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 0; margin: 14px 0; overflow: hidden; }
+.flow-step .step-head { background: #f1f5f9; padding: 12px 18px; display: flex; align-items: center; gap: 14px; border-bottom: 1px solid #e2e8f0; }
+.flow-step .step-num { background: #4338ca; color: #fff; width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 13px; }
+.flow-step .step-title { font-size: 14px; font-weight: 700; color: #0f172a; }
+.flow-step .step-body { padding: 18px 22px; }
+.flow-step .step-body p { font-size: 14px; color: #334155; margin-bottom: 10px; }
+
+.mockup { background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 8px; overflow: hidden; margin: 12px 0; }
+.mockup .top-bar { background: #fff; border-bottom: 1px solid #e2e8f0; padding: 10px 16px; display: flex; align-items: center; gap: 8px; font-size: 12px; color: #64748b; }
+.mockup .dots { display: flex; gap: 4px; margin-right: 8px; }
+.mockup .dot { width: 9px; height: 9px; border-radius: 50%; }
+.mockup .d1 { background: #f87171; }
+.mockup .d2 { background: #fbbf24; }
+.mockup .d3 { background: #34d399; }
+.mockup .url { background: #f1f5f9; padding: 3px 10px; border-radius: 4px; font-size: 11px; font-family: monospace; color: #475569; }
+.mockup .body { padding: 18px 20px; min-height: 180px; }
+
+.app-tabs { display: flex; gap: 0; border-bottom: 1px solid #e2e8f0; margin-bottom: 16px; }
+.app-tabs .tab { font-size: 13px; padding: 10px 16px; color: #64748b; cursor: default; border-bottom: 2px solid transparent; }
+.app-tabs .tab.active { color: #1e40af; border-bottom-color: #3b82f6; font-weight: 700; }
+.app-heading { font-size: 22px; font-weight: 800; margin-bottom: 14px; }
+.toolbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; gap: 10px; flex-wrap: wrap; }
+.invoiced-pill { display: inline-flex; align-items: center; background: #fff; border: 1px solid #cbd5e1; border-radius: 6px; overflow: hidden; font-size: 13px; }
+.invoiced-pill .a { padding: 6px 12px; color: #475569; }
+.invoiced-pill .b { padding: 6px 12px; background: #dbeafe; color: #1e40af; font-weight: 700; border-left: 1px solid #cbd5e1; }
+.btn { display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; border-radius: 6px; font-size: 13px; font-weight: 600; border: none; cursor: default; }
+.btn-primary { background: #2563eb; color: #fff; }
+.btn-primary-purple { background: #7c3aed; color: #fff; }
+.btn-secondary { background: #fff; color: #334155; border: 1px solid #cbd5e1; }
+.bills-table { width: 100%; border-collapse: collapse; font-size: 12px; background: #fff; border: 1px solid #e2e8f0; border-radius: 6px; overflow: hidden; }
+.bills-table th { text-align: left; padding: 8px 12px; background: #f8fafc; border-bottom: 1px solid #e2e8f0; font-weight: 700; color: #475569; font-size: 11px; text-transform: uppercase; letter-spacing: 0.4px; }
+.bills-table td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; color: #334155; }
+.bills-table tr:last-child td { border-bottom: none; }
+.status-pill { font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 4px; }
+.status-draft { background: #f1f5f9; color: #64748b; }
+.status-sent { background: #dbeafe; color: #1e40af; }
+.status-paid { background: #dcfce7; color: #166534; }
+
+.modal { background: #fff; border-radius: 8px; padding: 0; box-shadow: 0 12px 40px rgba(0,0,0,0.18); }
+.modal .m-head { padding: 14px 20px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; }
+.modal .m-head h5 { font-size: 16px; font-weight: 700; color: #0f172a; }
+.modal .m-head .x { font-size: 16px; color: #94a3b8; cursor: default; }
+.modal .m-body { padding: 20px; }
+.modal .m-foot { padding: 12px 20px; background: #f8fafc; border-top: 1px solid #e2e8f0; display: flex; justify-content: flex-end; gap: 8px; }
+.field { margin-bottom: 14px; }
+.field label { display: block; font-size: 12px; font-weight: 700; color: #475569; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.4px; }
+.field .input { padding: 7px 10px; border: 1px solid #cbd5e1; border-radius: 5px; background: #fff; font-size: 13px; color: #0f172a; }
+.field .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.radio-group { display: flex; gap: 6px; }
+.radio-opt { padding: 7px 12px; border: 1px solid #cbd5e1; border-radius: 5px; font-size: 12px; color: #475569; background: #fff; cursor: default; flex: 1; text-align: center; }
+.radio-opt.selected { border-color: #4338ca; background: #eef2ff; color: #4338ca; font-weight: 700; }
+.preview-table { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 6px; border: 1px solid #e2e8f0; border-radius: 5px; overflow: hidden; }
+.preview-table th { text-align: left; background: #f8fafc; padding: 7px 10px; font-weight: 700; color: #475569; font-size: 11px; }
+.preview-table td { padding: 7px 10px; border-top: 1px solid #f1f5f9; color: #1f2937; }
+.preview-table .total td { background: #f1f5f9; font-weight: 700; color: #0f172a; border-top: 2px solid #cbd5e1; }
+.warn { background: #fef3c7; border-left: 3px solid #f59e0b; padding: 8px 12px; border-radius: 0 6px 6px 0; font-size: 12px; color: #78350f; margin: 10px 0; }
+
+.scope { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.scope .col { border-radius: 10px; padding: 16px 18px; }
+.scope .in { background: #f0fdf4; border: 1px solid #bbf7d0; }
+.scope .out { background: #f8fafc; border: 1px solid #e2e8f0; }
+.scope h4 { font-size: 13px; font-weight: 800; margin-bottom: 8px; }
+.scope .in h4 { color: #166534; }
+.scope .out h4 { color: #475569; }
+.scope li { font-size: 13px; margin-bottom: 4px; }
+
+.decisions { background: #fef3c7; border: 1px solid #fcd34d; border-radius: 10px; padding: 16px 20px; margin: 14px 0; }
+.decisions h3 { color: #78350f; font-size: 14px; font-weight: 800; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; }
+.decisions .item { padding: 10px 0; border-top: 1px solid #fde68a; }
+.decisions .item:first-of-type { border-top: none; }
+.decisions .q { font-weight: 700; color: #78350f; font-size: 14px; margin-bottom: 4px; }
+.decisions .a { font-size: 13px; color: #92400e; }
+
+.eng { background: #0f172a; color: #e2e8f0; border-radius: 14px; padding: 28px 32px; margin-top: 28px; }
+.eng h2 { color: #fff; font-size: 18px; font-weight: 800; padding-bottom: 12px; border-bottom: 1px solid #334155; margin-bottom: 16px; }
+.eng h3 { color: #c7d2fe; font-size: 14px; font-weight: 700; margin: 16px 0 8px; text-transform: uppercase; letter-spacing: 0.5px; }
+.eng p, .eng li { color: #cbd5e1; font-size: 13px; line-height: 1.6; }
+.eng pre { background: #1e293b; border-radius: 8px; padding: 14px 16px; overflow-x: auto; font-size: 12px; color: #e0e7ff; margin: 10px 0; font-family: 'SF Mono', monospace; }
+.eng table { width: 100%; border-collapse: collapse; font-size: 12px; margin: 8px 0; }
+.eng table th { text-align: left; padding: 7px 10px; background: #1e293b; color: #c7d2fe; font-weight: 700; }
+.eng table td { padding: 7px 10px; border-top: 1px solid #1e293b; color: #cbd5e1; }
+.eng code { font-family: monospace; background: #1e293b; padding: 1px 5px; border-radius: 3px; color: #fbbf24; font-size: 12px; }
+
+.related { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 8px; margin: 12px 0; }
+.related a { padding: 10px 12px; border: 1px solid #e2e8f0; border-radius: 8px; text-decoration: none; color: inherit; display: block; }
+.related a:hover { border-color: #3b82f6; background: #f8fafc; }
+.related .rid { font-family: monospace; font-size: 11px; font-weight: 700; color: #3b82f6; }
+.related .rt { font-size: 13px; font-weight: 600; color: #0f172a; margin-top: 2px; }
+</style>
+</head>
+<body>
+
+<div class="layout">
+
+<aside class="nav">
+    <a class="nav-index" href="uis-TTC-index.html">← All Time-to-Cash UIS</a>
+
+    <h4>You are here</h4>
+    <a class="current" href="#">TTC-1 · Labor Bill Generator <span class="pill pill-new">NEW</span></a>
+
+    <h4>Foundations (live today)</h4>
+    <a href="uis-LEM-1-labor-billable-rates.html">LEM-1 · Labor rates <span class="pill pill-shipped">PROD</span></a>
+    <a href="uis-LEM-2-equipment-billable-rates.html">LEM-2 · Equip rates <span class="pill pill-shipped">PROD</span></a>
+    <a href="uis-12-leave-timesheet.html">UIS-12 · Timesheets <span class="pill pill-shipped">PROD</span></a>
+    <a href="uis-QW-quick-wins.html">QW · Quick Wins <span class="pill pill-shipped">SHIPPING</span></a>
+
+    <h4>In flight (1.33)</h4>
+    <a href="uis-LEM-3a-material-billable-rates-backend.html">LEM-3a · Material rates <span class="pill pill-prog">WIP</span></a>
+    <a href="uis-IE-5-estimate-to-invoice.html">IE-5 · Est → Invoice <span class="pill pill-prog">WIP</span></a>
+
+    <h4>Time-to-Cash track</h4>
+    <a href="uis-TTC-2-send-invoice-email.html">TTC-2 · Send Invoice Email <span class="pill pill-new">NEW</span></a>
+    <a href="uis-TTC-3-invoice-cover-letter.html">TTC-3 · Cover Letter Templates <span class="pill pill-new">NEW</span></a>
+    <a href="uis-TTC-4-ar-reminder-engine.html">TTC-4 · A/R Reminders <span class="pill pill-new">NEW</span></a>
+    <a href="uis-TTC-5-lem-combined-report.html">TTC-5 · LEM Combined Report <span class="pill pill-new">NEW</span></a>
+
+    <h4>Adjacent</h4>
+    <a href="uis-15A-equipment-job-pl.html">UIS-15A · Equip P&L</a>
+    <a href="uis-15B-equipment-invoicing.html">UIS-15B · Equip Invoicing</a>
+    <a href="uis-MAT-2a-lem-consumption-desktop.html">MAT-2a · Materials</a>
+</aside>
+
+<main>
+
+<div class="hero">
+    <div class="badges">
+        <span class="badge">Q21030 · TTC-1</span>
+        <span class="badge">Time-to-Cash · NEW</span>
+        <span class="badge">Status: Design</span>
+        <span class="badge">Owner: Corey</span>
+    </div>
+    <h1>Labor Bill Generator</h1>
+    <p class="pitch">One-click invoicing from approved timesheets. Pick a date range, pick how to group the lines, hit Generate. The system pulls hours from timesheets, prices from billable rates, and produces an editable Simple invoice — same flyout, same workflow, just no copy-paste.</p>
+    <div class="meta">
+        <span><strong>Customer driver:</strong> Mak Surveying (and 4+ others)</span>
+        <span><strong>Time saved:</strong> ~5 hrs/month per admin</span>
+        <span><strong>Effort:</strong> ~2 weeks · 1 engineer</span>
+    </div>
+</div>
+
+<!-- ============ WHY ============ -->
+<section class="card">
+    <h2>1. Why this matters</h2>
+    <p>Customers who bill labor by the hour (surveyors, mechanical service techs, T&M trades) currently re-enter timesheet data into invoices by hand, every billing cycle, every job. The data is already in the system — Appello just doesn't connect approved hours to the invoice form.</p>
+
+    <div class="quote">
+        "I have to open every timesheet, write down the hours, then open every invoice and type them in. For 30 jobs at month-end, it's a full afternoon. We just need a button that says 'bill April.'"
+        <span class="who">— Mary, Mak Surveying (May 2026 demo)</span>
+    </div>
+
+    <p>The same pain came up in calls with RR Mechanical, Owens Insulation, and Vanos. The fix is small in scope but high in leverage: it removes the most frequently-clicked manual workflow in the app.</p>
+</section>
+
+<!-- ============ WHO ============ -->
+<section class="card">
+    <h2>2. Who this is for</h2>
+    <ul>
+        <li><strong>Billing admins</strong> at trade-services companies — they're the ones doing the manual data entry today.</li>
+        <li><strong>Office managers / owners</strong> — they care that invoices go out on time, because slow invoices = slow cash.</li>
+        <li><strong>Project managers</strong> — they review the invoice before it's sent to make sure the right hours are on the right job.</li>
+        <li><strong>(Indirectly) field crew</strong> — every accurate timesheet entry now turns into a billable line, so logging time matters more.</li>
+    </ul>
+</section>
+
+<!-- ============ USER STORIES ============ -->
+<section class="card">
+    <h2>3. User stories</h2>
+    <p>Five stories, in standard "As a / I want / So that" form. These are the unit of work for QA.</p>
+    <div class="story">
+        <div class="item">
+            <div class="role">As a billing admin</div>
+            <div class="text">I want to <strong>generate one invoice for all approved labor on a job</strong> for a date range I pick, so that I don't have to copy hours into a blank Simple invoice line by line.</div>
+        </div>
+        <div class="item">
+            <div class="role">As a billing admin</div>
+            <div class="text">I want to <strong>choose how lines are grouped</strong> (by user, by trade level, by role, or one-line summary), so that the invoice matches what my customer expects to see.</div>
+        </div>
+        <div class="item">
+            <div class="role">As a billing admin</div>
+            <div class="text">I want to <strong>preview the lines and totals before I commit</strong>, so that I can cancel and adjust the period if something looks wrong.</div>
+        </div>
+        <div class="item">
+            <div class="role">As a project manager</div>
+            <div class="text">I want generated invoices to be <strong>fully editable like any Simple invoice</strong>, so that I can tweak descriptions, add other lines, or override a rate without fighting the system.</div>
+        </div>
+        <div class="item">
+            <div class="role">As a billing admin</div>
+            <div class="text">I want a <strong>warning when timesheet entries are missing a billable rate</strong>, so that I never send an invoice with a $0 line by accident.</div>
+        </div>
+    </div>
+</section>
+
+<!-- ============ TODAY VS TOMORROW ============ -->
+<section class="card">
+    <h2>4. A day in the life: today vs. tomorrow</h2>
+    <p>Mary, a billing admin at a 12-person survey shop, is invoicing 30 jobs on the last day of April.</p>
+    <div class="compare">
+        <div class="col today">
+            <h4>Today (no TTC-1)</h4>
+            <ol>
+                <li>Open Job → <em>Invoicing</em> tab → click <em>+ Invoice</em></li>
+                <li>Pick "Simple" template, type customer + invoice date</li>
+                <li>Open the timesheet log in another tab, sum April hours per crew member by hand</li>
+                <li>Look up each user's billable rate from a spreadsheet (or guess)</li>
+                <li>Type each line: description, hours, rate, tax</li>
+                <li>Save, download PDF, attach to email</li>
+                <li>Repeat for the other 29 jobs</li>
+            </ol>
+            <span class="stat">~10 minutes per job · ~5 hours/month total</span>
+        </div>
+        <div class="col tmrw">
+            <h4>Tomorrow (with TTC-1)</h4>
+            <ol>
+                <li>Open Job → <em>Invoicing</em> tab → click <em>Generate Labor Bill</em></li>
+                <li>Modal opens with April pre-filled, "One per User" selected</li>
+                <li>Preview shows the 3 line items with hours and rates already filled</li>
+                <li>Click <em>Generate</em>; the bill flyout opens, fully editable</li>
+                <li>Adjust if needed, hit Save</li>
+                <li>Repeat for the other 29 jobs</li>
+            </ol>
+            <span class="stat">~30 seconds per job · ~15 min/month total</span>
+        </div>
+    </div>
+</section>
+
+<!-- ============ THE FLOW ============ -->
+<section class="card">
+    <h2>5. The flow, screen by screen</h2>
+    <p>These mockups match the actual <em>Invoicing</em> tab in Appello today (Job Detail → Invoicing). The only new pieces are the purple <em>Generate Labor Bill</em> button and the modal that opens when you click it.</p>
+
+    <!-- STEP 1 -->
+    <div class="flow-step">
+        <div class="step-head">
+            <div class="step-num">1</div>
+            <div class="step-title">Mary opens the Invoicing tab on a Job. New button is right next to "+ Invoice."</div>
+        </div>
+        <div class="step-body">
+            <div class="mockup">
+                <div class="top-bar">
+                    <div class="dots"><span class="dot d1"></span><span class="dot d2"></span><span class="dot d3"></span></div>
+                    <span class="url">app.useappello.com/jobs/J-2104/invoicing</span>
+                </div>
+                <div class="body">
+                    <div class="app-tabs">
+                        <span class="tab">Overview</span>
+                        <span class="tab">Schedule</span>
+                        <span class="tab">Timesheets</span>
+                        <span class="tab">Documents</span>
+                        <span class="tab active">Invoicing</span>
+                    </div>
+                    <div class="app-heading">Invoicing</div>
+                    <div class="toolbar">
+                        <span class="invoiced-pill"><span class="a">Net Invoice Issued:</span><span class="b">$ 12,450.00</span></span>
+                        <div style="display:flex; gap:6px;">
+                            <button class="btn btn-primary-purple">⚡ Generate Labor Bill</button>
+                            <button class="btn btn-primary">+ Invoice</button>
+                        </div>
+                    </div>
+                    <table class="bills-table">
+                        <thead><tr><th>#</th><th>Date</th><th>Customer</th><th>Total</th><th>Status</th></tr></thead>
+                        <tbody>
+                            <tr><td>INV-1042</td><td>Mar 31</td><td>Cedar Ridge Dev</td><td>$ 4,200.00</td><td><span class="status-pill status-paid">Paid</span></td></tr>
+                            <tr><td>INV-1041</td><td>Feb 28</td><td>Cedar Ridge Dev</td><td>$ 3,850.00</td><td><span class="status-pill status-sent">Sent</span></td></tr>
+                            <tr><td>INV-1040</td><td>Jan 31</td><td>Cedar Ridge Dev</td><td>$ 4,400.00</td><td><span class="status-pill status-paid">Paid</span></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- STEP 2 -->
+    <div class="flow-step">
+        <div class="step-head">
+            <div class="step-num">2</div>
+            <div class="step-title">Modal opens. Period defaults to last month, grouping defaults to "One per User," preview is live.</div>
+        </div>
+        <div class="step-body">
+            <div class="modal" style="max-width: 640px;">
+                <div class="m-head"><h5>Generate Labor Bill — Cedar Ridge Dev (J-2104)</h5><span class="x">×</span></div>
+                <div class="m-body">
+                    <div class="field">
+                        <div class="row">
+                            <div><label>Period start</label><div class="input">Apr 1, 2026</div></div>
+                            <div><label>Period end</label><div class="input">Apr 30, 2026</div></div>
+                        </div>
+                    </div>
+                    <div class="field">
+                        <label>Group lines by</label>
+                        <div class="radio-group">
+                            <span class="radio-opt selected">Per User</span>
+                            <span class="radio-opt">Per Trade Level</span>
+                            <span class="radio-opt">Per Role</span>
+                            <span class="radio-opt">One total</span>
+                        </div>
+                    </div>
+                    <div class="field">
+                        <label>Preview · 3 lines · 52.5 hrs · $5,237.50</label>
+                        <table class="preview-table">
+                            <thead><tr><th>Description</th><th style="text-align:right">Hrs</th><th style="text-align:right">Rate</th><th style="text-align:right">Total</th></tr></thead>
+                            <tbody>
+                                <tr><td>Field Survey — J. Patel</td><td style="text-align:right">22.0</td><td style="text-align:right">$ 95.00</td><td style="text-align:right">$ 2,090.00</td></tr>
+                                <tr><td>Field Survey — M. Chen</td><td style="text-align:right">18.5</td><td style="text-align:right">$ 95.00</td><td style="text-align:right">$ 1,757.50</td></tr>
+                                <tr><td>Senior Survey — D. Singh</td><td style="text-align:right">12.0</td><td style="text-align:right">$ 140.00</td><td style="text-align:right">$ 1,440.00</td></tr>
+                                <tr class="total"><td colspan="3">Subtotal (pre-tax)</td><td style="text-align:right">$ 5,287.50</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="m-foot">
+                    <button class="btn btn-secondary">Cancel</button>
+                    <button class="btn btn-primary-purple">Generate Bill →</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- STEP 3 -->
+    <div class="flow-step">
+        <div class="step-head">
+            <div class="step-num">3</div>
+            <div class="step-title">If a user is missing a billable rate, the preview warns Mary up-front.</div>
+        </div>
+        <div class="step-body">
+            <div class="warn"><strong>Heads up:</strong> 1 user has no billable rate set on their trade level — D. Singh (Senior Survey). The system used cost × markup as a fallback. <a href="#" style="color:#92400e; font-weight:700;">Set the rate now →</a></div>
+            <p>Mary can either fix the rate now (deep link to the user's trade level page) or proceed with the fallback and edit the line manually after generation.</p>
+        </div>
+    </div>
+
+    <!-- STEP 4 -->
+    <div class="flow-step">
+        <div class="step-head">
+            <div class="step-num">4</div>
+            <div class="step-title">After "Generate," the standard Bill flyout opens — same flyout as a manual Simple invoice, fully editable.</div>
+        </div>
+        <div class="step-body">
+            <p>From here, Mary can override descriptions, add a non-labor line, change tax, mark the bill as Sent, or download the PDF. There is nothing locked — a generated bill is identical to a manually-entered Simple bill, except each line carries an invisible link back to the timesheet rows it came from (visible as a small "from timesheet" tooltip in the line item table).</p>
+        </div>
+    </div>
+</section>
+
+<!-- ============ SCOPE ============ -->
+<section class="card">
+    <h2>6. What's in / out of scope</h2>
+    <div class="scope">
+        <div class="col in">
+            <h4>✓ In scope (v1)</h4>
+            <ul>
+                <li>"Generate Labor Bill" button on the Job's Invoicing tab</li>
+                <li>Modal with period range, grouping radio, live preview, generate button</li>
+                <li>4 grouping modes: per user · per trade level · per role · one total</li>
+                <li>Pulls only <em>approved</em> labor TimeSheetDetailRecords on the selected job in the date range</li>
+                <li>Reads sell rate from <code>TradeLevelRate.billableValue</code> with fallback (see Decisions)</li>
+                <li>Creates a Simple-template <code>JobBill</code> with line items linked to source timesheet entries</li>
+                <li>Re-generation prevention: timesheet entries already linked to a non-deleted bill are skipped</li>
+                <li>Empty result handling: clear "no approved hours in this period" message</li>
+                <li>"From timesheet" tooltip on generated lines in the bill flyout</li>
+            </ul>
+        </div>
+        <div class="col out">
+            <h4>✗ Out of scope (later)</h4>
+            <ul>
+                <li>Equipment lines on the same bill (TTC-4 / UIS-15B)</li>
+                <li>Material lines on the same bill (LEM-3 + future TTC)</li>
+                <li>Sending the bill by email (TTC-2)</li>
+                <li>Scheduled / recurring auto-generation (TTC-3 will reuse TTC-1 logic)</li>
+                <li>Customer-facing portal (TTC-5)</li>
+                <li>Cross-job billing (one invoice covering 5 jobs at once)</li>
+                <li>Editing rates inside the generation modal — go fix LEM-1 instead</li>
+            </ul>
+        </div>
+    </div>
+</section>
+
+<!-- ============ DECISIONS ============ -->
+<section class="card">
+    <h2>7. Decisions needed</h2>
+    <div class="decisions">
+        <div class="item">
+            <div class="q">D1 · What happens when a TradeLevelRate has no billable rate?</div>
+            <div class="a">Three options: (a) reject and force the admin to fix it; (b) silently use cost as the sell price; (c) use cost × <code>Job.defaultLaborMarkupPercent</code> with a warning. Recommend (c) — it's forgiving but visible.</div>
+        </div>
+        <div class="item">
+            <div class="q">D2 · Default period: last calendar month, last week, or pay period?</div>
+            <div class="a">Recommend last calendar month (most common billing cadence). User can change.</div>
+        </div>
+        <div class="item">
+            <div class="q">D3 · Should "Generate Labor Bill" be permission-gated separately from "+ Invoice"?</div>
+            <div class="a">Recommend reusing the existing <code>jobBill.create</code> permission — same outcome, just less typing.</div>
+        </div>
+        <div class="item">
+            <div class="q">D4 · Release line: append to 1.33 or open a new Time-to-Cash phase?</div>
+            <div class="a">Recommend a new "Time-to-Cash" phase under 1.33 since it's a coherent narrative across TTC-1..5; opens a clean PR boundary too.</div>
+        </div>
+    </div>
+</section>
+
+<!-- ============ ACCEPTANCE ============ -->
+<section class="card">
+    <h2>8. Acceptance criteria (the QA list)</h2>
+    <ol>
+        <li>"Generate Labor Bill" button appears on Job → Invoicing tab for users with the existing create permission.</li>
+        <li>Clicking it opens a modal with period start/end (defaulting to last calendar month), grouping radio, and a live preview.</li>
+        <li>Changing period or grouping refreshes the preview within 1 second on a 500-line timesheet job.</li>
+        <li>Preview only includes approved (not draft, not rejected) timesheet entries on this Job in the date range.</li>
+        <li>Each grouping mode produces the expected number of lines (one per user / per trade level / per role / total).</li>
+        <li>Lines with no billable rate display a yellow warning banner and use the fallback rate per Decision D1.</li>
+        <li>"Generate" closes the modal and opens the bill in the standard Bill flyout.</li>
+        <li>The generated bill behaves identically to a manual Simple bill — edit, save, delete, send all work.</li>
+        <li>Each generated line has a "from timesheet" tooltip listing the source timesheet entry IDs.</li>
+        <li>Re-running generation for the same period skips timesheet entries already linked to an existing non-deleted bill.</li>
+        <li>If no approved hours exist in the range, the modal shows an empty state instead of generating an empty bill.</li>
+        <li>Deleting a generated bill releases the timesheet entries so they can be re-billed.</li>
+    </ol>
+</section>
+
+<!-- ============ ENGINEERING NOTES ============ -->
+<section class="eng">
+    <h2>Engineering notes (for the implementer, not the reviewer)</h2>
+
+    <p>Everything below is reference material for the build. The plan doc has the step-by-step.</p>
+
+    <h3>Data model change</h3>
+    <p>One new join model. No changes to <code>JobBill</code> or <code>JobBillLineItem</code> — the link is one-way from the join, so generated bills look identical to manual bills.</p>
+<pre>model JobBillLineItemTimeSheetSource {
+  id                       String                 @id @db.VarChar(21)
+  isDeleted                Boolean                @default(false)
+  isArchived               Boolean                @default(false)
+  createdAt                DateTime               @default(now())
+  updatedAt                DateTime               @updatedAt
+
+  jobBillLineItemId        String                 @db.VarChar(21)
+  JobBillLineItem          JobBillLineItem        @relation(fields: [jobBillLineItemId], references: [id], onDelete: Cascade)
+
+  timeSheetDetailRecordId  String                 @db.VarChar(21)
+  TimeSheetDetailRecord    TimeSheetDetailRecord  @relation(fields: [timeSheetDetailRecordId], references: [id])
+
+  secondsContributed       Int
+  rateApplied              Decimal                @db.Decimal(10, 2)
+  rateLabelId              String?                @db.VarChar(21)
+  EmployeeAgreementRateLabel EmployeeAgreementRateLabel? @relation(fields: [rateLabelId], references: [id])
+
+  @@unique([jobBillLineItemId, timeSheetDetailRecordId])
+  @@index([timeSheetDetailRecordId])
+}</pre>
+
+    <h3>API surface</h3>
+    <table>
+        <thead><tr><th>Op</th><th>Type</th><th>Purpose</th></tr></thead>
+        <tbody>
+            <tr><td><code>laborBillPreview</code></td><td>Query</td><td>Returns lines + totals for the modal preview without writing anything.</td></tr>
+            <tr><td><code>createLaborBillFromJob</code></td><td>Mutation</td><td>Same inputs as preview; creates the JobBill and source links transactionally.</td></tr>
+            <tr><td><code>JobBillLineItem.SourceTimeSheetEntries</code></td><td>Field</td><td>New nested resolver so the frontend can render the "from timesheet" tooltip.</td></tr>
+        </tbody>
+    </table>
+
+    <h3>Model methods (in <code>apps/api/src/models/JobBill.ts</code>)</h3>
+    <ul>
+        <li><code>previewLaborBillFromJob(input, userId)</code> — read-only; runs the same query/aggregation as create but returns rows.</li>
+        <li><code>createLaborBillFromJob(input, userId)</code> — wraps the same logic in a transaction, calls <code>BaseModel.createItem</code> for the JobBill, then bulk-creates LineItems and TimeSheetSource rows.</li>
+        <li><code>resolveLaborSellRate(tradeLevelRateId, jobId, tx)</code> — central rate-lookup helper with the Decision D1 fallback.</li>
+    </ul>
+
+    <h3>Frontend touch points</h3>
+    <ul>
+        <li><code>BillingTab.tsx</code> — add the "Generate Labor Bill" button to the same toolbar as "+ Invoice."</li>
+        <li><code>LaborBillModal.tsx</code> (new) — the modal component, uses <code>useModal</code> + <code>useLazyQuery(laborBillPreview)</code>.</li>
+        <li><code>BillDetails.tsx</code> — add a "from timesheet" badge on line items that have <code>SourceTimeSheetEntries.length &gt; 0</code>.</li>
+    </ul>
+
+    <h3>Permissions / safety</h3>
+    <ul>
+        <li>Reuses <code>jobBill.create</code> — no new permission flag.</li>
+        <li>The model method validates the user can read the timesheet entries via the standard <code>TimeSheetDetailRecord.getList</code> path (no raw Prisma in the resolver).</li>
+        <li>Preview is read-only and idempotent; safe to re-call on every modal change.</li>
+    </ul>
+
+    <h3>Testing surface</h3>
+    <ul>
+        <li>Unit: <code>resolveLaborSellRate</code> for all three fallback branches.</li>
+        <li>Unit: each grouping mode produces the expected line count for a fixture timesheet.</li>
+        <li>Integration: re-generating skips already-linked entries; deleting a bill releases them.</li>
+        <li>E2E: full flow from button click to bill flyout open, on a seeded job with 3 users.</li>
+    </ul>
+</section>
+
+</main>
+</div>
+</body>
+</html>

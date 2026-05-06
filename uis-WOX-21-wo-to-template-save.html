@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WOX-21 · Save WO as Template Action</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Inter', -apple-system, sans-serif; background: #f1f5f9; color: #1e293b; line-height: 1.5; }
+
+.in-iframe .top-nav { display: none !important; }
+.top-nav { position: sticky; top: 0; z-index: 100; background: #0f172a; border-bottom: 1px solid #1e293b; padding: 0 24px; display: flex; align-items: center; gap: 0; }
+.top-nav a { display: inline-flex; align-items: center; padding: 12px 18px; font-size: 13px; font-weight: 600; color: #94a3b8; text-decoration: none; border-bottom: 2px solid transparent; transition: all 0.15s; white-space: nowrap; }
+.top-nav a:hover { color: #f8fafc; background: #1e293b; }
+.top-nav .nav-logo { font-size: 11px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: #475569; padding-right: 18px; margin-right: 4px; border-right: 1px solid #1e293b; }
+
+.wrap { max-width: 1080px; margin: 0 auto; padding: 36px 24px 80px; }
+
+.hero { background: linear-gradient(135deg, #4338ca, #7c3aed); color: #fff; border-radius: 14px; padding: 28px 32px; margin-bottom: 22px; }
+.hero .badges { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+.hero .badge { font-size: 10px; font-weight: 700; padding: 4px 10px; border-radius: 5px; background: rgba(255,255,255,0.18); letter-spacing: 0.5px; text-transform: uppercase; }
+.hero .badge.warn { background: rgba(245, 158, 11, 0.5); }
+.hero .badge.danger { background: rgba(239, 68, 68, 0.5); }
+.hero .badge.success { background: rgba(34, 197, 94, 0.5); }
+.hero h1 { font-size: 28px; font-weight: 800; letter-spacing: -0.01em; margin-bottom: 10px; }
+.hero .pitch { font-size: 15px; line-height: 1.6; color: #e0e7ff; max-width: 760px; }
+.hero .meta { display: flex; gap: 22px; margin-top: 14px; font-size: 12px; color: #c7d2fe; flex-wrap: wrap; }
+.hero .meta strong { color: #fff; }
+
+section.card { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 22px 26px; margin-bottom: 16px; }
+section.card h2 { font-size: 18px; font-weight: 800; color: #0f172a; margin-bottom: 12px; padding-bottom: 10px; border-bottom: 2px solid #f1f5f9; }
+section.card h3 { font-size: 14px; font-weight: 700; color: #0f172a; margin: 14px 0 6px; }
+section.card p { font-size: 14px; color: #334155; margin-bottom: 8px; }
+section.card ul, section.card ol { padding-left: 20px; margin: 6px 0 10px; }
+section.card li { font-size: 14px; color: #334155; margin-bottom: 4px; line-height: 1.55; }
+section.card code { background: #f1f5f9; padding: 1px 6px; border-radius: 4px; font-size: 12px; font-family: 'SF Mono', Menlo, monospace; color: #be185d; }
+
+.where { background: #f8fafc; border-left: 3px solid #3b82f6; padding: 12px 16px; border-radius: 0 8px 8px 0; margin: 8px 0 14px; font-size: 13px; color: #334155; line-height: 1.65; }
+.where strong { color: #0f172a; }
+.where code { background: #fff; padding: 1px 6px; border-radius: 3px; font-family: 'SF Mono', Menlo, monospace; font-size: 11px; color: #0f172a; border: 1px solid #e2e8f0; }
+
+.mockup-container { background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 10px; overflow: hidden; margin: 12px 0; }
+.mockup-bar { background: #fff; border-bottom: 1px solid #e2e8f0; padding: 9px 14px; display: flex; align-items: center; gap: 8px; font-size: 12px; color: #64748b; }
+.mockup-dots { display: flex; gap: 5px; margin-right: 6px; }
+.mockup-dot { width: 9px; height: 9px; border-radius: 50%; }
+.mockup-dot.r { background: #f87171; }
+.mockup-dot.y { background: #fbbf24; }
+.mockup-dot.g { background: #34d399; }
+.mockup-url { background: #f1f5f9; padding: 3px 9px; border-radius: 4px; font-size: 11px; font-family: 'SF Mono', Menlo, monospace; color: #475569; }
+.mockup-body { padding: 18px 20px; min-height: 200px; font-size: 13px; color: #334155; line-height: 1.55; }
+
+.mobile-frame { max-width: 375px; margin: 14px auto; border: 2px solid #cbd5e1; border-radius: 22px; overflow: hidden; background: #fff; }
+.mobile-frame .mockup-bar { padding: 10px 14px; border-bottom: 1px solid #e2e8f0; }
+.mobile-frame .mockup-body { padding: 14px 16px; min-height: 320px; }
+
+.btn { display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; border-radius: 6px; font-size: 13px; font-weight: 600; border: none; cursor: pointer; }
+.btn-primary { background: #3b82f6; color: #fff; }
+.btn-secondary { background: #fff; color: #334155; border: 1px solid #cbd5e1; }
+.btn-purple { background: #7c3aed; color: #fff; }
+.btn-success { background: #16a34a; color: #fff; }
+.btn-sm { padding: 5px 10px; font-size: 12px; }
+
+.field { margin-bottom: 12px; }
+.field label { display: block; font-size: 11px; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 4px; }
+.field .input, .field .select { background: #fff; border: 1px solid #cbd5e1; border-radius: 6px; padding: 8px 12px; font-size: 13px; color: #0f172a; }
+
+.t { width: 100%; border-collapse: collapse; font-size: 12px; background: #fff; border: 1px solid #e2e8f0; border-radius: 6px; overflow: hidden; }
+.t th { text-align: left; padding: 8px 12px; background: #f8fafc; border-bottom: 1px solid #e2e8f0; font-weight: 700; color: #475569; font-size: 11px; text-transform: uppercase; letter-spacing: 0.4px; }
+.t td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; color: #334155; }
+.t tr:last-child td { border-bottom: none; }
+
+.pill { font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 4px; display: inline-block; white-space: nowrap; }
+.pill-blue { background: #dbeafe; color: #1e40af; }
+.pill-green { background: #dcfce7; color: #166534; }
+.pill-amber { background: #fef3c7; color: #92400e; }
+.pill-red { background: #fee2e2; color: #991b1b; }
+.pill-purple { background: #ede9fe; color: #6b21a8; }
+.pill-gray { background: #f1f5f9; color: #475569; }
+.pill-pink { background: #fce7f3; color: #9d174d; }
+
+.decisions { display: flex; flex-direction: column; gap: 12px; margin-top: 8px; }
+.decisions .item { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px 16px; }
+.decisions .q { font-size: 14px; font-weight: 700; color: #0f172a; margin-bottom: 6px; display: flex; align-items: baseline; gap: 8px; }
+.decisions .q .id { font-family: 'SF Mono', Menlo, monospace; font-size: 11px; color: #4338ca; background: #ede9fe; padding: 2px 7px; border-radius: 4px; }
+.decisions .a { font-size: 13px; color: #334155; line-height: 1.6; }
+.decisions .a strong { color: #0f172a; }
+
+.roadmap-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; margin-top: 8px; }
+.roadmap-grid a { display: block; padding: 10px 14px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; text-decoration: none; color: inherit; transition: all 0.12s; }
+.roadmap-grid a:hover { border-color: #3b82f6; background: #fff; }
+.roadmap-grid .id { font-family: 'SF Mono', Menlo, monospace; font-size: 11px; font-weight: 700; color: #3b82f6; }
+.roadmap-grid .name { font-size: 13px; font-weight: 600; color: #0f172a; margin-top: 3px; }
+.roadmap-grid .relation { font-size: 11px; color: #64748b; margin-top: 2px; }
+
+.fathom-quote { background: #fef3c7; border-left: 3px solid #f59e0b; padding: 12px 16px; border-radius: 0 8px 8px 0; margin: 10px 0; font-size: 13px; color: #78350f; line-height: 1.55; font-style: italic; }
+.fathom-quote .who { font-style: normal; font-weight: 700; display: block; margin-top: 6px; font-size: 11px; }
+.fathom-quote .who a { color: #78350f; text-decoration: underline; }
+
+.trace { display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: #334155; }
+.trace .row { display: flex; gap: 10px; align-items: baseline; }
+.trace .row strong { color: #0f172a; min-width: 130px; flex-shrink: 0; }
+.trace .row a { color: #3b82f6; text-decoration: none; }
+.trace .row a:hover { text-decoration: underline; }
+
+.footer { text-align: center; padding: 20px 0; font-size: 12px; color: #94a3b8; margin-top: 24px; }
+.footer a { color: #3b82f6; text-decoration: none; }
+</style>
+</head>
+<body>
+<script>if(self!==top)document.documentElement.classList.add("in-iframe")</script>
+
+<nav class="top-nav">
+    <span class="nav-logo">Appello SDLC</span>
+    <a href="index.html">Roadmap</a>
+    <a href="release-1.33-timeline.html">Release 1.33</a>
+    <a href="uis-WOX-index.html">WO Reconciliation Index</a>
+    <a href="ui-interface-library.html">UI Library</a>
+</nav>
+
+<div class="wrap">
+
+    <div class="hero">
+        <div class="badges">
+            <span class="badge">WOX-21</span>
+            <span class="badge success">Post-V1 · 1.34</span>
+            <span class="badge">Pillar P1 — WO Foundation</span>
+            <span class="badge">Path A · Concept Sketch</span>
+        </div>
+        <h1>Save WO as Template Action</h1>
+        <p class="pitch">User finishes a WO, realizes they'll do this same kind of work again. New action menu item "Save as template…" on WO detail — strips out customer-specific data, keeps line items, forms, checklist, trade levels. Inverts the WOX-02 flow (templates were created from scratch in V1).</p>
+        <div class="meta">
+            <span><strong>Status:</strong> Concept · Deferred</span>
+            <span><strong>Effort:</strong> ~2d · V2</span>
+            <span><strong>Extends:</strong> WOX-02 · WO-3</span>
+            <span><strong>Master ref:</strong> #34</span>
+        </div>
+    </div>
+
+    <section class="card">
+        <h2>1. Where this lives in the app</h2>
+        <div class="where">
+            <strong>Page / route:</strong> WO desktop detail header (path TBD — V1 builds it). Pattern follows <code>apps/frontend/src/components/DetailsPage/JobDetailsPage/index.tsx</code><br>
+            <strong>Components touched:</strong> WO detail action menu (path TBD), WO templates settings page (from WOX-02 — path TBD)<br>
+            <strong>New components:</strong> <code>&lt;SaveAsTemplateDialog /&gt;</code>, <code>&lt;TemplatePreviewPane /&gt;</code> (path TBD)<br>
+            <strong>API surface:</strong> GraphQL — <code>createWorkOrderTemplateFromWorkOrder(workOrderId, name, includeForms, includeChecklist, includeLineItems, includeTradeLevels)</code> mutation
+        </div>
+        <p>The V1 WOX-02 flow only supports creating templates from scratch. This adds the inverse — start from a real WO that's already been built and capture what worked. Same destination model (<code>WorkOrderTemplate</code>), so existing template-consumer surfaces work unchanged.</p>
+        <p>The mutation strips customer-specific identifiers (customer, site, WO number, dates, technician assignments, photos, signatures) by default and copies the structural pieces (line items, forms, checklist, trade levels, default labor estimates) based on user-selected checkboxes. The result is a usable template the dispatcher can reuse next time.</p>
+    </section>
+
+    <section class="card">
+        <h2>2. UI Concept</h2>
+        <p>WO detail action menu shows "Save as template…" — clicking opens a dialog with name + include checkboxes + a preview of what gets reset. Save lands a success toast plus a "View in Settings" deep link.</p>
+        <div class="mockup-container">
+            <div class="mockup-bar">
+                <div class="mockup-dots"><span class="mockup-dot r"></span><span class="mockup-dot y"></span><span class="mockup-dot g"></span></div>
+                <span class="mockup-url">app.useappello.com/jobs/WO-2026-0142</span>
+            </div>
+            <div class="mockup-body">
+                <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px;">
+                    <div>
+                        <div style="font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:0.4px;font-weight:700;">Cedar Ridge Development</div>
+                        <div style="font-size:18px;font-weight:800;color:#0f172a;margin-top:2px;">WO-2026-0142 · Boiler service</div>
+                    </div>
+                    <div style="position:relative;">
+                        <button class="btn btn-secondary">Actions ▾</button>
+                        <div style="position:absolute;right:0;top:38px;background:#fff;border:1px solid #e2e8f0;border-radius:8px;box-shadow:0 6px 20px rgba(15,23,42,0.12);min-width:220px;padding:6px 0;z-index:10;">
+                            <div style="padding:8px 14px;font-size:13px;color:#334155;">Convert to invoice</div>
+                            <div style="padding:8px 14px;font-size:13px;color:#334155;">Duplicate WO</div>
+                            <div style="padding:8px 14px;font-size:13px;color:#334155;border-top:1px solid #f1f5f9;">Print PDF</div>
+                            <div style="padding:8px 14px;font-size:13px;font-weight:700;color:#3b82f6;background:#eff6ff;">💾 Save as template…</div>
+                            <div style="padding:8px 14px;font-size:13px;color:#dc2626;border-top:1px solid #f1f5f9;">Archive</div>
+                        </div>
+                    </div>
+                </div>
+                <div style="height:80px;"></div>
+            </div>
+        </div>
+
+        <div class="mockup-container">
+            <div class="mockup-bar">
+                <div class="mockup-dots"><span class="mockup-dot r"></span><span class="mockup-dot y"></span><span class="mockup-dot g"></span></div>
+                <span class="mockup-url">Save as template — Modal</span>
+            </div>
+            <div class="mockup-body" style="background:#fff;">
+                <div style="font-size:16px;font-weight:800;color:#0f172a;">Save WO as template</div>
+                <div style="font-size:12px;color:#64748b;margin-top:2px;">Source: WO-2026-0142 · Cedar Ridge boiler service</div>
+                <div style="margin-top:16px;">
+                    <div class="field">
+                        <label>Template name</label>
+                        <input class="input" style="width:100%;padding:8px 12px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px;" value="Boiler quarterly service — standard 2.5h">
+                    </div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:8px;">
+                        <div>
+                            <div style="font-size:11px;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:8px;">Include in template</div>
+                            <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:#334155;margin-bottom:6px;"><input type="checkbox" checked> Line items (5)</label>
+                            <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:#334155;margin-bottom:6px;"><input type="checkbox" checked> Forms (HIRA, Gas Filter Check)</label>
+                            <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:#334155;margin-bottom:6px;"><input type="checkbox" checked> Checklist (5 items)</label>
+                            <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:#334155;margin-bottom:6px;"><input type="checkbox" checked> Default trade levels (Foreman + Journeyman)</label>
+                            <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:#334155;margin-bottom:6px;"><input type="checkbox"> Notes &amp; descriptions</label>
+                        </div>
+                        <div>
+                            <div style="font-size:11px;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:8px;">Will be reset (always)</div>
+                            <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:6px;padding:10px 12px;font-size:12px;color:#991b1b;line-height:1.7;">
+                                ✗ Customer (Cedar Ridge)<br>
+                                ✗ Site / address<br>
+                                ✗ Scheduled dates<br>
+                                ✗ Assigned technicians<br>
+                                ✗ Photos &amp; signatures<br>
+                                ✗ Time entries
+                            </div>
+                        </div>
+                    </div>
+                    <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:18px;border-top:1px solid #f1f5f9;padding-top:14px;">
+                        <button class="btn btn-secondary">Cancel</button>
+                        <button class="btn btn-primary">💾 Save template</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div style="background:#dcfce7;border-left:3px solid #16a34a;padding:8px 14px;border-radius:0 6px 6px 0;font-size:12px;color:#166534;margin-top:6px;">
+            ✓ Template <strong>"Boiler quarterly service — standard 2.5h"</strong> saved. <a href="#" style="color:#166534;font-weight:700;text-decoration:underline;">View in Settings →</a>
+        </div>
+    </section>
+
+    <section class="card">
+        <h2>3. Key decisions for Emma + Corey to discuss</h2>
+        <div class="decisions">
+            <div class="item">
+                <div class="q"><span class="id">D1</span> What gets stripped vs preserved?</div>
+                <div class="a"><strong>Recommended:</strong> Always strip customer / site / dates / users / photos / signatures (PII + tenant-specific). Everything structural (line items, forms, checklist, trade levels, notes) is opt-in via checkboxes. Default all structural boxes ON — that's the value.</div>
+            </div>
+            <div class="item">
+                <div class="q"><span class="id">D2</span> Template ownership / scope?</div>
+                <div class="a"><strong>Recommended:</strong> Instance-wide by default (matches WOX-02 V1 behavior). Add a "Customer-specific" toggle that scopes the template to the source customer if checked — useful for "Cedar Ridge always wants this exact set of forms" patterns.</div>
+            </div>
+            <div class="item">
+                <div class="q"><span class="id">D3</span> Placeholder labor lines (WOX-05) — preserve qty + trade level?</div>
+                <div class="a"><strong>Recommended:</strong> Yes — preserve the placeholder qty + trade level on each labor line; clear the resolved <code>userId</code>. That's exactly the value of saving from a real WO ("we always need 1 Foreman + 1 Journeyman for ~2.5h on this job type").</div>
+            </div>
+            <div class="item">
+                <div class="q"><span class="id">D4</span> Permission to save?</div>
+                <div class="a"><strong>Recommended:</strong> Same permission as managing WO templates (see WOX-02). If you can edit templates, you can save one from a WO. Keeps the permission model simple and matches the mental model.</div>
+            </div>
+            <div class="item">
+                <div class="q"><span class="id">D5</span> Batch convert from existing WOs?</div>
+                <div class="a"><strong>Recommended:</strong> Defer — V2 is single-WO-at-a-time. Batch tooling lives in a future admin utility (post-1.34) once we see if customers actually want it. YAGNI for now.</div>
+            </div>
+        </div>
+    </section>
+
+    <section class="card">
+        <h2>4. Roadmap context</h2>
+        <p>Direct V2 follow-on to WOX-02 (V1 templates). Pillar P1 — WO Foundation. The master plan flagged this as "the natural inverse" once V1 templates ship — users will absolutely hit "I want to template this WO right now" within a week of using V1.</p>
+        <div class="roadmap-grid">
+            <a href="uis-WOX-02-wo-templates.html">
+                <div class="id">WOX-02</div>
+                <div class="name">WO Templates V1</div>
+                <div class="relation">Parent — destination model + V1 from-scratch flow</div>
+            </a>
+            <a href="uis-WOX-index.html">
+                <div class="id">WOX-09</div>
+                <div class="name">Default Forms per Template</div>
+                <div class="relation">Sibling template feature (V1)</div>
+            </a>
+            <a href="uis-WOX-index.html">
+                <div class="id">WOX-22</div>
+                <div class="name">Template Builder MCP</div>
+                <div class="relation">Successor — AI-driven template authoring</div>
+            </a>
+            <a href="release-1.34-timeline.html">
+                <div class="id">1.34</div>
+                <div class="name">Release 1.34 Timeline</div>
+                <div class="relation">Candidate landing window</div>
+            </a>
+        </div>
+    </section>
+
+    <section class="card">
+        <h2>5. Source traceability</h2>
+        <div class="fathom-quote">
+            "Someone finishes a WO and goes 'I'm doing this every week' — let them save it as a template right there."
+            <span class="who">— Corey, Fathom call May 5, 2026 (PM session)</span>
+        </div>
+        <div class="trace">
+            <div class="row"><strong>Master action list:</strong> Item #34 — WO → Template save action (build template from existing WO), DEFERRED ~2d · V2</div>
+            <div class="row"><strong>Fathom calls:</strong> May 5, 2026 — AM strategy + PM V1 scope</div>
+            <div class="row"><strong>Emma's V1 scope:</strong> WO-1.33-scope.html — V1 ships create-from-scratch only; from-WO is V2</div>
+            <div class="row"><strong>Roadmap parents:</strong> WO-3 · WOX-02 · WOX-09</div>
+        </div>
+    </section>
+
+    <div class="footer">
+        WOX-21 · Generated May 6, 2026 · <a href="uis-WOX-index.html">← Back to WOX Index</a>
+    </div>
+
+</div>
+</body>
+</html>

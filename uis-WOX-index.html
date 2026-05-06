@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WO Reconciliation (WOX) · UI Concept Index</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Inter', -apple-system, sans-serif; background: #f1f5f9; color: #0f172a; line-height: 1.5; }
+
+.in-iframe .top-nav { display: none !important; }
+.top-nav { position: sticky; top: 0; z-index: 100; background: #0f172a; border-bottom: 1px solid #1e293b; padding: 0 24px; display: flex; align-items: center; gap: 0; }
+.top-nav a { display: inline-flex; align-items: center; padding: 12px 18px; font-size: 13px; font-weight: 600; color: #94a3b8; text-decoration: none; border-bottom: 2px solid transparent; transition: all 0.15s; white-space: nowrap; }
+.top-nav a:hover { color: #f8fafc; background: #1e293b; }
+.top-nav .nav-logo { font-size: 11px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: #475569; padding-right: 18px; margin-right: 4px; border-right: 1px solid #1e293b; }
+.top-nav a.current { color: #fff; border-bottom-color: #3b82f6; }
+
+.wrap { max-width: 1200px; margin: 0 auto; padding: 40px 24px 80px; }
+
+.hero { background: linear-gradient(135deg, #4338ca, #7c3aed); color: #fff; border-radius: 16px; padding: 36px 40px; margin-bottom: 28px; }
+.hero .eyebrow { font-size: 11px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: #c7d2fe; margin-bottom: 10px; }
+.hero h1 { font-size: 34px; font-weight: 800; letter-spacing: -0.01em; margin-bottom: 12px; }
+.hero p { font-size: 16px; line-height: 1.65; color: #e0e7ff; max-width: 820px; }
+.hero .meta { display: flex; gap: 28px; margin-top: 22px; flex-wrap: wrap; }
+.hero .meta div { font-size: 13px; color: #c7d2fe; }
+.hero .meta strong { display: block; font-size: 24px; font-weight: 800; color: #fff; }
+
+.story-flow { background: linear-gradient(135deg, #1e293b, #334155); color: #fff; border-radius: 14px; padding: 26px 30px; margin-bottom: 28px; }
+.story-flow h2 { font-size: 18px; font-weight: 700; margin-bottom: 12px; }
+.story-flow p { font-size: 14px; color: #cbd5e1; line-height: 1.7; max-width: 780px; }
+.story-flow .phases { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 20px; }
+.story-flow .phase { background: rgba(255,255,255,0.08); border-radius: 8px; padding: 12px 14px; }
+.story-flow .phase .num { font-size: 11px; font-weight: 700; color: #818cf8; letter-spacing: 1px; }
+.story-flow .phase .name { font-size: 14px; font-weight: 700; margin: 4px 0 6px; }
+.story-flow .phase .who { font-size: 12px; color: #cbd5e1; line-height: 1.5; }
+
+.legend { display: flex; gap: 14px; flex-wrap: wrap; margin: 0 0 24px; padding: 14px 18px; background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; font-size: 13px; align-items: center; }
+.legend strong { color: #0f172a; margin-right: 6px; }
+.legend .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; vertical-align: middle; }
+.dot-priority { background: #dc2626; }
+.dot-polish { background: #f59e0b; }
+.dot-standalone { background: #3b82f6; }
+.dot-deferred { background: #94a3b8; }
+
+section.group { background: #fff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 26px 30px; margin-bottom: 22px; }
+section.group .group-head { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; margin-bottom: 6px; padding-bottom: 14px; border-bottom: 2px solid #f1f5f9; }
+section.group h2 { font-size: 22px; font-weight: 800; }
+section.group .group-tag { font-size: 12px; font-weight: 700; padding: 4px 12px; border-radius: 6px; white-space: nowrap; }
+.tag-priority { background: #fee2e2; color: #991b1b; }
+.tag-polish { background: #fef3c7; color: #92400e; }
+.tag-standalone { background: #dbeafe; color: #1e40af; }
+.tag-deferred { background: #f1f5f9; color: #475569; }
+section.group .group-sub { font-size: 14px; color: #64748b; margin-bottom: 14px; line-height: 1.6; max-width: 820px; }
+
+.spec-list { display: grid; grid-template-columns: 1fr; gap: 8px; margin-top: 12px; }
+.spec-card { display: grid; grid-template-columns: 90px 1fr 130px; gap: 16px; align-items: center; padding: 12px 14px; border: 1px solid #e2e8f0; border-radius: 8px; transition: all 0.12s; text-decoration: none; color: inherit; }
+.spec-card:hover { border-color: #3b82f6; background: #f8fafc; transform: translateX(2px); }
+.spec-id { font-family: 'SF Mono', Menlo, monospace; font-size: 12px; font-weight: 700; color: #4338ca; }
+.spec-meta { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.spec-title { font-size: 14px; font-weight: 700; color: #0f172a; }
+.spec-blurb { font-size: 12px; color: #64748b; line-height: 1.5; }
+.spec-status { font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 5px; text-align: center; white-space: nowrap; }
+.status-priority { background: #fee2e2; color: #991b1b; }
+.status-polish { background: #fef3c7; color: #92400e; }
+.status-standalone { background: #dbeafe; color: #1e40af; }
+.status-deferred { background: #f1f5f9; color: #475569; }
+
+.cta-banner { background: #f8fafc; border: 1px solid #e2e8f0; border-left: 3px solid #3b82f6; padding: 14px 18px; border-radius: 0 8px 8px 0; margin: 18px 0 8px; font-size: 13px; color: #334155; line-height: 1.6; }
+.cta-banner strong { color: #0f172a; }
+.cta-banner a { color: #3b82f6; text-decoration: none; font-weight: 600; }
+
+footer.fineprint { margin-top: 32px; padding: 22px 26px; background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; font-size: 13px; color: #64748b; line-height: 1.7; }
+footer.fineprint a { color: #3b82f6; text-decoration: none; }
+footer.fineprint strong { color: #0f172a; }
+</style>
+</head>
+<body>
+<script>if(self!==top)document.documentElement.classList.add("in-iframe")</script>
+
+<nav class="top-nav">
+    <span class="nav-logo">Appello SDLC</span>
+    <a href="index.html">Roadmap</a>
+    <a href="release-1.33-timeline.html">Release 1.33</a>
+    <a href="release-1.34-timeline.html">Release 1.34</a>
+    <a href="uis-WOX-index.html" class="current">WO Reconciliation (WOX)</a>
+    <a href="ui-interface-library.html">UI Library</a>
+</nav>
+
+<div class="wrap">
+
+<header class="hero">
+    <div class="eyebrow">Generated May 6, 2026 · 24 UI concepts · Path A</div>
+    <h1>WO Reconciliation (WOX) · UI Concept Index</h1>
+    <p>Lightweight UI concept sketches for every feature surfaced in the May 5-6 Emma × Corey Work Order reconciliation calls. Each concept doc grounds the idea in real Appello pages, sketches the proposed UI, and surfaces 3-5 decisions for Emma and Corey to discuss before promoting to a full UIS spec.</p>
+    <div class="meta">
+        <div><strong>24</strong>UI concepts</div>
+        <div><strong>10</strong>V1 priority (1.33)</div>
+        <div><strong>4</strong>V1 polish (1.33)</div>
+        <div><strong>2</strong>V1 standalone (1.33)</div>
+        <div><strong>8</strong>Post-V1 (1.34+)</div>
+    </div>
+</header>
+
+<div class="story-flow">
+    <h2>Why this exists</h2>
+    <p>On May 5, 2026, Emma and Corey had two long calls about Work Order V1 scope. The next morning Emma circulated <code>WO-1.33-scope.html</code>; we reconciled it against the master action list and surfaced 24 distinct UI items that need design before engineering. This index is the visual hub: every item has a sketch, the sketches share visual language, and the decisions are written next to the mockups so the conversation moves faster.</p>
+    <div class="phases">
+        <div class="phase">
+            <div class="num">STEP 1</div>
+            <div class="name">Sketch (you are here)</div>
+            <div class="who">24 lightweight Path A concepts — visual + decisions only</div>
+        </div>
+        <div class="phase">
+            <div class="num">STEP 2</div>
+            <div class="name">Discuss</div>
+            <div class="who">Emma + Corey walk through, lock decisions, prune scope</div>
+        </div>
+        <div class="phase">
+            <div class="num">STEP 3</div>
+            <div class="name">Promote</div>
+            <div class="who">V1-approved concepts get full UIS docs (Path B) ready for engineering</div>
+        </div>
+        <div class="phase">
+            <div class="num">STEP 4</div>
+            <div class="name">Build</div>
+            <div class="who">Engineering picks up the UIS, ships into 1.33 / 1.34</div>
+        </div>
+    </div>
+</div>
+
+<div class="legend">
+    <strong>Status:</strong>
+    <span><span class="dot dot-priority"></span>V1 priority — must ship in 1.33</span>
+    <span><span class="dot dot-polish"></span>V1 polish — nice-to-have in 1.33</span>
+    <span><span class="dot dot-standalone"></span>V1 standalone — independent of WO core</span>
+    <span><span class="dot dot-deferred"></span>Post-V1 — 1.34+ candidates</span>
+</div>
+
+<!-- ============ V1 PRIORITY ============ -->
+<section class="group">
+    <div class="group-head">
+        <h2>V1 Priority · must ship in 1.33</h2>
+        <span class="group-tag tag-priority">10 ITEMS</span>
+    </div>
+    <p class="group-sub">These are the WO-V1 critical path items. If any of these slips, 1.33 doesn't ship a usable WO product. Every concept here extends an existing WO spec (uis-20a..h) or a foundation spec (LEM-1, Forms).</p>
+
+    <div class="spec-list">
+        <a class="spec-card" href="uis-WOX-01-dispatch-toggle.html">
+            <span class="spec-id">WOX-01</span>
+            <div class="spec-meta">
+                <span class="spec-title">Dispatch Board V0 — Calendar Toggle</span>
+                <span class="spec-blurb">"Calendar | Dispatch" toggle on /scheduling. V0 = filtered list. Full Kanban dispatch is V2 (WOX-16).</span>
+            </div>
+            <span class="spec-status status-priority">V1 · 1.33</span>
+        </a>
+        <a class="spec-card" href="uis-WOX-02-wo-templates.html">
+            <span class="spec-id">WOX-02</span>
+            <div class="spec-meta">
+                <span class="spec-title">Work Order Templates — Save &amp; Load</span>
+                <span class="spec-blurb">Pre-built WO templates ("HVAC quarterly service") that pre-fill subject, forms, line items, trade levels.</span>
+            </div>
+            <span class="spec-status status-priority">V1 · 1.33</span>
+        </a>
+        <a class="spec-card" href="uis-WOX-03-wo-checklist-v1.html">
+            <span class="spec-id">WOX-03</span>
+            <div class="spec-meta">
+                <span class="spec-title">Work Order Checklist (V1 minimal)</span>
+                <span class="spec-blurb">Simple ordered checklist on every WO, drives % complete. Unassigned in V1; assignment is WOX-20.</span>
+            </div>
+            <span class="spec-status status-priority">V1 · 1.33</span>
+        </a>
+        <a class="spec-card" href="uis-WOX-04-equipment-subject.html">
+            <span class="spec-id">WOX-04</span>
+            <div class="spec-meta">
+                <span class="spec-title">Equipment ↔ WO Subject Relationship</span>
+                <span class="spec-blurb">Many-to-many: a WO can reference customer equipment as its subject; equipment shows full WO history.</span>
+            </div>
+            <span class="spec-status status-priority">V1 · 1.33</span>
+        </a>
+        <a class="spec-card" href="uis-WOX-05-generic-time-entry.html">
+            <span class="spec-id">WOX-05</span>
+            <div class="spec-meta">
+                <span class="spec-title">Generic Time Entry — Placeholder Labor Lines</span>
+                <span class="spec-blurb">Pre-fill labor on a WO before assigning users ("2 × Journeyman × 4hrs"). Resolves to actual on schedule/check-in.</span>
+            </div>
+            <span class="spec-status status-priority">V1 · 1.33</span>
+        </a>
+        <a class="spec-card" href="uis-WOX-06-forms-assigned-only.html">
+            <span class="spec-id">WOX-06</span>
+            <div class="spec-meta">
+                <span class="spec-title">Forms on WOs — Assigned-Only Visibility</span>
+                <span class="spec-blurb">Forms attached to a WO show on mobile only for the user assigned to that visit, not the whole crew.</span>
+            </div>
+            <span class="spec-status status-priority">V1 · 1.33</span>
+        </a>
+        <a class="spec-card" href="uis-WOX-07-mobile-edit-flow.html">
+            <span class="spec-id">WOX-07</span>
+            <div class="spec-meta">
+                <span class="spec-title">Mobile EDIT Flow — Step-by-Step Reuse</span>
+                <span class="spec-blurb">Mirror the 5-step CREATE wizard for mobile EDIT so techs don't lose context in a giant form.</span>
+            </div>
+            <span class="spec-status status-priority">V1 · 1.33</span>
+        </a>
+        <a class="spec-card" href="uis-WOX-09-default-forms-template.html">
+            <span class="spec-id">WOX-09</span>
+            <div class="spec-meta">
+                <span class="spec-title">Default Forms per WO Template</span>
+                <span class="spec-blurb">A WO Template carries a default forms list. Creating from template auto-attaches HIRA + signoff + etc.</span>
+            </div>
+            <span class="spec-status status-priority">V1 · 1.33</span>
+        </a>
+        <a class="spec-card" href="uis-WOX-10-trade-level-override.html">
+            <span class="spec-id">WOX-10</span>
+            <div class="spec-meta">
+                <span class="spec-title">Trade Level Override on WO Labor Line</span>
+                <span class="spec-blurb">Per-line trade level override (Foreman covers Journeyman, bills at Journeyman rate). Audited.</span>
+            </div>
+            <span class="spec-status status-priority">V1 · 1.33</span>
+        </a>
+        <a class="spec-card" href="uis-WOX-11-pricing-financial-gate.html">
+            <span class="spec-id">WOX-11</span>
+            <div class="spec-meta">
+                <span class="spec-title">WO Pricing Visibility — Financial Permission Gate</span>
+                <span class="spec-blurb">Hide $ columns on WO detail behind <code>job.financialView</code> for V1. Dedicated permission later (WOX-24).</span>
+            </div>
+            <span class="spec-status status-priority">V1 · 1.33</span>
+        </a>
+    </div>
+</section>
+
+<!-- ============ V1 POLISH ============ -->
+<section class="group">
+    <div class="group-head">
+        <h2>V1 Polish · nice-to-have in 1.33</h2>
+        <span class="group-tag tag-polish">4 ITEMS</span>
+    </div>
+    <p class="group-sub">UX rough edges + bug-class fixes. Can ship piecemeal across the 1.33 release; none are blockers but each makes V1 feel more finished.</p>
+
+    <div class="spec-list">
+        <a class="spec-card" href="uis-WOX-08-photo-question-polish.html">
+            <span class="spec-id">WOX-08</span>
+            <div class="spec-meta">
+                <span class="spec-title">Photo Question Polish (mobile forms)</span>
+                <span class="spec-blurb">Bigger thumbnails, captions, min/max counts, swipe-to-delete. Techs actually use the form instead of texting photos.</span>
+            </div>
+            <span class="spec-status status-polish">V1 polish</span>
+        </a>
+        <a class="spec-card" href="uis-WOX-12-multiday-labor.html">
+            <span class="spec-id">WOX-12</span>
+            <div class="spec-meta">
+                <span class="spec-title">Multi-day WO Labor — Date Column</span>
+                <span class="spec-blurb">Add a date column to the WO labor table so multi-day WOs can split hours across days correctly.</span>
+            </div>
+            <span class="spec-status status-polish">V1 polish</span>
+        </a>
+        <a class="spec-card" href="uis-WOX-13-calendar-filter-fix.html">
+            <span class="spec-id">WOX-13</span>
+            <div class="spec-meta">
+                <span class="spec-title">Calendar Filter Fix — WO + Project</span>
+                <span class="spec-blurb">Fix the broken Job-type filter on /scheduling + add a Project multi-select. Bug + small UX add.</span>
+            </div>
+            <span class="spec-status status-polish">V1 polish</span>
+        </a>
+        <a class="spec-card" href="uis-WOX-15-sharepoint-paste-link.html">
+            <span class="spec-id">WOX-15</span>
+            <div class="spec-meta">
+                <span class="spec-title">SharePoint Phase 1 — Paste-Link MVP</span>
+                <span class="spec-blurb">"External documents" widget on Job/Project/WO detail. Paste a SharePoint URL, click to open in new tab. Phase 1 only.</span>
+            </div>
+            <span class="spec-status status-polish">V1 polish</span>
+        </a>
+    </div>
+</section>
+
+<!-- ============ V1 STANDALONE ============ -->
+<section class="group">
+    <div class="group-head">
+        <h2>V1 Standalone · independent of WO core</h2>
+        <span class="group-tag tag-standalone">2 ITEMS</span>
+    </div>
+    <p class="group-sub">Items that ship in 1.33 but don't depend on the WO foundation work. Either scaffold-only (WOX-14) or strategic fix (WOX-13 — already counted above; this group is for the payment scaffold + the one truly standalone item).</p>
+
+    <div class="spec-list">
+        <a class="spec-card" href="uis-WOX-14-payment-scaffold.html">
+            <span class="spec-id">WOX-14</span>
+            <div class="spec-meta">
+                <span class="spec-title">Customer Payment Gateway — Scaffolding Only</span>
+                <span class="spec-blurb">Scaffold the data model + permissions + hidden settings page for a future "Pay now" button. No live UI in V1.</span>
+            </div>
+            <span class="spec-status status-standalone">V1 scaffold</span>
+        </a>
+    </div>
+</section>
+
+<!-- ============ POST-V1 ============ -->
+<section class="group">
+    <div class="group-head">
+        <h2>Post-V1 · 1.34+ candidates</h2>
+        <span class="group-tag tag-deferred">8 ITEMS</span>
+    </div>
+    <p class="group-sub">Concepts that didn't make the V1 cut but are tracked for 1.34 and beyond. These extend or follow up on the V1 items above. The Dispatch V2 concepts (WOX-16) are particularly important — they show the three industry-leading patterns we're choosing between.</p>
+
+    <div class="spec-list">
+        <a class="spec-card" href="uis-WOX-16-dispatch-v2-concepts.html">
+            <span class="spec-id">WOX-16</span>
+            <div class="spec-meta">
+                <span class="spec-title">Dispatch Board V2 — 3 Industry Concepts</span>
+                <span class="spec-blurb">ServiceTitan-style "Tech Day Grid", Jobber-style "Day-Strip Timeline", Housecall Pro-inspired "Map-First Dispatch". Pick one for 1.34.</span>
+            </div>
+            <span class="spec-status status-deferred">1.34</span>
+        </a>
+        <a class="spec-card" href="uis-WOX-17-sharepoint-iframe.html">
+            <span class="spec-id">WOX-17</span>
+            <div class="spec-meta">
+                <span class="spec-title">SharePoint Phase 2 — In-App iFrame</span>
+                <span class="spec-blurb">Embed the SharePoint document inside Appello via iframe; OAuth with Microsoft Graph. Edit without context-switching.</span>
+            </div>
+            <span class="spec-status status-deferred">1.34</span>
+        </a>
+        <a class="spec-card" href="uis-WOX-18-bim-3d-viewer.html">
+            <span class="spec-id">WOX-18</span>
+            <div class="spec-meta">
+                <span class="spec-title">BIM/Revit/IFC 3D Viewer</span>
+                <span class="spec-blurb">Embedded 3D model viewer (Autodesk Forge) on Project/Job detail. Click an element to spin up a WO with that subject.</span>
+            </div>
+            <span class="spec-status status-deferred">1.34+</span>
+        </a>
+        <a class="spec-card" href="uis-WOX-19-ai-voice-report.html">
+            <span class="spec-id">WOX-19</span>
+            <div class="spec-meta">
+                <span class="spec-title">AI Voice-to-Report (Mobile Field Capture)</span>
+                <span class="spec-blurb">Tech taps mic, talks for 30s, AI structures it into hours/materials/photos/follow-ups. Confirm gate before save.</span>
+            </div>
+            <span class="spec-status status-deferred">1.35+</span>
+        </a>
+        <a class="spec-card" href="uis-WOX-20-checklist-assignment.html">
+            <span class="spec-id">WOX-20</span>
+            <div class="spec-meta">
+                <span class="spec-title">Checklist User/Role Assignment</span>
+                <span class="spec-blurb">Extends WOX-03 V1 checklist with per-item user or role assignment. Mobile filters to "Mine" / "Crew" / "All".</span>
+            </div>
+            <span class="spec-status status-deferred">1.34</span>
+        </a>
+        <a class="spec-card" href="uis-WOX-21-wo-to-template-save.html">
+            <span class="spec-id">WOX-21</span>
+            <div class="spec-meta">
+                <span class="spec-title">Save WO as Template Action</span>
+                <span class="spec-blurb">"Save as template…" action on WO detail — strips customer specifics, keeps line items/forms/checklist/trade levels.</span>
+            </div>
+            <span class="spec-status status-deferred">1.34</span>
+        </a>
+        <a class="spec-card" href="uis-WOX-22-template-builder-mcp.html">
+            <span class="spec-id">WOX-22</span>
+            <div class="spec-meta">
+                <span class="spec-title">Template Builder MCP — Conversational AI</span>
+                <span class="spec-blurb">"I need a template for HVAC quarterly service…" → AI builds the template, user reviews & saves. MCP-based tool calls.</span>
+            </div>
+            <span class="spec-status status-deferred">1.35+</span>
+        </a>
+        <a class="spec-card" href="uis-WOX-23-sub-relationships.html">
+            <span class="spec-id">WOX-23</span>
+            <div class="spec-meta">
+                <span class="spec-title">Job/WO Sub-Relationships (Project → Job → WO → Task)</span>
+                <span class="spec-blurb">Formalize the 4-level hierarchy with rollup/drill-down at every level. Resolves the "what's a Task vs a WO" gap.</span>
+            </div>
+            <span class="spec-status status-deferred">1.34</span>
+        </a>
+        <a class="spec-card" href="uis-WOX-24-wo-pricing-permission.html">
+            <span class="spec-id">WOX-24</span>
+            <div class="spec-meta">
+                <span class="spec-title">Dedicated workOrder.viewPricing Permission</span>
+                <span class="spec-blurb">Adds a dedicated WO pricing permission (split from job.financialView). Migration auto-grants for back-compat.</span>
+            </div>
+            <span class="spec-status status-deferred">1.34</span>
+        </a>
+    </div>
+</section>
+
+<div class="cta-banner">
+    <strong>How to use this index:</strong> if you want the strategic context, start with the <a href="release-1.33-timeline.html">1.33 Release Timeline</a> and the master action list. If you want to walk through every UI Emma and Corey discussed, click WOX-01 and use the back-button on each page to return here. The status pill on every card matches the colors in the legend above.
+</div>
+
+<footer class="fineprint">
+    <strong>Source materials:</strong> two May 5, 2026 Fathom calls (Emma × Corey, AM + PM) · Emma's <code>WO-1.33-scope.html</code> follow-up doc (May 6 AM) · the master action list at <code>.cursor/plans/wo-master-action-list.html</code>.<br>
+    <strong>Generation:</strong> 24 Path A concept docs generated May 6, 2026 from the reconciled master action list. Each is a lightweight sketch (200-350 lines) — designed for human review, not engineering hand-off. V1-approved concepts get promoted to full UIS specs (Path B) for engineering.<br>
+    <strong>Owners:</strong> Corey Shelson · Emma Mann · <strong>Last updated:</strong> May 6, 2026.
+</footer>
+
+</div>
+</body>
+</html>

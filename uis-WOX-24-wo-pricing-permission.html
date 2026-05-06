@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WOX-24 · Dedicated workOrder.viewPricing Permission</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Inter', -apple-system, sans-serif; background: #f1f5f9; color: #1e293b; line-height: 1.5; }
+
+.in-iframe .top-nav { display: none !important; }
+.top-nav { position: sticky; top: 0; z-index: 100; background: #0f172a; border-bottom: 1px solid #1e293b; padding: 0 24px; display: flex; align-items: center; gap: 0; }
+.top-nav a { display: inline-flex; align-items: center; padding: 12px 18px; font-size: 13px; font-weight: 600; color: #94a3b8; text-decoration: none; border-bottom: 2px solid transparent; transition: all 0.15s; white-space: nowrap; }
+.top-nav a:hover { color: #f8fafc; background: #1e293b; }
+.top-nav .nav-logo { font-size: 11px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: #475569; padding-right: 18px; margin-right: 4px; border-right: 1px solid #1e293b; }
+
+.wrap { max-width: 1080px; margin: 0 auto; padding: 36px 24px 80px; }
+
+.hero { background: linear-gradient(135deg, #4338ca, #7c3aed); color: #fff; border-radius: 14px; padding: 28px 32px; margin-bottom: 22px; }
+.hero .badges { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+.hero .badge { font-size: 10px; font-weight: 700; padding: 4px 10px; border-radius: 5px; background: rgba(255,255,255,0.18); letter-spacing: 0.5px; text-transform: uppercase; }
+.hero .badge.warn { background: rgba(245, 158, 11, 0.5); }
+.hero .badge.danger { background: rgba(239, 68, 68, 0.5); }
+.hero .badge.success { background: rgba(34, 197, 94, 0.5); }
+.hero h1 { font-size: 28px; font-weight: 800; letter-spacing: -0.01em; margin-bottom: 10px; }
+.hero .pitch { font-size: 15px; line-height: 1.6; color: #e0e7ff; max-width: 760px; }
+.hero .meta { display: flex; gap: 22px; margin-top: 14px; font-size: 12px; color: #c7d2fe; flex-wrap: wrap; }
+.hero .meta strong { color: #fff; }
+
+section.card { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 22px 26px; margin-bottom: 16px; }
+section.card h2 { font-size: 18px; font-weight: 800; color: #0f172a; margin-bottom: 12px; padding-bottom: 10px; border-bottom: 2px solid #f1f5f9; }
+section.card h3 { font-size: 14px; font-weight: 700; color: #0f172a; margin: 14px 0 6px; }
+section.card p { font-size: 14px; color: #334155; margin-bottom: 8px; }
+section.card ul, section.card ol { padding-left: 20px; margin: 6px 0 10px; }
+section.card li { font-size: 14px; color: #334155; margin-bottom: 4px; line-height: 1.55; }
+section.card code { background: #f1f5f9; padding: 1px 6px; border-radius: 4px; font-size: 12px; font-family: 'SF Mono', Menlo, monospace; color: #be185d; }
+
+.where { background: #f8fafc; border-left: 3px solid #3b82f6; padding: 12px 16px; border-radius: 0 8px 8px 0; margin: 8px 0 14px; font-size: 13px; color: #334155; line-height: 1.65; }
+.where strong { color: #0f172a; }
+.where code { background: #fff; padding: 1px 6px; border-radius: 3px; font-family: 'SF Mono', Menlo, monospace; font-size: 11px; color: #0f172a; border: 1px solid #e2e8f0; }
+
+.mockup-container { background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 10px; overflow: hidden; margin: 12px 0; }
+.mockup-bar { background: #fff; border-bottom: 1px solid #e2e8f0; padding: 9px 14px; display: flex; align-items: center; gap: 8px; font-size: 12px; color: #64748b; }
+.mockup-dots { display: flex; gap: 5px; margin-right: 6px; }
+.mockup-dot { width: 9px; height: 9px; border-radius: 50%; }
+.mockup-dot.r { background: #f87171; }
+.mockup-dot.y { background: #fbbf24; }
+.mockup-dot.g { background: #34d399; }
+.mockup-url { background: #f1f5f9; padding: 3px 9px; border-radius: 4px; font-size: 11px; font-family: 'SF Mono', Menlo, monospace; color: #475569; }
+.mockup-body { padding: 18px 20px; min-height: 200px; font-size: 13px; color: #334155; line-height: 1.55; }
+
+.mobile-frame { max-width: 375px; margin: 14px auto; border: 2px solid #cbd5e1; border-radius: 22px; overflow: hidden; background: #fff; }
+.mobile-frame .mockup-bar { padding: 10px 14px; border-bottom: 1px solid #e2e8f0; }
+.mobile-frame .mockup-body { padding: 14px 16px; min-height: 320px; }
+
+.btn { display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; border-radius: 6px; font-size: 13px; font-weight: 600; border: none; cursor: pointer; }
+.btn-primary { background: #3b82f6; color: #fff; }
+.btn-secondary { background: #fff; color: #334155; border: 1px solid #cbd5e1; }
+.btn-purple { background: #7c3aed; color: #fff; }
+.btn-success { background: #16a34a; color: #fff; }
+.btn-sm { padding: 5px 10px; font-size: 12px; }
+
+.field { margin-bottom: 12px; }
+.field label { display: block; font-size: 11px; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 4px; }
+.field .input, .field .select { background: #fff; border: 1px solid #cbd5e1; border-radius: 6px; padding: 8px 12px; font-size: 13px; color: #0f172a; }
+
+.t { width: 100%; border-collapse: collapse; font-size: 12px; background: #fff; border: 1px solid #e2e8f0; border-radius: 6px; overflow: hidden; }
+.t th { text-align: left; padding: 8px 12px; background: #f8fafc; border-bottom: 1px solid #e2e8f0; font-weight: 700; color: #475569; font-size: 11px; text-transform: uppercase; letter-spacing: 0.4px; }
+.t td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; color: #334155; }
+.t tr:last-child td { border-bottom: none; }
+
+.pill { font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 4px; display: inline-block; white-space: nowrap; }
+.pill-blue { background: #dbeafe; color: #1e40af; }
+.pill-green { background: #dcfce7; color: #166534; }
+.pill-amber { background: #fef3c7; color: #92400e; }
+.pill-red { background: #fee2e2; color: #991b1b; }
+.pill-purple { background: #ede9fe; color: #6b21a8; }
+.pill-gray { background: #f1f5f9; color: #475569; }
+.pill-pink { background: #fce7f3; color: #9d174d; }
+
+.decisions { display: flex; flex-direction: column; gap: 12px; margin-top: 8px; }
+.decisions .item { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px 16px; }
+.decisions .q { font-size: 14px; font-weight: 700; color: #0f172a; margin-bottom: 6px; display: flex; align-items: baseline; gap: 8px; }
+.decisions .q .id { font-family: 'SF Mono', Menlo, monospace; font-size: 11px; color: #4338ca; background: #ede9fe; padding: 2px 7px; border-radius: 4px; }
+.decisions .a { font-size: 13px; color: #334155; line-height: 1.6; }
+.decisions .a strong { color: #0f172a; }
+
+.roadmap-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; margin-top: 8px; }
+.roadmap-grid a { display: block; padding: 10px 14px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; text-decoration: none; color: inherit; transition: all 0.12s; }
+.roadmap-grid a:hover { border-color: #3b82f6; background: #fff; }
+.roadmap-grid .id { font-family: 'SF Mono', Menlo, monospace; font-size: 11px; font-weight: 700; color: #3b82f6; }
+.roadmap-grid .name { font-size: 13px; font-weight: 600; color: #0f172a; margin-top: 3px; }
+.roadmap-grid .relation { font-size: 11px; color: #64748b; margin-top: 2px; }
+
+.fathom-quote { background: #fef3c7; border-left: 3px solid #f59e0b; padding: 12px 16px; border-radius: 0 8px 8px 0; margin: 10px 0; font-size: 13px; color: #78350f; line-height: 1.55; font-style: italic; }
+.fathom-quote .who { font-style: normal; font-weight: 700; display: block; margin-top: 6px; font-size: 11px; }
+.fathom-quote .who a { color: #78350f; text-decoration: underline; }
+
+.trace { display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: #334155; }
+.trace .row { display: flex; gap: 10px; align-items: baseline; }
+.trace .row strong { color: #0f172a; min-width: 130px; flex-shrink: 0; }
+.trace .row a { color: #3b82f6; text-decoration: none; }
+.trace .row a:hover { text-decoration: underline; }
+
+.footer { text-align: center; padding: 20px 0; font-size: 12px; color: #94a3b8; margin-top: 24px; }
+.footer a { color: #3b82f6; text-decoration: none; }
+</style>
+</head>
+<body>
+<script>if(self!==top)document.documentElement.classList.add("in-iframe")</script>
+
+<nav class="top-nav">
+    <span class="nav-logo">Appello SDLC</span>
+    <a href="index.html">Roadmap</a>
+    <a href="release-1.33-timeline.html">Release 1.33</a>
+    <a href="uis-WOX-index.html">WO Reconciliation Index</a>
+    <a href="ui-interface-library.html">UI Library</a>
+</nav>
+
+<div class="wrap">
+
+    <div class="hero">
+        <div class="badges">
+            <span class="badge">WOX-24</span>
+            <span class="badge success">Post-V1 · 1.34</span>
+            <span class="badge">Pillar P1 + Permissions</span>
+            <span class="badge">Path A · Concept Sketch</span>
+        </div>
+        <h1>Dedicated workOrder.viewPricing Permission</h1>
+        <p class="pitch">V1 (WOX-11) gates WO pricing on the existing <code>job.financialView</code> permission. This doc adds a dedicated <code>workOrder.viewPricing</code> permission for finer-grained control — e.g. a tech who can see job financials but NOT WO pricing, or vice versa. Default for back-compat: the new permission is ON for any role that already has <code>job.financialView</code>.</p>
+        <div class="meta">
+            <span><strong>Status:</strong> Concept · Deferred</span>
+            <span><strong>Effort:</strong> ~1-2d · V2</span>
+            <span><strong>Extends:</strong> WOX-11 · WO-3</span>
+            <span><strong>Master ref:</strong> #40</span>
+        </div>
+    </div>
+
+    <section class="card">
+        <h2>1. Where this lives in the app</h2>
+        <div class="where">
+            <strong>Page / route:</strong> <code>apps/frontend/src/pages/roles/[id]/edit.tsx</code> (existing role permissions editor)<br>
+            <strong>Components touched:</strong> Permission tree component (path TBD — see role edit page), WO pricing components (from WOX-11) — flip <code>hasPermissions(job.financialView)</code> calls to <code>hasPermissions(workOrder.viewPricing)</code><br>
+            <strong>New components:</strong> none — reuses the existing permission tree pattern; just adds a new node<br>
+            <strong>API surface:</strong> Prisma migration adds <code>workOrderViewPricing Boolean @default(false)</code> on <code>RolePermission</code>; data migration copies the value from <code>jobFinancialView</code> for every existing role; GraphQL exposes it on the same <code>permissions</code> tree
+        </div>
+        <p>Surgical permissions split. Today every place in the WO UI that needs to decide "can this user see dollar amounts?" calls <code>hasPermissions({ job: { financialView: true } }, permissions)</code> — that gate was set in WOX-11 explicitly as a temporary back-compat decision. This doc adds the dedicated permission, swaps the call sites, and provides a zero-disruption data migration so no role's effective permissions change at deploy time.</p>
+        <p>The migration audit row is the safety net: every role gets a system-attributed audit log entry showing exactly what was copied. If something breaks, ops can answer "why does Mike see WO pricing?" in seconds.</p>
+    </section>
+
+    <section class="card">
+        <h2>2. UI Concept</h2>
+        <p>Role edit page with the permissions tree expanded. Two highlighted rows: existing <code>Job → Financial view</code> stays on, and the new <code>Work Order → View pricing</code> appears (defaulted on with a "migrated" tooltip). Plus a comparison table showing which roles change versus stay the same.</p>
+        <div class="mockup-container">
+            <div class="mockup-bar">
+                <div class="mockup-dots"><span class="mockup-dot r"></span><span class="mockup-dot y"></span><span class="mockup-dot g"></span></div>
+                <span class="mockup-url">app.useappello.com/roles/foreman/edit</span>
+            </div>
+            <div class="mockup-body">
+                <div style="font-size:12px;color:#64748b;margin-bottom:4px;">Owens Insulation · Roles</div>
+                <div style="font-size:18px;font-weight:800;color:#0f172a;">Foreman role permissions</div>
+                <div style="margin-top:14px;font-size:12px;font-family:'SF Mono',Menlo,monospace;color:#475569;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:14px;">
+                    <div style="color:#0f172a;font-weight:700;margin-bottom:6px;font-family:'Inter',sans-serif;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;">Permissions tree</div>
+                    <div>▾ <strong>Job</strong></div>
+                    <div style="padding-left:18px;">○ View · <span style="color:#16a34a;">on</span></div>
+                    <div style="padding-left:18px;">○ Edit · on</div>
+                    <div style="padding-left:18px;background:#fef3c7;border-radius:4px;padding:2px 6px;display:inline-flex;align-items:center;gap:6px;margin:2px 0;">
+                        <span>○ Financial view · <span style="color:#16a34a;font-weight:700;">on</span></span>
+                        <span class="pill pill-amber" style="font-size:9px;">existing gate</span>
+                    </div>
+                    <div>▾ <strong>Work Order</strong> <span class="pill pill-purple" style="font-size:9px;margin-left:4px;">NEW</span></div>
+                    <div style="padding-left:18px;">○ View · on</div>
+                    <div style="padding-left:18px;">○ Edit · on</div>
+                    <div style="padding-left:18px;background:#dcfce7;border-radius:4px;padding:2px 6px;display:inline-flex;align-items:center;gap:6px;margin:2px 0;">
+                        <span>○ View pricing · <span style="color:#16a34a;font-weight:700;">on</span></span>
+                        <span class="pill pill-green" style="font-size:9px;">migrated from job.financialView</span>
+                    </div>
+                    <div style="padding-left:18px;">○ Convert to invoice · on</div>
+                </div>
+
+                <div style="margin-top:18px;font-size:11px;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:0.4px;">Old (V1) gate vs New (post-V1) gate</div>
+                <table class="t" style="margin-top:6px;">
+                    <thead>
+                        <tr><th>Role</th><th>job.financialView (V1)</th><th>workOrder.viewPricing (post-V1)</th><th>Effective on day-1 deploy</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr><td>Admin</td><td><span class="pill pill-green">on</span></td><td><span class="pill pill-green">on (migrated)</span></td><td>No change</td></tr>
+                        <tr><td>Foreman</td><td><span class="pill pill-green">on</span></td><td><span class="pill pill-green">on (migrated)</span></td><td>No change</td></tr>
+                        <tr><td>Senior Tech</td><td><span class="pill pill-red">off</span></td><td><span class="pill pill-red">off (migrated)</span></td><td>No change</td></tr>
+                        <tr><td>Apprentice</td><td><span class="pill pill-red">off</span></td><td><span class="pill pill-red">off (migrated)</span></td><td>No change</td></tr>
+                        <tr><td><strong>Field Lead</strong> <span class="pill pill-purple" style="font-size:9px;">post-deploy</span></td><td><span class="pill pill-red">off</span></td><td><span class="pill pill-green">on (admin enabled later)</span></td><td>Sees WO pricing only</td></tr>
+                    </tbody>
+                </table>
+                <div style="font-size:11px;color:#64748b;margin-top:8px;font-style:italic;">Day-1 effective permissions identical to V1. Field Lead row shows the new flexibility post-migration.</div>
+            </div>
+        </div>
+    </section>
+
+    <section class="card">
+        <h2>3. Key decisions for Emma + Corey to discuss</h2>
+        <div class="decisions">
+            <div class="item">
+                <div class="q"><span class="id">D1</span> Default value on migration?</div>
+                <div class="a"><strong>Recommended:</strong> Copy from <code>job.financialView</code> for every existing role. Zero-disruption deploy — every user sees the same thing on day 1 as the day before. Admins opt into the split when they're ready.</div>
+            </div>
+            <div class="item">
+                <div class="q"><span class="id">D2</span> Hierarchy — does <code>job.financialView</code> imply <code>workOrder.viewPricing</code>?</div>
+                <div class="a"><strong>Recommended:</strong> Independent post-migration. Admins can revoke WO pricing for a role without touching job financials, or vice versa. The whole point of the split is independent control; making one imply the other defeats the purpose.</div>
+            </div>
+            <div class="item">
+                <div class="q"><span class="id">D3</span> Deprecation timeline for <code>job.financialView</code>?</div>
+                <div class="a"><strong>Recommended:</strong> Never deprecate. The two permissions cover different surfaces — job-level (cost-to-complete, EVB, monthly P&amp;L) vs WO-level (per-visit pricing, T&amp;M log totals). Both exist permanently.</div>
+            </div>
+            <div class="item">
+                <div class="q"><span class="id">D4</span> Where to surface in the admin UI?</div>
+                <div class="a"><strong>Recommended:</strong> Nested under "Work Order" in the permissions tree (alongside the other WO permissions from V1). Mirrors how <code>job.financialView</code> nests under "Job". Visually obvious which surface each gate controls.</div>
+            </div>
+            <div class="item">
+                <div class="q"><span class="id">D5</span> Audit log entry on migration?</div>
+                <div class="a"><strong>Recommended:</strong> Yes — one row per role, system-attributed (<code>actorUserId = null</code>, <code>actorSystem = "migration:WOX-24"</code>). Lets ops answer "why does Foreman have this permission?" in one query if there's ever a question.</div>
+            </div>
+        </div>
+    </section>
+
+    <section class="card">
+        <h2>4. Roadmap context</h2>
+        <p>Direct V2 follow-on to WOX-11 (V1 pricing gate). Pillar P1 — WO Foundation + Permissions. The master plan explicitly flagged this as the post-V1 split: "Tie pricing to <code>job.financialView</code> for now — flag dedicated permission for later." This doc is "later".</p>
+        <div class="roadmap-grid">
+            <a href="uis-WOX-index.html">
+                <div class="id">WOX-11</div>
+                <div class="name">WO Pricing &amp; Financial Gate</div>
+                <div class="relation">Parent — V1 gate on job.financialView</div>
+            </a>
+            <a href="uis-20-tm-work-orders.html">
+                <div class="id">WO-1..8</div>
+                <div class="name">T&amp;M Work Orders</div>
+                <div class="relation">Parent track — WO foundation</div>
+            </a>
+            <a href="uis-WOX-index.html">
+                <div class="id">WOX-23</div>
+                <div class="name">Sub-Relationships</div>
+                <div class="relation">Sibling architectural cleanup</div>
+            </a>
+            <a href="release-1.34-timeline.html">
+                <div class="id">1.34</div>
+                <div class="name">Release 1.34 Timeline</div>
+                <div class="relation">Candidate landing window</div>
+            </a>
+        </div>
+    </section>
+
+    <section class="card">
+        <h2>5. Source traceability</h2>
+        <div class="fathom-quote">
+            "Tie pricing permissions to Job financial for now — but flag that we'll add a dedicated permission later."
+            <span class="who">— Corey, Fathom call May 5, 2026 (PM session) — decision baked into master plan item #17</span>
+        </div>
+        <div class="trace">
+            <div class="row"><strong>Master action list:</strong> Item #40 — Dedicated <code>workOrder.viewPricing</code> permission (split from job.financialView), DEFERRED ~1-2d · V2</div>
+            <div class="row"><strong>Fathom calls:</strong> May 5, 2026 — AM strategy + PM V1 scope (decision baked in)</div>
+            <div class="row"><strong>Emma's V1 scope:</strong> WO-1.33-scope.html — V1 gates on job.financialView; dedicated permission deferred to V2</div>
+            <div class="row"><strong>Roadmap parents:</strong> WO-3 · WOX-11 · uis-20-tm-work-orders.html</div>
+        </div>
+    </section>
+
+    <div class="footer">
+        WOX-24 · Generated May 6, 2026 · <a href="uis-WOX-index.html">← Back to WOX Index</a>
+    </div>
+
+</div>
+</body>
+</html>

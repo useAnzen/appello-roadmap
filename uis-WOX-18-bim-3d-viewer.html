@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WOX-18 · BIM / Revit / IFC 3D Viewer</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Inter', -apple-system, sans-serif; background: #f1f5f9; color: #1e293b; line-height: 1.5; }
+
+.in-iframe .top-nav { display: none !important; }
+.top-nav { position: sticky; top: 0; z-index: 100; background: #0f172a; border-bottom: 1px solid #1e293b; padding: 0 24px; display: flex; align-items: center; gap: 0; }
+.top-nav a { display: inline-flex; align-items: center; padding: 12px 18px; font-size: 13px; font-weight: 600; color: #94a3b8; text-decoration: none; border-bottom: 2px solid transparent; transition: all 0.15s; white-space: nowrap; }
+.top-nav a:hover { color: #f8fafc; background: #1e293b; }
+.top-nav .nav-logo { font-size: 11px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: #475569; padding-right: 18px; margin-right: 4px; border-right: 1px solid #1e293b; }
+
+.wrap { max-width: 1080px; margin: 0 auto; padding: 36px 24px 80px; }
+
+.hero { background: linear-gradient(135deg, #4338ca, #7c3aed); color: #fff; border-radius: 14px; padding: 28px 32px; margin-bottom: 22px; }
+.hero .badges { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+.hero .badge { font-size: 10px; font-weight: 700; padding: 4px 10px; border-radius: 5px; background: rgba(255,255,255,0.18); letter-spacing: 0.5px; text-transform: uppercase; }
+.hero .badge.warn { background: rgba(245, 158, 11, 0.5); }
+.hero .badge.danger { background: rgba(239, 68, 68, 0.5); }
+.hero .badge.success { background: rgba(34, 197, 94, 0.5); }
+.hero h1 { font-size: 28px; font-weight: 800; letter-spacing: -0.01em; margin-bottom: 10px; }
+.hero .pitch { font-size: 15px; line-height: 1.6; color: #e0e7ff; max-width: 760px; }
+.hero .meta { display: flex; gap: 22px; margin-top: 14px; font-size: 12px; color: #c7d2fe; flex-wrap: wrap; }
+.hero .meta strong { color: #fff; }
+
+section.card { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 22px 26px; margin-bottom: 16px; }
+section.card h2 { font-size: 18px; font-weight: 800; color: #0f172a; margin-bottom: 12px; padding-bottom: 10px; border-bottom: 2px solid #f1f5f9; }
+section.card h3 { font-size: 14px; font-weight: 700; color: #0f172a; margin: 14px 0 6px; }
+section.card p { font-size: 14px; color: #334155; margin-bottom: 8px; }
+section.card ul, section.card ol { padding-left: 20px; margin: 6px 0 10px; }
+section.card li { font-size: 14px; color: #334155; margin-bottom: 4px; line-height: 1.55; }
+section.card code { background: #f1f5f9; padding: 1px 6px; border-radius: 4px; font-size: 12px; font-family: 'SF Mono', Menlo, monospace; color: #be185d; }
+
+.where { background: #f8fafc; border-left: 3px solid #3b82f6; padding: 12px 16px; border-radius: 0 8px 8px 0; margin: 8px 0 14px; font-size: 13px; color: #334155; line-height: 1.65; }
+.where strong { color: #0f172a; }
+.where code { background: #fff; padding: 1px 6px; border-radius: 3px; font-family: 'SF Mono', Menlo, monospace; font-size: 11px; color: #0f172a; border: 1px solid #e2e8f0; }
+
+.mockup-container { background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 10px; overflow: hidden; margin: 12px 0; }
+.mockup-bar { background: #fff; border-bottom: 1px solid #e2e8f0; padding: 9px 14px; display: flex; align-items: center; gap: 8px; font-size: 12px; color: #64748b; }
+.mockup-dots { display: flex; gap: 5px; margin-right: 6px; }
+.mockup-dot { width: 9px; height: 9px; border-radius: 50%; }
+.mockup-dot.r { background: #f87171; }
+.mockup-dot.y { background: #fbbf24; }
+.mockup-dot.g { background: #34d399; }
+.mockup-url { background: #f1f5f9; padding: 3px 9px; border-radius: 4px; font-size: 11px; font-family: 'SF Mono', Menlo, monospace; color: #475569; }
+.mockup-body { padding: 18px 20px; min-height: 200px; font-size: 13px; color: #334155; line-height: 1.55; }
+
+.btn { display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; border-radius: 6px; font-size: 13px; font-weight: 600; border: none; cursor: pointer; }
+.btn-primary { background: #3b82f6; color: #fff; }
+.btn-secondary { background: #fff; color: #334155; border: 1px solid #cbd5e1; }
+.btn-purple { background: #7c3aed; color: #fff; }
+.btn-success { background: #16a34a; color: #fff; }
+.btn-sm { padding: 5px 10px; font-size: 12px; }
+
+.pill { font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 4px; display: inline-block; white-space: nowrap; }
+.pill-blue { background: #dbeafe; color: #1e40af; }
+.pill-green { background: #dcfce7; color: #166534; }
+.pill-amber { background: #fef3c7; color: #92400e; }
+.pill-red { background: #fee2e2; color: #991b1b; }
+.pill-purple { background: #ede9fe; color: #6b21a8; }
+.pill-gray { background: #f1f5f9; color: #475569; }
+
+.decisions { display: flex; flex-direction: column; gap: 12px; margin-top: 8px; }
+.decisions .item { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px 16px; }
+.decisions .q { font-size: 14px; font-weight: 700; color: #0f172a; margin-bottom: 6px; display: flex; align-items: baseline; gap: 8px; }
+.decisions .q .id { font-family: 'SF Mono', Menlo, monospace; font-size: 11px; color: #4338ca; background: #ede9fe; padding: 2px 7px; border-radius: 4px; }
+.decisions .a { font-size: 13px; color: #334155; line-height: 1.6; }
+.decisions .a strong { color: #0f172a; }
+
+.roadmap-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; margin-top: 8px; }
+.roadmap-grid a { display: block; padding: 10px 14px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; text-decoration: none; color: inherit; transition: all 0.12s; }
+.roadmap-grid a:hover { border-color: #3b82f6; background: #fff; }
+.roadmap-grid .id { font-family: 'SF Mono', Menlo, monospace; font-size: 11px; font-weight: 700; color: #3b82f6; }
+.roadmap-grid .name { font-size: 13px; font-weight: 600; color: #0f172a; margin-top: 3px; }
+.roadmap-grid .relation { font-size: 11px; color: #64748b; margin-top: 2px; }
+
+.fathom-quote { background: #fef3c7; border-left: 3px solid #f59e0b; padding: 12px 16px; border-radius: 0 8px 8px 0; margin: 10px 0; font-size: 13px; color: #78350f; line-height: 1.55; font-style: italic; }
+.fathom-quote .who { font-style: normal; font-weight: 700; display: block; margin-top: 6px; font-size: 11px; }
+
+.trace { display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: #334155; }
+.trace .row { display: flex; gap: 10px; align-items: baseline; }
+.trace .row strong { color: #0f172a; min-width: 130px; flex-shrink: 0; }
+.trace .row a { color: #3b82f6; text-decoration: none; }
+
+.footer { text-align: center; padding: 20px 0; font-size: 12px; color: #94a3b8; margin-top: 24px; }
+.footer a { color: #3b82f6; text-decoration: none; }
+
+.bim-canvas { background: linear-gradient(180deg, #1e293b 0%, #334155 100%); border-radius: 6px; height: 320px; position: relative; overflow: hidden; color: #fff; }
+.bim-canvas .axis-marker { position: absolute; bottom: 10px; left: 10px; background: rgba(0,0,0,0.5); border-radius: 4px; padding: 4px 8px; font-size: 9px; font-weight: 700; }
+.tool-btn { display: inline-flex; align-items: center; gap: 6px; padding: 5px 9px; background: rgba(0,0,0,0.55); color: #fff; border: 1px solid rgba(255,255,255,0.15); border-radius: 5px; font-size: 10px; font-weight: 600; cursor: pointer; }
+.tool-btn.active { background: #3b82f6; border-color: #3b82f6; }
+</style>
+</head>
+<body>
+<script>if(self!==top)document.documentElement.classList.add("in-iframe")</script>
+
+<nav class="top-nav">
+    <span class="nav-logo">Appello SDLC</span>
+    <a href="index.html">Roadmap</a>
+    <a href="release-1.33-timeline.html">Release 1.33</a>
+    <a href="uis-WOX-index.html">WO Reconciliation Index</a>
+    <a href="ui-interface-library.html">UI Library</a>
+</nav>
+
+<div class="wrap">
+
+    <div class="hero">
+        <div class="badges">
+            <span class="badge">WOX-18</span>
+            <span class="badge success">Post-V1 · 1.34+ candidate</span>
+            <span class="badge">Pillar P5 — Documents &amp; Visualization</span>
+            <span class="badge">Path A · Concept Sketch</span>
+        </div>
+        <h1>BIM / Revit / IFC 3D Viewer</h1>
+        <p class="pitch">Mechanical and HVAC contractors need to navigate 3D Revit / IFC models on-site to find a specific zone, a piece of equipment, a duct run. Embed a lightweight 3D viewer (Autodesk Forge) so a user opens a model uploaded to a Project or Job and orbits, sections, and measures it inside Appello — no download / external app / re-upload loop. <strong>Killer feature:</strong> tap a duct or unit in the model → create a WO with that element as the subject (ties to WOX-04 equipment-as-subject).</p>
+        <div class="meta">
+            <span><strong>Status:</strong> Concept · 1.34+ candidate</span>
+            <span><strong>Effort:</strong> ~10-15d · external SDK</span>
+            <span><strong>Extends:</strong> WOX-04 · UIS-15A</span>
+            <span><strong>Master ref:</strong> #32 — UIS-BIM</span>
+        </div>
+    </div>
+
+    <section class="card">
+        <h2>1. Where this lives in the app</h2>
+        <div class="where">
+            <strong>Pages / routes:</strong> new <strong>Models</strong> tab on Project detail (<code>apps/frontend/src/pages/projects/[id]/index.tsx</code>) · same tab on Job detail (<code>apps/frontend/src/pages/jobs/[id]/index.tsx</code>)<br>
+            <strong>New backend model:</strong> <code>BimModel</code> with <code>parentEntityType</code> · <code>parentEntityId</code> · <code>fileUrl</code> · <code>viewerType</code> (<code>FORGE</code> · <code>SPECKLE</code> · <code>IFC_JS</code>) · <code>fileName</code> · <code>fileSize</code> · <code>uploadedByUserId</code> · <code>version</code><br>
+            <strong>New components:</strong> <code>components/BimViewer/BimViewerCanvas.tsx</code> (Forge SDK wrapper) · <code>BimModelList.tsx</code> · <code>PinToWorkOrderDialog.tsx</code><br>
+            <strong>API surface:</strong> GraphQL — <code>bimModels(options)</code> · <code>uploadBimModel</code> (signed URL pattern) · <code>createWorkOrderFromBimElement(modelId, elementId, ...)</code><br>
+            <strong>Storage:</strong> Appello CDN for paid tiers · external link for free tier (D2 below)
+        </div>
+        <p>Forge is a hosted SDK — uploads are translated server-side by Autodesk, then rendered via their JavaScript viewer. The "pin → WO" feature uses Forge's <code>getProperties</code> API to extract the element's name + family, pre-fills a WO create flyout with that element pre-selected as the subject equipment.</p>
+    </section>
+
+    <section class="card">
+        <h2>2. UI Concept</h2>
+        <p>Project detail "Models" tab — list of uploaded models on the left, full-width 3D canvas on the right with section-cut, layer toggles, and a <strong>Pin → New WO</strong> tool that lets a user click any duct, RTU, or pipe in the model to spawn a WO with that element as the subject.</p>
+        <div class="mockup-container">
+            <div class="mockup-bar">
+                <div class="mockup-dots"><span class="mockup-dot r"></span><span class="mockup-dot y"></span><span class="mockup-dot g"></span></div>
+                <span class="mockup-url">app.useappello.com/projects/cedar-ridge-hvac-retrofit?tab=models</span>
+            </div>
+            <div class="mockup-body">
+
+                <div style="display:flex;gap:10px;margin-bottom:12px;border-bottom:2px solid #f1f5f9;padding-bottom:8px;">
+                    <div style="font-size:13px;color:#94a3b8;font-weight:600;">Overview</div>
+                    <div style="font-size:13px;color:#94a3b8;font-weight:600;">Schedule</div>
+                    <div style="font-size:13px;color:#94a3b8;font-weight:600;">Documents</div>
+                    <div style="font-size:13px;color:#0f172a;font-weight:800;border-bottom:2px solid #3b82f6;padding-bottom:6px;margin-bottom:-10px;">Models</div>
+                    <div style="font-size:13px;color:#94a3b8;font-weight:600;">Forms</div>
+                </div>
+
+                <div style="display:grid;grid-template-columns:240px 1fr;gap:12px;">
+
+                    <div>
+                        <div style="font-size:11px;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:6px;">Uploaded models</div>
+                        <div style="background:#dbeafe;border:1px solid #93c5fd;border-radius:6px;padding:8px;font-size:11px;margin-bottom:4px;cursor:pointer;">
+                            <div style="font-weight:700;color:#0f172a;">Cedar Ridge — Mech v3.rvt</div>
+                            <div style="color:#1e40af;font-size:10px;margin-top:2px;">142 MB · v3 · Apr 28, 2026</div>
+                            <div style="color:#64748b;font-size:10px;">Mary Patterson</div>
+                        </div>
+                        <div style="background:#fff;border:1px solid #e2e8f0;border-radius:6px;padding:8px;font-size:11px;margin-bottom:4px;cursor:pointer;">
+                            <div style="font-weight:700;color:#0f172a;">Cedar Ridge — Arch.ifc</div>
+                            <div style="color:#64748b;font-size:10px;margin-top:2px;">87 MB · v1 · Apr 12, 2026</div>
+                        </div>
+                        <div style="background:#fff;border:1px solid #e2e8f0;border-radius:6px;padding:8px;font-size:11px;margin-bottom:8px;cursor:pointer;">
+                            <div style="font-weight:700;color:#0f172a;">Cedar Ridge — Plumb.rvt</div>
+                            <div style="color:#64748b;font-size:10px;margin-top:2px;">64 MB · v2 · Apr 22, 2026</div>
+                        </div>
+                        <button class="btn btn-secondary btn-sm" style="width:100%;justify-content:center;">+ Upload model</button>
+
+                        <div style="font-size:11px;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:0.4px;margin:14px 0 6px;">Layers</div>
+                        <label style="display:flex;align-items:center;gap:6px;font-size:11px;color:#334155;margin-bottom:4px;"><input type="checkbox" checked style="margin:0;"> HVAC supply</label>
+                        <label style="display:flex;align-items:center;gap:6px;font-size:11px;color:#334155;margin-bottom:4px;"><input type="checkbox" checked style="margin:0;"> HVAC return</label>
+                        <label style="display:flex;align-items:center;gap:6px;font-size:11px;color:#334155;margin-bottom:4px;"><input type="checkbox" checked style="margin:0;"> Equipment (RTUs)</label>
+                        <label style="display:flex;align-items:center;gap:6px;font-size:11px;color:#94a3b8;margin-bottom:4px;"><input type="checkbox" style="margin:0;"> Plumbing</label>
+                        <label style="display:flex;align-items:center;gap:6px;font-size:11px;color:#94a3b8;"><input type="checkbox" style="margin:0;"> Architecture</label>
+                    </div>
+
+                    <div class="bim-canvas">
+                        <div style="position:absolute;top:10px;left:10px;display:flex;gap:5px;flex-wrap:wrap;">
+                            <button class="tool-btn">⌂ Home</button>
+                            <button class="tool-btn">⤢ Orbit</button>
+                            <button class="tool-btn active">✂ Section cut</button>
+                            <button class="tool-btn">📏 Measure</button>
+                            <button class="tool-btn" style="background:#7c3aed;border-color:#7c3aed;">📌 Pin → New WO</button>
+                        </div>
+
+                        <svg viewBox="0 0 600 320" style="width:100%;height:100%;">
+                            <defs>
+                                <linearGradient id="metal" x1="0" y1="0" x2="1" y2="1">
+                                    <stop offset="0" stop-color="#94a3b8"/><stop offset="1" stop-color="#475569"/>
+                                </linearGradient>
+                                <linearGradient id="floor" x1="0" y1="0" x2="0" y2="1">
+                                    <stop offset="0" stop-color="#64748b"/><stop offset="1" stop-color="#1e293b"/>
+                                </linearGradient>
+                            </defs>
+
+                            <polygon points="80,260 520,260 580,200 140,200" fill="url(#floor)" opacity="0.7"/>
+                            <polygon points="80,260 80,180 140,120 140,200" fill="#475569" opacity="0.55"/>
+                            <polygon points="520,260 580,200 580,120 520,180" fill="#334155" opacity="0.7"/>
+                            <polygon points="80,180 140,120 580,120 520,180" fill="#1e293b" opacity="0.85"/>
+
+                            <g opacity="0.95">
+                                <rect x="170" y="100" width="60" height="40" fill="url(#metal)" stroke="#cbd5e1" stroke-width="0.5"/>
+                                <text x="200" y="125" text-anchor="middle" font-size="9" fill="#fff" font-weight="700">RTU-1</text>
+
+                                <rect x="270" y="100" width="60" height="40" fill="url(#metal)" stroke="#cbd5e1" stroke-width="0.5"/>
+                                <text x="300" y="125" text-anchor="middle" font-size="9" fill="#fff" font-weight="700">RTU-2</text>
+
+                                <rect x="370" y="100" width="60" height="40" fill="#3b82f6" stroke="#fbbf24" stroke-width="2"/>
+                                <text x="400" y="125" text-anchor="middle" font-size="9" fill="#fff" font-weight="700">RTU-3</text>
+
+                                <rect x="470" y="100" width="60" height="40" fill="url(#metal)" stroke="#cbd5e1" stroke-width="0.5"/>
+                                <text x="500" y="125" text-anchor="middle" font-size="9" fill="#fff" font-weight="700">RTU-4</text>
+                            </g>
+
+                            <g stroke="#60a5fa" stroke-width="6" fill="none" opacity="0.7">
+                                <path d="M 200 140 L 200 200 L 280 200" />
+                                <path d="M 300 140 L 300 215 L 380 215" />
+                                <path d="M 400 140 L 400 230 L 480 230" />
+                                <path d="M 500 140 L 500 200" />
+                            </g>
+
+                            <line x1="350" y1="80" x2="350" y2="280" stroke="#fbbf24" stroke-width="1" stroke-dasharray="4 3" opacity="0.8"/>
+                            <text x="358" y="95" font-size="9" fill="#fbbf24" font-weight="700">section</text>
+                        </svg>
+
+                        <div style="position:absolute;top:120px;right:14px;background:rgba(255,255,255,0.97);color:#0f172a;border-radius:6px;padding:10px;width:200px;font-size:11px;box-shadow:0 4px 12px rgba(0,0,0,0.4);">
+                            <div style="font-weight:800;margin-bottom:3px;">RTU-3 · Carrier 50FC</div>
+                            <div style="color:#64748b;font-size:10px;margin-bottom:8px;">10-ton · Floor 3 · Roof curb</div>
+                            <button class="btn btn-purple btn-sm" style="width:100%;justify-content:center;font-size:11px;padding:5px;">📌 Create WO with this as subject</button>
+                            <div style="font-size:10px;color:#94a3b8;margin-top:6px;line-height:1.4;">Linked → equipment <code style="background:#f1f5f9;color:#0f172a;padding:0 4px;border-radius:3px;">EQ-RTU-3</code></div>
+                        </div>
+
+                        <div class="axis-marker">X · Y · Z · Forge · v3</div>
+                    </div>
+
+                </div>
+
+                <div style="margin-top:10px;font-size:11px;color:#64748b;"><strong style="color:#0f172a;">Killer feature:</strong> click any duct, RTU, or pipe → "Create WO with this as subject" pre-fills a WO with that element as the WOX-04 equipment subject. Closes the loop from "find the unit in 3D" → "dispatch a tech to it" without leaving Appello.</div>
+            </div>
+        </div>
+    </section>
+
+    <section class="card">
+        <h2>3. Key decisions for Emma + Corey to discuss</h2>
+        <div class="decisions">
+            <div class="item">
+                <div class="q"><span class="id">D1</span> Viewer engine — Autodesk Forge, Speckle, IFC.js, or xeokit?</div>
+                <div class="a"><strong>Recommended:</strong> <strong>Autodesk Forge</strong>. Best Revit support (it's Autodesk's own format), full IFC support, mature SDK, hosted translation. Speckle is the fallback for non-AEC files. IFC.js / xeokit are open-source paths worth a 1-day spike but production-readiness is the risk.</div>
+            </div>
+            <div class="item">
+                <div class="q"><span class="id">D2</span> Storage — Appello CDN or external link?</div>
+                <div class="a"><strong>Recommended:</strong> Tiered. Paid customers get Appello-hosted (S3 + CloudFront), free / trial get external link only (paste a OneDrive / SharePoint URL similar to WOX-15). Forge translation is metered — hosting our own bytes lets us amortize.</div>
+            </div>
+            <div class="item">
+                <div class="q"><span class="id">D3</span> Max model size?</div>
+                <div class="a"><strong>Recommended:</strong> 500 MB initial cap. Raise based on real usage signal — 99% of mechanical models clear at &lt; 250 MB. The cap is a pragmatic guardrail against accidentally uploading a 4 GB federated model that bricks the viewer.</div>
+            </div>
+            <div class="item">
+                <div class="q"><span class="id">D4</span> Mobile experience?</div>
+                <div class="a"><strong>Recommended:</strong> Read-only orbit on phones (Forge mobile viewer handles this fine). Full nav + section + pin on tablets — that's where James Turpin's Detroit field-visit need actually lives. Phone viewport doesn't have the real-estate for the toolset.</div>
+            </div>
+            <div class="item">
+                <div class="q"><span class="id">D5</span> Link a model element → WO ("pin to WO")?</div>
+                <div class="a"><strong>Recommended:</strong> <strong>Yes</strong> — this is the major delighter. Ties WOX-18 directly to WOX-04 (equipment-as-subject). Tap RTU-3 in the 3D model → spawn WO pre-filled with <code>subjectEquipmentId = EQ-RTU-3</code>. No competitor (Procore, CompanyCam, Clearstory) closes this loop.</div>
+            </div>
+        </div>
+    </section>
+
+    <section class="card">
+        <h2>4. Roadmap context</h2>
+        <p>The most ambitious doc-track item — direct customer pull from James Turpin (Detroit field visit). Massive differentiator vs Clearstory and CompanyCam (neither has native 3D model viewing). The "pin to WO" feature only works because WOX-04 establishes equipment-as-subject as a first-class relationship.</p>
+        <div class="roadmap-grid">
+            <a href="uis-15A-equipment-job-pl.html">
+                <div class="id">UIS-15A</div>
+                <div class="name">Equipment on Job P&amp;L</div>
+                <div class="relation">Equipment model parent</div>
+            </a>
+            <a href="uis-WOX-15-sharepoint-paste-link.html">
+                <div class="id">WOX-15</div>
+                <div class="name">SharePoint Phase 1</div>
+                <div class="relation">Sibling — Pillar P5</div>
+            </a>
+            <a href="uis-WOX-17-sharepoint-iframe.html">
+                <div class="id">WOX-17</div>
+                <div class="name">SharePoint Phase 2</div>
+                <div class="relation">Sibling — same release</div>
+            </a>
+            <a href="uis-20d-detail-page.html">
+                <div class="id">WO-4</div>
+                <div class="name">WO Detail Page</div>
+                <div class="relation">"Pin to WO" target</div>
+            </a>
+        </div>
+    </section>
+
+    <section class="card">
+        <h2>5. Source traceability</h2>
+        <div class="fathom-quote">
+            "We should be able to look at the BIM model right inside Appello — at least for our mech-co customers."
+            <span class="who">— Corey Helson, Fathom call May 5, 2026 (am) · echoing James Turpin's Detroit field-visit ask</span>
+        </div>
+        <div class="trace">
+            <div class="row"><strong>Master action list:</strong> Item #32 — UIS-BIM 3D Model Viewer (~10-15d, 1.34 candidate)</div>
+            <div class="row"><strong>Fathom calls:</strong> May 5, 2026 — Strategy + Dispatch (am, timestamp 186 · James Turpin Detroit visit)</div>
+            <div class="row"><strong>Emma's V1 scope:</strong> WO-1.33-scope.html — outside V1, parallel viz track</div>
+            <div class="row"><strong>Roadmap parents:</strong> uis-WOX-04-equipment-subject.html (planned) · uis-15A-equipment-job-pl.html · uis-20d-detail-page.html</div>
+        </div>
+    </section>
+
+    <div class="footer">
+        WOX-18 · Generated May 6, 2026 · <a href="uis-WOX-index.html">← Back to WOX Index</a>
+    </div>
+
+</div>
+</body>
+</html>

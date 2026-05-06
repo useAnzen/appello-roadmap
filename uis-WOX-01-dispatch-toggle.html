@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WOX-01 · Dispatch Board V0 — Calendar Toggle</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Inter', -apple-system, sans-serif; background: #f1f5f9; color: #1e293b; line-height: 1.5; }
+
+.in-iframe .top-nav { display: none !important; }
+.top-nav { position: sticky; top: 0; z-index: 100; background: #0f172a; border-bottom: 1px solid #1e293b; padding: 0 24px; display: flex; align-items: center; gap: 0; }
+.top-nav a { display: inline-flex; align-items: center; padding: 12px 18px; font-size: 13px; font-weight: 600; color: #94a3b8; text-decoration: none; border-bottom: 2px solid transparent; transition: all 0.15s; white-space: nowrap; }
+.top-nav a:hover { color: #f8fafc; background: #1e293b; }
+.top-nav .nav-logo { font-size: 11px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: #475569; padding-right: 18px; margin-right: 4px; border-right: 1px solid #1e293b; }
+
+.wrap { max-width: 1080px; margin: 0 auto; padding: 36px 24px 80px; }
+
+.hero { background: linear-gradient(135deg, #4338ca, #7c3aed); color: #fff; border-radius: 14px; padding: 28px 32px; margin-bottom: 22px; }
+.hero .badges { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+.hero .badge { font-size: 10px; font-weight: 700; padding: 4px 10px; border-radius: 5px; background: rgba(255,255,255,0.18); letter-spacing: 0.5px; text-transform: uppercase; }
+.hero .badge.warn { background: rgba(245, 158, 11, 0.5); }
+.hero .badge.danger { background: rgba(239, 68, 68, 0.5); }
+.hero .badge.success { background: rgba(34, 197, 94, 0.5); }
+.hero h1 { font-size: 28px; font-weight: 800; letter-spacing: -0.01em; margin-bottom: 10px; }
+.hero .pitch { font-size: 15px; line-height: 1.6; color: #e0e7ff; max-width: 760px; }
+.hero .meta { display: flex; gap: 22px; margin-top: 14px; font-size: 12px; color: #c7d2fe; flex-wrap: wrap; }
+.hero .meta strong { color: #fff; }
+
+section.card { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 22px 26px; margin-bottom: 16px; }
+section.card h2 { font-size: 18px; font-weight: 800; color: #0f172a; margin-bottom: 12px; padding-bottom: 10px; border-bottom: 2px solid #f1f5f9; }
+section.card h3 { font-size: 14px; font-weight: 700; color: #0f172a; margin: 14px 0 6px; }
+section.card p { font-size: 14px; color: #334155; margin-bottom: 8px; }
+section.card ul, section.card ol { padding-left: 20px; margin: 6px 0 10px; }
+section.card li { font-size: 14px; color: #334155; margin-bottom: 4px; line-height: 1.55; }
+section.card code { background: #f1f5f9; padding: 1px 6px; border-radius: 4px; font-size: 12px; font-family: 'SF Mono', Menlo, monospace; color: #be185d; }
+
+.where { background: #f8fafc; border-left: 3px solid #3b82f6; padding: 12px 16px; border-radius: 0 8px 8px 0; margin: 8px 0 14px; font-size: 13px; color: #334155; line-height: 1.65; }
+.where strong { color: #0f172a; }
+.where code { background: #fff; padding: 1px 6px; border-radius: 3px; font-family: 'SF Mono', Menlo, monospace; font-size: 11px; color: #0f172a; border: 1px solid #e2e8f0; }
+
+.mockup-container { background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 10px; overflow: hidden; margin: 12px 0; }
+.mockup-bar { background: #fff; border-bottom: 1px solid #e2e8f0; padding: 9px 14px; display: flex; align-items: center; gap: 8px; font-size: 12px; color: #64748b; }
+.mockup-dots { display: flex; gap: 5px; margin-right: 6px; }
+.mockup-dot { width: 9px; height: 9px; border-radius: 50%; }
+.mockup-dot.r { background: #f87171; }
+.mockup-dot.y { background: #fbbf24; }
+.mockup-dot.g { background: #34d399; }
+.mockup-url { background: #f1f5f9; padding: 3px 9px; border-radius: 4px; font-size: 11px; font-family: 'SF Mono', Menlo, monospace; color: #475569; }
+.mockup-body { padding: 18px 20px; min-height: 200px; font-size: 13px; color: #334155; line-height: 1.55; }
+
+.mobile-frame { max-width: 375px; margin: 14px auto; border: 2px solid #cbd5e1; border-radius: 22px; overflow: hidden; background: #fff; }
+.mobile-frame .mockup-bar { padding: 10px 14px; border-bottom: 1px solid #e2e8f0; }
+.mobile-frame .mockup-body { padding: 14px 16px; min-height: 320px; }
+
+.btn { display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; border-radius: 6px; font-size: 13px; font-weight: 600; border: none; cursor: pointer; }
+.btn-primary { background: #3b82f6; color: #fff; }
+.btn-secondary { background: #fff; color: #334155; border: 1px solid #cbd5e1; }
+.btn-purple { background: #7c3aed; color: #fff; }
+.btn-success { background: #16a34a; color: #fff; }
+.btn-sm { padding: 5px 10px; font-size: 12px; }
+
+.field { margin-bottom: 12px; }
+.field label { display: block; font-size: 11px; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 4px; }
+.field .input, .field .select { background: #fff; border: 1px solid #cbd5e1; border-radius: 6px; padding: 8px 12px; font-size: 13px; color: #0f172a; }
+
+.t { width: 100%; border-collapse: collapse; font-size: 12px; background: #fff; border: 1px solid #e2e8f0; border-radius: 6px; overflow: hidden; }
+.t th { text-align: left; padding: 8px 12px; background: #f8fafc; border-bottom: 1px solid #e2e8f0; font-weight: 700; color: #475569; font-size: 11px; text-transform: uppercase; letter-spacing: 0.4px; }
+.t td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; color: #334155; }
+.t tr:last-child td { border-bottom: none; }
+
+.pill { font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 4px; display: inline-block; white-space: nowrap; }
+.pill-blue { background: #dbeafe; color: #1e40af; }
+.pill-green { background: #dcfce7; color: #166534; }
+.pill-amber { background: #fef3c7; color: #92400e; }
+.pill-red { background: #fee2e2; color: #991b1b; }
+.pill-purple { background: #ede9fe; color: #6b21a8; }
+.pill-gray { background: #f1f5f9; color: #475569; }
+.pill-pink { background: #fce7f3; color: #9d174d; }
+
+.decisions { display: flex; flex-direction: column; gap: 12px; margin-top: 8px; }
+.decisions .item { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px 16px; }
+.decisions .q { font-size: 14px; font-weight: 700; color: #0f172a; margin-bottom: 6px; display: flex; align-items: baseline; gap: 8px; }
+.decisions .q .id { font-family: 'SF Mono', Menlo, monospace; font-size: 11px; color: #4338ca; background: #ede9fe; padding: 2px 7px; border-radius: 4px; }
+.decisions .a { font-size: 13px; color: #334155; line-height: 1.6; }
+.decisions .a strong { color: #0f172a; }
+
+.roadmap-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; margin-top: 8px; }
+.roadmap-grid a { display: block; padding: 10px 14px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; text-decoration: none; color: inherit; transition: all 0.12s; }
+.roadmap-grid a:hover { border-color: #3b82f6; background: #fff; }
+.roadmap-grid .id { font-family: 'SF Mono', Menlo, monospace; font-size: 11px; font-weight: 700; color: #3b82f6; }
+.roadmap-grid .name { font-size: 13px; font-weight: 600; color: #0f172a; margin-top: 3px; }
+.roadmap-grid .relation { font-size: 11px; color: #64748b; margin-top: 2px; }
+
+.fathom-quote { background: #fef3c7; border-left: 3px solid #f59e0b; padding: 12px 16px; border-radius: 0 8px 8px 0; margin: 10px 0; font-size: 13px; color: #78350f; line-height: 1.55; font-style: italic; }
+.fathom-quote .who { font-style: normal; font-weight: 700; display: block; margin-top: 6px; font-size: 11px; }
+.fathom-quote .who a { color: #78350f; text-decoration: underline; }
+
+.trace { display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: #334155; }
+.trace .row { display: flex; gap: 10px; align-items: baseline; }
+.trace .row strong { color: #0f172a; min-width: 130px; flex-shrink: 0; }
+.trace .row a { color: #3b82f6; text-decoration: none; }
+.trace .row a:hover { text-decoration: underline; }
+
+.footer { text-align: center; padding: 20px 0; font-size: 12px; color: #94a3b8; margin-top: 24px; }
+.footer a { color: #3b82f6; text-decoration: none; }
+</style>
+</head>
+<body>
+<script>if(self!==top)document.documentElement.classList.add("in-iframe")</script>
+
+<nav class="top-nav">
+    <span class="nav-logo">Appello SDLC</span>
+    <a href="index.html">Roadmap</a>
+    <a href="release-1.33-timeline.html">Release 1.33</a>
+    <a href="uis-WOX-index.html">WO Reconciliation Index</a>
+    <a href="ui-interface-library.html">UI Library</a>
+</nav>
+
+<div class="wrap">
+
+    <div class="hero">
+        <div class="badges">
+            <span class="badge">WOX-01</span>
+            <span class="badge warn">V1 · 1.33</span>
+            <span class="badge">Pillar P3 — Scheduling</span>
+            <span class="badge">Path A · Concept Sketch</span>
+        </div>
+        <h1>Dispatch Board V0 — Calendar Toggle</h1>
+        <p class="pitch">Adds a "Dispatch" view toggle alongside the existing Calendar view on <code>/scheduling/calendar</code>, scoped to <code>Job.jobType = "WORK_ORDER"</code>. V0 is just the toggle + a filtered WO list. Full Kanban dispatch board ships in 1.34 (see WOX-16).</p>
+        <div class="meta">
+            <span><strong>Status:</strong> Concept</span>
+            <span><strong>Effort:</strong> ~1-2d</span>
+            <span><strong>Extends:</strong> WO-9a · scheduling/calendar</span>
+            <span><strong>Master ref:</strong> #25</span>
+        </div>
+    </div>
+
+    <section class="card">
+        <h2>1. Where this lives in the app</h2>
+        <div class="where">
+            <strong>Page / route:</strong> <code>apps/frontend/src/pages/scheduling/calendar.tsx</code><br>
+            <strong>Components touched:</strong> <code>apps/frontend/src/components/Settings/ScheduleSettings.tsx</code> (toolbar pattern), calendar toolbar (path TBD — verify)<br>
+            <strong>New components:</strong> <code>&lt;DispatchToggle /&gt;</code>, <code>&lt;DispatchListV0 /&gt;</code> (path TBD)<br>
+            <strong>API surface:</strong> GraphQL — reuses existing scheduled-event queries with a <code>jobType: WORK_ORDER</code> filter; <strong>no new resolvers</strong>
+        </div>
+        <p>The existing calendar lives at <code>scheduling/calendar.tsx</code>. V0 adds a segmented toggle in the page toolbar — <strong>Calendar</strong> (default) and <strong>Dispatch (NEW)</strong>. When Dispatch is selected, the same page renders a stripped-down list of this-week's scheduled work orders. No new GraphQL queries — we filter the same scheduled-event query by <code>jobType</code>.</p>
+        <p>Persistence uses <code>localStorage</code> per <code>userId</code> so a dispatcher who lives in Dispatch view doesn't get bounced back to Calendar every session. Per-instance default lives in <code>InstanceSetting</code> (default Calendar; service-co instances flip to Dispatch).</p>
+    </section>
+
+    <section class="card">
+        <h2>2. UI Concept</h2>
+        <p>Desktop calendar page with a segmented toggle in the toolbar. When Dispatch is selected, a banner explains the V0 scope and a filtered WO list renders below.</p>
+        <div class="mockup-container">
+            <div class="mockup-bar">
+                <div class="mockup-dots"><span class="mockup-dot r"></span><span class="mockup-dot y"></span><span class="mockup-dot g"></span></div>
+                <span class="mockup-url">app.useappello.com/scheduling/calendar?view=dispatch</span>
+            </div>
+            <div class="mockup-body">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid #e2e8f0;">
+                    <div style="font-size:18px;font-weight:800;color:#0f172a;">Scheduling</div>
+                    <div style="display:inline-flex;background:#f1f5f9;border-radius:8px;padding:3px;gap:2px;">
+                        <button style="padding:6px 14px;border-radius:6px;border:none;background:transparent;font-size:13px;font-weight:600;color:#64748b;cursor:pointer;">Calendar</button>
+                        <button style="padding:6px 14px;border-radius:6px;border:none;background:#3b82f6;color:#fff;font-size:13px;font-weight:600;cursor:pointer;">Dispatch <span style="font-size:10px;background:rgba(255,255,255,0.25);padding:1px 5px;border-radius:3px;margin-left:3px;">NEW</span></button>
+                    </div>
+                </div>
+                <div style="background:#dbeafe;border-left:3px solid #3b82f6;padding:10px 14px;border-radius:0 6px 6px 0;font-size:12px;color:#1e40af;margin-bottom:14px;">
+                    <strong>V0 Dispatch:</strong> Showing this week's scheduled Work Orders. Full Kanban board with drag-to-assign ships in 1.34 — see <strong>WOX-16</strong>.
+                </div>
+                <div style="font-size:11px;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">This week — May 4-10, 2026</div>
+                <table class="t">
+                    <thead>
+                        <tr><th>WO #</th><th>Customer · Subject</th><th>Tech</th><th>Scheduled</th><th>Status</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><code>WO-2026-0142</code></td>
+                            <td>Cedar Ridge Development · HVAC service call · 1234 King St</td>
+                            <td>Mike L.</td>
+                            <td>Tue May 5 · 8:00 AM</td>
+                            <td><span class="pill pill-amber">In Progress</span></td>
+                        </tr>
+                        <tr>
+                            <td><code>WO-2026-0143</code></td>
+                            <td>Mak Surveying · Boiler quarterly · 88 Industrial Dr</td>
+                            <td>Sarah K.</td>
+                            <td>Tue May 5 · 1:00 PM</td>
+                            <td><span class="pill pill-blue">Scheduled</span></td>
+                        </tr>
+                        <tr>
+                            <td><code>WO-2026-0145</code></td>
+                            <td>Owens Insulation · Annual inspection · Plant 2</td>
+                            <td>Mike L. · Sarah K.</td>
+                            <td>Wed May 6 · 9:00 AM</td>
+                            <td><span class="pill pill-blue">Scheduled</span></td>
+                        </tr>
+                        <tr>
+                            <td><code>WO-2026-0148</code></td>
+                            <td>Cedar Ridge Development · Emergency leak · 1234 King St</td>
+                            <td>James T.</td>
+                            <td>Wed May 6 · 2:30 PM</td>
+                            <td><span class="pill pill-red">Urgent</span></td>
+                        </tr>
+                        <tr>
+                            <td><code>WO-2026-0151</code></td>
+                            <td>Thermogenics Demo Co · RTU swap · Roof access</td>
+                            <td>James T. · Mike L.</td>
+                            <td>Fri May 8 · 7:30 AM</td>
+                            <td><span class="pill pill-blue">Scheduled</span></td>
+                        </tr>
+                    </tbody>
+                </table>
+                <div style="font-size:11px;color:#64748b;margin-top:10px;font-style:italic;">5 work orders scheduled this week. Calendar view shows 17 jobs + WOs combined.</div>
+            </div>
+        </div>
+    </section>
+
+    <section class="card">
+        <h2>3. Key decisions for Emma + Corey to discuss</h2>
+        <div class="decisions">
+            <div class="item">
+                <div class="q"><span class="id">D1</span> Should the Calendar / Dispatch toggle persist per-user?</div>
+                <div class="a"><strong>Recommended:</strong> Yes — store last selection in <code>localStorage</code> keyed by <code>userId</code>. Dispatchers live in Dispatch view; project managers stay on Calendar. No new server-side preference needed for V0.</div>
+            </div>
+            <div class="item">
+                <div class="q"><span class="id">D2</span> What's the default view for service-co customers vs project-co?</div>
+                <div class="a"><strong>Recommended:</strong> Per-instance setting on <code>InstanceSetting.defaultSchedulingView</code>. Default <code>CALENDAR</code> for back-compat; Thermogenics-class instances flip to <code>DISPATCH</code>. Per-user override still wins.</div>
+            </div>
+            <div class="item">
+                <div class="q"><span class="id">D3</span> Should non-WO Jobs render in the Dispatch view?</div>
+                <div class="a"><strong>Recommended:</strong> No — WO-only. Dispatch is a high-volume tactical view; mixing project Jobs muddies it. Calendar remains the unified view. Filter at query level via <code>jobType: WORK_ORDER</code>.</div>
+            </div>
+            <div class="item">
+                <div class="q"><span class="id">D4</span> V0 placeholder copy or a real filtered list?</div>
+                <div class="a"><strong>Recommended:</strong> Real filtered list now. A dispatcher hitting an empty placeholder feels broken; the list view delivers immediate value and gives us real customer signal on what V2 should actually do (per master plan, "proves the WO scheduling loop works end-to-end").</div>
+            </div>
+            <div class="item">
+                <div class="q"><span class="id">D5</span> Does this ship together with the calendar filter fix (item #22)?</div>
+                <div class="a"><strong>Recommended:</strong> Yes — bundled PR. The filter fix (in-progress WOs not rendering) is the prerequisite for the Dispatch list to look correct. Both ~1d each, single review.</div>
+            </div>
+        </div>
+    </section>
+
+    <section class="card">
+        <h2>4. Roadmap context</h2>
+        <p>V0 unblock for Pillar P3 — Scheduling Overhaul. Sets up the surface where the full Kanban dispatch board (WOX-16) will live in 1.34. Pairs with the equipment-as-subject relationship (WOX-04) so dispatched WOs carry their subject equipment into the board view.</p>
+        <div class="roadmap-grid">
+            <a href="uis-20-tm-work-orders.html">
+                <div class="id">WO-1..8</div>
+                <div class="name">T&amp;M Work Orders</div>
+                <div class="relation">Parent track — WO foundation</div>
+            </a>
+            <a href="uis-20a-job-type-config.html">
+                <div class="id">WO-1</div>
+                <div class="name">WO Job Type Config</div>
+                <div class="relation">Provides the WORK_ORDER jobType filter</div>
+            </a>
+            <a href="release-1.33-timeline.html">
+                <div class="id">1.33</div>
+                <div class="name">Release 1.33 Timeline</div>
+                <div class="relation">V0 ships here</div>
+            </a>
+            <a href="release-1.34-timeline.html">
+                <div class="id">1.34</div>
+                <div class="name">Release 1.34 Timeline</div>
+                <div class="relation">Full Kanban (WOX-16) lands here</div>
+            </a>
+        </div>
+    </section>
+
+    <section class="card">
+        <h2>5. Source traceability</h2>
+        <div class="fathom-quote">
+            "I think we just toggle it on the calendar for now and design the real board for 1.34."
+            <span class="who">— Emma, Fathom call May 5, 2026 (PM session)</span>
+        </div>
+        <div class="trace">
+            <div class="row"><strong>Master action list:</strong> Item #25 — Dispatch Board V0 (calendar with WO/Job toggle + filter fix)</div>
+            <div class="row"><strong>Fathom calls:</strong> May 5, 2026 — <a href="https://fathom.video/share/j74tNXNjp9zW6pAwLnqrWWfG29t-sr3t">AM strategy</a> + <a href="https://fathom.video/share/vCRfJvnSLefc4z5cFWRxcm6nKSbKUb7i">PM V1 scope</a></div>
+            <div class="row"><strong>Emma's V1 scope:</strong> WO-1.33-scope.html #1 — calendar filter fix + WO toggle (folded in here)</div>
+            <div class="row"><strong>Roadmap parents:</strong> WO-1 · WO-7 · uis-20-tm-work-orders.html</div>
+            <div class="row"><strong>V2 successor:</strong> WOX-16 — full Kanban dispatch (3 concepts described in master plan)</div>
+        </div>
+    </section>
+
+    <div class="footer">
+        WOX-01 · Generated May 6, 2026 · <a href="uis-WOX-index.html">← Back to WOX Index</a>
+    </div>
+
+</div>
+</body>
+</html>

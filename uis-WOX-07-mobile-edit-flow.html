@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WOX-07 · Mobile EDIT Flow — Step-by-Step Reuse</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Inter', -apple-system, sans-serif; background: #f1f5f9; color: #1e293b; line-height: 1.5; }
+
+.in-iframe .top-nav { display: none !important; }
+.top-nav { position: sticky; top: 0; z-index: 100; background: #0f172a; border-bottom: 1px solid #1e293b; padding: 0 24px; display: flex; align-items: center; gap: 0; }
+.top-nav a { display: inline-flex; align-items: center; padding: 12px 18px; font-size: 13px; font-weight: 600; color: #94a3b8; text-decoration: none; border-bottom: 2px solid transparent; transition: all 0.15s; white-space: nowrap; }
+.top-nav a:hover { color: #f8fafc; background: #1e293b; }
+.top-nav .nav-logo { font-size: 11px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: #475569; padding-right: 18px; margin-right: 4px; border-right: 1px solid #1e293b; }
+
+.wrap { max-width: 1080px; margin: 0 auto; padding: 36px 24px 80px; }
+
+.hero { background: linear-gradient(135deg, #4338ca, #7c3aed); color: #fff; border-radius: 14px; padding: 28px 32px; margin-bottom: 22px; }
+.hero .badges { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+.hero .badge { font-size: 10px; font-weight: 700; padding: 4px 10px; border-radius: 5px; background: rgba(255,255,255,0.18); letter-spacing: 0.5px; text-transform: uppercase; }
+.hero .badge.warn { background: rgba(245, 158, 11, 0.5); }
+.hero .badge.danger { background: rgba(239, 68, 68, 0.5); }
+.hero .badge.success { background: rgba(34, 197, 94, 0.5); }
+.hero h1 { font-size: 28px; font-weight: 800; letter-spacing: -0.01em; margin-bottom: 10px; }
+.hero .pitch { font-size: 15px; line-height: 1.6; color: #e0e7ff; max-width: 760px; }
+.hero .meta { display: flex; gap: 22px; margin-top: 14px; font-size: 12px; color: #c7d2fe; flex-wrap: wrap; }
+.hero .meta strong { color: #fff; }
+
+section.card { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 22px 26px; margin-bottom: 16px; }
+section.card h2 { font-size: 18px; font-weight: 800; color: #0f172a; margin-bottom: 12px; padding-bottom: 10px; border-bottom: 2px solid #f1f5f9; }
+section.card h3 { font-size: 14px; font-weight: 700; color: #0f172a; margin: 14px 0 6px; }
+section.card p { font-size: 14px; color: #334155; margin-bottom: 8px; }
+section.card ul, section.card ol { padding-left: 20px; margin: 6px 0 10px; }
+section.card li { font-size: 14px; color: #334155; margin-bottom: 4px; line-height: 1.55; }
+section.card code { background: #f1f5f9; padding: 1px 6px; border-radius: 4px; font-size: 12px; font-family: 'SF Mono', Menlo, monospace; color: #be185d; }
+
+.where { background: #f8fafc; border-left: 3px solid #3b82f6; padding: 12px 16px; border-radius: 0 8px 8px 0; margin: 8px 0 14px; font-size: 13px; color: #334155; line-height: 1.65; }
+.where strong { color: #0f172a; }
+.where code { background: #fff; padding: 1px 6px; border-radius: 3px; font-family: 'SF Mono', Menlo, monospace; font-size: 11px; color: #0f172a; border: 1px solid #e2e8f0; }
+
+.mockup-container { background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 10px; overflow: hidden; margin: 12px 0; }
+.mockup-bar { background: #fff; border-bottom: 1px solid #e2e8f0; padding: 9px 14px; display: flex; align-items: center; gap: 8px; font-size: 12px; color: #64748b; }
+.mockup-dots { display: flex; gap: 5px; margin-right: 6px; }
+.mockup-dot { width: 9px; height: 9px; border-radius: 50%; }
+.mockup-dot.r { background: #f87171; }
+.mockup-dot.y { background: #fbbf24; }
+.mockup-dot.g { background: #34d399; }
+.mockup-url { background: #f1f5f9; padding: 3px 9px; border-radius: 4px; font-size: 11px; font-family: 'SF Mono', Menlo, monospace; color: #475569; }
+.mockup-body { padding: 18px 20px; min-height: 200px; font-size: 13px; color: #334155; line-height: 1.55; }
+
+.mobile-frame { max-width: 375px; margin: 14px auto; border: 2px solid #cbd5e1; border-radius: 22px; overflow: hidden; background: #fff; }
+.mobile-frame .mockup-bar { padding: 10px 14px; border-bottom: 1px solid #e2e8f0; }
+.mobile-frame .mockup-body { padding: 14px 16px; min-height: 320px; }
+
+.btn { display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; border-radius: 6px; font-size: 13px; font-weight: 600; border: none; cursor: pointer; }
+.btn-primary { background: #3b82f6; color: #fff; }
+.btn-secondary { background: #fff; color: #334155; border: 1px solid #cbd5e1; }
+.btn-purple { background: #7c3aed; color: #fff; }
+.btn-success { background: #16a34a; color: #fff; }
+.btn-sm { padding: 5px 10px; font-size: 12px; }
+
+.field { margin-bottom: 12px; }
+.field label { display: block; font-size: 11px; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 4px; }
+.field .input, .field .select { background: #fff; border: 1px solid #cbd5e1; border-radius: 6px; padding: 8px 12px; font-size: 13px; color: #0f172a; }
+
+.t { width: 100%; border-collapse: collapse; font-size: 12px; background: #fff; border: 1px solid #e2e8f0; border-radius: 6px; overflow: hidden; }
+.t th { text-align: left; padding: 8px 12px; background: #f8fafc; border-bottom: 1px solid #e2e8f0; font-weight: 700; color: #475569; font-size: 11px; text-transform: uppercase; letter-spacing: 0.4px; }
+.t td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; color: #334155; }
+.t tr:last-child td { border-bottom: none; }
+
+.pill { font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 4px; display: inline-block; white-space: nowrap; }
+.pill-blue { background: #dbeafe; color: #1e40af; }
+.pill-green { background: #dcfce7; color: #166534; }
+.pill-amber { background: #fef3c7; color: #92400e; }
+.pill-red { background: #fee2e2; color: #991b1b; }
+.pill-purple { background: #ede9fe; color: #6b21a8; }
+.pill-gray { background: #f1f5f9; color: #475569; }
+.pill-pink { background: #fce7f3; color: #9d174d; }
+
+.decisions { display: flex; flex-direction: column; gap: 12px; margin-top: 8px; }
+.decisions .item { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px 16px; }
+.decisions .q { font-size: 14px; font-weight: 700; color: #0f172a; margin-bottom: 6px; display: flex; align-items: baseline; gap: 8px; }
+.decisions .q .id { font-family: 'SF Mono', Menlo, monospace; font-size: 11px; color: #4338ca; background: #ede9fe; padding: 2px 7px; border-radius: 4px; }
+.decisions .a { font-size: 13px; color: #334155; line-height: 1.6; }
+.decisions .a strong { color: #0f172a; }
+
+.roadmap-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; margin-top: 8px; }
+.roadmap-grid a { display: block; padding: 10px 14px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; text-decoration: none; color: inherit; transition: all 0.12s; }
+.roadmap-grid a:hover { border-color: #3b82f6; background: #fff; }
+.roadmap-grid .id { font-family: 'SF Mono', Menlo, monospace; font-size: 11px; font-weight: 700; color: #3b82f6; }
+.roadmap-grid .name { font-size: 13px; font-weight: 600; color: #0f172a; margin-top: 3px; }
+.roadmap-grid .relation { font-size: 11px; color: #64748b; margin-top: 2px; }
+
+.fathom-quote { background: #fef3c7; border-left: 3px solid #f59e0b; padding: 12px 16px; border-radius: 0 8px 8px 0; margin: 10px 0; font-size: 13px; color: #78350f; line-height: 1.55; font-style: italic; }
+.fathom-quote .who { font-style: normal; font-weight: 700; display: block; margin-top: 6px; font-size: 11px; }
+.fathom-quote .who a { color: #78350f; text-decoration: underline; }
+
+.trace { display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: #334155; }
+.trace .row { display: flex; gap: 10px; align-items: baseline; }
+.trace .row strong { color: #0f172a; min-width: 130px; flex-shrink: 0; }
+.trace .row a { color: #3b82f6; text-decoration: none; }
+.trace .row a:hover { text-decoration: underline; }
+
+.footer { text-align: center; padding: 20px 0; font-size: 12px; color: #94a3b8; margin-top: 24px; }
+.footer a { color: #3b82f6; text-decoration: none; }
+
+.steps-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin: 14px 0; }
+.step-mini { background: #fff; border: 1px solid #cbd5e1; border-radius: 10px; padding: 10px 8px 12px; text-align: center; }
+.step-mini .n { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; background: #4338ca; color: #fff; border-radius: 50%; font-size: 11px; font-weight: 700; margin-bottom: 6px; }
+.step-mini .lbl { font-size: 11px; font-weight: 700; color: #0f172a; }
+.step-mini .pre { font-size: 10px; color: #64748b; margin-top: 4px; line-height: 1.4; }
+
+.phone-sm { background: #f8fafc; border: 1.5px solid #cbd5e1; border-radius: 14px; padding: 10px 8px; min-height: 230px; font-size: 11px; }
+.phone-sm .header { display: flex; justify-content: space-between; align-items: center; padding-bottom: 6px; border-bottom: 1px solid #e2e8f0; margin-bottom: 8px; }
+.phone-sm .header .t { font-size: 11px; font-weight: 700; color: #0f172a; }
+.phone-sm .header .s { font-size: 9px; color: #64748b; }
+.phone-sm .row { background: #fff; border: 1px solid #e2e8f0; border-radius: 6px; padding: 6px 8px; margin-bottom: 5px; }
+.phone-sm .row .lbl { font-size: 9px; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.3px; }
+.phone-sm .row .val { font-size: 11px; color: #0f172a; margin-top: 1px; }
+.phone-sm .row .val.edit { color: #4338ca; font-weight: 600; }
+.phone-sm .footer-bar { display: flex; gap: 4px; margin-top: 8px; }
+.phone-sm .footer-bar .b { flex: 1; background: #4338ca; color: #fff; padding: 6px; border-radius: 5px; text-align: center; font-size: 10px; font-weight: 700; }
+.phone-sm .footer-bar .b.sec { background: #fff; color: #4338ca; border: 1px solid #4338ca; }
+.phone-sm .crumb { font-size: 9px; color: #64748b; margin-bottom: 6px; }
+.phone-sm .crumb b { color: #4338ca; }
+</style>
+</head>
+<body>
+<script>if(self!==top)document.documentElement.classList.add("in-iframe")</script>
+
+<nav class="top-nav">
+    <span class="nav-logo">Appello SDLC</span>
+    <a href="index.html">Roadmap</a>
+    <a href="release-1.33-timeline.html">Release 1.33</a>
+    <a href="uis-WOX-index.html">WO Reconciliation Index</a>
+    <a href="ui-interface-library.html">UI Library</a>
+</nav>
+
+<div class="wrap">
+
+    <div class="hero">
+        <div class="badges">
+            <span class="badge">WOX-07</span>
+            <span class="badge">V1 · 1.33</span>
+            <span class="badge">Pillar P1 — WO Foundation + Mobile</span>
+            <span class="badge">Path A · Concept Sketch</span>
+        </div>
+        <h1>Mobile EDIT Flow — Step-by-Step Reuse</h1>
+        <p class="pitch">Today the mobile WO EDIT flow is one giant scrolling form. Restructure it to use the same step-by-step wizard pattern as the CREATE flow (uis-20h-1) so a tech editing on-site doesn't lose context. Same 5 steps, pre-populated with the existing WO's values, identical save behaviour.</p>
+        <div class="meta">
+            <span><strong>Status:</strong> Concept</span>
+            <span><strong>Effort:</strong> +2d on WO-8</span>
+            <span><strong>Extends:</strong> uis-20h-1 · WO-8</span>
+            <span><strong>Master ref:</strong> #23</span>
+        </div>
+    </div>
+
+    <section class="card">
+        <h2>1. Where this lives in the app</h2>
+        <div class="where">
+            <strong>Page / route:</strong> <code>apps/mobile/src/pages/work-orders/[id]/edit.tsx</code> (path TBD — to be created during WO-8 mobile build; mirrors the CREATE flow location)<br>
+            <strong>Components touched:</strong> <code>apps/mobile/src/components/Forms/SafetyFormQuestionAndAnswers/QAForm.tsx</code> (pattern reference for stepped form), wizard primitives from uis-20h-1<br>
+            <strong>New components:</strong> <code>WorkOrderEditWizard.tsx</code>, <code>WorkOrderEditStepCustomer.tsx</code>, <code>WorkOrderEditStepSubject.tsx</code>, <code>WorkOrderEditStepScope.tsx</code>, <code>WorkOrderEditStepSchedule.tsx</code>, <code>WorkOrderEditStepReview.tsx</code> (paths TBD — colocated with CREATE wizard)<br>
+            <strong>API surface:</strong> GraphQL — <code>workOrder(id)</code> query for prefill, <code>editWorkOrder(id, input)</code> partial-save mutation per step
+        </div>
+        <p>The CREATE wizard introduced in <code>uis-20h-1-stepped-form-wizard.html</code> already exists in spec. This UIS reuses the same <em>shell components</em> (StepHeader, StepBody, StepFooterNav, ProgressDots) and only changes the data plumbing: pre-populate from the existing WO, and route saves through <code>editWorkOrder</code> instead of <code>createWorkOrder</code>. No new design language, no new patterns — purely an information-architecture fix.</p>
+    </section>
+
+    <section class="card">
+        <h2>2. UI Concept</h2>
+        <p>Five mobile screens stacked side-by-side showing each step of the EDIT wizard for <strong>WO-2026-0142 — Cedar Ridge Development boiler service</strong>. Each step displays the pre-populated value as a row with an inline edit affordance (pencil chip / chevron). The active step header shows "Editing" not "Creating" so the tech knows exactly what they're doing.</p>
+        <div class="mockup-container">
+            <div class="mockup-bar">
+                <div class="mockup-dots"><span class="mockup-dot r"></span><span class="mockup-dot y"></span><span class="mockup-dot g"></span></div>
+                <span class="mockup-url">m.useappello.com/work-orders/WO-2026-0142/edit</span>
+            </div>
+            <div class="mockup-body">
+                <div class="steps-row">
+                    <div class="step-mini"><div class="n">1</div><div class="lbl">Customer &amp; Site</div><div class="pre">prefilled</div></div>
+                    <div class="step-mini"><div class="n">2</div><div class="lbl">Subject</div><div class="pre">prefilled</div></div>
+                    <div class="step-mini"><div class="n">3</div><div class="lbl">Scope &amp; Lines</div><div class="pre">prefilled</div></div>
+                    <div class="step-mini"><div class="n">4</div><div class="lbl">Schedule</div><div class="pre">prefilled</div></div>
+                    <div class="step-mini"><div class="n">5</div><div class="lbl">Review</div><div class="pre">diff view</div></div>
+                </div>
+
+                <div class="steps-row">
+                    <div class="phone-sm">
+                        <div class="crumb">Edit · Step <b>1 of 5</b></div>
+                        <div class="header"><div class="t">Customer &amp; Site</div><div class="s">WO-2026-0142</div></div>
+                        <div class="row"><div class="lbl">Customer</div><div class="val">Cedar Ridge Development</div></div>
+                        <div class="row"><div class="lbl">Site</div><div class="val">11 Cedar Ridge Pl, Bldg C</div></div>
+                        <div class="row"><div class="lbl">PO #</div><div class="val edit">PO-CR-7741 ✎</div></div>
+                        <div class="footer-bar"><div class="b sec">Save &amp; exit</div><div class="b">Next →</div></div>
+                    </div>
+                    <div class="phone-sm">
+                        <div class="crumb">Edit · Step <b>2 of 5</b></div>
+                        <div class="header"><div class="t">Subject (Equipment)</div><div class="s">WO-2026-0142</div></div>
+                        <div class="row"><div class="lbl">Performed-on</div><div class="val">Boiler #B-2 (Lochinvar 500k)</div></div>
+                        <div class="row"><div class="lbl">QR last scan</div><div class="val">May 11 · 9:14 AM</div></div>
+                        <div class="row"><div class="lbl">Add subject</div><div class="val edit">+ Boiler #B-3 ✎</div></div>
+                        <div class="footer-bar"><div class="b sec">Save &amp; exit</div><div class="b">Next →</div></div>
+                    </div>
+                    <div class="phone-sm">
+                        <div class="crumb">Edit · Step <b>3 of 5</b></div>
+                        <div class="header"><div class="t">Scope &amp; Line Items</div><div class="s">WO-2026-0142</div></div>
+                        <div class="row"><div class="lbl">Description</div><div class="val">Q2 service · combustion test</div></div>
+                        <div class="row"><div class="lbl">Labor lines</div><div class="val">3 · 12 hrs total</div></div>
+                        <div class="row"><div class="lbl">Materials</div><div class="val edit">2 · ($340) ✎</div></div>
+                        <div class="footer-bar"><div class="b sec">Save &amp; exit</div><div class="b">Next →</div></div>
+                    </div>
+                </div>
+
+                <div class="steps-row" style="grid-template-columns: repeat(2, 1fr); margin-top: 14px;">
+                    <div class="phone-sm">
+                        <div class="crumb">Edit · Step <b>4 of 5</b></div>
+                        <div class="header"><div class="t">Schedule</div><div class="s">WO-2026-0142</div></div>
+                        <div class="row"><div class="lbl">Start</div><div class="val">May 12, 2026 · 8:00 AM</div></div>
+                        <div class="row"><div class="lbl">End</div><div class="val">May 14, 2026 · 4:00 PM</div></div>
+                        <div class="row"><div class="lbl">Assigned crew</div><div class="val edit">Mike Lemay, Sarah Khan ✎</div></div>
+                        <div class="footer-bar"><div class="b sec">Save &amp; exit</div><div class="b">Next →</div></div>
+                    </div>
+                    <div class="phone-sm" style="background: #fef3c7; border-color: #f59e0b;">
+                        <div class="crumb">Edit · Step <b>5 of 5</b> · Review</div>
+                        <div class="header"><div class="t">Review changes</div><div class="s">3 edits</div></div>
+                        <div class="row" style="background: #fff7ed; border-color: #fdba74;"><div class="lbl">PO # · changed</div><div class="val">PO-CR-7740 → <b>PO-CR-7741</b></div></div>
+                        <div class="row" style="background: #fff7ed; border-color: #fdba74;"><div class="lbl">Subject · added</div><div class="val">+ Boiler #B-3</div></div>
+                        <div class="row" style="background: #fff7ed; border-color: #fdba74;"><div class="lbl">Materials · changed</div><div class="val">$240 → <b>$340</b></div></div>
+                        <div class="footer-bar"><div class="b sec">Back</div><div class="b" style="background:#16a34a;">Save WO</div></div>
+                    </div>
+                </div>
+
+                <p style="margin-top: 14px; font-size: 12px; color: #64748b;"><em>Each step header shows "Edit · Step N of 5" so the tech is unambiguously aware they are editing — not creating. Step 5 (Review) renders a diff against the WO's last-saved state, surfacing only what changed.</em></p>
+            </div>
+        </div>
+    </section>
+
+    <section class="card">
+        <h2>3. Key decisions for Emma + Corey to discuss</h2>
+        <div class="decisions">
+            <div class="item">
+                <div class="q"><span class="id">D1</span> Should EDIT skip steps where nothing changed?</div>
+                <div class="a"><strong>Recommended:</strong> No — explicit confirm-and-continue per step preserves the wizard mental model. Skipping breaks parity with CREATE and creates inconsistent muscle memory. The Review step (5) carries the diff burden, so the cost of paging through unchanged steps is one tap per step.</div>
+            </div>
+            <div class="item">
+                <div class="q"><span class="id">D2</span> Destructive edits (e.g. removing a line item with logged time) — block or warn?</div>
+                <div class="a"><strong>Recommended:</strong> Warn with audit trail; allow only for users with <code>workOrder.editLineItems</code> permission. Hard-blocking in the field creates support tickets; a yellow inline warning ("Sarah K logged 4 hrs against this line — removing will detach those entries") plus a confirm chip is the right balance.</div>
+            </div>
+            <div class="item">
+                <div class="q"><span class="id">D3</span> Keep the "Save &amp; exit" button on every step or only at the end?</div>
+                <div class="a"><strong>Recommended:</strong> Every step — partial saves are OK. Field connectivity is unreliable; persisting per-step state lets a tech bail out of step 3 with a saved PO# from step 1 already committed. Implementation: each step's "Next" call doubles as a save.</div>
+            </div>
+            <div class="item">
+                <div class="q"><span class="id">D4</span> Mirror desktop EDIT to use the same wizard?</div>
+                <div class="a"><strong>Recommended:</strong> Yes — post-V1, file as a separate UIS. The mental-model parity argument applies equally to dispatchers. But desktop has more screen real estate, so a "tab-style" wizard (steps shown as tabs) may be preferable to mobile's "page-style" wizard. Defer to 1.34.</div>
+            </div>
+            <div class="item">
+                <div class="q"><span class="id">D5</span> Do we show the Review step's diff against the last-saved WO or against the original WO version?</div>
+                <div class="a"><strong>Recommended:</strong> Last-saved. The diff serves as a "what am I about to commit" sanity check, not a full version history. Full version history belongs on the WO Audit tab (separate UIS).</div>
+            </div>
+        </div>
+    </section>
+
+    <section class="card">
+        <h2>4. Roadmap context</h2>
+        <p>Extends WO-8 by adding a step-by-step EDIT flow that mirrors the CREATE wizard. Reuses every wizard shell component from uis-20h-1 — only the data plumbing and step header copy change. This is one of Emma's 5 gaps caught during May 5 cross-reference.</p>
+        <div class="roadmap-grid">
+            <a href="uis-20h-1-stepped-form-wizard.html">
+                <div class="id">uis-20h-1</div>
+                <div class="name">Stepped Form Wizard</div>
+                <div class="relation">Pattern source · reused verbatim</div>
+            </a>
+            <a href="uis-20h-mobile-creation.html">
+                <div class="id">uis-20h</div>
+                <div class="name">Mobile WO Creation</div>
+                <div class="relation">Sibling — CREATE counterpart</div>
+            </a>
+            <a href="uis-20-tm-work-orders.html">
+                <div class="id">WO-1..8</div>
+                <div class="name">T&amp;M Work Orders</div>
+                <div class="relation">Parent track</div>
+            </a>
+            <a href="uis-20d-detail-page.html">
+                <div class="id">uis-20d</div>
+                <div class="name">WO Detail Page</div>
+                <div class="relation">Entry point — "Edit" button</div>
+            </a>
+        </div>
+    </section>
+
+    <section class="card">
+        <h2>5. Source traceability</h2>
+        <div class="fathom-quote">
+            "The mobile create flow is great but edit is a nightmare scroll — we should mirror create."
+            <span class="who">— Corey, Fathom call May 5, 2026 (PM, V1 Scope)</span>
+        </div>
+        <div class="trace">
+            <div class="row"><strong>Master action list:</strong> Item #23 — Step-by-step mobile EDIT flow (mirror create steps), EXTENDS WO-8, +2d on WO-8 · V1 (Emma gap)</div>
+            <div class="row"><strong>Fathom calls:</strong> May 5, 2026 (am + pm Emma × Corey) — <a href="https://fathom.video/share/vCRfJvnSLefc4z5cFWRxcm6nKSbKUb7i">Meeting 2 transcript</a></div>
+            <div class="row"><strong>Emma's V1 scope:</strong> WO-1.33-scope.html #8 (sub-item) — mobile EDIT mirror</div>
+            <div class="row"><strong>Roadmap parents:</strong> WO-8 · uis-20h-mobile-creation · uis-20h-1-stepped-form-wizard</div>
+        </div>
+    </section>
+
+    <div class="footer">
+        WOX-07 · Generated May 6, 2026 · <a href="uis-WOX-index.html">← Back to WOX Index</a>
+    </div>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WOX-23 · Job/WO Sub-Relationships (Project → Job → WO → Task)</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Inter', -apple-system, sans-serif; background: #f1f5f9; color: #1e293b; line-height: 1.5; }
+
+.in-iframe .top-nav { display: none !important; }
+.top-nav { position: sticky; top: 0; z-index: 100; background: #0f172a; border-bottom: 1px solid #1e293b; padding: 0 24px; display: flex; align-items: center; gap: 0; }
+.top-nav a { display: inline-flex; align-items: center; padding: 12px 18px; font-size: 13px; font-weight: 600; color: #94a3b8; text-decoration: none; border-bottom: 2px solid transparent; transition: all 0.15s; white-space: nowrap; }
+.top-nav a:hover { color: #f8fafc; background: #1e293b; }
+.top-nav .nav-logo { font-size: 11px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: #475569; padding-right: 18px; margin-right: 4px; border-right: 1px solid #1e293b; }
+
+.wrap { max-width: 1080px; margin: 0 auto; padding: 36px 24px 80px; }
+
+.hero { background: linear-gradient(135deg, #4338ca, #7c3aed); color: #fff; border-radius: 14px; padding: 28px 32px; margin-bottom: 22px; }
+.hero .badges { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+.hero .badge { font-size: 10px; font-weight: 700; padding: 4px 10px; border-radius: 5px; background: rgba(255,255,255,0.18); letter-spacing: 0.5px; text-transform: uppercase; }
+.hero .badge.warn { background: rgba(245, 158, 11, 0.5); }
+.hero .badge.danger { background: rgba(239, 68, 68, 0.5); }
+.hero .badge.success { background: rgba(34, 197, 94, 0.5); }
+.hero h1 { font-size: 28px; font-weight: 800; letter-spacing: -0.01em; margin-bottom: 10px; }
+.hero .pitch { font-size: 15px; line-height: 1.6; color: #e0e7ff; max-width: 760px; }
+.hero .meta { display: flex; gap: 22px; margin-top: 14px; font-size: 12px; color: #c7d2fe; flex-wrap: wrap; }
+.hero .meta strong { color: #fff; }
+
+section.card { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 22px 26px; margin-bottom: 16px; }
+section.card h2 { font-size: 18px; font-weight: 800; color: #0f172a; margin-bottom: 12px; padding-bottom: 10px; border-bottom: 2px solid #f1f5f9; }
+section.card h3 { font-size: 14px; font-weight: 700; color: #0f172a; margin: 14px 0 6px; }
+section.card p { font-size: 14px; color: #334155; margin-bottom: 8px; }
+section.card ul, section.card ol { padding-left: 20px; margin: 6px 0 10px; }
+section.card li { font-size: 14px; color: #334155; margin-bottom: 4px; line-height: 1.55; }
+section.card code { background: #f1f5f9; padding: 1px 6px; border-radius: 4px; font-size: 12px; font-family: 'SF Mono', Menlo, monospace; color: #be185d; }
+
+.where { background: #f8fafc; border-left: 3px solid #3b82f6; padding: 12px 16px; border-radius: 0 8px 8px 0; margin: 8px 0 14px; font-size: 13px; color: #334155; line-height: 1.65; }
+.where strong { color: #0f172a; }
+.where code { background: #fff; padding: 1px 6px; border-radius: 3px; font-family: 'SF Mono', Menlo, monospace; font-size: 11px; color: #0f172a; border: 1px solid #e2e8f0; }
+
+.mockup-container { background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 10px; overflow: hidden; margin: 12px 0; }
+.mockup-bar { background: #fff; border-bottom: 1px solid #e2e8f0; padding: 9px 14px; display: flex; align-items: center; gap: 8px; font-size: 12px; color: #64748b; }
+.mockup-dots { display: flex; gap: 5px; margin-right: 6px; }
+.mockup-dot { width: 9px; height: 9px; border-radius: 50%; }
+.mockup-dot.r { background: #f87171; }
+.mockup-dot.y { background: #fbbf24; }
+.mockup-dot.g { background: #34d399; }
+.mockup-url { background: #f1f5f9; padding: 3px 9px; border-radius: 4px; font-size: 11px; font-family: 'SF Mono', Menlo, monospace; color: #475569; }
+.mockup-body { padding: 18px 20px; min-height: 200px; font-size: 13px; color: #334155; line-height: 1.55; }
+
+.mobile-frame { max-width: 375px; margin: 14px auto; border: 2px solid #cbd5e1; border-radius: 22px; overflow: hidden; background: #fff; }
+.mobile-frame .mockup-bar { padding: 10px 14px; border-bottom: 1px solid #e2e8f0; }
+.mobile-frame .mockup-body { padding: 14px 16px; min-height: 320px; }
+
+.btn { display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; border-radius: 6px; font-size: 13px; font-weight: 600; border: none; cursor: pointer; }
+.btn-primary { background: #3b82f6; color: #fff; }
+.btn-secondary { background: #fff; color: #334155; border: 1px solid #cbd5e1; }
+.btn-purple { background: #7c3aed; color: #fff; }
+.btn-success { background: #16a34a; color: #fff; }
+.btn-sm { padding: 5px 10px; font-size: 12px; }
+
+.field { margin-bottom: 12px; }
+.field label { display: block; font-size: 11px; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 4px; }
+.field .input, .field .select { background: #fff; border: 1px solid #cbd5e1; border-radius: 6px; padding: 8px 12px; font-size: 13px; color: #0f172a; }
+
+.t { width: 100%; border-collapse: collapse; font-size: 12px; background: #fff; border: 1px solid #e2e8f0; border-radius: 6px; overflow: hidden; }
+.t th { text-align: left; padding: 8px 12px; background: #f8fafc; border-bottom: 1px solid #e2e8f0; font-weight: 700; color: #475569; font-size: 11px; text-transform: uppercase; letter-spacing: 0.4px; }
+.t td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; color: #334155; }
+.t tr:last-child td { border-bottom: none; }
+
+.pill { font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 4px; display: inline-block; white-space: nowrap; }
+.pill-blue { background: #dbeafe; color: #1e40af; }
+.pill-green { background: #dcfce7; color: #166534; }
+.pill-amber { background: #fef3c7; color: #92400e; }
+.pill-red { background: #fee2e2; color: #991b1b; }
+.pill-purple { background: #ede9fe; color: #6b21a8; }
+.pill-gray { background: #f1f5f9; color: #475569; }
+.pill-pink { background: #fce7f3; color: #9d174d; }
+
+.decisions { display: flex; flex-direction: column; gap: 12px; margin-top: 8px; }
+.decisions .item { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px 16px; }
+.decisions .q { font-size: 14px; font-weight: 700; color: #0f172a; margin-bottom: 6px; display: flex; align-items: baseline; gap: 8px; }
+.decisions .q .id { font-family: 'SF Mono', Menlo, monospace; font-size: 11px; color: #4338ca; background: #ede9fe; padding: 2px 7px; border-radius: 4px; }
+.decisions .a { font-size: 13px; color: #334155; line-height: 1.6; }
+.decisions .a strong { color: #0f172a; }
+
+.roadmap-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; margin-top: 8px; }
+.roadmap-grid a { display: block; padding: 10px 14px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; text-decoration: none; color: inherit; transition: all 0.12s; }
+.roadmap-grid a:hover { border-color: #3b82f6; background: #fff; }
+.roadmap-grid .id { font-family: 'SF Mono', Menlo, monospace; font-size: 11px; font-weight: 700; color: #3b82f6; }
+.roadmap-grid .name { font-size: 13px; font-weight: 600; color: #0f172a; margin-top: 3px; }
+.roadmap-grid .relation { font-size: 11px; color: #64748b; margin-top: 2px; }
+
+.fathom-quote { background: #fef3c7; border-left: 3px solid #f59e0b; padding: 12px 16px; border-radius: 0 8px 8px 0; margin: 10px 0; font-size: 13px; color: #78350f; line-height: 1.55; font-style: italic; }
+.fathom-quote .who { font-style: normal; font-weight: 700; display: block; margin-top: 6px; font-size: 11px; }
+.fathom-quote .who a { color: #78350f; text-decoration: underline; }
+
+.trace { display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: #334155; }
+.trace .row { display: flex; gap: 10px; align-items: baseline; }
+.trace .row strong { color: #0f172a; min-width: 130px; flex-shrink: 0; }
+.trace .row a { color: #3b82f6; text-decoration: none; }
+.trace .row a:hover { text-decoration: underline; }
+
+.footer { text-align: center; padding: 20px 0; font-size: 12px; color: #94a3b8; margin-top: 24px; }
+.footer a { color: #3b82f6; text-decoration: none; }
+</style>
+</head>
+<body>
+<script>if(self!==top)document.documentElement.classList.add("in-iframe")</script>
+
+<nav class="top-nav">
+    <span class="nav-logo">Appello SDLC</span>
+    <a href="index.html">Roadmap</a>
+    <a href="release-1.33-timeline.html">Release 1.33</a>
+    <a href="uis-WOX-index.html">WO Reconciliation Index</a>
+    <a href="ui-interface-library.html">UI Library</a>
+</nav>
+
+<div class="wrap">
+
+    <div class="hero">
+        <div class="badges">
+            <span class="badge">WOX-23</span>
+            <span class="badge success">Post-V1 · 1.34</span>
+            <span class="badge">Pillar P1 + Architecture</span>
+            <span class="badge">Path A · Concept Sketch</span>
+        </div>
+        <h1>Job/WO Sub-Relationships (Project → Job → WO → Task)</h1>
+        <p class="pitch">Today the entity hierarchy is shallow: Project → Job. With WOs added, we need to formalize the full hierarchy (Project → Job → WO → Task) and let users drill down/roll up at every level. Resolves Emma's gap about "what is a Task vs a WO and how do they nest".</p>
+        <div class="meta">
+            <span><strong>Status:</strong> Concept · Deferred</span>
+            <span><strong>Effort:</strong> Architectural · post-1.34</span>
+            <span><strong>Extends:</strong> WO-1 · uis-15A</span>
+            <span><strong>Master ref:</strong> #39</span>
+        </div>
+    </div>
+
+    <section class="card">
+        <h2>1. Where this lives in the app</h2>
+        <div class="where">
+            <strong>Pages affected:</strong> <code>apps/frontend/src/pages/projects/[id]/index.tsx</code>, <code>apps/frontend/src/pages/jobs/[id]/index.tsx</code>, WO detail (path TBD — built in V1 per WO-3)<br>
+            <strong>Components touched:</strong> <code>apps/frontend/src/components/DetailsPage/ProjectDetailPage/index.tsx</code>, <code>apps/frontend/src/components/DetailsPage/JobDetailsPage/index.tsx</code>, financial overview tabs (existing rollup queries)<br>
+            <strong>New components:</strong> <code>&lt;EntityBreadcrumb /&gt;</code>, <code>&lt;ChildrenPanel /&gt;</code>, <code>&lt;EntityRollupTab /&gt;</code>, <code>&lt;TaskList /&gt;</code><br>
+            <strong>API surface:</strong> Prisma — new <code>Task</code> model with <code>workOrderId</code> FK; updates to <code>Job</code>/<code>WorkOrder</code> for parent FKs; materialized view for rollups (per uis-15A pattern); new <code>tasks</code>, <code>workOrders</code> list resolvers using BaseModel
+        </div>
+        <p>This is an architectural spec, not a single-page UI feature. It touches every detail page (Project, Job, WO) and the rollup/financial views. The core change is formalizing a 4-level hierarchy and giving every level (a) a parent breadcrumb, (b) a children panel, and (c) a financial/labor rollup.</p>
+        <p>Backend: introduce a real <code>Task</code> model that's a sub-entity of WO (separate from <code>WorkOrderChecklistItem</code> — checklists are intra-WO ticks, tasks are real entities with assignees, dates, billable line items, status). Existing Project→Job nesting stays unchanged for back-compat.</p>
+    </section>
+
+    <section class="card">
+        <h2>2. UI Concept</h2>
+        <p>Top: an entity-tree visual showing the full hierarchy. Middle: WO detail with a new "Tasks" tab. Bottom: Project detail with a "Rollup" tab summing labor, cost, and billable across all child Jobs/WOs/Tasks.</p>
+        <div class="mockup-container">
+            <div class="mockup-bar">
+                <div class="mockup-dots"><span class="mockup-dot r"></span><span class="mockup-dot y"></span><span class="mockup-dot g"></span></div>
+                <span class="mockup-url">app.useappello.com/projects/cedar-ridge-mech-retrofit</span>
+            </div>
+            <div class="mockup-body">
+                <div style="font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:0.4px;font-weight:700;margin-bottom:10px;">Entity tree — full rollup</div>
+                <div style="display:flex;flex-direction:column;gap:6px;font-size:12px;color:#334155;">
+                    <div style="background:#ede9fe;border:1px solid #c4b5fd;border-radius:6px;padding:8px 12px;display:flex;justify-content:space-between;align-items:center;">
+                        <div><strong style="color:#5b21b6;">Project</strong> · Cedar Ridge Mech Retrofit</div>
+                        <div style="font-size:11px;color:#64748b;">$540K total · 1,820 hrs</div>
+                    </div>
+                    <div style="margin-left:24px;background:#dbeafe;border:1px solid #93c5fd;border-radius:6px;padding:8px 12px;display:flex;justify-content:space-between;align-items:center;">
+                        <div><strong style="color:#1e40af;">Job</strong> · HVAC scope</div>
+                        <div style="font-size:11px;color:#64748b;">$185K · 640 hrs</div>
+                    </div>
+                    <div style="margin-left:48px;background:#fef3c7;border:1px solid #fcd34d;border-radius:6px;padding:7px 12px;display:flex;justify-content:space-between;align-items:center;">
+                        <div><span style="font-weight:700;color:#92400e;">WO</span> · WO-2026-0142 · Boiler service · May 5</div>
+                        <div style="font-size:11px;color:#64748b;">$1,425 · 5.5 hrs</div>
+                    </div>
+                    <div style="margin-left:72px;background:#f0fdf4;border:1px solid #86efac;border-radius:6px;padding:6px 12px;display:flex;justify-content:space-between;align-items:center;font-size:11px;">
+                        <div><span style="font-weight:700;color:#166534;">Task</span> · Pre-checks &amp; gas test</div>
+                        <div style="color:#15803d;">Mike L · 1.0h ✓</div>
+                    </div>
+                    <div style="margin-left:72px;background:#f0fdf4;border:1px solid #86efac;border-radius:6px;padding:6px 12px;display:flex;justify-content:space-between;align-items:center;font-size:11px;">
+                        <div><span style="font-weight:700;color:#166534;">Task</span> · Replace flame sensor</div>
+                        <div style="color:#15803d;">Mike L · 2.5h ✓</div>
+                    </div>
+                    <div style="margin-left:72px;background:#fff;border:1px solid #e2e8f0;border-radius:6px;padding:6px 12px;display:flex;justify-content:space-between;align-items:center;font-size:11px;">
+                        <div><span style="font-weight:700;color:#475569;">Task</span> · Customer signoff</div>
+                        <div style="color:#64748b;">Sarah K · open</div>
+                    </div>
+                    <div style="margin-left:48px;background:#fef3c7;border:1px solid #fcd34d;border-radius:6px;padding:7px 12px;display:flex;justify-content:space-between;align-items:center;">
+                        <div><span style="font-weight:700;color:#92400e;">WO</span> · WO-2026-0145 · Annual inspection · May 6</div>
+                        <div style="font-size:11px;color:#64748b;">$840 · 3 hrs · scheduled</div>
+                    </div>
+                    <div style="margin-left:48px;background:#fef3c7;border:1px solid #fcd34d;border-radius:6px;padding:7px 12px;display:flex;justify-content:space-between;align-items:center;">
+                        <div><span style="font-weight:700;color:#92400e;">WO</span> · WO-2026-0148 · Emergency leak · May 6</div>
+                        <div style="font-size:11px;color:#64748b;">est. $620 · urgent</div>
+                    </div>
+                    <div style="margin-left:24px;background:#dbeafe;border:1px solid #93c5fd;border-radius:6px;padding:8px 12px;display:flex;justify-content:space-between;align-items:center;">
+                        <div><strong style="color:#1e40af;">Job</strong> · Plumbing rough-in</div>
+                        <div style="font-size:11px;color:#64748b;">$98K · 380 hrs</div>
+                    </div>
+                </div>
+                <div style="border-top:1px solid #e2e8f0;margin-top:14px;padding-top:10px;display:flex;gap:14px;font-size:11px;color:#64748b;">
+                    <span><strong style="color:#0f172a;">Rollup:</strong> 4 levels deep · 12 active children · materialized view refresh ~30s</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="mockup-container">
+            <div class="mockup-bar">
+                <div class="mockup-dots"><span class="mockup-dot r"></span><span class="mockup-dot y"></span><span class="mockup-dot g"></span></div>
+                <span class="mockup-url">WO-2026-0142 detail · Tasks tab (new)</span>
+            </div>
+            <div class="mockup-body">
+                <div style="font-size:12px;color:#64748b;margin-bottom:8px;">↑ Job: HVAC scope · Project: Cedar Ridge Mech Retrofit</div>
+                <div style="display:flex;gap:14px;border-bottom:1px solid #e2e8f0;padding-bottom:6px;font-size:12px;font-weight:700;color:#475569;margin-bottom:10px;">
+                    <span style="color:#3b82f6;border-bottom:2px solid #3b82f6;padding-bottom:6px;">Tasks (3)</span>
+                    <span>Checklist (5)</span>
+                    <span>Forms (3)</span>
+                    <span>Time</span>
+                    <span>Photos</span>
+                </div>
+                <table class="t">
+                    <thead><tr><th>Task</th><th>Assignee</th><th>Due</th><th>Status</th></tr></thead>
+                    <tbody>
+                        <tr><td>Pre-checks &amp; gas test</td><td>Mike Lemay</td><td>May 5 · 8:30 AM</td><td><span class="pill pill-green">Done</span></td></tr>
+                        <tr><td>Replace flame sensor</td><td>Mike Lemay</td><td>May 5 · 9:30 AM</td><td><span class="pill pill-green">Done</span></td></tr>
+                        <tr><td>Customer signoff</td><td>Sarah Khan</td><td>May 5 · 11:00 AM</td><td><span class="pill pill-amber">Open</span></td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+
+    <section class="card">
+        <h2>3. Key decisions for Emma + Corey to discuss</h2>
+        <div class="decisions">
+            <div class="item">
+                <div class="q"><span class="id">D1</span> Separate <code>Task</code> model or reuse <code>WorkOrderChecklistItem</code>?</div>
+                <div class="a"><strong>Recommended:</strong> Separate <code>Task</code> model. Checklists are intra-WO ticks (item + done flag); tasks are full sub-entities with assignees, due dates, billable line items, status transitions. Conflating them caps WO ambition forever.</div>
+            </div>
+            <div class="item">
+                <div class="q"><span class="id">D2</span> Max nesting depth?</div>
+                <div class="a"><strong>Recommended:</strong> 4 — Project / Job / WO / Task. Deeper nesting confuses the rollup math and the breadcrumb UI. If Emma later needs sub-tasks, model them as a flat list inside Task (not a 5th level). Hard cap at the schema level.</div>
+            </div>
+            <div class="item">
+                <div class="q"><span class="id">D3</span> Rollup performance strategy?</div>
+                <div class="a"><strong>Recommended:</strong> Materialized view per the uis-15A equipment-job-pl pattern. Refresh on write triggers (Project/Job/WO/Task save). Avoids real-time recursive queries; keeps Project detail load &lt;200ms even on 100+ child entities.</div>
+            </div>
+            <div class="item">
+                <div class="q"><span class="id">D4</span> Mobile parity?</div>
+                <div class="a"><strong>Recommended:</strong> Yes — every level surfaces breadcrumb-up and children-down. Mobile uses swipe gestures (swipe up = parent, tap child). Critical for field techs jumping between Project → WO → Task without losing context.</div>
+            </div>
+            <div class="item">
+                <div class="q"><span class="id">D5</span> Migration from current data?</div>
+                <div class="a"><strong>Recommended:</strong> Existing Project→Job data stays unchanged. WO and Task are net-new tables — no backfill needed. Add a one-time admin tool that lets customers convert legacy "task-shaped" custom fields into real Tasks, but that's opt-in.</div>
+            </div>
+        </div>
+    </section>
+
+    <section class="card">
+        <h2>4. Roadmap context</h2>
+        <p>Architectural cleanup that everything else benefits from. Pillar P1 — WO Foundation + Architecture. Closes Emma's open question from the May 5 PM call ("what is a Task vs a WO?"). Pairs with uis-15A's equipment-job-pl rollup pattern, which is the existing precedent for materialized rollup views.</p>
+        <div class="roadmap-grid">
+            <a href="uis-20-tm-work-orders.html">
+                <div class="id">WO-1..8</div>
+                <div class="name">T&amp;M Work Orders</div>
+                <div class="relation">Parent track — WO foundation</div>
+            </a>
+            <a href="uis-15A-equipment-job-pl.html">
+                <div class="id">uis-15A</div>
+                <div class="name">Equipment Job P&amp;L</div>
+                <div class="relation">Reference pattern — materialized rollup view</div>
+            </a>
+            <a href="uis-WOX-index.html">
+                <div class="id">WOX-20</div>
+                <div class="name">Checklist Assignment</div>
+                <div class="relation">Sibling — distinguishes intra-WO checklists from sub-entity tasks</div>
+            </a>
+            <a href="release-1.34-timeline.html">
+                <div class="id">1.34</div>
+                <div class="name">Release 1.34 Timeline</div>
+                <div class="relation">Architectural foundation — staged across 1.34/1.35</div>
+            </a>
+        </div>
+    </section>
+
+    <section class="card">
+        <h2>5. Source traceability</h2>
+        <div class="fathom-quote">
+            "Task vs WO is fuzzy right now — we need to formally define the hierarchy."
+            <span class="who">— Emma, Fathom call May 5, 2026 (PM session)</span>
+        </div>
+        <div class="trace">
+            <div class="row"><strong>Master action list:</strong> Item #39 — Job-to-job / WO-to-job sub-relationships, DEFERRED architectural · post-1.34</div>
+            <div class="row"><strong>Fathom calls:</strong> May 5, 2026 — AM strategy + PM V1 scope (Emma flagged the gap)</div>
+            <div class="row"><strong>Emma's V1 scope:</strong> WO-1.33-scope.html — V1 ships Project→Job→WO only; Task nesting deferred</div>
+            <div class="row"><strong>Roadmap parents:</strong> WO-1 · uis-20-tm-work-orders.html · uis-15A-equipment-job-pl.html</div>
+        </div>
+    </section>
+
+    <div class="footer">
+        WOX-23 · Generated May 6, 2026 · <a href="uis-WOX-index.html">← Back to WOX Index</a>
+    </div>
+
+</div>
+</body>
+</html>

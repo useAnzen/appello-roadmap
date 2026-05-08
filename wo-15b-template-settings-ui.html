@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WO-15b: Work Order Templates · Settings UI</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+.in-iframe .top-nav { display: none !important; }
+.top-nav { position: sticky; top: 0; z-index: 100; background: #0f172a; border-bottom: 1px solid #1e293b; padding: 0 24px; display: flex; align-items: center; gap: 0; }
+.top-nav a { display: inline-flex; align-items: center; padding: 12px 18px; font-size: 13px; font-weight: 600; color: #94a3b8; text-decoration: none; border-bottom: 2px solid transparent; transition: all 0.15s; white-space: nowrap; }
+.top-nav a:hover { color: #f8fafc; background: #1e293b; }
+.top-nav .nav-logo { font-size: 11px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: #475569; padding-right: 18px; margin-right: 4px; border-right: 1px solid #1e293b; }
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Inter', -apple-system, sans-serif; background: #f1f5f9; color: #0f172a; }
+.uis-wrap { max-width: 960px; margin: 0 auto; padding: 40px 24px 80px; }
+.uis-hero { margin-bottom: 32px; }
+.uis-badges { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+.uis-badge { font-size: 11px; font-weight: 700; padding: 4px 12px; border-radius: 6px; display: inline-flex; align-items: center; gap: 5px; }
+.badge-q { background: #0f172a; color: #fff; }
+.badge-wo { background: #ec4899; color: #fff; }
+.badge-priority { background: #fef3c7; color: #92400e; }
+.badge-status { background: #fef3c7; color: #92400e; }
+.uis-h1 { font-size: 30px; font-weight: 800; color: #0f172a; margin: 0 0 8px; letter-spacing: -0.01em; }
+.uis-sub { font-size: 15px; color: #64748b; line-height: 1.5; margin: 0; }
+.uis-meta { display: flex; gap: 24px; flex-wrap: wrap; margin-top: 14px; font-size: 13px; color: #64748b; }
+.uis-meta strong { color: #0f172a; }
+.uis-toc { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px 28px; margin-bottom: 16px; }
+.uis-toc h3 { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; margin: 0 0 10px; }
+.uis-toc ol { margin: 0; padding-left: 20px; }
+.uis-toc li { font-size: 14px; color: #3b82f6; margin-bottom: 4px; }
+.uis-toc a { color: #3b82f6; text-decoration: none; }
+.uis-section { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px 28px; margin-bottom: 16px; }
+.uis-section h2 { font-size: 17px; font-weight: 700; margin: 0 0 14px; padding-bottom: 10px; border-bottom: 2px solid #e2e8f0; }
+.uis-section h3 { font-size: 15px; font-weight: 700; margin: 16px 0 8px; }
+.uis-section h4 { font-size: 14px; font-weight: 700; color: #334155; margin: 12px 0 6px; }
+.uis-section p, .uis-section li { font-size: 14px; color: #334155; line-height: 1.65; }
+.uis-section ul, .uis-section ol { padding-left: 20px; margin: 8px 0; }
+pre { background: #1e293b; color: #e2e8f0; border-radius: 8px; padding: 16px; overflow-x: auto; font-size: 13px; line-height: 1.5; font-family: 'SF Mono', monospace; margin: 12px 0; }
+code { font-family: 'SF Mono', monospace; background: #f1f5f9; padding: 1px 5px; border-radius: 3px; font-size: 12px; color: #7c3aed; }
+table.schema-table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 12px 0; }
+table.schema-table th { text-align: left; padding: 8px 12px; background: #f8fafc; border-bottom: 2px solid #e2e8f0; font-weight: 600; }
+table.schema-table td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
+.callout { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 14px 18px; margin: 14px 0; font-size: 13px; color: #1e40af; }
+.callout strong { color: #1e3a8a; }
+.decision { background: #fffbeb; border: 2px solid #f59e0b; border-radius: 10px; padding: 18px 22px; margin: 14px 0; }
+.decision h4 { color: #78350f; margin: 0 0 8px; font-size: 14px; }
+.decision p, .decision li { font-size: 13px; color: #78350f; }
+.no-changes { background: #f0fdf4; border: 1px solid #86efac; border-radius: 8px; padding: 14px 18px; margin: 14px 0; font-size: 13px; color: #166534; }
+.no-changes strong { color: #14532d; }
+.action-new { background: #dcfce7; color: #166534; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 4px; }
+.action-mod { background: #fef3c7; color: #92400e; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 4px; }
+.ac-list { margin: 0; padding-left: 0; list-style: none; }
+.ac-list li { display: flex; gap: 10px; margin-bottom: 10px; font-size: 14px; color: #334155; line-height: 1.55; }
+.ac-list li::before { content: ''; flex-shrink: 0; width: 18px; height: 18px; border: 2px solid #e2e8f0; border-radius: 4px; margin-top: 2px; background: #fff; }
+.dep-tag { display: inline-block; font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 5px; margin-right: 6px; margin-bottom: 6px; }
+.dep-requires { background: #fee2e2; color: #dc2626; }
+.dep-enables { background: #dcfce7; color: #166534; }
+.scope-tag { display: inline-block; font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 5px; margin: 2px 4px 2px 0; }
+.scope-in { background: #dcfce7; color: #166534; }
+.scope-out { background: #fee2e2; color: #dc2626; }
+.scope-future { background: #eff6ff; color: #3b82f6; }
+.scope-done { background: #dbeafe; color: #1d4ed8; }
+
+/* Mockup-specific */
+.mockup-container { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; margin: 14px 0; }
+.mockup-bar { background: #f1f5f9; padding: 8px 14px; font-size: 12px; font-weight: 600; color: #64748b; border-bottom: 1px solid #e2e8f0; display: flex; align-items: center; gap: 8px; }
+.mockup-dots { display: flex; gap: 5px; }
+.mockup-dot { width: 8px; height: 8px; border-radius: 50%; }
+.mockup-dot-r { background: #f87171; }
+.mockup-dot-y { background: #fbbf24; }
+.mockup-dot-g { background: #34d399; }
+.mockup-url { background: #fff; padding: 3px 9px; border-radius: 4px; font-size: 11px; font-family: 'SF Mono', monospace; color: #475569; margin-left: 6px; }
+.mockup-body { padding: 20px; min-height: 150px; font-size: 13px; color: #334155; line-height: 1.6; }
+.mock-new-badge { background: #dcfce7; color: #166534; font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 3px; margin-left: 6px; }
+
+.t { width: 100%; border-collapse: collapse; font-size: 12px; background: #fff; border: 1px solid #e2e8f0; border-radius: 6px; overflow: hidden; }
+.t th { text-align: left; padding: 8px 12px; background: #f8fafc; border-bottom: 1px solid #e2e8f0; font-weight: 700; color: #475569; font-size: 11px; text-transform: uppercase; letter-spacing: 0.4px; }
+.t td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; color: #334155; }
+.t tr:last-child td { border-bottom: none; }
+
+.btn { display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; border-radius: 6px; font-size: 13px; font-weight: 600; border: none; cursor: pointer; }
+.btn-primary { background: #3b82f6; color: #fff; }
+.btn-secondary { background: #fff; color: #334155; border: 1px solid #cbd5e1; }
+.btn-sm { padding: 5px 10px; font-size: 12px; }
+
+.field { margin-bottom: 12px; }
+.field label { display: block; font-size: 11px; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 4px; }
+.field .input, .field .select { background: #fff; border: 1px solid #cbd5e1; border-radius: 6px; padding: 8px 12px; font-size: 13px; color: #0f172a; display: block; width: 100%; }
+
+.tab-bar { display: flex; gap: 0; border-bottom: 1px solid #e2e8f0; margin-bottom: 16px; }
+.tab { padding: 10px 14px; font-size: 13px; font-weight: 600; color: #64748b; cursor: pointer; border-bottom: 2px solid transparent; white-space: nowrap; }
+.tab.active { color: #3b82f6; border-bottom-color: #3b82f6; }
+.tab-count { display: inline-block; font-size: 10px; padding: 2px 7px; background: #f1f5f9; color: #64748b; border-radius: 9px; margin-left: 4px; font-weight: 700; }
+.tab.active .tab-count { background: #dbeafe; color: #1d4ed8; }
+
+.plan-row { padding: 10px 12px; border-bottom: 1px solid #f1f5f9; display: flex; align-items: flex-start; gap: 10px; }
+.plan-row:hover { background: #f8fafc; }
+.plan-drag { color: #cbd5e1; cursor: grab; font-size: 16px; line-height: 1; padding-top: 4px; }
+.plan-fields { flex: 1; display: grid; grid-template-columns: 2fr 80px 80px; gap: 8px; }
+.plan-fields-2 { flex: 1; display: grid; grid-template-columns: 2fr 1fr; gap: 8px; }
+.plan-input { background: #fff; border: 1px solid #cbd5e1; border-radius: 4px; padding: 6px 10px; font-size: 12px; }
+.plan-input.disabled { background: #f8fafc; color: #94a3b8; }
+.plan-icon-btn { width: 28px; height: 28px; border: 1px solid transparent; border-radius: 4px; background: transparent; color: #64748b; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.plan-icon-btn:hover { background: #f1f5f9; border-color: #e2e8f0; }
+.plan-icon-btn.danger:hover { color: #dc2626; border-color: #fecaca; background: #fef2f2; }
+
+.mode-toggle { display: flex; gap: 4px; padding: 2px; background: #f1f5f9; border-radius: 6px; margin-bottom: 4px; }
+.mode-toggle .mode { padding: 4px 10px; font-size: 11px; font-weight: 600; color: #64748b; border-radius: 4px; cursor: pointer; }
+.mode-toggle .mode.active { background: #fff; color: #0f172a; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
+
+.cnt-pill { display: inline-block; font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 4px; background: #f1f5f9; color: #475569; margin-left: 4px; }
+.cnt-pill.has { background: #dbeafe; color: #1d4ed8; }
+    </style>
+</head>
+<body>
+<script>if(self!==top)document.documentElement.classList.add("in-iframe")</script>
+<nav class="top-nav">
+    <span class="nav-logo">Appello SDLC</span>
+    <a href="index.html">Roadmap</a>
+    <a href="release-1.33-timeline.html">Release 1.33</a>
+    <a href="release-1.34-timeline.html">Release 1.34</a>
+    <a href="master-spec-reconciliation.html">Spec Reconciliation</a>
+    <a href="ui-interface-library.html">UI Library</a>
+</nav>
+<div class="uis-wrap">
+
+    <div class="uis-hero">
+        <div class="uis-badges">
+            <span class="uis-badge badge-q">WO-15b</span>
+            <span class="uis-badge badge-wo">Work Orders</span>
+            <span class="uis-badge badge-priority">P1 - 1.33</span>
+            <span class="uis-badge badge-status">Draft</span>
+        </div>
+        <h1 class="uis-h1">Work Order Templates · Settings UI</h1>
+        <p class="uis-sub">Admin UI for managing the templates defined in WO-15a. Lives at Property Settings → Work Orders → Templates. Templates list with create/edit/archive/restore; per-template detail page with tabbed editors for each child collection (description, checklist, materials, labor plans, equipment plans, forms, field defaults). Permissions gated on <code>InstanceSetting___edit</code>. No backend changes — this spec consumes the WO-15a GraphQL surface.</p>
+        <div class="uis-meta">
+            <span><strong>Estimate:</strong> 4-5 days</span>
+            <span><strong>Sequence:</strong> 1.33, after WO-15a</span>
+            <span><strong>Requires:</strong> WO-15a</span>
+            <span><strong>Enables:</strong> WO-15c</span>
+        </div>
+    </div>
+
+    <div class="uis-toc">
+        <h3>Contents</h3>
+        <ol>
+            <li><a href="#business-case">Business Case</a></li>
+            <li><a href="#scope">Scope</a></li>
+            <li><a href="#ui-concepts">UI Concepts</a></li>
+            <li><a href="#data-model">Data Model</a></li>
+            <li><a href="#api-surface">API Surface</a></li>
+            <li><a href="#change-surface">Change Surface</a></li>
+            <li><a href="#acceptance-criteria">Acceptance Criteria</a></li>
+            <li><a href="#dependencies">Dependencies</a></li>
+        </ol>
+    </div>
+
+    <!-- 1. Business Case -->
+    <div class="uis-section" id="business-case">
+        <h2>1. Business Case</h2>
+
+        <p>WO-15a established the seven Prisma models that capture template content and the GraphQL surface to read/write them. This spec is the admin UI: where dispatch leads and ops managers actually build, refine, and retire templates. Without it, the template system is invisible to its primary user — admins armed only with raw GraphQL clients.</p>
+
+        <p>The shape draws from Corey's Path A sketch (<a href="uis-WOX-02-wo-templates.html">WOX-02</a>): templates list at <code>/settings/work-orders/templates</code>, "+ New template" button top-right, drilling into a detail page to edit content. The list page is a near-1:1 borrow from WOX-02 (minus the per-customer-default column we dropped). The detail page is new — WOX-02 stubbed it; we build it for real.</p>
+    </div>
+
+    <!-- 2. Scope -->
+    <div class="uis-section" id="scope">
+        <h2>2. Scope</h2>
+
+        <h3>Already Built</h3>
+        <ul>
+            <li><span class="scope-tag scope-done">DONE</span> WO-15a — all seven Prisma models, GraphQL queries / mutations, sanitization, permission gating. This spec is purely a UI consumer.</li>
+            <li><span class="scope-tag scope-done">DONE</span> Property Settings shell with tabbed sections (matches the existing <code>JobSettingsTabs</code> / <code>PropertySettings</code> pattern)</li>
+            <li><span class="scope-tag scope-done">DONE</span> ListTable / TableFeed for sortable, paginated settings lists</li>
+            <li><span class="scope-tag scope-done">DONE</span> AsyncMultiselect + CustomCombobox pickers (used for Material, FormWrapper, TradeLevel, EquipmentCategory, DAA selection)</li>
+            <li><span class="scope-tag scope-done">DONE</span> TipTap editor (reused for rich field defaults, checklist descriptions, template description)</li>
+            <li><span class="scope-tag scope-done">DONE</span> <code>PermissionGate</code> wrapper for <code>InstanceSetting___edit</code></li>
+        </ul>
+
+        <h3>In Scope (WO-15b)</h3>
+        <ul>
+            <li><span class="scope-tag scope-in">IN</span> New "Templates" tab in Property Settings → Work Orders</li>
+            <li><span class="scope-tag scope-in">IN</span> Templates list page — name, description preview, item counts (forms/checklist/materials/plans), estimated duration, last used, active toggle, kebab menu (archive / duplicate-stub / restore-when-archived)</li>
+            <li><span class="scope-tag scope-in">IN</span> "+ New template" entry that creates an empty template and routes to its detail page</li>
+            <li><span class="scope-tag scope-in">IN</span> Per-template detail page at <code>/settings/work-orders/templates/{id}</code> — header with name + description (TipTap) + estimated-duration + active toggle + last-used badge</li>
+            <li><span class="scope-tag scope-in">IN</span> Tabbed child collection editors on the detail page:
+                <ul>
+                    <li>Checklist — drag-reorder list with TipTap descriptions (mirrors the WO-14 Settings tab editor)</li>
+                    <li>Materials — Material picker per row + quantity + description (description-only rows allowed)</li>
+                    <li>Labor — TradeLevel picker OR description (dual-mode toggle), qty, planned hours</li>
+                    <li>Equipment — EquipmentCategory picker OR description (dual-mode toggle), qty, planned hours</li>
+                    <li>Forms — FormWrapper multi-select, drag-reorder</li>
+                    <li>Field Defaults — DAA picker per row + value editor (TipTap when DAA target is rich-text)</li>
+                </ul>
+            </li>
+            <li><span class="scope-tag scope-in">IN</span> Archive flow with confirmation modal that surfaces a count of Jobs that have <code>appliedWorkOrderTemplateId</code> = this template</li>
+            <li><span class="scope-tag scope-in">IN</span> "Show archived" toggle on the list page; restore action on archived rows</li>
+            <li><span class="scope-tag scope-in">IN</span> Permission gate on the entire surface using <code>InstanceSetting___edit</code></li>
+        </ul>
+
+        <h3>Out of Scope</h3>
+        <ul>
+            <li><span class="scope-tag scope-out">OUT</span> Backend changes — schema, mutations, sanitization (all WO-15a)</li>
+            <li><span class="scope-tag scope-out">OUT</span> Apply UI on the WO create form — <strong>WO-15c</strong></li>
+            <li><span class="scope-tag scope-out">OUT</span> "Save WO as template" reverse flow — post-1.33 (matches WOX-21)</li>
+            <li><span class="scope-tag scope-out">OUT</span> Duplicate-template action — out for V1; the kebab menu shows it as a stub. Easy add in 1.34.</li>
+            <li><span class="scope-tag scope-out">OUT</span> Mobile editing — templates are desktop-only management</li>
+            <li><span class="scope-tag scope-out">OUT</span> Bulk operations (multi-archive, export/import) — single-row only in V1</li>
+            <li><span class="scope-tag scope-future">FUTURE</span> Template builder MCP / AI assistance (matches WOX-22)</li>
+            <li><span class="scope-tag scope-future">FUTURE</span> Per-customer default template (the Corey concept we dropped) — revisit if usage data shows the picker workflow isn't enough</li>
+        </ul>
+
+    </div>
+
+    <!-- 3. UI Concepts -->
+    <div class="uis-section" id="ui-concepts">
+        <h2>3. UI Concepts</h2>
+
+        <h3>Mockup 1 — Templates list page</h3>
+        <p>Borrowed from Corey's WOX-02 list mockup. Differences from his version: dropped the <em>Default for customer</em> column (we removed that feature); added per-template content counts (<em>4 lists</em>, <em>3 forms</em>) so admins can spot anemic templates at a glance.</p>
+        <div class="mockup-container">
+            <div class="mockup-bar">
+                <div class="mockup-dots"><div class="mockup-dot mockup-dot-r"></div><div class="mockup-dot mockup-dot-y"></div><div class="mockup-dot mockup-dot-g"></div></div>
+                <span class="mockup-url">app.useappello.com/settings/work-orders/templates</span>
+            </div>
+            <div class="mockup-body">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+                    <div>
+                        <div style="font-size:11px;color:#64748b;font-weight:600;text-transform:uppercase;letter-spacing:0.6px;">Property Settings → Work Orders</div>
+                        <div style="font-size:18px;font-weight:800;color:#0f172a;margin-top:2px;">Templates <span class="mock-new-badge">NEW</span></div>
+                    </div>
+                    <div style="display:flex; gap:8px; align-items:center;">
+                        <label style="font-size:12px;color:#64748b;display:inline-flex;align-items:center;gap:6px;"><input type="checkbox"> Show archived</label>
+                        <button class="btn btn-primary">+ New template</button>
+                    </div>
+                </div>
+                <table class="t">
+                    <thead>
+                        <tr><th>Name</th><th>Content</th><th>Est. duration</th><th>Active</th><th>Last used</th><th></th></tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>HVAC Quarterly Service</strong><br><span style="font-size:11px;color:#64748b;">Standard PM visit covering inspection, filter swap, refrigerant top-up.</span></td>
+                            <td><span class="cnt-pill has">12 checks</span> <span class="cnt-pill has">2 forms</span> <span class="cnt-pill has">3 mat</span> <span class="cnt-pill has">2 plans</span></td>
+                            <td>4 hrs</td>
+                            <td>✓</td>
+                            <td>May 5, 2026</td>
+                            <td style="text-align:right;color:#64748b;">⋯</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Boiler Annual Inspection</strong><br><span style="font-size:11px;color:#64748b;">Annual safety + compliance run-through.</span></td>
+                            <td><span class="cnt-pill has">18 checks</span> <span class="cnt-pill has">3 forms</span> <span class="cnt-pill has">5 mat</span> <span class="cnt-pill has">3 plans</span></td>
+                            <td>6 hrs</td>
+                            <td>✓</td>
+                            <td>May 4, 2026</td>
+                            <td style="text-align:right;color:#64748b;">⋯</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Emergency Leak Call</strong><br><span style="font-size:11px;color:#64748b;">Diagnostic + temporary fix; full repair via follow-up WO.</span></td>
+                            <td><span class="cnt-pill has">5 checks</span> <span class="cnt-pill has">1 form</span> <span class="cnt-pill">0 mat</span> <span class="cnt-pill has">1 plan</span></td>
+                            <td>2 hrs</td>
+                            <td>✓</td>
+                            <td>May 6, 2026</td>
+                            <td style="text-align:right;color:#64748b;">⋯</td>
+                        </tr>
+                        <tr style="opacity:0.7;">
+                            <td><strong>RTU Replacement (single unit)</strong><br><span style="font-size:11px;color:#64748b;">Archived Apr 28 — superseded by RTU Replacement v2.</span></td>
+                            <td><span class="cnt-pill has">9 checks</span> <span class="cnt-pill has">2 forms</span> <span class="cnt-pill has">8 mat</span></td>
+                            <td>1 day</td>
+                            <td>—</td>
+                            <td>Apr 28, 2026</td>
+                            <td style="text-align:right;color:#64748b;">⋯</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <h3>Mockup 2 — Template detail / edit page</h3>
+        <p>Header carries the template's metadata (name, description as TipTap, estimated duration, active toggle, last-used badge). Tabs below switch between the six child collection editors.</p>
+        <div class="mockup-container">
+            <div class="mockup-bar">
+                <div class="mockup-dots"><div class="mockup-dot mockup-dot-r"></div><div class="mockup-dot mockup-dot-y"></div><div class="mockup-dot mockup-dot-g"></div></div>
+                <span class="mockup-url">app.useappello.com/settings/work-orders/templates/tpl-7H2k…</span>
+            </div>
+            <div class="mockup-body">
+                <div style="font-size:11px;color:#64748b;font-weight:600;text-transform:uppercase;letter-spacing:0.6px;margin-bottom:6px;">
+                    <a href="#" style="color:#3b82f6;">← Templates</a>
+                </div>
+                <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:14px;">
+                    <div style="flex:1;">
+                        <div style="font-size:18px;font-weight:800;color:#0f172a;">HVAC Quarterly Service</div>
+                        <div style="font-size:12px;color:#64748b;margin-top:2px;">Standard PM visit covering inspection, filter swap, refrigerant top-up.</div>
+                    </div>
+                    <div style="display:flex; gap:8px; align-items:center;">
+                        <span style="font-size:11px;padding:3px 8px;background:#dcfce7;color:#166534;border-radius:4px;font-weight:700;">ACTIVE</span>
+                        <span style="font-size:11px;color:#64748b;">Last used May 5</span>
+                        <button class="btn btn-secondary btn-sm">Edit metadata</button>
+                    </div>
+                </div>
+
+                <div class="tab-bar">
+                    <div class="tab">Checklist <span class="tab-count">12</span></div>
+                    <div class="tab">Materials <span class="tab-count">3</span></div>
+                    <div class="tab active">Labor <span class="tab-count">2</span></div>
+                    <div class="tab">Equipment <span class="tab-count">1</span></div>
+                    <div class="tab">Forms <span class="tab-count">2</span></div>
+                    <div class="tab">Field Defaults <span class="tab-count">4</span></div>
+                </div>
+
+                <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;">
+                    <div class="plan-row">
+                        <span class="plan-drag">⋮⋮</span>
+                        <div style="flex:1;">
+                            <div class="mode-toggle"><div class="mode active">Trade Level</div><div class="mode">Free-form</div></div>
+                            <div class="plan-fields">
+                                <div class="plan-input">Apprentice 1 (Local 95) ▾</div>
+                                <div class="plan-input">2</div>
+                                <div class="plan-input">4 hrs</div>
+                            </div>
+                        </div>
+                        <button class="plan-icon-btn danger" title="Remove">🗑</button>
+                    </div>
+                    <div class="plan-row">
+                        <span class="plan-drag">⋮⋮</span>
+                        <div style="flex:1;">
+                            <div class="mode-toggle"><div class="mode active">Trade Level</div><div class="mode">Free-form</div></div>
+                            <div class="plan-fields">
+                                <div class="plan-input">Foreman (Local 95) ▾</div>
+                                <div class="plan-input">1</div>
+                                <div class="plan-input">4 hrs</div>
+                            </div>
+                            <div style="font-size:11px;color:#64748b;margin-top:4px;">Optional note: <em>"Senior journeyman with refrigerant cert"</em></div>
+                        </div>
+                        <button class="plan-icon-btn danger" title="Remove">🗑</button>
+                    </div>
+                    <div style="padding:10px 12px;border-top:1px solid #e2e8f0;display:flex;gap:8px;align-items:center;">
+                        <button class="btn btn-secondary btn-sm">+ Add labor plan</button>
+                        <span style="font-size:11px;color:#64748b;">Trade-level plans are advisory only. Free-form plans pre-fill a <code>WorkOrderLaborItem</code> on apply.</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <h3>Mockup 3 — Labor plan editor close-up (dual-mode)</h3>
+        <p>Each row has a Trade Level / Free-form toggle. Trade Level mode uses the existing TradeLevel picker; the row stays advisory. Free-form mode swaps the picker for a description input; the row will pre-fill a <code>WorkOrderLaborItem</code> on apply per WO-15a's resolver behavior. The qty + planned hours columns are shared by both modes (they map to <code>qtyOfWorkers</code> + <code>plannedSeconds</code> regardless).</p>
+
+        <div class="mockup-container">
+            <div class="mockup-bar">
+                <div class="mockup-dots"><div class="mockup-dot mockup-dot-r"></div><div class="mockup-dot mockup-dot-y"></div><div class="mockup-dot mockup-dot-g"></div></div>
+                Labor plan editor — both modes side-by-side
+            </div>
+            <div class="mockup-body">
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+                    <div>
+                        <div style="font-size:11px;font-weight:700;color:#1d4ed8;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px;">Trade Level mode (advisory)</div>
+                        <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;">
+                            <div class="plan-row">
+                                <span class="plan-drag">⋮⋮</span>
+                                <div style="flex:1;">
+                                    <div class="mode-toggle"><div class="mode active">Trade Level</div><div class="mode">Free-form</div></div>
+                                    <div class="plan-fields">
+                                        <div class="plan-input">Apprentice 1 ▾</div>
+                                        <div class="plan-input">2</div>
+                                        <div class="plan-input">4 hrs</div>
+                                    </div>
+                                </div>
+                                <button class="plan-icon-btn danger">🗑</button>
+                            </div>
+                        </div>
+                        <div style="font-size:11px;color:#64748b;margin-top:6px;">On apply: <strong>no</strong> runtime row created. Shown as planning advisory in the apply UI; <code>TimeSheetRecord</code> rows come later via scheduling.</div>
+                    </div>
+                    <div>
+                        <div style="font-size:11px;font-weight:700;color:#92400e;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px;">Free-form mode (creates line item)</div>
+                        <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;">
+                            <div class="plan-row">
+                                <span class="plan-drag">⋮⋮</span>
+                                <div style="flex:1;">
+                                    <div class="mode-toggle"><div class="mode">Trade Level</div><div class="mode active">Free-form</div></div>
+                                    <div class="plan-fields">
+                                        <div class="plan-input">Outside subcontractor — leak detection</div>
+                                        <div class="plan-input">1</div>
+                                        <div class="plan-input">2 hrs</div>
+                                    </div>
+                                </div>
+                                <button class="plan-icon-btn danger">🗑</button>
+                            </div>
+                        </div>
+                        <div style="font-size:11px;color:#64748b;margin-top:6px;">On apply: creates a <code>WorkOrderLaborItem</code> with qty=1, submittedDuration=7200s, description copied; <code>rate</code> NULL.</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <h3>Other editors</h3>
+        <p>All four follow the same row-list-with-add-button skeleton as Mockup 2's Labor tab. Implementation will lift heavily from existing components — exact picker / input choices are an implementation-plan concern. The sketches below convey layout and information hierarchy only.</p>
+
+        <h4>Checklist editor</h4>
+        <p>Mirrors the WO-14 Settings tab editor 1:1 — same component, same drag-reorder, same TipTap descriptions, same per-row "Photo required" toggle. See <a href="wo-14-checklist.html#ui-concepts">WO-14 · Mockup 1 — Desktop · WO Settings tab (full management)</a>. The template-side editor writes <code>WorkOrderTemplateChecklistItem</code> rows; on apply the <code>photoRequired</code> flag carries through to the runtime <code>WorkOrderChecklistItem</code> per WO-15a.</p>
+
+        <h4>Materials editor (dual-mode, mirrors Labor / Equipment)</h4>
+        <p>Each row has a Material / Free-form toggle. Both modes write to the same <code>WorkOrderTemplateMaterialItem</code> model and on apply create a <code>WorkOrderMaterialItem</code> on the new WO — the difference is whether the runtime row carries a <code>materialId</code> reference (specific variant picked later) or just a description (truly ad-hoc).</p>
+        <div class="mockup-container">
+            <div class="mockup-bar">Template detail · Materials tab</div>
+            <div class="mockup-body">
+                <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;">
+                    <div class="plan-row">
+                        <span class="plan-drag">⋮⋮</span>
+                        <div style="flex:1;">
+                            <div class="mode-toggle"><div class="mode active">Material</div><div class="mode">Free-form</div></div>
+                            <div class="plan-fields-2" style="grid-template-columns: 2fr 80px;">
+                                <div class="plan-input">Pipe Insulation Fitting ▾</div>
+                                <div class="plan-input">4</div>
+                            </div>
+                        </div>
+                        <button class="plan-icon-btn danger" title="Remove">🗑</button>
+                    </div>
+                    <div class="plan-row">
+                        <span class="plan-drag">⋮⋮</span>
+                        <div style="flex:1;">
+                            <div class="mode-toggle"><div class="mode active">Material</div><div class="mode">Free-form</div></div>
+                            <div class="plan-fields-2" style="grid-template-columns: 2fr 80px;">
+                                <div class="plan-input">Motor Oil ▾</div>
+                                <div class="plan-input">1</div>
+                            </div>
+                        </div>
+                        <button class="plan-icon-btn danger" title="Remove">🗑</button>
+                    </div>
+                    <div class="plan-row">
+                        <span class="plan-drag">⋮⋮</span>
+                        <div style="flex:1;">
+                            <div class="mode-toggle"><div class="mode">Material</div><div class="mode active">Free-form</div></div>
+                            <div class="plan-fields-2" style="grid-template-columns: 2fr 80px;">
+                                <div class="plan-input">Custom-cut gasket per spec</div>
+                                <div class="plan-input">2</div>
+                            </div>
+                        </div>
+                        <button class="plan-icon-btn danger" title="Remove">🗑</button>
+                    </div>
+                    <div style="padding:10px 12px;border-top:1px solid #e2e8f0;display:flex;gap:8px;align-items:center;">
+                        <button class="btn btn-secondary btn-sm">+ Add material</button>
+                        <span style="font-size:11px;color:#64748b;">Material rows pick a generic Material (specific variant + price set at runtime). Free-form rows pre-fill a description-only line item.</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <h4>Equipment editor (dual-mode, mirrors Labor)</h4>
+        <div class="mockup-container">
+            <div class="mockup-bar">Template detail · Equipment tab</div>
+            <div class="mockup-body">
+                <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;">
+                    <div class="plan-row">
+                        <span class="plan-drag">⋮⋮</span>
+                        <div style="flex:1;">
+                            <div class="mode-toggle"><div class="mode active">Category</div><div class="mode">Free-form</div></div>
+                            <div class="plan-fields">
+                                <div class="plan-input">Forklift ▾</div>
+                                <div class="plan-input">1</div>
+                                <div class="plan-input">2 hrs</div>
+                            </div>
+                        </div>
+                        <button class="plan-icon-btn danger" title="Remove">🗑</button>
+                    </div>
+                    <div class="plan-row">
+                        <span class="plan-drag">⋮⋮</span>
+                        <div style="flex:1;">
+                            <div class="mode-toggle"><div class="mode">Category</div><div class="mode active">Free-form</div></div>
+                            <div class="plan-fields">
+                                <div class="plan-input">Rented manlift (subcontracted)</div>
+                                <div class="plan-input">1</div>
+                                <div class="plan-input">4 hrs</div>
+                            </div>
+                        </div>
+                        <button class="plan-icon-btn danger" title="Remove">🗑</button>
+                    </div>
+                    <div style="padding:10px 12px;border-top:1px solid #e2e8f0;display:flex;gap:8px;align-items:center;">
+                        <button class="btn btn-secondary btn-sm">+ Add equipment plan</button>
+                        <span style="font-size:11px;color:#64748b;">Category plans are advisory + drive specific-equipment selection on apply. Free-form plans pre-fill a <code>WorkOrderEquipmentItem</code>.</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <h4>Forms editor</h4>
+        <div class="mockup-container">
+            <div class="mockup-bar">Template detail · Forms tab</div>
+            <div class="mockup-body">
+                <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;">
+                    <div class="plan-row">
+                        <span class="plan-drag">⋮⋮</span>
+                        <div class="plan-fields-2" style="grid-template-columns: 1fr;">
+                            <div class="plan-input">HIRA ▾</div>
+                        </div>
+                        <button class="plan-icon-btn danger" title="Remove">🗑</button>
+                    </div>
+                    <div class="plan-row">
+                        <span class="plan-drag">⋮⋮</span>
+                        <div class="plan-fields-2" style="grid-template-columns: 1fr;">
+                            <div class="plan-input">Refrigerant Log ▾</div>
+                        </div>
+                        <button class="plan-icon-btn danger" title="Remove">🗑</button>
+                    </div>
+                    <div style="padding:10px 12px;border-top:1px solid #e2e8f0;display:flex;gap:8px;align-items:center;">
+                        <button class="btn btn-secondary btn-sm">+ Add form</button>
+                        <span style="font-size:11px;color:#64748b;">On apply: copies to <code>JobSafetyFormWrapper</code> rows on the new WO.</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <h4>Field Defaults editor</h4>
+        <p>Each row picks a Document Attribute Assignment (DAA). The value input adapts to the DAA's target type — TipTap editor for rich-text fields, plain input for everything else.</p>
+        <div class="mockup-container">
+            <div class="mockup-bar">Template detail · Field Defaults tab</div>
+            <div class="mockup-body">
+                <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;">
+                    <div class="plan-row">
+                        <div class="plan-fields-2" style="grid-template-columns: 1fr 2fr;">
+                            <div class="plan-input">Description ▾ <span style="font-size:10px;color:#7c3aed;">RICH-TEXT</span></div>
+                            <div class="plan-input" style="min-height: 60px; line-height: 1.5;">
+                                <strong>Standard PM visit.</strong> Inspection, filter swap, refrigerant top-up. Customer present required for sign-off.
+                            </div>
+                        </div>
+                        <button class="plan-icon-btn danger" title="Remove">🗑</button>
+                    </div>
+                    <div class="plan-row">
+                        <div class="plan-fields-2" style="grid-template-columns: 1fr 2fr;">
+                            <div class="plan-input">PO Number ▾ <span style="font-size:10px;color:#64748b;">PLAIN</span></div>
+                            <div class="plan-input">AUTO-GEN</div>
+                        </div>
+                        <button class="plan-icon-btn danger" title="Remove">🗑</button>
+                    </div>
+                    <div class="plan-row">
+                        <div class="plan-fields-2" style="grid-template-columns: 1fr 2fr;">
+                            <div class="plan-input">Priority ▾ <span style="font-size:10px;color:#64748b;">SELECT</span></div>
+                            <div class="plan-input">Standard ▾</div>
+                        </div>
+                        <button class="plan-icon-btn danger" title="Remove">🗑</button>
+                    </div>
+                    <div style="padding:10px 12px;border-top:1px solid #e2e8f0;display:flex;gap:8px;align-items:center;">
+                        <button class="btn btn-secondary btn-sm">+ Add field default</button>
+                        <span style="font-size:11px;color:#64748b;">At form-render: this template's value supersedes the DAA's <code>defaultValue</code>.</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <h3>Mockup 4 — Archive confirmation modal</h3>
+        <p>Archiving a template that has been applied to live WOs surfaces the impact count. WO-15a's <code>SetNull</code> on <code>Job.appliedWorkOrderTemplateId</code> means there's no data risk — the modal is purely informational.</p>
+        <div class="mockup-container">
+            <div class="mockup-bar">Archive HVAC Quarterly Service</div>
+            <div class="mockup-body" style="padding: 24px;">
+                <div style="font-size:14px;font-weight:700;color:#0f172a;margin-bottom:10px;">Archive this template?</div>
+                <div style="font-size:13px;color:#475569;margin-bottom:14px;line-height:1.6;">
+                    <strong>HVAC Quarterly Service</strong> has been applied to <strong>34 work orders</strong>.<br>
+                    Archiving keeps those WOs intact — they snapshotted the template's content when they were created. The audit pointer from each WO back to this template will be cleared.
+                </div>
+                <div style="font-size:13px;color:#475569;margin-bottom:14px;">Archived templates are hidden from the list by default; toggle "Show archived" to restore.</div>
+                <div style="display:flex;gap:8px;justify-content:flex-end;">
+                    <button class="btn btn-secondary">Cancel</button>
+                    <button class="btn" style="background:#dc2626;color:#fff;">Archive template</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 4. Data Model -->
+    <div class="uis-section" id="data-model">
+        <h2>4. Data Model</h2>
+
+        <div class="no-changes">
+            <strong>No schema changes.</strong> Every model and FK consumed by this UI is defined in WO-15a. This spec wires the front-end against that schema.
+        </div>
+    </div>
+
+    <!-- 5. API Surface -->
+    <div class="uis-section" id="api-surface">
+        <h2>5. API Surface</h2>
+
+        <div class="no-changes">
+            <strong>No new GraphQL types, queries, or mutations.</strong> The settings UI consumes the surface defined in WO-15a:
+            <ul style="margin: 8px 0 0; padding-left: 20px;">
+                <li><code>workOrderTemplates</code> / <code>workOrderTemplate</code> for the list / detail reads</li>
+                <li><code>create / edit / archive / restoreWorkOrderTemplate</code> for top-level CRUD</li>
+                <li>Six sets of CRUD mutations for the child collections (<code>create / edit / archive / reorderWorkOrderTemplate{Checklist|Material|Labor|Equipment|FormWrapper|FieldDefault}Item</code>)</li>
+            </ul>
+            One GraphQL extension that lives in <strong>this</strong> spec's frontend code only: a count field on <code>WorkOrderTemplate</code> for the list page's content pills (<em>12 checks · 2 forms · 3 mat · 2 plans</em>) — implemented as a server-side aggregate to avoid N+1 child fetches per row. The aggregate type <code>WorkOrderTemplateCounts</code> is added to WO-15a's API surface as a small follow-up rather than a separate spec.
+        </div>
+    </div>
+
+    <!-- 6. Change Surface -->
+    <div class="uis-section" id="change-surface">
+        <h2>6. Change Surface</h2>
+
+        <table class="schema-table">
+            <thead><tr><th>Action</th><th>Path</th><th>Change</th></tr></thead>
+            <tbody>
+                <tr><td><span class="action-mod">MODIFY</span></td><td>Property Settings shell (<code>PropertySettings.tsx</code> or equivalent)</td><td>Register the new "Templates" tab under the Work Orders section</td></tr>
+                <tr><td><span class="action-new">NEW</span></td><td><code>WorkOrderTemplatesListPage.tsx</code></td><td>Templates list, "Show archived" toggle, "+ New template" entry, kebab menu, archive confirm modal</td></tr>
+                <tr><td><span class="action-new">NEW</span></td><td><code>WorkOrderTemplateDetailPage.tsx</code></td><td>Header (name, description TipTap, estimatedDuration, isActive, lastUsedAt), tab bar, child editor mounting</td></tr>
+                <tr><td><span class="action-new">NEW</span></td><td><code>WorkOrderTemplateChecklistEditor.tsx</code></td><td>Drag-reorder list with TipTap descriptions; reuses WO-14 Settings tab editor</td></tr>
+                <tr><td><span class="action-new">NEW</span></td><td><code>WorkOrderTemplateMaterialEditor.tsx</code></td><td>Material picker rows with quantity + description</td></tr>
+                <tr><td><span class="action-new">NEW</span></td><td><code>WorkOrderTemplateLaborPlanEditor.tsx</code></td><td>Dual-mode rows (TradeLevel ↔ free-form) with qty + planned hours</td></tr>
+                <tr><td><span class="action-new">NEW</span></td><td><code>WorkOrderTemplateEquipmentPlanEditor.tsx</code></td><td>Dual-mode rows (EquipmentCategory ↔ free-form) with qty + planned hours</td></tr>
+                <tr><td><span class="action-new">NEW</span></td><td><code>WorkOrderTemplateFormsEditor.tsx</code></td><td>FormWrapper multi-picker with reorder</td></tr>
+                <tr><td><span class="action-new">NEW</span></td><td><code>WorkOrderTemplateFieldDefaultsEditor.tsx</code></td><td>DAA picker per row, dynamic value editor (TipTap for rich-text DAAs, plain input otherwise)</td></tr>
+                <tr><td><span class="action-mod">MODIFY</span></td><td><code>apps/api/src/graphql/models/WorkOrderTemplate.ts</code> (WO-15a addition)</td><td>Add a <code>counts</code> resolver field returning child collection sizes for the list page pills</td></tr>
+                <tr><td><span class="action-mod">MODIFY</span></td><td>Settings nav / breadcrumbs</td><td>Add the Templates tab + breadcrumb path</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- 7. Acceptance Criteria -->
+    <div class="uis-section" id="acceptance-criteria">
+        <h2>7. Acceptance Criteria</h2>
+
+        <ol class="ac-list">
+            <li>Property Settings → Work Orders has a new Templates tab visible only to users with <code>InstanceSetting___edit</code>.</li>
+            <li>The list page shows active templates by default; toggling "Show archived" reveals archived rows.</li>
+            <li>Each list row shows accurate content counts for checklist items, forms, materials, and labor + equipment plans, served by the server-side counts aggregate.</li>
+            <li>"+ New template" creates an empty template via <code>createWorkOrderTemplate</code> and routes the user to the detail page.</li>
+            <li>The detail page header lets the admin edit name, description (TipTap), estimated duration, and the active toggle; saves go through <code>editWorkOrderTemplate</code>.</li>
+            <li>The detail page exposes six tabs (Checklist, Materials, Labor, Equipment, Forms, Field Defaults) with row counts displayed in tab labels.</li>
+            <li>The Checklist editor mirrors the WO-14 Settings tab editor — same component code path; supports drag-reorder, TipTap descriptions, per-row "Photo required" toggle, and add/edit/archive on each row. Photo-required setting carries through to the runtime <code>WorkOrderChecklistItem</code> on apply.</li>
+            <li>The Materials editor uses the existing Material picker; rows can be description-only (no Material selected); quantity is editable.</li>
+            <li>The Labor editor renders each row with a Trade Level / Free-form toggle; switching modes clears the previously-set FK or description as appropriate.</li>
+            <li>The Equipment editor mirrors the Labor editor's dual-mode pattern with EquipmentCategory in place of TradeLevel.</li>
+            <li>The Forms editor is a reorderable multi-select bound to <code>FormWrapper</code>; saving writes to the join model.</li>
+            <li>The Field Defaults editor uses the DAA picker; the value input renders TipTap when the picked DAA's target type is rich-text and a plain input otherwise.</li>
+            <li>Archiving a template that has been applied to live WOs surfaces the applied-job count in the confirmation modal; archive proceeds with user confirmation; <code>Job.appliedWorkOrderTemplateId</code> is SetNull on referencing Jobs (per WO-15a behavior).</li>
+            <li>Restoring an archived template returns it to the active list; subsequent applies bump <code>lastUsedAt</code> normally.</li>
+            <li>All write operations happen through the WO-15a mutation surface; this spec adds zero new GraphQL operations beyond the counts aggregate.</li>
+            <li>The Templates tab is hidden entirely (not just disabled) for users without <code>InstanceSetting___edit</code>.</li>
+        </ol>
+    </div>
+
+    <!-- 8. Dependencies -->
+    <div class="uis-section" id="dependencies">
+        <h2>8. Dependencies</h2>
+
+        <h3>Requires</h3>
+        <p>
+            <span class="dep-tag dep-requires">WO-15a</span> Schema, mutations, sanitization (consumer of WO-15a's entire surface)<br>
+            <span class="dep-tag dep-requires">WO-14</span> Settings tab checklist editor (reused 1:1 for the template's checklist tab)
+        </p>
+
+        <h3>Enables</h3>
+        <p>
+            <span class="dep-tag dep-enables">WO-15c</span> Apply UI on WO Create — admins must be able to build templates before users can apply them
+        </p>
+
+        <h3>Parent</h3>
+        <p>UIS-20 · T&amp;M Work Orders</p>
+
+        <h3>Siblings</h3>
+        <p>WO-15a (Schema), WO-15c (Apply UI), WO-16 (WO Detail Tabs — Schedule + Equipment Assignment), WOX-02 (the Path A sketch from Corey that informed the list page layout)</p>
+    </div>
+
+</div>
+</body>
+</html>

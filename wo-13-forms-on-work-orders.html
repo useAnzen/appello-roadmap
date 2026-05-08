@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WO-13: Forms on Work Orders</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+.in-iframe .top-nav { display: none !important; }
+.top-nav { position: sticky; top: 0; z-index: 100; background: #0f172a; border-bottom: 1px solid #1e293b; padding: 0 24px; display: flex; align-items: center; gap: 0; }
+.top-nav a { display: inline-flex; align-items: center; padding: 12px 18px; font-size: 13px; font-weight: 600; color: #94a3b8; text-decoration: none; border-bottom: 2px solid transparent; transition: all 0.15s; white-space: nowrap; }
+.top-nav a:hover { color: #f8fafc; background: #1e293b; }
+.top-nav .nav-logo { font-size: 11px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: #475569; padding-right: 18px; margin-right: 4px; border-right: 1px solid #1e293b; }
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Inter', -apple-system, sans-serif; background: #f1f5f9; color: #0f172a; }
+.uis-wrap { max-width: 960px; margin: 0 auto; padding: 40px 24px 80px; }
+.uis-hero { margin-bottom: 32px; }
+.uis-badges { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+.uis-badge { font-size: 11px; font-weight: 700; padding: 4px 12px; border-radius: 6px; display: inline-flex; align-items: center; gap: 5px; }
+.badge-q { background: #0f172a; color: #fff; }
+.badge-wo { background: #ec4899; color: #fff; }
+.badge-priority { background: #fef3c7; color: #92400e; }
+.badge-status { background: #fef3c7; color: #92400e; }
+.uis-h1 { font-size: 30px; font-weight: 800; color: #0f172a; margin: 0 0 8px; letter-spacing: -0.01em; }
+.uis-sub { font-size: 15px; color: #64748b; line-height: 1.5; margin: 0; }
+.uis-meta { display: flex; gap: 24px; flex-wrap: wrap; margin-top: 14px; font-size: 13px; color: #64748b; }
+.uis-meta strong { color: #0f172a; }
+.uis-toc { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px 28px; margin-bottom: 16px; }
+.uis-toc h3 { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; margin: 0 0 10px; }
+.uis-toc ol { margin: 0; padding-left: 20px; }
+.uis-toc li { font-size: 14px; color: #3b82f6; margin-bottom: 4px; }
+.uis-toc a { color: #3b82f6; text-decoration: none; }
+.uis-section { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px 28px; margin-bottom: 16px; }
+.uis-section h2 { font-size: 17px; font-weight: 700; margin: 0 0 14px; padding-bottom: 10px; border-bottom: 2px solid #e2e8f0; }
+.uis-section h3 { font-size: 15px; font-weight: 700; margin: 16px 0 8px; }
+.uis-section h4 { font-size: 14px; font-weight: 700; color: #334155; margin: 12px 0 6px; }
+.uis-section p, .uis-section li { font-size: 14px; color: #334155; line-height: 1.65; }
+.uis-section ul, .uis-section ol { padding-left: 20px; margin: 8px 0; }
+pre { background: #1e293b; color: #e2e8f0; border-radius: 8px; padding: 16px; overflow-x: auto; font-size: 13px; line-height: 1.5; font-family: 'SF Mono', monospace; margin: 12px 0; }
+code { font-family: 'SF Mono', monospace; background: #f1f5f9; padding: 1px 5px; border-radius: 3px; font-size: 12px; color: #7c3aed; }
+table.schema-table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 12px 0; }
+table.schema-table th { text-align: left; padding: 8px 12px; background: #f8fafc; border-bottom: 2px solid #e2e8f0; font-weight: 600; }
+table.schema-table td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
+.callout { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 14px 18px; margin: 14px 0; font-size: 13px; color: #1e40af; }
+.callout strong { color: #1e3a8a; }
+.no-changes { background: #f0fdf4; border: 1px solid #86efac; border-radius: 8px; padding: 14px 18px; margin: 14px 0; font-size: 13px; color: #166534; }
+.no-changes strong { color: #14532d; }
+.action-mod { background: #fef3c7; color: #92400e; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 4px; }
+.ac-list { margin: 0; padding-left: 0; list-style: none; }
+.ac-list li { display: flex; gap: 10px; margin-bottom: 10px; font-size: 14px; color: #334155; line-height: 1.55; }
+.ac-list li::before { content: ''; flex-shrink: 0; width: 18px; height: 18px; border: 2px solid #e2e8f0; border-radius: 4px; margin-top: 2px; background: #fff; }
+.dep-tag { display: inline-block; font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 5px; margin-right: 6px; margin-bottom: 6px; }
+.dep-requires { background: #fee2e2; color: #dc2626; }
+.dep-enables { background: #dcfce7; color: #166534; }
+.scope-tag { display: inline-block; font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 5px; margin: 2px 4px 2px 0; }
+.scope-in { background: #dcfce7; color: #166534; }
+.scope-out { background: #fee2e2; color: #dc2626; }
+.scope-future { background: #eff6ff; color: #3b82f6; }
+.scope-done { background: #dbeafe; color: #1d4ed8; }
+.mockup-container { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; margin: 14px 0; }
+.mockup-bar { background: #f1f5f9; padding: 8px 14px; font-size: 12px; font-weight: 600; color: #64748b; border-bottom: 1px solid #e2e8f0; display: flex; align-items: center; gap: 8px; }
+.mockup-dots { display: flex; gap: 5px; }
+.mockup-dot { width: 8px; height: 8px; border-radius: 50%; }
+.mockup-dot-r { background: #f87171; }
+.mockup-dot-y { background: #fbbf24; }
+.mockup-dot-g { background: #34d399; }
+.mockup-body { padding: 24px; min-height: 150px; font-size: 13px; color: #334155; line-height: 1.6; }
+.mock-new-badge { background: #dcfce7; color: #166534; font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 3px; margin-left: 6px; }
+.mobile-frame { max-width: 380px; margin: 14px auto; border: 2px solid #1e293b; border-radius: 28px; padding: 8px; background: #1e293b; }
+.mobile-screen { background: #fff; border-radius: 20px; padding: 16px; min-height: 480px; }
+.tab-bar { display: flex; gap: 0; border-bottom: 1px solid #e2e8f0; margin-bottom: 12px; }
+.tab { padding: 10px 14px; font-size: 13px; font-weight: 600; color: #64748b; cursor: pointer; border-bottom: 2px solid transparent; }
+.tab.active { color: #3b82f6; border-bottom-color: #3b82f6; }
+.form-row { padding: 10px 0; border-bottom: 1px solid #f1f5f9; display: flex; align-items: center; justify-content: space-between; }
+.form-row-name { font-size: 14px; color: #0f172a; font-weight: 600; }
+.form-row-meta { font-size: 12px; color: #64748b; margin-top: 2px; }
+.form-status-pill { display: inline-block; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 10px; }
+.status-completed { background: #dcfce7; color: #166534; }
+.status-pending { background: #fef3c7; color: #92400e; }
+    </style>
+</head>
+<body>
+<script>if(self!==top)document.documentElement.classList.add("in-iframe")</script>
+<nav class="top-nav">
+    <span class="nav-logo">Appello SDLC</span>
+    <a href="index.html">Roadmap</a>
+    <a href="release-1.33-timeline.html">Release 1.33</a>
+    <a href="release-1.34-timeline.html">Release 1.34</a>
+    <a href="master-spec-reconciliation.html">Spec Reconciliation</a>
+    <a href="ui-interface-library.html">UI Library</a>
+    <a href="cross-release-continuity-audit.html">Continuity Audit</a>
+</nav>
+<div class="uis-wrap">
+
+    <div class="uis-hero">
+        <div class="uis-badges">
+            <span class="uis-badge badge-q">WO-13</span>
+            <span class="uis-badge badge-wo">Work Orders</span>
+            <span class="uis-badge badge-priority">P1 - 1.33</span>
+            <span class="uis-badge badge-status">Draft</span>
+        </div>
+        <h1 class="uis-h1">Forms on Work Orders</h1>
+        <p class="uis-sub">Surface the existing job-forms UI on Work Orders. Pure UI work — no schema changes, no new GraphQL surface. Reuse the same components and screens that jobs already use; remove the gate that hides forms on WOs.</p>
+        <div class="uis-meta">
+            <span><strong>Estimate:</strong> 0.5-1 day</span>
+            <span><strong>Sequence:</strong> 1.33 — independent, can ship anytime</span>
+            <span><strong>Requires:</strong> WO-1</span>
+            <span><strong>Enables:</strong> Template form-defaults (lives with WO-14)</span>
+        </div>
+    </div>
+
+    <div class="uis-toc">
+        <h3>Contents</h3>
+        <ol>
+            <li><a href="#business-case">Business Case</a></li>
+            <li><a href="#scope">Scope</a></li>
+            <li><a href="#ui-concepts">UI Concepts</a></li>
+            <li><a href="#data-model">Data Model</a></li>
+            <li><a href="#api-surface">API Surface</a></li>
+            <li><a href="#change-surface">Change Surface</a></li>
+            <li><a href="#acceptance-criteria">Acceptance Criteria</a></li>
+            <li><a href="#dependencies">Dependencies</a></li>
+        </ol>
+    </div>
+
+    <!-- 1. Business Case -->
+    <div class="uis-section" id="business-case">
+        <h2>1. Business Case</h2>
+
+        <p>From the May 5, 2026 product calls (Emma + Corey): forms are currently hidden on Work Orders. Service workflows expect forms to surface on each WO — generator inspections, equipment checklists, refrigerant logs, customer sign-offs. The platform already supports assigning <code>FormWrapper</code>s to a Job (<code>JobSafetyFormWrapper</code>) and capturing submissions (<code>JobSafetyForm</code>); a WO is a Job (WO-1), so the data layer already works.</p>
+
+        <p>This spec is the smallest possible step: turn the existing job-forms UI on for WOs, on both desktop and mobile, with zero behavior changes. Per-WO defaults driven by <strong>WO Templates</strong> are explicitly out of scope here and live with the Templates spec (WO-14).</p>
+
+        <div class="callout">
+            <strong>Direct quote from the call:</strong> "Open forms up on work orders, possibly with a different UI where you don't have like the whole library and stuff. It's like these are things that are assigned to it." Translation in this spec: <em>same UI as jobs, no special trimming yet</em>. If a trimmed surface is needed we'll add it as a follow-up after real users react.
+        </div>
+
+        <div class="callout" style="background:#fffbeb;border-color:#fbbf24;color:#78350f;">
+            <strong>Clarification vs Corey's WOX-06:</strong> "Assigned-only UI" in this spec means <em>only the forms attached to this WO are shown</em>, not the entire form library — i.e., the WO surface is scoped to its own form attachments. It does <strong>not</strong> mean "filter by the user assigned to the visit on mobile" (which is the additional feature WOX-06 proposed: a per-user-assignment filter so each tech only sees their forms in the mobile inbox). That filter is out of scope here and would ship as a future spec if/when techs report mobile inbox clutter as a pain point. Our V1 = WO surface shows all forms attached to the WO, identical to how jobs show all forms attached to the job.
+        </div>
+    </div>
+
+    <!-- 2. Scope -->
+    <div class="uis-section" id="scope">
+        <h2>2. Scope</h2>
+
+        <h3>Already Built</h3>
+        <ul>
+            <li><span class="scope-tag scope-done">DONE</span> <code>JobSafetyFormWrapper</code> — assignment record linking a <code>FormWrapper</code> to a Job (<code>schema.prisma:2355</code>)</li>
+            <li><span class="scope-tag scope-done">DONE</span> <code>JobSafetyForm</code> — submission record per assigned form (<code>schema.prisma:2333</code>)</li>
+            <li><span class="scope-tag scope-done">DONE</span> Job detail Forms tab (desktop) — assignment picker, list of assigned forms, status, submission history</li>
+            <li><span class="scope-tag scope-done">DONE</span> Job detail Forms surface (mobile) — list of assigned forms, fill flow, submission UI</li>
+            <li><span class="scope-tag scope-done">DONE</span> All GraphQL queries / mutations for assigning, removing, and submitting forms against a Job</li>
+            <li><span class="scope-tag scope-done">DONE</span> WO-as-Job classification routing (WO-1) — feature gating already discriminates classification</li>
+        </ul>
+
+        <h3>In Scope (WO-13)</h3>
+        <ul>
+            <li><span class="scope-tag scope-in">IN</span> Render the existing Forms tab on the WO detail page (desktop) — same component, same data, gated open for <code>jobClassification = WorkOrder</code></li>
+            <li><span class="scope-tag scope-in">IN</span> Render the existing Forms surface on the WO detail page (mobile) — same component, same data, gated open</li>
+            <li><span class="scope-tag scope-in">IN</span> Identical behavior to jobs: assign FormWrapper, fill form, view submissions, remove assignment</li>
+        </ul>
+
+        <h3>Out of Scope</h3>
+        <ul>
+            <li><span class="scope-tag scope-out">OUT</span> Any new schema changes — none required</li>
+            <li><span class="scope-tag scope-out">OUT</span> Any new GraphQL queries / mutations — existing job-form surface covers this</li>
+            <li><span class="scope-tag scope-out">OUT</span> Trimmed / WO-specific forms UI — V1 reuses the job UI as-is</li>
+            <li><span class="scope-tag scope-future">FUTURE</span> Default forms per WO template — lives with the WO Templates spec (<strong>WO-14</strong>)</li>
+            <li><span class="scope-tag scope-future">FUTURE</span> Conditional / role-gated form assignment</li>
+            <li><span class="scope-tag scope-future">FUTURE</span> WO-specific Forms list UI redesign (driven by user feedback once V1 ships)</li>
+        </ul>
+    </div>
+
+    <!-- 3. UI Concepts -->
+    <div class="uis-section" id="ui-concepts">
+        <h2>3. UI Concepts</h2>
+
+        <p>No new components or layouts. Each surface below already exists on the Job side and will function and look identical on the WO — only the gate that currently hides them when <code>jobClassification = WorkOrder</code> is removed.</p>
+
+        <h3>Interfaces being added to WOs</h3>
+        <ul>
+            <li>Desktop WO Form Submissions</li>
+            <li>Desktop WO Settings with Form Settings</li>
+            <li>Mobile Forms tab</li>
+            <li>Mobile Form Submission History tab</li>
+        </ul>
+    </div>
+
+    <!-- 4. Data Model -->
+    <div class="uis-section" id="data-model">
+        <h2>4. Data Model</h2>
+
+        <div class="no-changes">
+            <strong>No schema changes.</strong> <code>JobSafetyFormWrapper</code> and <code>JobSafetyForm</code> already key off <code>jobId</code>. A WO is a Job (WO-1), so all existing form data flows work unchanged.
+        </div>
+    </div>
+
+    <!-- 5. API Surface -->
+    <div class="uis-section" id="api-surface">
+        <h2>5. API Surface</h2>
+
+        <div class="no-changes">
+            <strong>No new queries or mutations.</strong> The existing job-form GraphQL surface (<code>connect_form_to_jobs</code>, <code>disconnect_form_from_jobs</code>, form-submission mutations, job-forms query) operates on Jobs and works for WOs without changes. Frontend uses the same hooks.
+        </div>
+    </div>
+
+    <!-- 6. Change Surface -->
+    <div class="uis-section" id="change-surface">
+        <h2>6. Change Surface</h2>
+
+        <table class="schema-table">
+            <thead><tr><th>Action</th><th>Path</th><th>Change</th></tr></thead>
+            <tbody>
+                <tr><td><span class="action-mod">MODIFY</span></td><td>WO detail page (desktop)</td><td>Render the existing Forms tab component; remove the WO-classification hide-gate</td></tr>
+                <tr><td><span class="action-mod">MODIFY</span></td><td>WO detail page (mobile)</td><td>Render the existing Forms surface; remove the WO-classification hide-gate</td></tr>
+                <tr><td><span class="action-mod">MODIFY</span></td><td>WO detail tab config</td><td>Add Forms to the WO tab list (or remove the conditional that hid it)</td></tr>
+            </tbody>
+        </table>
+
+        <p>If the existing tab-rendering logic is data-driven (e.g., a tab config array with classification gates), this is a one-line change. If it's a hard-coded conditional, two-three line changes per platform.</p>
+    </div>
+
+    <!-- 7. Acceptance Criteria -->
+    <div class="uis-section" id="acceptance-criteria">
+        <h2>7. Acceptance Criteria</h2>
+
+        <ol class="ac-list">
+            <li>Opening a WO on desktop shows a Forms tab in the same position and styling as the Job Forms tab.</li>
+            <li>Opening a WO on mobile shows a Forms surface identical to the Job Forms surface.</li>
+            <li>Adding a form to a WO writes a <code>JobSafetyFormWrapper</code> row using the existing mutation; no WO-specific code path.</li>
+            <li>Filling out a form on a WO writes a <code>JobSafetyForm</code> submission using the existing mutation.</li>
+            <li>Removing an assigned form from a WO soft-deletes the <code>JobSafetyFormWrapper</code> using the existing mutation.</li>
+            <li>Submission history, attachments, signatures, and PDF rendering on a WO behave identically to a Job.</li>
+            <li>No regressions on the Job Forms tab — same component code path.</li>
+            <li>Existing form permissions (view, fill, sign) apply on WOs without modification.</li>
+        </ol>
+    </div>
+
+    <!-- 8. Dependencies -->
+    <div class="uis-section" id="dependencies">
+        <h2>8. Dependencies</h2>
+
+        <h3>Requires</h3>
+        <p>
+            <span class="dep-tag dep-requires">WO-1</span> Job classification routing (so the gate logic can discriminate WO from project job)
+        </p>
+
+        <h3>Enables</h3>
+        <p>
+            <span class="dep-tag dep-enables">WO-14</span> Work Order Templates — templates can specify default <code>FormWrapper</code> assignments which get materialized as <code>JobSafetyFormWrapper</code> rows on WO creation
+        </p>
+
+        <h3>Parent</h3>
+        <p>UIS-20 · T&amp;M Work Orders</p>
+
+        <h3>Siblings</h3>
+        <p>WO-11 (Equipment subject), WO-12 (Maintenance linkage), WO-14 (Templates &mdash; provides form-defaults)</p>
+    </div>
+
+</div>
+</body>
+</html>

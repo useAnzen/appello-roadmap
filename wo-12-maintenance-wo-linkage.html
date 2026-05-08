@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WO-12: Maintenance ↔ Work Order Linkage</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+.in-iframe .top-nav { display: none !important; }
+.top-nav { position: sticky; top: 0; z-index: 100; background: #0f172a; border-bottom: 1px solid #1e293b; padding: 0 24px; display: flex; align-items: center; gap: 0; }
+.top-nav a { display: inline-flex; align-items: center; padding: 12px 18px; font-size: 13px; font-weight: 600; color: #94a3b8; text-decoration: none; border-bottom: 2px solid transparent; transition: all 0.15s; white-space: nowrap; }
+.top-nav a:hover { color: #f8fafc; background: #1e293b; }
+.top-nav .nav-logo { font-size: 11px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: #475569; padding-right: 18px; margin-right: 4px; border-right: 1px solid #1e293b; }
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Inter', -apple-system, sans-serif; background: #f1f5f9; color: #0f172a; }
+.uis-wrap { max-width: 960px; margin: 0 auto; padding: 40px 24px 80px; }
+.uis-hero { margin-bottom: 32px; }
+.uis-badges { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+.uis-badge { font-size: 11px; font-weight: 700; padding: 4px 12px; border-radius: 6px; display: inline-flex; align-items: center; gap: 5px; }
+.badge-q { background: #0f172a; color: #fff; }
+.badge-wo { background: #ec4899; color: #fff; }
+.badge-priority { background: #e0e7ff; color: #4338ca; }
+.badge-status { background: #fef3c7; color: #92400e; }
+.uis-h1 { font-size: 30px; font-weight: 800; color: #0f172a; margin: 0 0 8px; letter-spacing: -0.01em; }
+.uis-sub { font-size: 15px; color: #64748b; line-height: 1.5; margin: 0; }
+.uis-meta { display: flex; gap: 24px; flex-wrap: wrap; margin-top: 14px; font-size: 13px; color: #64748b; }
+.uis-meta strong { color: #0f172a; }
+.uis-toc { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px 28px; margin-bottom: 16px; }
+.uis-toc h3 { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; margin: 0 0 10px; }
+.uis-toc ol { margin: 0; padding-left: 20px; }
+.uis-toc li { font-size: 14px; color: #3b82f6; margin-bottom: 4px; }
+.uis-toc a { color: #3b82f6; text-decoration: none; }
+.uis-section { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px 28px; margin-bottom: 16px; }
+.uis-section h2 { font-size: 17px; font-weight: 700; margin: 0 0 14px; padding-bottom: 10px; border-bottom: 2px solid #e2e8f0; }
+.uis-section h3 { font-size: 15px; font-weight: 700; margin: 16px 0 8px; }
+.uis-section h4 { font-size: 14px; font-weight: 700; color: #334155; margin: 12px 0 6px; }
+.uis-section p, .uis-section li { font-size: 14px; color: #334155; line-height: 1.65; }
+.uis-section ul, .uis-section ol { padding-left: 20px; margin: 8px 0; }
+pre { background: #1e293b; color: #e2e8f0; border-radius: 8px; padding: 16px; overflow-x: auto; font-size: 13px; line-height: 1.5; font-family: 'SF Mono', monospace; margin: 12px 0; }
+code { font-family: 'SF Mono', monospace; background: #f1f5f9; padding: 1px 5px; border-radius: 3px; font-size: 12px; color: #7c3aed; }
+table.schema-table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 12px 0; }
+table.schema-table th { text-align: left; padding: 8px 12px; background: #f8fafc; border-bottom: 2px solid #e2e8f0; font-weight: 600; }
+table.schema-table td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
+.callout { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 14px 18px; margin: 14px 0; font-size: 13px; color: #1e40af; }
+.callout strong { color: #1e3a8a; }
+.decision { background: #fffbeb; border: 2px solid #f59e0b; border-radius: 10px; padding: 18px 22px; margin: 14px 0; }
+.decision h4 { color: #78350f; margin: 0 0 8px; font-size: 14px; }
+.decision p, .decision li { font-size: 13px; color: #78350f; }
+.future { background: #faf5ff; border: 1px dashed #c084fc; border-radius: 8px; padding: 14px 18px; margin: 14px 0; font-size: 13px; color: #7c3aed; }
+.future strong { color: #6d28d9; }
+.action-new { background: #dcfce7; color: #166534; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 4px; }
+.action-mod { background: #fef3c7; color: #92400e; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 4px; }
+.ac-list { margin: 0; padding-left: 0; list-style: none; }
+.ac-list li { display: flex; gap: 10px; margin-bottom: 10px; font-size: 14px; color: #334155; line-height: 1.55; }
+.ac-list li::before { content: ''; flex-shrink: 0; width: 18px; height: 18px; border: 2px solid #e2e8f0; border-radius: 4px; margin-top: 2px; background: #fff; }
+.dep-tag { display: inline-block; font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 5px; margin-right: 6px; margin-bottom: 6px; }
+.dep-requires { background: #fee2e2; color: #dc2626; }
+.dep-enables { background: #dcfce7; color: #166534; }
+.scope-tag { display: inline-block; font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 5px; margin: 2px 4px 2px 0; }
+.scope-in { background: #dcfce7; color: #166534; }
+.scope-out { background: #fee2e2; color: #dc2626; }
+.scope-future { background: #eff6ff; color: #3b82f6; }
+.scope-done { background: #dbeafe; color: #1d4ed8; }
+.mockup-container { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; margin: 14px 0; }
+.mockup-bar { background: #f1f5f9; padding: 8px 14px; font-size: 12px; font-weight: 600; color: #64748b; border-bottom: 1px solid #e2e8f0; display: flex; align-items: center; gap: 8px; }
+.mockup-dots { display: flex; gap: 5px; }
+.mockup-dot { width: 8px; height: 8px; border-radius: 50%; }
+.mockup-dot-r { background: #f87171; }
+.mockup-dot-y { background: #fbbf24; }
+.mockup-dot-g { background: #34d399; }
+.mockup-body { padding: 24px; min-height: 150px; font-size: 13px; color: #334155; line-height: 1.6; }
+.mock-new-badge { background: #dcfce7; color: #166534; font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 3px; margin-left: 6px; }
+.flow-step { display: flex; align-items: flex-start; gap: 12px; margin: 10px 0; }
+.flow-num { flex-shrink: 0; width: 24px; height: 24px; background: #3b82f6; color: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; }
+.flow-text { font-size: 13px; color: #334155; line-height: 1.6; padding-top: 2px; }
+.entry-pill { display: inline-block; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 10px; margin-right: 6px; }
+.pill-internal { background: #dbeafe; color: #1d4ed8; }
+.pill-external { background: #fef3c7; color: #78350f; }
+    </style>
+</head>
+<body>
+<script>if(self!==top)document.documentElement.classList.add("in-iframe")</script>
+<nav class="top-nav">
+    <span class="nav-logo">Appello SDLC</span>
+    <a href="index.html">Roadmap</a>
+    <a href="release-1.33-timeline.html">Release 1.33</a>
+    <a href="release-1.34-timeline.html">Release 1.34</a>
+    <a href="master-spec-reconciliation.html">Spec Reconciliation</a>
+    <a href="ui-interface-library.html">UI Library</a>
+    <a href="cross-release-continuity-audit.html">Continuity Audit</a>
+</nav>
+<div class="uis-wrap">
+
+    <div class="uis-hero">
+        <div class="uis-badges">
+            <span class="uis-badge badge-q">WO-12</span>
+            <span class="uis-badge badge-wo">Work Orders</span>
+            <span class="uis-badge badge-priority">P2 - Post-1.33</span>
+            <span class="uis-badge badge-status">Draft</span>
+        </div>
+        <h1 class="uis-h1">Maintenance ↔ Work Order Linkage</h1>
+        <p class="uis-sub">Links a planned <code>MaintenanceSchedule</code> to the Work Order that fulfills it. Internal service: WO drives the completion data. External service: existing denormalized fields stay authoritative. Adds a unified service-history view on the equipment page combining both paths.</p>
+        <div class="uis-meta">
+            <span><strong>Estimate:</strong> 4-5 days</span>
+            <span><strong>Sequence:</strong> 1.34</span>
+            <span><strong>Requires:</strong> WO-11, UIS-15G</span>
+            <span><strong>Enables:</strong> Per-asset service reports</span>
+        </div>
+    </div>
+
+    <div style="background:#fef2f2;border:3px solid #dc2626;border-radius:12px;padding:18px 24px;margin:0 0 18px;">
+        <div style="font-size:12px;font-weight:800;letter-spacing:2px;color:#991b1b;text-transform:uppercase;margin-bottom:6px;">⚠ Review by Chris Required — DB Changes</div>
+        <p style="font-size:14px;color:#7f1d1d;line-height:1.55;margin:0;font-weight:500;">This spec includes <strong>database changes</strong> (new tables, columns, indexes, FKs, or seed data). Chris must sign off on the data model before implementation begins.</p>
+    </div>
+
+    <div class="uis-toc">
+        <h3>Contents</h3>
+        <ol>
+            <li><a href="#business-case">Business Case</a></li>
+            <li><a href="#scope">Scope</a></li>
+            <li><a href="#ui-concepts">UI Concepts</a></li>
+            <li><a href="#data-model">Data Model</a></li>
+            <li><a href="#api-surface">API Surface</a></li>
+            <li><a href="#change-surface">Change Surface</a></li>
+            <li><a href="#acceptance-criteria">Acceptance Criteria</a></li>
+            <li><a href="#dependencies">Dependencies</a></li>
+        </ol>
+    </div>
+
+    <!-- 1. Business Case -->
+    <div class="uis-section" id="business-case">
+        <h2>1. Business Case</h2>
+
+        <p>Maintenance and work orders describe the same real-world event from two angles. <code>MaintenanceSchedule</code> (UIS-15G) is the <em>plan</em>: this asset is due for an oil change next Tuesday. A Work Order (WO-11) is the <em>delivery</em>: a tech showed up, did the work, captured time and materials, got a customer signature. Today these two systems are disconnected — a completed MaintenanceSchedule stores <code>technicianName</code> as a string and <code>cost</code> as a Decimal, with no link back to the WO that produced those numbers.</p>
+
+        <p>That works for <strong>external</strong> service ("we send the equipment to a third-party mechanic") because there is no internal WO to point at — denormalized fields are the only record. It does not work for <strong>internal</strong> service, where the WO already contains accurate, structured time, labor, materials, and signatures. Without a link, the office double-enters data and reports cannot reconcile planned vs delivered work.</p>
+
+        <p>This spec adds a single optional FK — <code>MaintenanceSchedule.workOrderId</code> — and the workflow glue around it: linking, auto-completion on WO approval, reverse "create WO from this scheduled maintenance" entry, and a unified service-history view on the equipment page that merges both paths.</p>
+    </div>
+
+    <!-- 2. Scope -->
+    <div class="uis-section" id="scope">
+        <h2>2. Scope</h2>
+
+        <h3>Already Built</h3>
+        <ul>
+            <li><span class="scope-tag scope-done">DONE</span> <code>MaintenanceSchedule</code> model with status workflow, projection from <code>MaintenanceThreshold</code>, multi-visit chaining, denormalized completion fields (UIS-15G)</li>
+            <li><span class="scope-tag scope-done">DONE</span> <code>Job.subjectEquipmentId</code> — the foundational equipment-WO relationship (WO-11)</li>
+            <li><span class="scope-tag scope-done">DONE</span> WO status workflow including <code>Approved</code> terminal state (WO-1)</li>
+            <li><span class="scope-tag scope-done">DONE</span> Equipment detail page Work Orders tab (WO-11)</li>
+        </ul>
+
+        <h3>In Scope (WO-12)</h3>
+        <ul>
+            <li><span class="scope-tag scope-in">IN</span> Optional FK <code>workOrderId</code> on <code>MaintenanceSchedule</code> (Job FK; nullable)</li>
+            <li><span class="scope-tag scope-in">IN</span> "Link a Work Order" action on a scheduled maintenance — picks an existing WO whose <code>subjectEquipmentId</code> matches the maintenance equipment</li>
+            <li><span class="scope-tag scope-in">IN</span> "Create Work Order" action on a scheduled maintenance — pre-fills new WO with subject equipment and (optionally) a WO Template based on the maintenance type</li>
+            <li><span class="scope-tag scope-in">IN</span> Auto-completion: when a linked WO transitions to <code>Approved</code>, the MaintenanceSchedule auto-flips to <code>COMPLETE</code> with <code>completedDate</code>, <code>secondsAtService</code>, and <code>cost</code> derived from the WO instead of denormalized strings. <code>technicianName</code> is left null on internally-fulfilled rows.</li>
+            <li><span class="scope-tag scope-in">IN</span> Reverse impact: when a linked WO is reopened, voided, or has its <code>subjectEquipmentId</code> changed, the MaintenanceSchedule auto-reverts to <code>SCHEDULED</code> (with the originally-projected date or today, whichever is later) — see Pending Decision below</li>
+            <li><span class="scope-tag scope-in">IN</span> Service history merge: Equipment detail page exposes a unified Service History tab combining (a) WOs where this equipment is subject and (b) <code>MaintenanceSchedule</code> rows in <code>COMPLETE</code> status with no linked WO (external service)</li>
+            <li><span class="scope-tag scope-in">IN</span> Read-only "Linked Work Order" chip on the MaintenanceSchedule detail UI; clicking navigates to the WO</li>
+            <li><span class="scope-tag scope-in">IN</span> Read-only "Linked Maintenance" chip on the WO detail UI when one exists</li>
+        </ul>
+
+        <h3>Out of Scope</h3>
+        <ul>
+            <li><span class="scope-tag scope-out">OUT</span> Removing or deprecating <code>MaintenanceSchedule.technicianName</code> / <code>cost</code> / <code>secondsAtService</code> / <code>metersAtService</code> — they remain authoritative for external service rows</li>
+            <li><span class="scope-tag scope-out">OUT</span> Changes to maintenance threshold projection logic (UIS-15G) — projection still runs on completion regardless of how completion happened</li>
+            <li><span class="scope-tag scope-out">OUT</span> Many-to-one (many MaintenanceSchedules linked to one WO) — see Pending Decision below</li>
+            <li><span class="scope-tag scope-future">FUTURE</span> Per-asset reports (TTR, MTBF, lifetime cost) — enabled by this spec, delivered later</li>
+            <li><span class="scope-tag scope-future">FUTURE</span> Auto-suggesting a MaintenanceSchedule to link when creating a WO whose subject equipment has overdue scheduled maintenance</li>
+        </ul>
+
+        <h3>Pending Business Decisions</h3>
+        <div class="decision">
+            <h4>1. What happens when a linked WO is reopened, voided, or its subject equipment changes?</h4>
+            <p>The proposed behavior: auto-revert MaintenanceSchedule to <code>SCHEDULED</code>. Pros: maintenance status reflects reality. Cons: an accidental WO edit could spuriously un-complete a maintenance event. Alternative: keep the schedule <code>COMPLETE</code> but break the link, surface a warning.</p>
+            <p><strong>Action:</strong> Decide before implementation; impacts the WO transition guard.</p>
+        </div>
+        <div class="decision">
+            <h4>2. One WO per scheduled maintenance, or many?</h4>
+            <p>This spec assumes 1:1 — one MaintenanceSchedule has at most one WO; one WO can fulfill at most one MaintenanceSchedule. Real world counter-example: a tech may handle two due maintenance events for the same equipment in a single visit (Oil Change + Filter Replacement → one WO). Today UIS-15G handles this via parent/child schedules; we'd need a many-to-one to cleanly model it.</p>
+            <p><strong>Action:</strong> Confirm 1:1 is acceptable for v1, or model as many-to-one (multiple MaintenanceSchedules pointing at the same workOrderId) from the start. Many-to-one costs nothing structurally — it's just removing a uniqueness constraint.</p>
+        </div>
+        <div class="decision">
+            <h4>3. Should "Create Work Order from MaintenanceSchedule" use a WO Template?</h4>
+            <p>If WO-6 (Work Order Templates) ships in 1.33, the natural mapping is: <code>maintenanceType</code> on MaintenanceSchedule → a default template ID configured in PropertyValue settings. Pre-fills checklist, forms, materials, labor. Without WO Templates, the create action just pre-fills subject equipment.</p>
+            <p><strong>Action:</strong> Confirm dependency on WO-6 or independence.</p>
+        </div>
+    </div>
+
+    <!-- 3. UI Concepts -->
+    <div class="uis-section" id="ui-concepts">
+        <h2>3. UI Concepts</h2>
+
+        <h3>Mockup 1 — Scheduled Maintenance Detail (with Link/Create actions)</h3>
+        <div class="mockup-container">
+            <div class="mockup-bar">
+                <div class="mockup-dots"><div class="mockup-dot mockup-dot-r"></div><div class="mockup-dot mockup-dot-y"></div><div class="mockup-dot mockup-dot-g"></div></div>
+                Maintenance Schedule · MS-882
+            </div>
+            <div class="mockup-body">
+                <div style="font-size: 18px; font-weight: 700; color: #0f172a;">Annual Inspection — RTU-3</div>
+                <div style="font-size: 12px; color: #64748b; margin-bottom: 16px;">Scheduled: Mar 12, 2026 · Status: <strong>Scheduled</strong></div>
+
+                <div style="display: flex; gap: 10px; margin-bottom: 16px;">
+                    <button style="padding: 8px 14px; background: #3b82f6; color: #fff; border: 0; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer;">+ Create Work Order <span class="mock-new-badge" style="background: #1e40af; color: #dbeafe;">NEW</span></button>
+                    <button style="padding: 8px 14px; background: #fff; color: #3b82f6; border: 1px solid #3b82f6; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer;">🔗 Link Existing WO <span class="mock-new-badge">NEW</span></button>
+                </div>
+
+                <div style="font-size: 12px; color: #64748b;">No WO is currently linked. Linking will auto-complete this maintenance when the WO is approved.</div>
+            </div>
+        </div>
+
+        <h3>Mockup 2 — Scheduled Maintenance Detail (after WO completion)</h3>
+        <div class="mockup-container">
+            <div class="mockup-bar">
+                <div class="mockup-dots"><div class="mockup-dot mockup-dot-r"></div><div class="mockup-dot mockup-dot-y"></div><div class="mockup-dot mockup-dot-g"></div></div>
+                Maintenance Schedule · MS-882
+            </div>
+            <div class="mockup-body">
+                <div style="font-size: 18px; font-weight: 700; color: #0f172a;">Annual Inspection — RTU-3</div>
+                <div style="font-size: 12px; color: #64748b;">Scheduled: Mar 12, 2026 · Status: <strong style="color: #166534;">Complete</strong></div>
+                <div style="font-size: 12px; color: #64748b; margin-bottom: 16px;">Completed: Mar 12, 2026 via WO-2046</div>
+
+                <div style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 12px 14px; margin-bottom: 16px;">
+                    <div style="font-size: 11px; font-weight: 700; color: #1e40af; text-transform: uppercase;">Linked Work Order <span class="mock-new-badge">NEW</span></div>
+                    <div style="font-size: 14px; font-weight: 600; color: #1e40af; margin-top: 4px;">WO-2046 · Annual Inspection</div>
+                    <div style="font-size: 12px; color: #1e40af; margin-top: 2px;">Bob Smith · 4h 15m · $642.00</div>
+                </div>
+
+                <div style="font-size: 12px; color: #64748b; font-style: italic;">Cost, time, and completion date are derived from the linked WO and update if the WO is edited.</div>
+            </div>
+        </div>
+
+        <h3>Mockup 3 — Equipment Detail · Service History Tab</h3>
+        <p>Unified view: WOs (subject = this equipment) and external maintenance completions (no linked WO) merged in date order. Each row tagged Internal or External.</p>
+        <div class="mockup-container">
+            <div class="mockup-bar">
+                <div class="mockup-dots"><div class="mockup-dot mockup-dot-r"></div><div class="mockup-dot mockup-dot-y"></div><div class="mockup-dot mockup-dot-g"></div></div>
+                Equipment Detail · RTU-3 · Service History
+            </div>
+            <div class="mockup-body">
+                <table class="schema-table">
+                    <thead><tr><th>Date</th><th>Source</th><th>Type / Description</th><th>Performed by</th><th>Cost</th></tr></thead>
+                    <tbody>
+                        <tr><td>Mar 12, 2026</td><td><span class="entry-pill pill-internal">Internal</span></td><td>WO-2046 · Annual Inspection</td><td>Bob Smith</td><td>$642.00</td></tr>
+                        <tr><td>Jan 04, 2026</td><td><span class="entry-pill pill-internal">Internal</span></td><td>WO-1893 · Belt &amp; filter replacement</td><td>Bob Smith</td><td>$214.00</td></tr>
+                        <tr><td>Nov 18, 2025</td><td><span class="entry-pill pill-external">External</span></td><td>Refrigerant recharge</td><td>Cool Solutions Inc.</td><td>$1,180.00</td></tr>
+                        <tr><td>Oct 22, 2025</td><td><span class="entry-pill pill-internal">Internal</span></td><td>WO-1604 · Compressor diagnosis</td><td>Mike Lee</td><td>$305.00</td></tr>
+                        <tr><td>Mar 18, 2025</td><td><span class="entry-pill pill-internal">Internal</span></td><td>WO-1487 · Annual Inspection</td><td>Mike Lee</td><td>$598.00</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <h3>Flow — Internal completion path</h3>
+        <div class="flow-step"><div class="flow-num">1</div><div class="flow-text">Office sees scheduled maintenance MS-882 (Annual Inspection on RTU-3) is due. Clicks <strong>Create Work Order</strong>.</div></div>
+        <div class="flow-step"><div class="flow-num">2</div><div class="flow-text">A new WO is opened with <code>subjectEquipmentId</code> pre-filled to RTU-3 and (if WO-6 ships) the template for this maintenance type pre-loaded. Office assigns to Bob and saves. <code>MaintenanceSchedule.workOrderId</code> is set on save.</div></div>
+        <div class="flow-step"><div class="flow-num">3</div><div class="flow-text">Bob completes the WO in the field, gets sign-off. Office reviews and transitions WO to <strong>Approved</strong>.</div></div>
+        <div class="flow-step"><div class="flow-num">4</div><div class="flow-text">On WO approval, MS-882 auto-flips to <strong>Complete</strong>. <code>completedDate</code>, <code>secondsAtService</code>, and <code>cost</code> are derived from the WO. UIS-15G's projection logic fires and creates the next instance.</div></div>
+
+        <h3>Flow — External completion path (unchanged)</h3>
+        <div class="flow-step"><div class="flow-num">1</div><div class="flow-text">Office marks MS-883 (Refrigerant Recharge on RTU-3) as <strong>Complete</strong> directly, fills in <code>technicianName</code> = "Cool Solutions Inc.", <code>cost</code> = $1,180.00. <code>workOrderId</code> stays null.</div></div>
+        <div class="flow-step"><div class="flow-num">2</div><div class="flow-text">Service History tab shows this row tagged <strong>External</strong>, sourced from the denormalized fields.</div></div>
+    </div>
+
+    <!-- 4. Data Model -->
+    <div class="uis-section" id="data-model">
+        <h2>4. Data Model</h2>
+
+        <h3>4.1 MaintenanceSchedule — add workOrderId</h3>
+<pre>
+// Added to existing MaintenanceSchedule model:
+workOrderId  String?  @db.VarChar(21)
+WorkOrder    Job?     @relation("MaintenanceSchedulesByWorkOrder",
+                                 fields: [workOrderId],
+                                 references: [id],
+                                 onDelete: SetNull)
+
+@@index([workOrderId], map: "MaintSched_workOrder_idx")
+</pre>
+
+        <h3>4.2 Job — add inverse relation</h3>
+<pre>
+// Added to existing Job model:
+MaintenanceSchedules  MaintenanceSchedule[]  @relation("MaintenanceSchedulesByWorkOrder")
+</pre>
+
+        <h3>4.3 Migration</h3>
+<pre>
+ALTER TABLE `MaintenanceSchedule`
+    ADD COLUMN `workOrderId` VARCHAR(21) NULL,
+    ADD INDEX `MaintSched_workOrder_idx` (`workOrderId`),
+    ADD CONSTRAINT `MaintSched_workOrder_fkey`
+        FOREIGN KEY (`workOrderId`) REFERENCES `Job` (`id`)
+        ON DELETE SET NULL ON UPDATE CASCADE;
+</pre>
+
+        <h3>4.4 Computed completion fields (not stored)</h3>
+        <p>When <code>workOrderId</code> is set, the GraphQL resolver returns derived values for the completion fields instead of the stored values:</p>
+<pre>
+completedDate    = WorkOrder.approvedAt ?? stored value
+secondsAtService = SUM(WorkOrderLaborItem.seconds) for this WO ?? stored value
+cost             = SUM(WorkOrderLaborItem + MaterialItem + EquipmentItem totals) ?? stored value
+technicianName   = NULL when workOrderId is set; otherwise the stored value
+</pre>
+        <p>The stored columns are <em>not</em> overwritten when the WO is linked — they remain the source of truth for external service rows. Algorithm precedence: linked WO data wins; stored fields are the fallback.</p>
+    </div>
+
+    <!-- 5. API Surface -->
+    <div class="uis-section" id="api-surface">
+        <h2>5. API Surface</h2>
+
+        <h3>5.1 GraphQL Type Extensions</h3>
+<pre>
+type MaintenanceSchedule {
+  # ...existing fields
+  workOrderId: String
+  workOrder: Job
+  # completion fields become resolver-computed when workOrderId is set:
+  completedDate: Date
+  secondsAtService: Int
+  cost: Decimal
+  technicianName: String
+  # source of truth — what produced the completion data:
+  completionSource: MaintenanceCompletionSource!  # "INTERNAL_WO" | "EXTERNAL" | "PENDING"
+}
+
+type Job {
+  # ...existing fields
+  maintenanceSchedules: [MaintenanceSchedule!]!
+}
+</pre>
+
+        <h3>5.2 Mutations</h3>
+<pre>
+# Link an existing WO whose subjectEquipmentId matches this maintenance's equipment.
+linkWorkOrderToMaintenanceSchedule(
+  maintenanceScheduleId: String!,
+  workOrderId: String!
+): MaintenanceSchedule!
+
+# Spawn a new WO pre-filled with subject equipment + (optional) template based on
+# the maintenance type. Returns the newly-created WO. The MaintenanceSchedule's
+# workOrderId is set in the same transaction.
+createWorkOrderFromMaintenanceSchedule(
+  maintenanceScheduleId: String!,
+  workOrderTemplateId: String  # optional override; otherwise resolved from maintenanceType
+): Job!
+
+# Sever the link without changing WO state. MaintenanceSchedule may revert to
+# SCHEDULED depending on the resolution chosen for Pending Decision #1.
+unlinkWorkOrderFromMaintenanceSchedule(
+  maintenanceScheduleId: String!
+): MaintenanceSchedule!
+</pre>
+
+        <h3>5.3 Hooks (existing mutations extended)</h3>
+        <ul>
+            <li><code>editJob</code> — when a Job's status transitions to <code>Approved</code> or its <code>subjectEquipmentId</code> changes, fire post-edit hook to sync linked MaintenanceSchedules.</li>
+            <li><code>editJob</code> — when a previously-Approved WO transitions out of Approved, fire post-edit hook to revert linked MaintenanceSchedules per Pending Decision #1 resolution.</li>
+        </ul>
+
+        <h3>5.4 Service History Query</h3>
+<pre>
+# Returns merged Service History rows: WOs (subject = this equipment) + external
+# MaintenanceSchedule completions (no linked WO). Sorted by date desc.
+equipmentServiceHistory(
+  equipmentId: String!,
+  take: Int,
+  skip: Int
+): [ServiceHistoryEntry!]!
+
+union ServiceHistoryEntry = WorkOrderServiceEntry | ExternalMaintenanceEntry
+
+type WorkOrderServiceEntry {
+  date: Date!
+  workOrder: Job!
+  cost: Decimal
+  technicianName: String  # primary user on the WO
+}
+
+type ExternalMaintenanceEntry {
+  date: Date!
+  maintenanceSchedule: MaintenanceSchedule!
+  cost: Decimal
+  technicianName: String
+}
+</pre>
+    </div>
+
+    <!-- 6. Change Surface -->
+    <div class="uis-section" id="change-surface">
+        <h2>6. Change Surface</h2>
+
+        <table class="schema-table">
+            <thead><tr><th>Action</th><th>Path</th><th>Change</th></tr></thead>
+            <tbody>
+                <tr><td><span class="action-mod">MODIFY</span></td><td><code>apps/api/prisma/schema.prisma</code></td><td>Add <code>workOrderId</code> + relation on MaintenanceSchedule; inverse on Job</td></tr>
+                <tr><td><span class="action-new">NEW</span></td><td><code>apps/api/prisma/migrations/&lt;ts&gt;_maint_schedule_work_order/</code></td><td>FK migration</td></tr>
+                <tr><td><span class="action-mod">MODIFY</span></td><td><code>apps/api/src/models/MaintenanceSchedule.ts</code></td><td>Allow <code>workOrderId</code>; add WO-derived field computations; add link / unlink / createFromMaintenance methods</td></tr>
+                <tr><td><span class="action-mod">MODIFY</span></td><td><code>apps/api/src/models/Job.ts</code></td><td>Post-edit hook: sync linked MaintenanceSchedules on status / subject change</td></tr>
+                <tr><td><span class="action-mod">MODIFY</span></td><td><code>apps/api/src/graphql/models/MaintenanceSchedule.ts</code></td><td>Resolver-computed completion fields; new mutations; <code>completionSource</code> enum</td></tr>
+                <tr><td><span class="action-new">NEW</span></td><td><code>apps/api/src/graphql/queries/equipmentServiceHistory.ts</code></td><td>Merge resolver for unified service history</td></tr>
+                <tr><td><span class="action-mod">MODIFY</span></td><td>Maintenance Schedule detail UI</td><td>Add Link / Create WO actions; Linked WO chip; computed completion fields display</td></tr>
+                <tr><td><span class="action-mod">MODIFY</span></td><td>WO detail UI</td><td>Linked Maintenance chip when MS exists</td></tr>
+                <tr><td><span class="action-new">NEW</span></td><td>Equipment detail · Service History tab (desktop &amp; mobile)</td><td>Unified service history list</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- 7. Acceptance Criteria -->
+    <div class="uis-section" id="acceptance-criteria">
+        <h2>7. Acceptance Criteria</h2>
+
+        <ol class="ac-list">
+            <li>A scheduled maintenance row can be linked to an existing WO whose subject equipment matches the maintenance's equipment; non-matching WOs are not selectable.</li>
+            <li>"Create Work Order" from a scheduled maintenance produces a new WO pre-filled with the correct subject equipment and (when WO-6 is present) the appropriate template, and atomically sets <code>workOrderId</code> on the maintenance row.</li>
+            <li>When a linked WO transitions to Approved, the MaintenanceSchedule auto-flips to Complete and UIS-15G projects the next instance.</li>
+            <li>While a WO is linked, MaintenanceSchedule's completion fields (<code>completedDate</code>, <code>secondsAtService</code>, <code>cost</code>) reflect the WO's data, not the stored values.</li>
+            <li>An external completion (no <code>workOrderId</code>) continues to use the stored denormalized fields and is displayed identically to today.</li>
+            <li>Unlinking a WO from a MaintenanceSchedule reverts the schedule per Pending Decision #1 (target: SCHEDULED).</li>
+            <li>The Equipment detail Service History tab shows internal (WO) and external entries merged and sorted by date, with a visible Source tag.</li>
+            <li>Deleting a WO sets <code>MaintenanceSchedule.workOrderId</code> to NULL and the schedule reverts per Pending Decision #1.</li>
+            <li>Changing a linked WO's <code>subjectEquipmentId</code> away from the maintenance equipment unlinks it (consistency invariant).</li>
+            <li>The "Linked Work Order" / "Linked Maintenance" cross-chips render on both detail pages and link through correctly.</li>
+        </ol>
+    </div>
+
+    <!-- 8. Dependencies -->
+    <div class="uis-section" id="dependencies">
+        <h2>8. Dependencies</h2>
+
+        <h3>Requires</h3>
+        <p>
+            <span class="dep-tag dep-requires">WO-11</span> Equipment as Work Order Subject (subject relationship is the matching key)<br>
+            <span class="dep-tag dep-requires">UIS-15G</span> Maintenance Scheduling (provides <code>MaintenanceSchedule</code> + projection logic)<br>
+            <span class="dep-tag dep-requires">WO-1</span> Job classification routing (gates the field on WO-classified jobs)
+        </p>
+
+        <h3>Soft-requires (gracefully degrades)</h3>
+        <p>
+            <span class="dep-tag dep-requires">WO-6</span> Work Order Templates &mdash; if present, "Create WO from MaintenanceSchedule" pre-loads a template; if absent, the action just pre-fills subject equipment
+        </p>
+
+        <h3>Enables</h3>
+        <p>
+            <span class="dep-tag dep-enables">FUTURE</span> Per-asset service reports (TTR, MTBF, lifetime cost)<br>
+            <span class="dep-tag dep-enables">FUTURE</span> Suggested-link prompts (creating a WO on equipment with overdue scheduled maintenance offers to link)<br>
+            <span class="dep-tag dep-enables">FUTURE</span> Warranty / SLA tracking against linked work history
+        </p>
+
+        <h3>Parent</h3>
+        <p>UIS-20 · T&amp;M Work Orders</p>
+
+        <h3>Siblings</h3>
+        <p>WO-11 (subject relationship), UIS-15G (maintenance scheduling), UIS-15D (maintenance triggers)</p>
+    </div>
+
+</div>
+</body>
+</html>

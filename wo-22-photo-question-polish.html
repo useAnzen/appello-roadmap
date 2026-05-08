@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WO-22: Mobile Photo Question · Polish (Form Builder + Renderer)</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+.in-iframe .top-nav { display: none !important; }
+.top-nav { position: sticky; top: 0; z-index: 100; background: #0f172a; border-bottom: 1px solid #1e293b; padding: 0 24px; display: flex; align-items: center; gap: 0; }
+.top-nav a { display: inline-flex; align-items: center; padding: 12px 18px; font-size: 13px; font-weight: 600; color: #94a3b8; text-decoration: none; border-bottom: 2px solid transparent; transition: all 0.15s; white-space: nowrap; }
+.top-nav a:hover { color: #f8fafc; background: #1e293b; }
+.top-nav .nav-logo { font-size: 11px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: #475569; padding-right: 18px; margin-right: 4px; border-right: 1px solid #1e293b; }
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Inter', -apple-system, sans-serif; background: #f1f5f9; color: #0f172a; }
+.uis-wrap { max-width: 960px; margin: 0 auto; padding: 40px 24px 80px; }
+.uis-hero { margin-bottom: 32px; }
+.uis-badges { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+.uis-badge { font-size: 11px; font-weight: 700; padding: 4px 12px; border-radius: 6px; }
+.badge-q { background: #0f172a; color: #fff; }
+.badge-wo { background: #ec4899; color: #fff; }
+.badge-priority { background: #fef3c7; color: #92400e; }
+.badge-status { background: #fef3c7; color: #92400e; }
+.uis-h1 { font-size: 28px; font-weight: 800; color: #0f172a; margin: 0 0 8px; letter-spacing: -0.01em; }
+.uis-sub { font-size: 15px; color: #64748b; line-height: 1.5; margin: 0; }
+.uis-meta { display: flex; gap: 24px; flex-wrap: wrap; margin-top: 14px; font-size: 13px; color: #64748b; }
+.uis-meta strong { color: #0f172a; }
+.uis-toc { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px 28px; margin-bottom: 16px; }
+.uis-toc h3 { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; margin: 0 0 10px; }
+.uis-toc ol { margin: 0; padding-left: 20px; }
+.uis-toc li { font-size: 14px; color: #3b82f6; margin-bottom: 4px; }
+.uis-toc a { color: #3b82f6; text-decoration: none; }
+.uis-section { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px 28px; margin-bottom: 16px; }
+.uis-section h2 { font-size: 17px; font-weight: 700; margin: 0 0 14px; padding-bottom: 10px; border-bottom: 2px solid #e2e8f0; }
+.uis-section h3 { font-size: 15px; font-weight: 700; margin: 16px 0 8px; }
+.uis-section p, .uis-section li { font-size: 14px; color: #334155; line-height: 1.65; }
+.uis-section ul, .uis-section ol { padding-left: 20px; margin: 8px 0; }
+pre { background: #1e293b; color: #e2e8f0; border-radius: 8px; padding: 16px; overflow-x: auto; font-size: 13px; line-height: 1.5; font-family: 'SF Mono', monospace; margin: 12px 0; }
+code { font-family: 'SF Mono', monospace; background: #f1f5f9; padding: 1px 5px; border-radius: 3px; font-size: 12px; color: #7c3aed; }
+table.schema-table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 12px 0; }
+table.schema-table th { text-align: left; padding: 8px 12px; background: #f8fafc; border-bottom: 2px solid #e2e8f0; font-weight: 600; }
+table.schema-table td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
+.callout { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 14px 18px; margin: 14px 0; font-size: 13px; color: #1e40af; }
+.callout strong { color: #1e3a8a; }
+.decision { background: #fffbeb; border: 2px solid #f59e0b; border-radius: 10px; padding: 18px 22px; margin: 14px 0; }
+.decision h4 { color: #78350f; margin: 0 0 8px; font-size: 14px; }
+.decision p { font-size: 13px; color: #78350f; }
+.no-changes { background: #f0fdf4; border: 1px solid #86efac; border-radius: 8px; padding: 14px 18px; margin: 14px 0; font-size: 13px; color: #166534; }
+.action-mod { background: #fef3c7; color: #92400e; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 4px; }
+.action-new { background: #dcfce7; color: #166534; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 4px; }
+.ac-list { margin: 0; padding-left: 0; list-style: none; }
+.ac-list li { display: flex; gap: 10px; margin-bottom: 10px; font-size: 14px; color: #334155; line-height: 1.55; }
+.ac-list li::before { content: ''; flex-shrink: 0; width: 18px; height: 18px; border: 2px solid #e2e8f0; border-radius: 4px; margin-top: 2px; background: #fff; }
+.dep-tag { display: inline-block; font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 5px; margin-right: 6px; }
+.dep-requires { background: #fee2e2; color: #dc2626; }
+.dep-enables { background: #dcfce7; color: #166534; }
+.scope-tag { display: inline-block; font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 5px; margin: 2px 4px 2px 0; }
+.scope-in { background: #dcfce7; color: #166534; }
+.scope-out { background: #fee2e2; color: #dc2626; }
+.scope-future { background: #eff6ff; color: #3b82f6; }
+.scope-done { background: #dbeafe; color: #1d4ed8; }
+
+/* Mockup helpers */
+.mockup-container { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; margin: 14px 0; }
+.mockup-bar { background: #f1f5f9; padding: 8px 14px; font-size: 12px; font-weight: 600; color: #64748b; border-bottom: 1px solid #e2e8f0; display: flex; align-items: center; gap: 8px; }
+.mockup-dots { display: flex; gap: 5px; }
+.mockup-dot { width: 8px; height: 8px; border-radius: 50%; }
+.mockup-dot-r { background: #f87171; }
+.mockup-dot-y { background: #fbbf24; }
+.mockup-dot-g { background: #34d399; }
+.mockup-url { background: #fff; padding: 3px 9px; border-radius: 4px; font-size: 11px; font-family: 'SF Mono', monospace; color: #475569; margin-left: 6px; }
+.mockup-body { padding: 18px 20px; font-size: 13px; color: #334155; line-height: 1.55; }
+.mock-new-badge { background: #dcfce7; color: #166534; font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 3px; margin-left: 6px; }
+
+/* Photo question mockup styles (adapted from WOX-08) */
+.compare { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.col { background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; }
+.col h3 { font-size: 12px; font-weight: 800; margin-bottom: 10px; padding-bottom: 6px; border-bottom: 1px solid #f1f5f9; }
+.col.before h3 { color: #991b1b; }
+.col.after h3 { color: #166534; }
+
+.q-label { font-size: 11px; color: #64748b; font-weight: 600; }
+.q-label .req { color: #dc2626; font-weight: 700; }
+.q-text { font-size: 14px; font-weight: 700; color: #0f172a; margin: 4px 0 10px; }
+
+.thumb-grid-old { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.thumb-grid-old .th { aspect-ratio: 1; background: linear-gradient(135deg, #94a3b8, #64748b); border-radius: 4px; color: #fff; font-size: 9px; font-weight: 700; display: flex; align-items: center; justify-content: center; position: relative; }
+.thumb-grid-old .th .x { position: absolute; top: 1px; right: 1px; background: rgba(0,0,0,0.6); color: #fff; width: 12px; height: 12px; border-radius: 50%; font-size: 9px; display: flex; align-items: center; justify-content: center; }
+
+.thumb-grid-new { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.thumb-grid-new .th { aspect-ratio: 4/3; background: linear-gradient(135deg, #94a3b8, #64748b); border-radius: 8px; color: #fff; position: relative; overflow: hidden; }
+.thumb-grid-new .th .cap { position: absolute; bottom: 0; left: 0; right: 0; background: rgba(0,0,0,0.65); color: #fff; padding: 4px 6px; font-size: 10px; font-weight: 600; }
+.thumb-grid-new .th .x-big { position: absolute; top: 4px; right: 4px; background: rgba(0,0,0,0.7); color: #fff; width: 22px; height: 22px; border-radius: 50%; font-size: 13px; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+.thumb-grid-new .th .meta { position: absolute; top: 4px; left: 4px; background: rgba(0,0,0,0.6); color: #fff; padding: 2px 6px; border-radius: 4px; font-size: 9px; font-weight: 600; display: flex; gap: 4px; align-items: center; }
+
+.add-photo-cta { background: #3b82f6; color: #fff; padding: 10px; border-radius: 8px; text-align: center; font-size: 13px; font-weight: 700; margin-top: 8px; }
+
+.action-sheet { background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; overflow: hidden; box-shadow: 0 8px 24px rgba(0,0,0,0.06); }
+.sheet-row { padding: 12px 14px; border-bottom: 1px solid #f1f5f9; font-size: 13px; color: #0f172a; cursor: pointer; }
+.sheet-row:last-child { border-bottom: 0; }
+.sheet-row.cancel { color: #dc2626; font-weight: 700; }
+
+.config-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid #f1f5f9; font-size: 13px; }
+.config-row:last-child { border-bottom: 0; }
+.config-row .lbl { color: #475569; }
+.config-row .val { font-weight: 700; color: #0f172a; }
+.config-row .toggle { width: 32px; height: 18px; background: #16a34a; border-radius: 10px; position: relative; }
+.config-row .toggle::after { content: ''; position: absolute; right: 2px; top: 2px; width: 14px; height: 14px; background: #fff; border-radius: 50%; }
+.config-row .toggle.off { background: #cbd5e1; }
+.config-row .toggle.off::after { left: 2px; right: auto; }
+    </style>
+</head>
+<body>
+<script>if(self!==top)document.documentElement.classList.add("in-iframe")</script>
+<nav class="top-nav">
+    <span class="nav-logo">Appello SDLC</span>
+    <a href="index.html">Roadmap</a>
+    <a href="release-1.33-timeline.html">Release 1.33</a>
+    <a href="release-1.34-timeline.html">Release 1.34</a>
+    <a href="WO-1.33-final-mapping.html">Final Mapping</a>
+</nav>
+<div class="uis-wrap">
+
+    <div class="uis-hero">
+        <div class="uis-badges">
+            <span class="uis-badge badge-q">WO-22</span>
+            <span class="uis-badge badge-wo">Work Orders</span>
+            <span class="uis-badge badge-priority">P1 - 1.33</span>
+            <span class="uis-badge badge-status">Draft</span>
+        </div>
+        <h1 class="uis-h1">Mobile Photo Question · Polish (Form Builder + Renderer)</h1>
+        <p class="uis-sub">The "photo" question type on mobile forms is half-finished — small thumbnails in a 4-column grid, awkward delete with no confirm, no captions, no min/max enforcement. Techs avoid filling photo questions and text photos to admins instead. This spec extracts the photo renderer into its own component, adds the missing affordances (2-column thumbnails, captions, min/max counter, swipe-to-delete with confirm, action-sheet camera/gallery picker, EXIF capture, server-side compression), and exposes per-question config in the desktop form builder. Path B build of <a href="uis-WOX-08-photo-question-polish.html">WOX-08</a>; closes the second of three #8 loose threads.</p>
+        <div class="uis-meta">
+            <span><strong>Estimate:</strong> 2-3 days</span>
+            <span><strong>Sequence:</strong> 1.33, parallel with WO-21</span>
+            <span><strong>Requires:</strong> existing form infrastructure (F-01 form builder + mobile QA renderer)</span>
+            <span><strong>Enables:</strong> Closes Emma's #8 loose thread (photo polish); benefits all forms in the platform, not just WO forms</span>
+        </div>
+    </div>
+
+    <div style="background:#fef2f2;border:3px solid #dc2626;border-radius:12px;padding:18px 24px;margin:0 0 18px;">
+        <div style="font-size:12px;font-weight:800;letter-spacing:2px;color:#991b1b;text-transform:uppercase;margin-bottom:6px;">⚠ Review by Chris Required — DB Changes</div>
+        <p style="font-size:14px;color:#7f1d1d;line-height:1.55;margin:0;font-weight:500;">This spec includes <strong>database changes</strong> (new tables, columns, indexes, FKs, or seed data). Chris must sign off on the data model before implementation begins.</p>
+    </div>
+
+    <div class="uis-toc">
+        <h3>Contents</h3>
+        <ol>
+            <li><a href="#business-case">Business Case</a></li>
+            <li><a href="#scope">Scope</a></li>
+            <li><a href="#ui-concepts">UI Concepts</a></li>
+            <li><a href="#data-model">Data Model</a></li>
+            <li><a href="#api-surface">API Surface</a></li>
+            <li><a href="#change-surface">Change Surface</a></li>
+            <li><a href="#acceptance-criteria">Acceptance Criteria</a></li>
+            <li><a href="#dependencies">Dependencies</a></li>
+        </ol>
+    </div>
+
+    <!-- 1 -->
+    <div class="uis-section" id="business-case">
+        <h2>1. Business Case</h2>
+        <p>The PHOTO question lives inline inside the mobile QA form switch (<code>QAForm.tsx</code> ~lines 689–801) — not a dedicated component, no per-question configurability, no captions, no min/max, no delete confirmation. Three pain points reported from the field:</p>
+        <ul>
+            <li>Techs can't tell which photo is which after upload — no captions, tiny thumbnails. Forms become a wall of indistinguishable squares.</li>
+            <li>One tap on the wrong × deletes a photo with no confirmation. Lost evidence on safety forms is bad.</li>
+            <li>HIRA and condition-survey forms <em>need</em> a minimum number of photos to be compliant, but the mobile renderer can't enforce it. Form authors can't even ask for it.</li>
+        </ul>
+        <p>This spec brings the photo question to the level of polish the rest of Appello's mobile UX has reached. Although it's tracked under the WO 1.33 sprint slot (because that's where the demand surfaced — WO field workflows lean on photo questions), the polish benefits <strong>every form</strong> in the platform: HIRAs, equipment inspections, daily logs, condition surveys, customer sign-off forms.</p>
+    </div>
+
+    <!-- 2 -->
+    <div class="uis-section" id="scope">
+        <h2>2. Scope</h2>
+
+        <h3>Already Built</h3>
+        <ul>
+            <li><span class="scope-tag scope-done">DONE</span> Mobile QA form rendering infrastructure (<code>QAForm.tsx</code>) with PHOTO as an inline question type</li>
+            <li><span class="scope-tag scope-done">DONE</span> Desktop form builder (<code>QuestionnaireAddEditForm.tsx</code>) with per-question type configuration patterns (text, multiple choice, date, etc.)</li>
+            <li><span class="scope-tag scope-done">DONE</span> Asset upload pipeline + <code>AssetReference</code> polymorphic join — used by photo answers today</li>
+            <li><span class="scope-tag scope-done">DONE</span> Existing form save → <code>JobSafetyForm</code> submission record path</li>
+        </ul>
+
+        <h3>In Scope (WO-22)</h3>
+        <ul>
+            <li><span class="scope-tag scope-in">IN</span> Extract <code>PhotoQuestion.tsx</code> as a dedicated mobile component (sibling to other QuestionTypes), replacing the inline switch case in <code>QAForm.tsx</code></li>
+            <li><span class="scope-tag scope-in">IN</span> Mobile renderer polish: 2-column thumbnail grid (was 4-column micro-grid); captions overlaid on each thumbnail; large "+ Add photo" CTA; swipe-to-delete (or large × with confirmation); min/max counter ("3 of 5 minimum") with progress styling</li>
+            <li><span class="scope-tag scope-in">IN</span> Action sheet on "+ Add photo" — Camera / Gallery / Cancel (when <code>allowGalleryImport = true</code>; otherwise Camera only)</li>
+            <li><span class="scope-tag scope-in">IN</span> Form builder config card (<code>PhotoQuestionConfig.tsx</code>) added to <code>QuestionnaireAddEditForm.tsx</code> — exposes the new per-question fields</li>
+            <li><span class="scope-tag scope-in">IN</span> Schema additions on <code>SafetyFormQuestion</code>: <code>photoMin</code>, <code>photoMax</code>, <code>captionMode</code> (const: <code>OFF</code> / <code>OPTIONAL</code> / <code>REQUIRED</code>), <code>allowGalleryImport</code>, <code>storeExif</code>. Migration backfills sensible defaults on existing photo questions (<code>photoMax = 10</code>, others off / unset).</li>
+            <li><span class="scope-tag scope-in">IN</span> Caption storage on the photo answer (exact location — extending <code>AssetReference</code> with a <code>caption</code> column vs a new <code>SafetyFormPhotoAnswer</code> table — is an <strong>implementation-plan call</strong>; this spec asserts that captions persist with the photo and are rendered in form review)</li>
+            <li><span class="scope-tag scope-in">IN</span> EXIF / GPS capture on upload when the question's <code>storeExif = true</code>; surfaced in form review (desktop)</li>
+            <li><span class="scope-tag scope-in">IN</span> Server-side compression on upload — max 2MB stored in long-term storage; original asset retained for 30 days then purged. Default behavior; not per-question configurable in V1.</li>
+            <li><span class="scope-tag scope-in">IN</span> Min-photo enforcement at form submission — save blocked with inline error when count is below <code>photoMin</code>; clear pointer to the offending question</li>
+            <li><span class="scope-tag scope-in">IN</span> Max-photo enforcement at upload — Add CTA disables and shows tooltip when at <code>photoMax</code></li>
+            <li><span class="scope-tag scope-in">IN</span> EXIF stripped from customer-facing PDF exports of forms — privacy default; no per-question opt-out in V1</li>
+        </ul>
+
+        <h3>Out of Scope</h3>
+        <ul>
+            <li><span class="scope-tag scope-out">OUT</span> Photo annotation / drawing on photos — out of scope; that's a forms-track future</li>
+            <li><span class="scope-tag scope-out">OUT</span> Multi-photo selection from gallery (i.e., "import 5 at once") — V1 is one-at-a-time. Promote later if techs ask.</li>
+            <li><span class="scope-tag scope-out">OUT</span> Reordering thumbnails — chronological only in V1 (capture order)</li>
+            <li><span class="scope-tag scope-out">OUT</span> Per-question opt-out from server compression — every photo compresses to 2MB; the original is purged after 30 days regardless</li>
+            <li><span class="scope-tag scope-future">FUTURE</span> Live-camera annotations / overlays on capture (timestamp watermark, GPS pin overlay, etc.)</li>
+            <li><span class="scope-tag scope-future">FUTURE</span> Voice-captioning ("describe this photo") — pairs with WOX-19 mobile voice features</li>
+        </ul>
+
+        <h3>Decided</h3>
+        <div class="decision" style="background:#f0fdf4;border-color:#16a34a;">
+            <h4 style="color:#065f46;">✓ DECIDED — Caption lives on <code>Asset</code> (universal)</h4>
+            <p style="color:#166534;">Add <code>caption String? @db.VarChar(500)</code> to the existing <code>Asset</code> model. Decision rationale: captions are useful for any asset — equipment files, drawings, signature stamps, photos in any context — not just photo-question answers on safety forms. Putting the column on Asset makes captions universal at zero extra cost. One asset → one caption is a clean mental model; the rare multi-reference case (same photo, different captions in different contexts) can live in the wrapping entity's description.</p>
+            <p style="color:#166534;">Rejected alternatives: a new <code>SafetyFormPhotoAnswer</code> model (overkill, fragments asset metadata across two places); <code>AssetReference.caption</code> (allows divergent per-reference captions but adds complexity for a marginal use case).</p>
+        </div>
+        <div class="decision" style="background:#f0fdf4;border-color:#16a34a;">
+            <h4 style="color:#065f46;">✓ DECIDED — GPS + capture time on <code>Asset</code>; <code>capturedAt</code> distinct from <code>createdAt</code></h4>
+            <p style="color:#166534;">Add <code>gpsLatitude</code>, <code>gpsLongitude</code>, <code>capturedAt</code> to <code>Asset</code>. <code>capturedAt</code> is meaningfully different from <code>createdAt</code>: a tech captures a photo at 9am offline, app queues it, uploads on reconnect at 2pm — <code>createdAt = 2pm</code> (DB row), <code>capturedAt = 9am</code> (EXIF). Matters for form-review timestamps, "was this photo taken at the right time?" audits, and chronological sort across queued uploads.</p>
+        </div>
+        <div class="decision" style="background:#f0fdf4;border-color:#16a34a;">
+            <h4 style="color:#065f46;">✓ DECIDED — Upload-time compression with 30-day original retention</h4>
+            <p style="color:#166534;">Compress to 2MB at upload; keep the original 30 days then purge via a daily cron. Predictable storage state; the field upload UX is already tolerable on most networks. The 30-day retention covers the typical dispute / RFI lookback window.</p>
+        </div>
+    </div>
+
+    <!-- 3 -->
+    <div class="uis-section" id="ui-concepts">
+        <h2>3. UI Concepts</h2>
+
+        <h3>Mockup 1 — Mobile renderer · before / after</h3>
+        <p>Adopted from Corey's <a href="uis-WOX-08-photo-question-polish.html#mockup-1">WOX-08 mockup</a>. Left: today's cramped 4-column grid with no captions and a tiny ×. Right: 2-column grid with caption overlay, big ×, min-counter "3 of 5 minimum", GPS badge per photo, large + Add Photo CTA.</p>
+
+        <div class="mockup-container">
+            <div class="mockup-bar">
+                <div class="mockup-dots"><div class="mockup-dot mockup-dot-r"></div><div class="mockup-dot mockup-dot-y"></div><div class="mockup-dot mockup-dot-g"></div></div>
+                <span class="mockup-url">m.useappello.com/job-sites/JS-2026-0142/forms/HIRA-cedar-ridge</span>
+            </div>
+            <div class="mockup-body">
+                <div class="compare">
+                    <div class="col before">
+                        <h3>Before — today</h3>
+                        <div class="q-label">Question 4 of 12</div>
+                        <div class="q-text">Site condition photos</div>
+                        <div class="thumb-grid-old">
+                            <div class="th">img<span class="x">×</span></div>
+                            <div class="th">img<span class="x">×</span></div>
+                            <div class="th">img<span class="x">×</span></div>
+                            <div class="th">+</div>
+                        </div>
+                        <p style="font-size: 11px; color: #64748b; margin-top: 6px;">Tap "+" → camera. No captions. No min/max. No delete confirm.</p>
+                    </div>
+                    <div class="col after">
+                        <h3>After — polished</h3>
+                        <div class="q-label">Question 4 of 12 · <span class="req">3 of 5 minimum</span></div>
+                        <div class="q-text">Site condition photos</div>
+                        <div class="thumb-grid-new">
+                            <div class="th">
+                                <div class="meta"><span>1 of 5</span><span>📍</span></div>
+                                <span class="x-big">×</span>
+                                <div class="cap">North wall · cracked grout</div>
+                            </div>
+                            <div class="th">
+                                <div class="meta"><span>2 of 5</span><span>📍</span></div>
+                                <span class="x-big">×</span>
+                                <div class="cap">Boiler room intake</div>
+                            </div>
+                            <div class="th">
+                                <div class="meta"><span>3 of 5</span><span>📍</span></div>
+                                <span class="x-big">×</span>
+                                <div class="cap">Drain trap (after)</div>
+                            </div>
+                            <div class="th" style="background: #f1f5f9; color: #475569; border: 2px dashed #cbd5e1;">
+                                <div class="meta" style="background:transparent;color:#475569;font-size:10px;"><span>req</span></div>
+                                <div class="cap" style="background: transparent; color: #475569; text-align: center; font-size: 11px; font-weight: 700;">+ Add 2 more</div>
+                            </div>
+                        </div>
+                        <div class="add-photo-cta">+ Add photo</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <h3>Mockup 2 — Action sheet on "+ Add photo"</h3>
+        <p>Native action sheet (iOS-style on iOS, bottom sheet on Android). Camera and Gallery options when the question has <code>allowGalleryImport = true</code>; Camera only otherwise.</p>
+
+        <div class="mockup-container">
+            <div class="mockup-bar">Action sheet</div>
+            <div class="mockup-body">
+                <div class="compare">
+                    <div class="col">
+                        <h3 style="color: #4338ca;">Both modes — gallery enabled</h3>
+                        <div class="action-sheet">
+                            <div class="sheet-row">📷 Camera</div>
+                            <div class="sheet-row">🖼️ Choose from Gallery</div>
+                            <div class="sheet-row cancel">Cancel</div>
+                        </div>
+                    </div>
+                    <div class="col">
+                        <h3 style="color: #4338ca;">Camera-only — gallery disabled</h3>
+                        <div class="action-sheet">
+                            <div class="sheet-row">📷 Camera</div>
+                            <div class="sheet-row cancel">Cancel</div>
+                        </div>
+                        <p style="font-size: 11px; color: #64748b; margin-top: 8px;">When <code>allowGalleryImport = false</code> the sheet collapses to one option; tap immediately opens the camera.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <h3>Mockup 3 — Form builder · Photo question config</h3>
+        <p>New config card in <code>QuestionnaireAddEditForm.tsx</code> when the question type is PHOTO. Sibling to other question-type config cards (text, multiple choice, etc.).</p>
+
+        <div class="mockup-container">
+            <div class="mockup-bar">
+                <div class="mockup-dots"><div class="mockup-dot mockup-dot-r"></div><div class="mockup-dot mockup-dot-y"></div><div class="mockup-dot mockup-dot-g"></div></div>
+                <span class="mockup-url">app.useappello.com/forms/builder/HIRA-cedar-ridge#question-4</span>
+            </div>
+            <div class="mockup-body">
+                <div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:14px;max-width:420px;">
+                    <div style="font-size: 13px; font-weight: 800; color: #0f172a; margin-bottom: 4px;">Photo question · Site condition photos <span class="mock-new-badge">NEW config</span></div>
+                    <div style="font-size: 11px; color: #64748b; margin-bottom: 12px;">Question type: PHOTO</div>
+                    <div class="config-row"><span class="lbl">Min photos</span><span class="val">5</span></div>
+                    <div class="config-row"><span class="lbl">Max photos</span><span class="val">10</span></div>
+                    <div class="config-row"><span class="lbl">Caption mode</span><span class="val">Optional ▾</span></div>
+                    <div class="config-row"><span class="lbl">Allow gallery import</span><span class="toggle"></span></div>
+                    <div class="config-row"><span class="lbl">Store EXIF / GPS</span><span class="toggle"></span></div>
+                    <div class="config-row"><span class="lbl">Server compress (always on)</span><span class="toggle"></span></div>
+                </div>
+                <p style="margin-top: 10px; font-size: 12px; color: #64748b;"><em>Caption-mode is a select (<code>OFF</code> / <code>OPTIONAL</code> / <code>REQUIRED</code>). Server compress is always-on in V1 and surfaced as a non-editable indicator. Hard ceiling on max: 25.</em></p>
+            </div>
+        </div>
+
+        <div class="callout">
+            <strong>Min counter behavior:</strong> "3 of 5 minimum" turns green at 3 (minimum met), then becomes "5 of 5" at minimum, "5 of 10" up to max. Form save blocked below threshold with an inline error: <em>"Question 4 needs 2 more photos."</em> Tapping the error jumps to the question.
+        </div>
+    </div>
+
+    <!-- 4 -->
+    <div class="uis-section" id="data-model">
+        <h2>4. Data Model</h2>
+
+        <h3>4.1 SafetyFormQuestion — new fields</h3>
+<pre>
+// Added to existing SafetyFormQuestion model.
+// All five are nullable / defaulted so existing photo questions
+// continue to work with reasonable defaults applied at migration.
+
+photoMin            Int?    @default(0)
+photoMax            Int?    @default(10)   // hard ceiling 25 enforced in resolver
+captionMode         String  @default("OFF") @db.VarChar(20)  // OFF | OPTIONAL | REQUIRED
+allowGalleryImport  Boolean @default(true)
+storeExif           Boolean @default(false)
+</pre>
+
+        <h3>4.2 Asset — caption + EXIF capture (universal, not photo-question-specific)</h3>
+<pre>
+// Added to existing Asset model. caption + GPS + capturedAt apply to
+// every Asset, not just photo-question answers — captioning equipment
+// files / drawings / etc. is a future-friendly side benefit.
+//   - capturedAt is meaningfully distinct from createdAt: a photo
+//     captured offline at 9am and uploaded at 2pm has createdAt=14:00,
+//     capturedAt=09:00. Used for form-review timestamps and
+//     chronological sort across queued uploads.
+//   - GPS lat/long set at upload time when the SafetyFormQuestion has
+//     storeExif = true (or any future caller opts in).
+
+caption       String?   @db.VarChar(500)
+gpsLatitude   Decimal?  @db.Decimal(10, 7)
+gpsLongitude  Decimal?  @db.Decimal(10, 7)
+capturedAt    DateTime?
+
+@@index([gpsLatitude, gpsLongitude], map: "Asset_gps_idx")
+</pre>
+
+        <h3>4.3 Migration</h3>
+<pre>
+ALTER TABLE `SafetyFormQuestion`
+    ADD COLUMN `photoMin`           INT          NULL DEFAULT 0,
+    ADD COLUMN `photoMax`           INT          NULL DEFAULT 10,
+    ADD COLUMN `captionMode`        VARCHAR(20)  NOT NULL DEFAULT 'OFF',
+    ADD COLUMN `allowGalleryImport` BOOLEAN      NOT NULL DEFAULT TRUE,
+    ADD COLUMN `storeExif`          BOOLEAN      NOT NULL DEFAULT FALSE;
+
+ALTER TABLE `Asset`
+    ADD COLUMN `caption`      VARCHAR(500)   NULL,
+    ADD COLUMN `gpsLatitude`  DECIMAL(10, 7) NULL,
+    ADD COLUMN `gpsLongitude` DECIMAL(10, 7) NULL,
+    ADD COLUMN `capturedAt`   DATETIME(3)    NULL,
+    ADD INDEX `Asset_gps_idx` (`gpsLatitude`, `gpsLongitude`);
+
+-- Backfill: existing PHOTO questions get default photoMax=10, others stay NULL.
+UPDATE `SafetyFormQuestion`
+SET    `photoMax` = 10
+WHERE  `questionType` = 'PHOTO' AND `photoMax` IS NULL;
+</pre>
+    </div>
+
+    <!-- 5 -->
+    <div class="uis-section" id="api-surface">
+        <h2>5. API Surface</h2>
+        <h3>5.1 Type extension</h3>
+<pre>
+extend type SafetyFormQuestion {
+  photoMin: Int
+  photoMax: Int
+  captionMode: String!          # OFF | OPTIONAL | REQUIRED
+  allowGalleryImport: Boolean!
+  storeExif: Boolean!
+}
+</pre>
+
+        <h3>5.2 Mutations — config</h3>
+        <p>The existing <code>createQuestion</code> / <code>editQuestion</code> mutations gain optional inputs for the new fields. <code>photoMax</code> is rejected if &gt; 25 (hard ceiling). <code>captionMode</code> validated against the const list.</p>
+
+        <h3>5.3 Mutations — Asset upload (caption + EXIF)</h3>
+        <p>The existing Asset upload mutation gains optional caption + GPS + captured-at parameters. Caption is enforced when the target context (e.g., the photo-question answer the asset is being attached to) declares <code>captionMode = REQUIRED</code> — that check runs at the form-answer attachment point, not on the Asset upload itself.</p>
+<pre>
+# Asset upload (existing mutation, extended):
+uploadAsset(
+  ...existing inputs,
+  caption:       String,    # optional; universal — not photo-specific
+  gpsLatitude:   Decimal,   # optional EXIF
+  gpsLongitude:  Decimal,   # optional EXIF
+  capturedAt:    DateTime   # optional EXIF; falls back to now() if absent
+): Asset!
+
+# Form-answer photo attachment uses the existing AssetReference path:
+# AssetReference (assetId, referenceTable = "SafetyFormQuestionAnswer",
+#                 referenceId = answer.id). The asset's caption + EXIF
+# fields are read from the Asset itself — no additional storage needed
+# in the answer record.
+</pre>
+
+        <h3>5.4 Validation</h3>
+        <ul>
+            <li>Submit-form mutation rejects when any photo question has fewer photos than its <code>photoMin</code>; error payload identifies the question id</li>
+            <li>Photo upload mutation rejects when the form answer already has <code>photoMax</code> photos</li>
+            <li>Photo upload mutation rejects when <code>captionMode = REQUIRED</code> and caption is null/empty</li>
+        </ul>
+    </div>
+
+    <!-- 6 -->
+    <div class="uis-section" id="change-surface">
+        <h2>6. Change Surface</h2>
+        <table class="schema-table">
+            <thead><tr><th>Action</th><th>Path</th><th>Change</th></tr></thead>
+            <tbody>
+                <tr><td><span class="action-mod">MODIFY</span></td><td><code>apps/api/prisma/schema.prisma</code></td><td>Add 5 fields to <code>SafetyFormQuestion</code>; add <code>caption</code> + <code>gpsLatitude</code> + <code>gpsLongitude</code> + <code>capturedAt</code> on <code>Asset</code></td></tr>
+                <tr><td><span class="action-new">NEW</span></td><td>Migration</td><td>SafetyFormQuestion + Asset column adds + backfill for existing photo questions</td></tr>
+                <tr><td><span class="action-new">NEW</span></td><td><code>apps/mobile/src/components/Forms/SafetyFormQuestionAndAnswers/PhotoQuestion.tsx</code></td><td>Extracted PhotoQuestion component — replaces inline switch case in <code>QAForm.tsx</code></td></tr>
+                <tr><td><span class="action-mod">MODIFY</span></td><td><code>apps/mobile/src/components/Forms/SafetyFormQuestionAndAnswers/QAForm.tsx</code></td><td>Replace inline PHOTO switch case with the new <code>PhotoQuestion</code> component import</td></tr>
+                <tr><td><span class="action-new">NEW</span></td><td><code>apps/frontend/src/components/Forms/QuestionnaireForm/QuestionTypes/PhotoQuestionConfig.tsx</code></td><td>Form-builder config card — min/max, caption mode, gallery, EXIF toggles</td></tr>
+                <tr><td><span class="action-mod">MODIFY</span></td><td><code>apps/frontend/src/components/Forms/QuestionnaireForm/QuestionnaireAddEditForm.tsx</code></td><td>Mount <code>PhotoQuestionConfig</code> when question type is PHOTO</td></tr>
+                <tr><td><span class="action-mod">MODIFY</span></td><td>Form-answer photo-upload mutation</td><td>Accept caption + EXIF; enforce min/max + caption-required validation</td></tr>
+                <tr><td><span class="action-mod">MODIFY</span></td><td>Form submit handler</td><td>Server-side enforcement of <code>photoMin</code>; structured error pointing at offending question</td></tr>
+                <tr><td><span class="action-new">NEW</span></td><td>Asset upload pipeline · server-side compression</td><td>Compress to max 2MB on upload; original retained 30 days then purged via daily cron</td></tr>
+                <tr><td><span class="action-mod">MODIFY</span></td><td>Form review (desktop) photo display</td><td>Render captions; render GPS pin when <code>storeExif</code> is set on the question</td></tr>
+                <tr><td><span class="action-mod">MODIFY</span></td><td>Customer-facing form PDF export</td><td>Strip EXIF / GPS metadata regardless of <code>storeExif</code> setting (privacy default)</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- 7 -->
+    <div class="uis-section" id="acceptance-criteria">
+        <h2>7. Acceptance Criteria</h2>
+        <ol class="ac-list">
+            <li>Mobile photo questions render in a 2-column thumbnail grid with caption overlays, large × delete buttons (with confirmation), and a min-counter badge ("3 of 5 minimum").</li>
+            <li>Tapping "+ Add photo" presents an action sheet with Camera / Gallery / Cancel options when the question's <code>allowGalleryImport</code> is true; collapses to Camera only when false.</li>
+            <li>Form authors can configure <code>photoMin</code>, <code>photoMax</code>, <code>captionMode</code>, <code>allowGalleryImport</code>, and <code>storeExif</code> per photo question in the desktop form builder.</li>
+            <li>The <code>photoMax</code> input in the form builder rejects values greater than 25 (hard ceiling).</li>
+            <li>Form submission is rejected server-side when any photo question has fewer photos than its <code>photoMin</code>; the error response identifies the offending question.</li>
+            <li>The mobile renderer prevents adding more than <code>photoMax</code> photos by disabling the Add CTA and showing a tooltip.</li>
+            <li>When <code>captionMode</code> is REQUIRED, the photo upload mutation rejects an empty caption; the renderer prompts for a caption inline after photo capture.</li>
+            <li>When <code>storeExif</code> is true on the question, GPS lat/long and capture timestamp (<code>capturedAt</code> from EXIF, distinct from the row's <code>createdAt</code>) are stored on the resulting Asset; surfaced in the desktop form-review view as a small GPS badge + capture-time tooltip per photo.</li>
+            <li>Captions are stored on <code>Asset.caption</code> directly (universal, not photo-question-specific); editable by the user during photo capture and reflected in form review.</li>
+            <li>EXIF / GPS data is stripped from customer-facing PDF exports of forms regardless of the question's <code>storeExif</code> setting.</li>
+            <li>Uploaded photos are compressed server-side to a maximum of 2MB; the original is retained 30 days then purged by a daily cron.</li>
+            <li>Existing photo questions in production continue to work after migration with sensible defaults (max 10, no min, captions off, gallery on, EXIF off).</li>
+            <li>The mobile renderer, form builder config, and server-side validation share a common source-of-truth for the const-based <code>captionMode</code> values (no duplicated string literals).</li>
+        </ol>
+    </div>
+
+    <!-- 8 -->
+    <div class="uis-section" id="dependencies">
+        <h2>8. Dependencies</h2>
+        <h3>Requires</h3>
+        <p>
+            <span class="dep-tag dep-requires">Existing forms infra</span> Form builder (<code>QuestionnaireAddEditForm</code>), mobile QA renderer (<code>QAForm</code>), Asset upload pipeline, AssetReference join — all existing
+        </p>
+        <h3>Enables</h3>
+        <p>
+            <span class="dep-tag dep-enables">FUTURE</span> WOX-19 (AI voice-to-report) can reuse the polished photo capture surface for video / multi-photo bursts<br>
+            <span class="dep-tag dep-enables">FUTURE</span> Photo annotation / drawing on photos<br>
+            <span class="dep-tag dep-enables">FUTURE</span> Multi-select gallery import (V1 is one-at-a-time)
+        </p>
+        <h3>Parent</h3>
+        <p>UIS-20 · T&amp;M Work Orders (sprint slot only — the polish benefits every form in the platform)</p>
+        <h3>Path A source</h3>
+        <p><a href="uis-WOX-08-photo-question-polish.html">WOX-08 — Photo Question Polish (Mobile Forms)</a> (Corey's concept sketch)</p>
+        <h3>Closes</h3>
+        <p>Second of three loose threads under Emma's scope item #8 (Match ClearStory mobile WO flow). Remaining: TNM-default-fields review.</p>
+    </div>
+
+</div>
+</body>
+</html>

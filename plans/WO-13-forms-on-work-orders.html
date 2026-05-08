@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WO-13: Forms on Work Orders — Implementation Plan</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+.in-iframe .top-nav { display: none !important; }
+.top-nav { position: sticky; top: 0; z-index: 100; background: #0f172a; border-bottom: 1px solid #1e293b; padding: 0 24px; display: flex; align-items: center; gap: 0; }
+.top-nav a { display: inline-flex; align-items: center; padding: 12px 18px; font-size: 13px; font-weight: 600; color: #94a3b8; text-decoration: none; border-bottom: 2px solid transparent; transition: all 0.15s; white-space: nowrap; }
+.top-nav a:hover { color: #f8fafc; background: #1e293b; }
+.top-nav .nav-logo { font-size: 11px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: #475569; padding-right: 18px; margin-right: 4px; border-right: 1px solid #1e293b; }
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Inter', -apple-system, sans-serif; background: #f8fafc; color: #0f172a; }
+.plan-wrap { max-width: 880px; margin: 0 auto; padding: 40px 24px 80px; }
+h1 { font-size: 24px; font-weight: 800; margin: 0 0 16px; }
+h2 { font-size: 18px; font-weight: 700; margin: 28px 0 12px; padding-bottom: 8px; border-bottom: 2px solid #e2e8f0; }
+h3 { font-size: 15px; font-weight: 700; margin: 20px 0 8px; padding-top: 10px; border-top: 1px solid #f1f5f9; }
+h4 { font-size: 14px; font-weight: 700; margin: 14px 0 6px; }
+p { font-size: 14px; color: #334155; line-height: 1.7; margin: 6px 0; }
+ul, ol { padding-left: 20px; margin: 8px 0; }
+li { font-size: 14px; color: #334155; line-height: 1.7; margin: 3px 0; }
+strong { color: #0f172a; }
+code { font-family: 'SF Mono', monospace; background: #f1f5f9; padding: 1px 6px; border-radius: 4px; font-size: 12px; color: #7c3aed; }
+pre { background: #0f172a; color: #f8fafc; border-radius: 8px; padding: 16px; overflow-x: auto; font-size: 13px; line-height: 1.6; margin: 12px 0; font-family: 'SF Mono', monospace; }
+pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
+hr { border: none; border-top: 1px solid #e2e8f0; margin: 24px 0; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 12px 0; }
+th { text-align: left; padding: 8px 12px; background: #f1f5f9; border-bottom: 2px solid #e2e8f0; font-weight: 600; }
+td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
+.callout { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 14px 18px; margin: 14px 0; font-size: 13px; color: #1e40af; }
+.callout strong { color: #1e3a8a; }
+    </style>
+</head>
+<body>
+
+<script>if(self!==top)document.documentElement.classList.add("in-iframe")</script>
+<nav class="top-nav">
+    <span class="nav-logo">Appello SDLC</span>
+    <a href="../index.html">Roadmap</a>
+    <a href="../release-1.33-timeline.html">Release 1.33</a>
+    <a href="../release-1.34-timeline.html">Release 1.34</a>
+    <a href="../WO-1.33-final-mapping.html">Final Mapping</a>
+</nav>
+<div class="plan-wrap" id="rendered"></div>
+
+<script type="text/plain" id="plan-md">
+# WO-13 — Forms on Work Orders · Implementation Plan
+
+**Spec:** [wo-13-forms-on-work-orders.html](../wo-13-forms-on-work-orders.html)
+**Estimate:** ~1 day total — 0.5 day desktop tab registration + 0.5 day mobile tab registration with a small `jobId`-prop refactor of two existing components.
+**Branch suggestion:** `wo-13-forms-on-work-orders`
+
+**Two-part plan:** (A) Desktop = single tab registration, no other changes. (B) Mobile = two tab registrations on `WODetail.tsx` plus a small refactor of `JobForms` and `JobFormHistory` to accept an optional `jobId` prop that overrides the `BasicViewContext.selectedJob`. Read both parts before starting.
+
+---
+
+## Part A · Desktop
+
+### TL;DR for the implementing agent
+
+You are registering ONE new tab on the WO detail page. The component (`SafetyFormTab`) already exists on the Job detail page and works with any record whose `__typename = "Job"`. A WorkOrder is a Job (`jobClassification = WorkOrder`), so the component works as-is — it consumes `router.query.id`, which is the same Job id the WO route exposes. **No data-layer or schema changes. No new components. No mutations. No conditional gates to remove** — the surface was simply never registered on the WO detail page.
+
+### Files you will edit
+
+Exactly one file:
+
+- `apps/frontend/src/components/DetailsPage/WorkOrderDetailsPage/index.tsx`
+
+Reference (read-only — do not edit): `apps/frontend/src/components/DetailsPage/JobDetailsPage/index.tsx` is the working analog for the same surface.
+
+### Step 1 · Confirm the host file's current shape
+
+The current file is a flat 4-tab list:
+
+```tsx
+// apps/frontend/src/components/DetailsPage/WorkOrderDetailsPage/index.tsx
+import { FC } from "react";
+import DetailsPageTabs, { IDetailsPageTab } from "../DetailsPageTabs";
+import { useAuth } from "~root/context";
+import { WorkOrderOverviewTab } from "./Tabs/Overview";
+import { WorkOrderInvoices } from "./Tabs/Invoices";
+import { WorkOrderFiles } from "./Tabs/Files";
+import { WorkOrderSettings } from "./Tabs/Settings";
+import { hasPermissions } from "~root/lib";
+
+const WorkOrderTabs: FC = () => {
+    const { permissions } = useAuth();
+
+    const tabs: IDetailsPageTab[] = [
+        { label: "Overview",   component: <WorkOrderOverviewTab />, param: "overview", permission: hasPermissions({ job: { view: true } }, permissions) },
+        { label: "Invoices",   component: <WorkOrderInvoices />,    param: "invoices", permission: hasPermissions({ job: { view: true } }, permissions) },
+        { label: "Files",      component: <WorkOrderFiles />,       param: "files",    permission: hasPermissions({ job: { view: true } }, permissions) },
+        { label: "Settings",   component: <WorkOrderSettings />,    param: "settings", permission: hasPermissions({ job: { edit: true } }, permissions) }
+    ];
+
+    return <DetailsPageTabs tabs={tabs} />;
+};
+```
+
+You will add a single import and a single tab object.
+
+### Step 2 · Add the import
+
+At the top, add:
+
+```tsx
+import SafetyFormTab from "~root/components/DetailsPage/JobDetailsPage/Tabs/SafetyFormTab";
+```
+
+This is the exact same import path the Job detail page uses (`apps/frontend/src/components/DetailsPage/JobDetailsPage/index.tsx:5` for reference).
+
+### Step 3 · Register the tab
+
+Insert the Form Submissions tab into the `tabs` array. **Place it between "Invoices" and "Files"** (so the final desktop order, once WO-16 also lands, is: Overview → Invoices → **Form Submissions** → Equipment Assignment → Schedule → Files → Settings).
+
+```tsx
+{
+    label: "Form Submissions",
+    component: <SafetyFormTab />,
+    param: "safety-form",
+    permission: hasPermissions({ safetyForm: { view: true } }, permissions)
+}
+```
+
+The `label`, `param`, and `permission` shape match the Job page exactly (see `JobDetailsPage/index.tsx:431-437`). Same param slug means deep-links from the Forms list ("view in record") that previously routed to `?tab=safety-form` will work for WOs without any router changes.
+
+### Step 4 · Final shape of the file
+
+```tsx
+import { FC } from "react";
+import DetailsPageTabs, { IDetailsPageTab } from "../DetailsPageTabs";
+import { useAuth } from "~root/context";
+import { WorkOrderOverviewTab } from "./Tabs/Overview";
+import { WorkOrderInvoices } from "./Tabs/Invoices";
+import { WorkOrderFiles } from "./Tabs/Files";
+import { WorkOrderSettings } from "./Tabs/Settings";
+import SafetyFormTab from "~root/components/DetailsPage/JobDetailsPage/Tabs/SafetyFormTab";
+import { hasPermissions } from "~root/lib";
+
+const WorkOrderTabs: FC = () => {
+    const { permissions } = useAuth();
+
+    const tabs: IDetailsPageTab[] = [
+        { label: "Overview",          component: <WorkOrderOverviewTab />, param: "overview",    permission: hasPermissions({ job: { view: true } }, permissions) },
+        { label: "Invoices",          component: <WorkOrderInvoices />,    param: "invoices",    permission: hasPermissions({ job: { view: true } }, permissions) },
+        { label: "Form Submissions",  component: <SafetyFormTab />,        param: "safety-form", permission: hasPermissions({ safetyForm: { view: true } }, permissions) },
+        { label: "Files",             component: <WorkOrderFiles />,       param: "files",       permission: hasPermissions({ job: { view: true } }, permissions) },
+        { label: "Settings",          component: <WorkOrderSettings />,    param: "settings",    permission: hasPermissions({ job: { edit: true } }, permissions) }
+    ];
+
+    return <DetailsPageTabs tabs={tabs} />;
+};
+
+export default WorkOrderTabs;
+export { WorkOrderTabs };
+```
+
+### Why this is safe (sanity checks for the implementer)
+
+- **`SafetyFormTab` is parameterless.** It reads `router.query.id` internally. The WO route (`apps/frontend/src/pages/work-orders/[id]/index.tsx`) sets `id` to the Job/WO id, so the component picks it up automatically — same way it does on the Job route.
+- **The component passes `__typename: "Job"` to `SafetyFormTabList`** (see `JobDetailsPage/Tabs/SafetyFormTab/index.tsx`). A WorkOrder is a Job in the schema, so the existing form-attachment data flows (`JobSafetyFormWrapper`, `JobSafetyForm`) work without any backend changes.
+- **No conditional gate to flip.** There is no `permission: false` or `if (jobClassification !== "WorkOrder")` predicate hiding this tab — the tab simply was never registered.
+
+### Verification checklist (manual smoke test)
+
+1. Navigate to any existing WO detail page (`/work-orders/<wo-id>`). A new "Form Submissions" tab appears between Invoices and Files.
+2. Click the tab. The list of attached forms renders (empty for WOs that have none — same empty state as Jobs).
+3. From the form-builder admin, attach a `FormWrapper` to this WO via the standard "Connect form to jobs" flow — confirm a `JobSafetyFormWrapper` row appears on the WO Form Submissions tab.
+4. Fill out the form on the WO surface. Confirm a `JobSafetyForm` submission row is written and renders in the history.
+5. On a WO with `safetyForm.view = false` permission, confirm the tab is hidden (silent — no error).
+6. Open `/work-orders/<wo-id>?tab=safety-form` directly — confirm the deep link lands on the new tab.
+7. Open an existing Project Job (`/jobs/<job-id>`) — confirm the Job's Form Submissions tab is unchanged (sanity check that we didn't break the donor surface).
+
+### Out of scope — do NOT do these
+
+- Do not modify `SafetyFormTab`, `SafetyFormTabList`, or any GraphQL schema / resolver / mutation.
+- Do not add a "trimmed forms surface" specific to WOs — WO-13 explicitly defers that.
+- Do not pre-attach default forms based on a WO template — that is part of WO-15a/c, separate spec.
+- Do not add a per-user-assignment filter (that was Corey's WOX-06 follow-up; deferred).
+- Do not reorder or restyle the existing WO tabs.
+
+### Acceptance criteria mapping — Desktop (Part A)
+
+| Spec AC | Where covered |
+|---|---|
+| Desktop WO shows Forms tab in same position/styling as Job | Step 3 (registration) |
+| Adding a form writes `JobSafetyFormWrapper` via existing mutation | Reused component path |
+| Filling form writes `JobSafetyForm` via existing mutation | Reused component path |
+| Removing assignment soft-deletes via existing mutation | Reused component path |
+| Submission history / attachments / signatures / PDF identical | Reused component path |
+| No regressions on Job Forms tab | No edits to JobDetailsPage |
+| Existing form permissions apply unchanged | `permission: hasPermissions({ safetyForm: { view: true } }, permissions)` |
+
+---
+
+## Part B · Mobile
+
+### B-TL;DR for the implementing agent
+
+The mobile job-sites page (`apps/mobile/src/components/JobViews/SimplifiedJobTasks.tsx`) registers two Forms-related tabs: **Forms** (`JobForms`) and **Form Submission History** (`JobFormHistory`). You will register both on the mobile WO detail page (`apps/mobile/src/components/WorkOrders/WODetail.tsx`).
+
+**The complication you must handle:** both `JobForms` and `JobFormHistory` currently read the active job id from `BasicViewContext.selectedJob` (the daily-schedule context), not from the route. On the WO route, `selectedJob` is whatever the user last picked in their schedule view — it will NOT match the WO id. You must thread an optional `jobId` prop through both components that overrides the context value. This is a small, surgical refactor — don't expand it.
+
+`BasicViewProvider` is already mounted at `apps/mobile/src/pages/_app.tsx:83`, so `useBasicView()` works on every page including the WO detail page; no provider work needed. Just the override-prop refactor.
+
+### B-Files you will edit
+
+1. `apps/mobile/src/components/WorkOrders/WODetail.tsx` — register two new tabs.
+2. `apps/mobile/src/components/JobViews/JobViewTabs/JobForms.tsx` — accept optional `jobId` prop, fall back to `useBasicView().selectedJob.id` when not provided.
+3. `apps/mobile/src/components/JobViews/JobViewTabs/JobFormHistory.tsx` — accept optional `jobId` prop, fall back to `useBasicView().selectedJob.id` when not provided.
+
+References (read-only): `apps/mobile/src/components/JobViews/SimplifiedJobTasks.tsx:121-146` for the analog tab registrations.
+
+### B-Step 1 · Refactor `JobForms` to accept an optional `jobId` prop
+
+In `apps/mobile/src/components/JobViews/JobViewTabs/JobForms.tsx`:
+
+- Extend `JobFormsProps` with `jobId?: string`.
+- At the top of the component body, derive an effective id: `const effectiveJobId = jobId ?? selectedJob?.id;`
+- Replace every reference to `selectedJob.id` (currently used in: `<AttachNewFormComponent jobId={selectedJob.id} />` and the two `<JobTaskCard jobId={selectedJob.id} />` calls) with `effectiveJobId`.
+- Leave all the date-picker / swimlane / countCardsPerSwimlane logic alone. On the WO route the `BasicViewContext` will still drive the date picker and the today/done/new tab counts; only the *job that forms attach to / fill against* changes.
+
+**Important behavioral note:** The swimlane "what's assigned to me today" model is inherently a daily-schedule concept. On a WO route, the swimlane will show whatever forms `BasicViewContext` thinks are due today across the user's assignments — not "all forms attached to this WO." For V1 we accept that mismatch (matches what the user requested: same component as job-sites). If users complain that the WO Forms tab shows unrelated forms, the follow-up is to either feed the WO id into BasicView's card query or build a non-swimlane WO Forms variant — out of scope for this hand-off.
+
+### B-Step 2 · Refactor `JobFormHistory` to accept an optional `jobId` prop
+
+In `apps/mobile/src/components/JobViews/JobViewTabs/JobFormHistory.tsx`:
+
+- Add a props interface: `interface IJobFormHistoryProps { jobId?: string; }`.
+- Change the component signature to `const JobFormHistory: FC<IJobFormHistoryProps> = ({ jobId }) => { ... }`.
+- Inside, derive `const effectiveJobId = jobId ?? selectedJob?.id;` and use that wherever `selectedJob.id` was previously used (likely in the `defaultWhere` of the `TableDataList` further down the file — verify against the real code).
+
+### B-Step 3 · Register the two new tabs on `WODetail.tsx`
+
+Open `apps/mobile/src/components/WorkOrders/WODetail.tsx`. The existing `tabs` array sits inside the component body and currently has Overview / Notes / Files. Add two new tabs **between Notes and Files** (so the order matches user expectation: Overview → Notes → Forms → Form History → Files).
+
+First, add imports near the top of the file:
+
+```tsx
+import JobForms from "../JobViews/JobViewTabs/JobForms";
+import JobFormHistory from "../JobViews/JobViewTabs/JobFormHistory";
+```
+
+Then insert into the `tabs` array:
+
+```tsx
+{
+    id: "wo-forms",
+    label: "Forms",
+    headerClassName: (isActive: boolean) => {
+        return isActive && activeTabClass;
+    },
+    content: <JobForms jobId={woId} />,
+    permission: hasPermissions({ feedback: { create: true } }, permissions)
+},
+{
+    id: "wo-form-history",
+    label: "Form Submission History",
+    headerClassName: (isActive: boolean) => {
+        return isActive && activeTabClass;
+    },
+    content: <JobFormHistory jobId={woId} />,
+    permission: hasPermissions({ mobile: { viewFormSubmissionHistory: true } }, permissions)
+},
+```
+
+`woId` is already declared in `WODetail.tsx` as `const woId = router.query.id as string;` — reuse it.
+
+The `permission` predicates exactly mirror what `SimplifiedJobTasks.tsx:136,145` uses for the same surfaces.
+
+### B-Step 4 · Verification (manual smoke test, mobile)
+
+1. On a mobile viewport, open an existing WO (`/admin/work-orders/<wo-id>`). New tabs **Forms** and **Form Submission History** appear between Notes and Files.
+2. Click **Forms** — the same swimlane UI from job-sites renders (To Do / Complete / Form Library tabs, date picker). Adding a form via "Form Library" should attach to the WO id from the route, not whatever job was last selected in BasicView.
+3. Submit a form on the WO — confirm the resulting `Feedback` row shows up under **Form Submission History** for this WO (and only this WO).
+4. With `feedback.create = false`, the Forms tab is hidden; with `mobile.viewFormSubmissionHistory = false`, the History tab is hidden.
+5. **Donor smoke test:** open the mobile job-sites view (`/job-sites/<job-id>`). The Forms and Form Submission History tabs there should still work exactly as before — they no longer pass a `jobId` prop, so they fall back to `selectedJob` from `BasicViewContext` and behave identically to today.
+
+### B-Out of scope — do NOT do these
+
+- Do not redesign or restyle `JobForms` / `JobFormHistory`.
+- Do not change the swimlane card-fetch query to filter by jobId — that is a deeper coupling change. The override prop only retargets where forms get *attached to / filled against*; the "today's todo" surface continues to drive from BasicView. Note this limitation in the PR description.
+- Do not refactor any other JobViewTabs (`JobNotes`, `JobFiles`, `JobRFIs`) — Notes and Files are already wired into WODetail; RFIs aren't part of this spec.
+- Do not introduce a new context or wrap WODetail in a custom provider — the prop-override approach is sufficient.
+
+### B-Acceptance criteria mapping
+
+| Spec AC | Where covered |
+|---|---|
+| Mobile WO shows Forms surface identical to Job mobile | B-Step 3 (registration) + B-Step 1 (jobId override) |
+| Mobile WO shows Form Submission History identical to Job mobile | B-Step 3 + B-Step 2 |
+| Adding a form on mobile writes `JobSafetyFormWrapper` against the WO | B-Step 1 (`AttachNewFormComponent jobId={effectiveJobId}`) |
+| Filling form on mobile writes `JobSafetyForm` against the WO | B-Step 1 (`JobTaskCard jobId={effectiveJobId}`) |
+| Submission history scoped to this WO only | B-Step 2 (`TableDataList defaultWhere` uses `effectiveJobId`) |
+| Existing form permissions apply unchanged | Same predicate as job-sites tab registration |
+| No regressions on mobile job-sites Forms / History | B-Step 5 donor smoke test (props default to context) |
+</script>
+
+<script src="plan-renderer.js"></script>
+<script>renderPlan();</script>
+</body>
+</html>

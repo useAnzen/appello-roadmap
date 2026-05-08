@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WO-11: Equipment as Work Order Subject</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+.in-iframe .top-nav { display: none !important; }
+.top-nav { position: sticky; top: 0; z-index: 100; background: #0f172a; border-bottom: 1px solid #1e293b; padding: 0 24px; display: flex; align-items: center; gap: 0; }
+.top-nav a { display: inline-flex; align-items: center; padding: 12px 18px; font-size: 13px; font-weight: 600; color: #94a3b8; text-decoration: none; border-bottom: 2px solid transparent; transition: all 0.15s; white-space: nowrap; }
+.top-nav a:hover { color: #f8fafc; background: #1e293b; }
+.top-nav .nav-logo { font-size: 11px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: #475569; padding-right: 18px; margin-right: 4px; border-right: 1px solid #1e293b; }
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Inter', -apple-system, sans-serif; background: #f1f5f9; color: #0f172a; }
+.uis-wrap { max-width: 960px; margin: 0 auto; padding: 40px 24px 80px; }
+.uis-hero { margin-bottom: 32px; }
+.uis-badges { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+.uis-badge { font-size: 11px; font-weight: 700; padding: 4px 12px; border-radius: 6px; display: inline-flex; align-items: center; gap: 5px; }
+.badge-q { background: #0f172a; color: #fff; }
+.badge-wo { background: #ec4899; color: #fff; }
+.badge-priority { background: #fef3c7; color: #92400e; }
+.badge-status { background: #fef3c7; color: #92400e; }
+.uis-h1 { font-size: 30px; font-weight: 800; color: #0f172a; margin: 0 0 8px; letter-spacing: -0.01em; }
+.uis-sub { font-size: 15px; color: #64748b; line-height: 1.5; margin: 0; }
+.uis-meta { display: flex; gap: 24px; flex-wrap: wrap; margin-top: 14px; font-size: 13px; color: #64748b; }
+.uis-meta strong { color: #0f172a; }
+.uis-toc { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px 28px; margin-bottom: 16px; }
+.uis-toc h3 { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; margin: 0 0 10px; }
+.uis-toc ol { margin: 0; padding-left: 20px; }
+.uis-toc li { font-size: 14px; color: #3b82f6; margin-bottom: 4px; }
+.uis-toc a { color: #3b82f6; text-decoration: none; }
+.uis-section { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px 28px; margin-bottom: 16px; }
+.uis-section h2 { font-size: 17px; font-weight: 700; margin: 0 0 14px; padding-bottom: 10px; border-bottom: 2px solid #e2e8f0; }
+.uis-section h3 { font-size: 15px; font-weight: 700; margin: 16px 0 8px; }
+.uis-section h4 { font-size: 14px; font-weight: 700; color: #334155; margin: 12px 0 6px; }
+.uis-section p, .uis-section li { font-size: 14px; color: #334155; line-height: 1.65; }
+.uis-section ul, .uis-section ol { padding-left: 20px; margin: 8px 0; }
+pre { background: #1e293b; color: #e2e8f0; border-radius: 8px; padding: 16px; overflow-x: auto; font-size: 13px; line-height: 1.5; font-family: 'SF Mono', monospace; margin: 12px 0; }
+code { font-family: 'SF Mono', monospace; background: #f1f5f9; padding: 1px 5px; border-radius: 3px; font-size: 12px; color: #7c3aed; }
+table.schema-table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 12px 0; }
+table.schema-table th { text-align: left; padding: 8px 12px; background: #f8fafc; border-bottom: 2px solid #e2e8f0; font-weight: 600; }
+table.schema-table td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
+.callout { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 14px 18px; margin: 14px 0; font-size: 13px; color: #1e40af; }
+.callout strong { color: #1e3a8a; }
+.decision { background: #fffbeb; border: 2px solid #f59e0b; border-radius: 10px; padding: 18px 22px; margin: 14px 0; }
+.decision h4 { color: #78350f; margin: 0 0 8px; font-size: 14px; }
+.decision p, .decision li { font-size: 13px; color: #78350f; }
+.future { background: #faf5ff; border: 1px dashed #c084fc; border-radius: 8px; padding: 14px 18px; margin: 14px 0; font-size: 13px; color: #7c3aed; }
+.future strong { color: #6d28d9; }
+.customer-quote { background: #fef3c7; border-left: 3px solid #f59e0b; padding: 12px 16px; border-radius: 0 8px 8px 0; margin: 14px 0; font-style: italic; font-size: 14px; color: #92400e; }
+.customer-quote .attribution { font-style: normal; font-weight: 600; display: block; margin-top: 6px; }
+.action-new { background: #dcfce7; color: #166534; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 4px; }
+.action-mod { background: #fef3c7; color: #92400e; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 4px; }
+.ac-list { margin: 0; padding-left: 0; list-style: none; }
+.ac-list li { display: flex; gap: 10px; margin-bottom: 10px; font-size: 14px; color: #334155; line-height: 1.55; }
+.ac-list li::before { content: ''; flex-shrink: 0; width: 18px; height: 18px; border: 2px solid #e2e8f0; border-radius: 4px; margin-top: 2px; background: #fff; }
+.dep-tag { display: inline-block; font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 5px; margin-right: 6px; margin-bottom: 6px; }
+.dep-requires { background: #fee2e2; color: #dc2626; }
+.dep-enables { background: #dcfce7; color: #166534; }
+.scope-tag { display: inline-block; font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 5px; margin: 2px 4px 2px 0; }
+.scope-in { background: #dcfce7; color: #166534; }
+.scope-out { background: #fee2e2; color: #dc2626; }
+.scope-future { background: #eff6ff; color: #3b82f6; }
+.scope-done { background: #dbeafe; color: #1d4ed8; }
+.mockup-container { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; margin: 14px 0; }
+.mockup-bar { background: #f1f5f9; padding: 8px 14px; font-size: 12px; font-weight: 600; color: #64748b; border-bottom: 1px solid #e2e8f0; display: flex; align-items: center; gap: 8px; }
+.mockup-dots { display: flex; gap: 5px; }
+.mockup-dot { width: 8px; height: 8px; border-radius: 50%; }
+.mockup-dot-r { background: #f87171; }
+.mockup-dot-y { background: #fbbf24; }
+.mockup-dot-g { background: #34d399; }
+.mockup-body { padding: 24px; min-height: 150px; font-size: 13px; color: #334155; line-height: 1.6; }
+.mock-field-label { font-size: 12px; font-weight: 600; color: #475569; margin-top: 12px; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.3px; }
+.mock-field-input { background: #fff; border: 1px solid #cbd5e1; border-radius: 6px; padding: 8px 12px; font-size: 13px; color: #0f172a; }
+.mock-highlight { background: #fef3c7; border: 1px solid #f59e0b; border-radius: 6px; padding: 8px 12px; font-size: 13px; color: #78350f; font-weight: 500; }
+.mock-new-badge { background: #dcfce7; color: #166534; font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 3px; margin-left: 6px; }
+.mobile-frame { max-width: 380px; margin: 14px auto; border: 2px solid #1e293b; border-radius: 28px; padding: 8px; background: #1e293b; }
+.mobile-screen { background: #fff; border-radius: 20px; padding: 16px; min-height: 480px; }
+.tab-bar { display: flex; gap: 0; border-bottom: 1px solid #e2e8f0; margin-bottom: 12px; }
+.tab { padding: 10px 14px; font-size: 13px; font-weight: 600; color: #64748b; cursor: pointer; border-bottom: 2px solid transparent; }
+.tab.active { color: #3b82f6; border-bottom-color: #3b82f6; }
+.wo-row { padding: 10px 0; border-bottom: 1px solid #f1f5f9; }
+.wo-row-num { font-size: 12px; color: #64748b; font-weight: 600; }
+.wo-row-name { font-size: 14px; color: #0f172a; font-weight: 600; margin: 2px 0; }
+.wo-row-meta { font-size: 12px; color: #64748b; }
+.wo-status-pill { display: inline-block; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 10px; }
+.status-approved { background: #dcfce7; color: #166534; }
+.status-progress { background: #dbeafe; color: #1d4ed8; }
+.status-draft { background: #f1f5f9; color: #64748b; }
+    </style>
+</head>
+<body>
+<script>if(self!==top)document.documentElement.classList.add("in-iframe")</script>
+<nav class="top-nav">
+    <span class="nav-logo">Appello SDLC</span>
+    <a href="index.html">Roadmap</a>
+    <a href="release-1.33-timeline.html">Release 1.33</a>
+    <a href="release-1.34-timeline.html">Release 1.34</a>
+    <a href="master-spec-reconciliation.html">Spec Reconciliation</a>
+    <a href="ui-interface-library.html">UI Library</a>
+    <a href="cross-release-continuity-audit.html">Continuity Audit</a>
+</nav>
+<div class="uis-wrap">
+
+    <div class="uis-hero">
+        <div class="uis-badges">
+            <span class="uis-badge badge-q">WO-11</span>
+            <span class="uis-badge badge-wo">Work Orders</span>
+            <span class="uis-badge badge-priority">P1 - 1.33</span>
+            <span class="uis-badge badge-status">Draft</span>
+        </div>
+        <h1 class="uis-h1">Equipment as Work Order Subject</h1>
+        <p class="uis-sub">Introduce a first-class relationship between a Work Order and the piece of equipment the work is being performed <em>on</em>. Surfaces every WO ever performed on a piece of equipment in a new "Work Orders" tab on the equipment detail page (desktop &amp; mobile) — the foundation of a per-asset service history.</p>
+        <div class="uis-meta">
+            <span><strong>Estimate:</strong> 2 days</span>
+            <span><strong>Sequence:</strong> 1.33, after WO-3</span>
+            <span><strong>Requires:</strong> WO-1, WO-3</span>
+            <span><strong>Enables:</strong> WO-12</span>
+        </div>
+    </div>
+
+    <div style="background:#fef2f2;border:3px solid #dc2626;border-radius:12px;padding:18px 24px;margin:0 0 18px;">
+        <div style="font-size:12px;font-weight:800;letter-spacing:2px;color:#991b1b;text-transform:uppercase;margin-bottom:6px;">⚠ Review by Chris Required — DB Changes</div>
+        <p style="font-size:14px;color:#7f1d1d;line-height:1.55;margin:0;font-weight:500;">This spec includes <strong>database changes</strong> (new tables, columns, indexes, FKs, or seed data). Chris must sign off on the data model before implementation begins.</p>
+    </div>
+
+    <div class="uis-toc">
+        <h3>Contents</h3>
+        <ol>
+            <li><a href="#business-case">Business Case</a></li>
+            <li><a href="#scope">Scope</a></li>
+            <li><a href="#ui-concepts">UI Concepts</a></li>
+            <li><a href="#data-model">Data Model</a></li>
+            <li><a href="#api-surface">API Surface</a></li>
+            <li><a href="#change-surface">Change Surface</a></li>
+            <li><a href="#acceptance-criteria">Acceptance Criteria</a></li>
+            <li><a href="#dependencies">Dependencies</a></li>
+        </ol>
+    </div>
+
+    <!-- 1. Business Case -->
+    <div class="uis-section" id="business-case">
+        <h2>1. Business Case</h2>
+
+        <p>Service-oriented contractors (HVAC, mechanical, refrigeration) deliver work that is fundamentally <em>about a piece of equipment</em> — a rooftop unit, a vending machine, a boiler. Each service visit produces a work order describing what was inspected, what was repaired, what materials were used, and how long it took. Over time, the equipment accumulates a service history that is critical to both the technician (who needs to see what the last person did) and the office (who reports on service frequency, cost, and warranty exposure per asset).</p>
+
+        <p>Today, Appello can attach equipment to a work order only via line items — equipment used <em>with</em> the work (forklift, scissor lift, etc.) for billing. There is no first-class concept of the equipment the work is being performed <em>on</em>. Without that relationship, technicians arriving on site cannot see prior work history, and the office cannot report service history per asset.</p>
+
+        <div class="customer-quote">
+            "We need to delineate between equipment that the work is being done on. Imagine a vending machine you have to go maintain. You're creating a work order, maybe by scanning the QR code on the side of the vending machine. The work order is associated with the equipment. We still have the add-equipment-line-items thing in case we have to charge out the equipment we used."
+            <span class="attribution">&mdash; Corey Shelson, 2026-05-05 product call</span>
+        </div>
+    </div>
+
+    <!-- 2. Scope -->
+    <div class="uis-section" id="scope">
+        <h2>2. Scope</h2>
+
+        <h3>Already Built</h3>
+        <ul>
+            <li><span class="scope-tag scope-done">DONE</span> <code>Equipment</code> model with QR code generation (UIS-15E)</li>
+            <li><span class="scope-tag scope-done">DONE</span> <code>Job</code> model with <code>jobClassification</code> on PropertyValue distinguishing Work Orders from project jobs (WO-1)</li>
+            <li><span class="scope-tag scope-done">DONE</span> <code>WorkOrderEquipmentItem</code> — equipment line items used <em>with</em> the WO (WO-2)</li>
+            <li><span class="scope-tag scope-done">DONE</span> <code>EquipmentTimeSheetRecordValue</code> — structured equipment time entries on WOs (EQ-0)</li>
+            <li><span class="scope-tag scope-done">DONE</span> Equipment detail page (desktop &amp; mobile) — adding a new tab is a UI extension</li>
+        </ul>
+
+        <h3>In Scope (WO-11)</h3>
+        <ul>
+            <li><span class="scope-tag scope-in">IN</span> Optional FK <code>subjectEquipmentId</code> on <code>Job</code> with relation to <code>Equipment</code></li>
+            <li><span class="scope-tag scope-in">IN</span> "Equipment Serviced" field on the WO create / edit form (desktop &amp; mobile) — searchable equipment combobox, optional</li>
+            <li><span class="scope-tag scope-in">IN</span> Subject equipment displayed on the WO detail page header (desktop &amp; mobile)</li>
+            <li><span class="scope-tag scope-in">IN</span> "Work Orders" tab on the Equipment detail page (desktop &amp; mobile) — chronological list of WOs where this equipment is the subject, with status, completion date, technician, and link through to each WO</li>
+            <li><span class="scope-tag scope-in">IN</span> "Subject Equipment" column on the Work Orders list page (filterable; sortable)</li>
+        </ul>
+
+        <h3>Out of Scope</h3>
+        <ul>
+            <li><span class="scope-tag scope-out">OUT</span> In-app QR scanning — equipment QR codes already exist (UIS-15E); the native phone camera handles the scan</li>
+            <li><span class="scope-tag scope-future">FUTURE</span> "Scan equipment QR &rarr; auto-create WO with this equipment as subject" deep-link flow</li>
+            <li><span class="scope-tag scope-future">FUTURE</span> Linking subject-equipment WOs to <code>MaintenanceSchedule</code> — covered by sibling spec <strong>WO-12</strong> (Maintenance ↔ Work Order Linkage)</li>
+            <li><span class="scope-tag scope-future">FUTURE</span> Subject equipment for non-WO job types — surfaced only on WOs in V1</li>
+            <li><span class="scope-tag scope-out">OUT</span> Many-to-many subject equipment per WO — explicitly rejected (see "Decided" callout below for reasoning)</li>
+            <li><span class="scope-tag scope-future">FUTURE</span> Polymorphic subject (e.g., a Location, a vehicle as subject) — see Pending Decision below</li>
+            <li><span class="scope-tag scope-future">FUTURE</span> Equipment line item / billing changes — covered by WO-2, EQ-0</li>
+        </ul>
+
+        <h3>Decided</h3>
+        <div class="decision" style="background:#f0fdf4;border-color:#16a34a;">
+            <h4 style="color:#065f46;">✓ DECIDED — One subject equipment per WO (1:1)</h4>
+            <p style="color:#166534;">A WO has exactly <strong>one</strong> subject piece of equipment. If a tech services 4 rooftop units in one building, that becomes 4 separate WOs.</p>
+            <p style="color:#166534;"><strong>Reasoning:</strong> The whole point of equipment service history (the "Work Orders" tab on Equipment detail) is being able to look at a piece of equipment and see what was done to it. With many-to-many, a WO's notes / hours / materials / signatures would all be ambiguous across the equipment it touched — you couldn't tell which equipment a particular detail was for. 1:1 keeps history meaningful: "this WO is the record of work performed on <em>this</em> RTU on Mar 12." Multi-asset visits become multiple WOs (which the dispatch board / templates make cheap).</p>
+            <p style="color:#166534;"><strong>Source:</strong> Emma, 2026-05-05 PM call — <em>"I think a WO would be distinct to a piece of equipment and if they were to do 4 in a building they would have 4 distinct WOs."</em></p>
+        </div>
+
+        <h3>Pending Business Decisions</h3>
+        <div class="decision">
+            <h4>1. Single FK vs polymorphic subject?</h4>
+            <p>This spec proposes a single FK <code>subjectEquipmentId</code> (Equipment-only). Polymorphism (<code>subjectReferenceModel</code> + <code>subjectReferenceId</code>) would let a WO point at any model — Equipment today, Location or Vehicle tomorrow. The codebase has the polymorphic pattern (Notes, MaintenanceThreshold).</p>
+            <p>The only future candidate raised in conversation was hypothetical. Recommendation: ship as a single FK; accept the migration cost if a real polymorphic case shows up.</p>
+            <p><strong>Action:</strong> Confirm with Corey / Chris before implementation.</p>
+        </div>
+    </div>
+
+    <!-- 3. UI Concepts -->
+    <div class="uis-section" id="ui-concepts">
+        <h2>3. UI Concepts</h2>
+
+        <h3>Mockup 1 — WO Create/Edit Form (desktop)</h3>
+        <p>New "Equipment Serviced" field appears in the WO details section, between Customer and Description. Uses the existing <code>AsyncMultiselect</code> / equipment combobox with single-select.</p>
+        <div class="mockup-container">
+            <div class="mockup-bar">
+                <div class="mockup-dots"><div class="mockup-dot mockup-dot-r"></div><div class="mockup-dot mockup-dot-y"></div><div class="mockup-dot mockup-dot-g"></div></div>
+                Work Order · New
+            </div>
+            <div class="mockup-body">
+                <div class="mock-field-label">WO Number</div>
+                <div class="mock-field-input">WO-2046</div>
+                <div class="mock-field-label">Job Type</div>
+                <div class="mock-field-input">Service Call</div>
+                <div class="mock-field-label">Customer</div>
+                <div class="mock-field-input">Acme Refrigeration</div>
+                <div class="mock-field-label">Equipment Serviced <span class="mock-new-badge">NEW</span></div>
+                <div class="mock-highlight">🔍 RTU-3 — Rooftop Unit, 5-Ton, Trane XR15 (Acme HQ)</div>
+                <div style="font-size: 11px; color: #64748b; margin-top: 4px;">Optional. Searches across all active equipment.</div>
+                <div class="mock-field-label">Description</div>
+                <div class="mock-field-input" style="min-height: 60px;">Annual inspection. Customer reports unit cycling.</div>
+            </div>
+        </div>
+
+        <h3>Mockup 2 — WO Detail Page Header (desktop)</h3>
+        <p>Subject equipment appears as a chip in the WO header alongside Customer and Status, with a link through to the equipment detail page.</p>
+        <div class="mockup-container">
+            <div class="mockup-bar">
+                <div class="mockup-dots"><div class="mockup-dot mockup-dot-r"></div><div class="mockup-dot mockup-dot-y"></div><div class="mockup-dot mockup-dot-g"></div></div>
+                Work Order · WO-2046
+            </div>
+            <div class="mockup-body">
+                <div style="font-size: 22px; font-weight: 700; color: #0f172a;">WO-2046 · Annual Inspection</div>
+                <div style="display: flex; gap: 10px; margin-top: 10px; flex-wrap: wrap;">
+                    <span class="wo-status-pill status-progress">Submitted</span>
+                    <span style="font-size: 12px; padding: 4px 10px; background: #f1f5f9; border-radius: 12px;">Acme Refrigeration</span>
+                    <span style="font-size: 12px; padding: 4px 10px; background: #fef3c7; border: 1px solid #f59e0b; border-radius: 12px; font-weight: 600; color: #78350f;">🔧 RTU-3 (Rooftop Unit) <span class="mock-new-badge">NEW</span></span>
+                </div>
+            </div>
+        </div>
+
+        <h3>Mockup 3 — Equipment Detail · Work Orders Tab (mobile)</h3>
+        <p>New tab on the existing equipment detail page. Lists WOs in reverse-chronological order with status, scheduled / completed date, and primary technician. Tap-through to the WO.</p>
+        <div class="mobile-frame">
+            <div class="mobile-screen">
+                <div style="font-size: 16px; font-weight: 700; color: #0f172a;">RTU-3 · Rooftop Unit</div>
+                <div style="font-size: 12px; color: #64748b; margin-bottom: 10px;">Trane XR15 · 5-Ton · Acme HQ</div>
+                <div class="tab-bar">
+                    <div class="tab">Details</div>
+                    <div class="tab">Files</div>
+                    <div class="tab">Forms</div>
+                    <div class="tab active">Work Orders <span class="mock-new-badge">NEW</span></div>
+                </div>
+                <div class="wo-row">
+                    <div class="wo-row-num">WO-2046</div>
+                    <div class="wo-row-name">Annual Inspection</div>
+                    <div class="wo-row-meta">Mar 12, 2026 · Bob Smith · <span class="wo-status-pill status-progress">In Progress</span></div>
+                </div>
+                <div class="wo-row">
+                    <div class="wo-row-num">WO-1893</div>
+                    <div class="wo-row-name">Belt &amp; filter replacement</div>
+                    <div class="wo-row-meta">Jan 04, 2026 · Bob Smith · <span class="wo-status-pill status-approved">Approved</span></div>
+                </div>
+                <div class="wo-row">
+                    <div class="wo-row-num">WO-1604</div>
+                    <div class="wo-row-name">Compressor short-cycling — diagnosis</div>
+                    <div class="wo-row-meta">Oct 22, 2025 · Mike Lee · <span class="wo-status-pill status-approved">Approved</span></div>
+                </div>
+                <div class="wo-row">
+                    <div class="wo-row-num">WO-1487</div>
+                    <div class="wo-row-name">Annual Inspection</div>
+                    <div class="wo-row-meta">Mar 18, 2025 · Mike Lee · <span class="wo-status-pill status-approved">Approved</span></div>
+                </div>
+            </div>
+        </div>
+
+        <h3>Mockup 4 — Equipment Detail · Work Orders Tab (desktop)</h3>
+        <p>Same data, ListTable layout. Columns: WO #, Name, Subject Job Type, Status, Technician, Scheduled, Completed.</p>
+        <div class="mockup-container">
+            <div class="mockup-bar">
+                <div class="mockup-dots"><div class="mockup-dot mockup-dot-r"></div><div class="mockup-dot mockup-dot-y"></div><div class="mockup-dot mockup-dot-g"></div></div>
+                Equipment Detail · RTU-3 · Work Orders
+            </div>
+            <div class="mockup-body">
+                <table class="schema-table">
+                    <thead><tr><th>WO #</th><th>Name</th><th>Type</th><th>Status</th><th>Tech</th><th>Scheduled</th><th>Completed</th></tr></thead>
+                    <tbody>
+                        <tr><td>WO-2046</td><td>Annual Inspection</td><td>Service Call</td><td><span class="wo-status-pill status-progress">In Progress</span></td><td>Bob Smith</td><td>Mar 12, 2026</td><td>—</td></tr>
+                        <tr><td>WO-1893</td><td>Belt &amp; filter replacement</td><td>Service Call</td><td><span class="wo-status-pill status-approved">Approved</span></td><td>Bob Smith</td><td>Jan 04, 2026</td><td>Jan 04, 2026</td></tr>
+                        <tr><td>WO-1604</td><td>Compressor short-cycling</td><td>Service Call</td><td><span class="wo-status-pill status-approved">Approved</span></td><td>Mike Lee</td><td>Oct 22, 2025</td><td>Oct 23, 2025</td></tr>
+                        <tr><td>WO-1487</td><td>Annual Inspection</td><td>Service Call</td><td><span class="wo-status-pill status-approved">Approved</span></td><td>Mike Lee</td><td>Mar 18, 2025</td><td>Mar 18, 2025</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- 4. Data Model -->
+    <div class="uis-section" id="data-model">
+        <h2>4. Data Model</h2>
+
+        <h3>4.1 Job — add subjectEquipmentId</h3>
+<pre>
+// Added to existing Job model:
+subjectEquipmentId  String?     @db.VarChar(21)
+SubjectEquipment    Equipment?  @relation("JobsAsSubjectEquipment",
+                                          fields: [subjectEquipmentId],
+                                          references: [id])
+
+@@index([subjectEquipmentId], map: "Job_subjectEquipmentId_fkey")
+</pre>
+
+        <h3>4.2 Equipment — add inverse relation</h3>
+<pre>
+// Added to existing Equipment model:
+JobsAsSubject  Job[]  @relation("JobsAsSubjectEquipment")
+</pre>
+
+        <h3>4.3 Migration</h3>
+<pre>
+ALTER TABLE `Job`
+    ADD COLUMN `subjectEquipmentId` VARCHAR(21) NULL,
+    ADD INDEX `Job_subjectEquipmentId_fkey` (`subjectEquipmentId`),
+    ADD CONSTRAINT `Job_subjectEquipmentId_fkey`
+        FOREIGN KEY (`subjectEquipmentId`) REFERENCES `Equipment` (`id`)
+        ON DELETE SET NULL ON UPDATE CASCADE;
+</pre>
+
+        <div class="callout">
+            <strong>Why on Job, not WorkOrder:</strong> per WO-1, a WO is just a Job with <code>jobClassification = WorkOrder</code>. There is no separate WorkOrder model. Adding the FK to Job keeps options open for future job classifications without retrofitting; the V1 UI gates the field to WOs only.
+        </div>
+    </div>
+
+    <!-- 5. API Surface -->
+    <div class="uis-section" id="api-surface">
+        <h2>5. API Surface</h2>
+
+        <p>Apollo GraphQL: resolvers and types in <code>apps/api/src/graphql/models/</code>; business logic in <code>apps/api/src/models/</code> extending <code>BaseModel</code>.</p>
+
+        <h3>5.1 GraphQL Type Extensions</h3>
+<pre>
+type Job {
+  # ...existing fields
+  subjectEquipmentId: String
+  subjectEquipment: Equipment
+}
+
+type Equipment {
+  # ...existing fields
+  jobsAsSubject(
+    isCompleted: Boolean
+    take: Int
+    skip: Int
+  ): [Job!]!
+}
+</pre>
+
+        <h3>5.2 Mutation Inputs (existing mutations extended)</h3>
+<pre>
+input CreateJobInput {
+  # ...existing fields
+  subjectEquipmentId: String
+}
+
+input EditJobInput {
+  # ...existing fields
+  subjectEquipmentId: String
+}
+</pre>
+
+        <p>No new mutations needed — <code>createJob</code> and <code>editJob</code> already cover the field-level write surface.</p>
+
+        <h3>5.3 Query — Equipment WOs Tab</h3>
+        <p>The Equipment detail page's Work Orders tab uses the existing TableFeed pattern, filtered by <code>subjectEquipmentId = $equipmentId</code> AND <code>jobClassification = 'WorkOrder'</code>. No new resolver required if the existing JobListFeed view exposes <code>subjectEquipmentId</code> as a column.</p>
+    </div>
+
+    <!-- 6. Change Surface -->
+    <div class="uis-section" id="change-surface">
+        <h2>6. Change Surface</h2>
+
+        <table class="schema-table">
+            <thead><tr><th>Action</th><th>Path</th><th>Change</th></tr></thead>
+            <tbody>
+                <tr><td><span class="action-mod">MODIFY</span></td><td><code>apps/api/prisma/schema.prisma</code></td><td>Add <code>subjectEquipmentId</code> + relation on Job; inverse on Equipment</td></tr>
+                <tr><td><span class="action-new">NEW</span></td><td><code>apps/api/prisma/migrations/&lt;ts&gt;_job_subject_equipment/</code></td><td>FK migration</td></tr>
+                <tr><td><span class="action-mod">MODIFY</span></td><td><code>apps/api/src/models/Job.ts</code></td><td>Allow <code>subjectEquipmentId</code> in modelFields</td></tr>
+                <tr><td><span class="action-mod">MODIFY</span></td><td><code>apps/api/src/graphql/models/Job.ts</code></td><td>Expose <code>subjectEquipmentId</code> &amp; <code>subjectEquipment</code> resolver</td></tr>
+                <tr><td><span class="action-mod">MODIFY</span></td><td><code>apps/api/src/graphql/models/Equipment.ts</code></td><td>Add <code>jobsAsSubject</code> field resolver</td></tr>
+                <tr><td><span class="action-mod">MODIFY</span></td><td>JobListFeed SQL view</td><td>Surface <code>subjectEquipmentId</code> as a column</td></tr>
+                <tr><td><span class="action-mod">MODIFY</span></td><td>WO create/edit form (desktop &amp; mobile)</td><td>Add Equipment Serviced combobox field</td></tr>
+                <tr><td><span class="action-mod">MODIFY</span></td><td>WO detail page header (desktop &amp; mobile)</td><td>Render subject equipment chip with link</td></tr>
+                <tr><td><span class="action-mod">MODIFY</span></td><td>WO list page</td><td>Add Subject Equipment column (filterable / sortable)</td></tr>
+                <tr><td><span class="action-new">NEW</span></td><td>Equipment detail · Work Orders tab (desktop)</td><td>ListTable view filtered by <code>subjectEquipmentId</code> + WO classification</td></tr>
+                <tr><td><span class="action-new">NEW</span></td><td>Equipment detail · Work Orders tab (mobile)</td><td>List view, same filter, mobile layout</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- 7. Acceptance Criteria -->
+    <div class="uis-section" id="acceptance-criteria">
+        <h2>7. Acceptance Criteria</h2>
+
+        <ol class="ac-list">
+            <li>A user creating a WO can optionally select a piece of equipment as the subject; saving persists <code>subjectEquipmentId</code> on the Job row.</li>
+            <li>A user editing a WO can change or clear the subject equipment.</li>
+            <li>The WO detail page shows the subject equipment as a chip linked to the equipment detail page.</li>
+            <li>The WO list page shows a "Subject Equipment" column that is sortable and filterable.</li>
+            <li>The Equipment detail page (desktop) shows a "Work Orders" tab listing every WO where this equipment is the subject, in reverse-chronological order.</li>
+            <li>The Equipment detail page (mobile) shows the same Work Orders tab in a mobile list layout.</li>
+            <li>Tapping a WO row in the equipment Work Orders tab navigates to that WO's detail page.</li>
+            <li>The subject equipment field is hidden on Job types whose <code>jobClassification</code> is not <code>WorkOrder</code>.</li>
+            <li>Deleting an Equipment record sets <code>subjectEquipmentId</code> to NULL on referencing Jobs (does not cascade-delete).</li>
+            <li>Existing line-item-based equipment associations (<code>WorkOrderEquipmentItem</code>, <code>EquipmentTimeSheetRecordValue</code>) are unaffected and remain visible in their existing places.</li>
+        </ol>
+    </div>
+
+    <!-- 8. Dependencies -->
+    <div class="uis-section" id="dependencies">
+        <h2>8. Dependencies</h2>
+
+        <h3>Requires</h3>
+        <p>
+            <span class="dep-tag dep-requires">WO-1</span> Job classification routing (so the field can gate on <code>WorkOrder</code> classification)<br>
+            <span class="dep-tag dep-requires">WO-3</span> Form foundation (to render the new field in the existing WO form)
+        </p>
+
+        <h3>Enables</h3>
+        <p>
+            <span class="dep-tag dep-enables">WO-12</span> Maintenance ↔ Work Order Linkage (links scheduled maintenance to a WO that has the same subject equipment)<br>
+            <span class="dep-tag dep-enables">FUTURE</span> "Scan equipment QR &rarr; new WO" deep-link flow<br>
+            <span class="dep-tag dep-enables">FUTURE</span> Per-asset service reports (TTR, MTBF, lifetime cost)
+        </p>
+
+        <h3>Parent</h3>
+        <p>UIS-20 · T&amp;M Work Orders</p>
+
+        <h3>Siblings</h3>
+        <p>WO-2 (line items, equipment used <em>with</em>), EQ-0 (equipment time entries), UIS-15E (equipment QR)</p>
+    </div>
+
+</div>
+</body>
+</html>

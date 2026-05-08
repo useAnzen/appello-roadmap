@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WO-16: WO Detail Tabs · Schedule + Equipment Assignment — Implementation Plan</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+.in-iframe .top-nav { display: none !important; }
+.top-nav { position: sticky; top: 0; z-index: 100; background: #0f172a; border-bottom: 1px solid #1e293b; padding: 0 24px; display: flex; align-items: center; gap: 0; }
+.top-nav a { display: inline-flex; align-items: center; padding: 12px 18px; font-size: 13px; font-weight: 600; color: #94a3b8; text-decoration: none; border-bottom: 2px solid transparent; transition: all 0.15s; white-space: nowrap; }
+.top-nav a:hover { color: #f8fafc; background: #1e293b; }
+.top-nav .nav-logo { font-size: 11px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: #475569; padding-right: 18px; margin-right: 4px; border-right: 1px solid #1e293b; }
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Inter', -apple-system, sans-serif; background: #f8fafc; color: #0f172a; }
+.plan-wrap { max-width: 880px; margin: 0 auto; padding: 40px 24px 80px; }
+h1 { font-size: 24px; font-weight: 800; margin: 0 0 16px; }
+h2 { font-size: 18px; font-weight: 700; margin: 28px 0 12px; padding-bottom: 8px; border-bottom: 2px solid #e2e8f0; }
+h3 { font-size: 15px; font-weight: 700; margin: 20px 0 8px; padding-top: 10px; border-top: 1px solid #f1f5f9; }
+h4 { font-size: 14px; font-weight: 700; margin: 14px 0 6px; }
+p { font-size: 14px; color: #334155; line-height: 1.7; margin: 6px 0; }
+ul, ol { padding-left: 20px; margin: 8px 0; }
+li { font-size: 14px; color: #334155; line-height: 1.7; margin: 3px 0; }
+strong { color: #0f172a; }
+code { font-family: 'SF Mono', monospace; background: #f1f5f9; padding: 1px 6px; border-radius: 4px; font-size: 12px; color: #7c3aed; }
+pre { background: #0f172a; color: #f8fafc; border-radius: 8px; padding: 16px; overflow-x: auto; font-size: 13px; line-height: 1.6; margin: 12px 0; font-family: 'SF Mono', monospace; }
+pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
+hr { border: none; border-top: 1px solid #e2e8f0; margin: 24px 0; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 12px 0; }
+th { text-align: left; padding: 8px 12px; background: #f1f5f9; border-bottom: 2px solid #e2e8f0; font-weight: 600; }
+td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
+.callout { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 14px 18px; margin: 14px 0; font-size: 13px; color: #1e40af; }
+.callout strong { color: #1e3a8a; }
+    </style>
+</head>
+<body>
+
+<script>if(self!==top)document.documentElement.classList.add("in-iframe")</script>
+<nav class="top-nav">
+    <span class="nav-logo">Appello SDLC</span>
+    <a href="../index.html">Roadmap</a>
+    <a href="../release-1.33-timeline.html">Release 1.33</a>
+    <a href="../release-1.34-timeline.html">Release 1.34</a>
+    <a href="../WO-1.33-final-mapping.html">Final Mapping</a>
+</nav>
+<div class="plan-wrap" id="rendered"></div>
+
+<script type="text/plain" id="plan-md">
+# WO-16 — WO Detail Tabs · Schedule + Equipment Assignment · Implementation Plan
+
+**Spec:** [wo-16-wo-detail-tabs.html](../wo-16-wo-detail-tabs.html)
+**Estimate (this hand-off):** ~0.75 day total — 0.5 day desktop (Schedule + Equipment Assignment tabs) + ~0.25 day mobile (Equipment tab only, no Schedule on mobile per product call).
+**Branch suggestion:** `wo-16-wo-detail-schedule-equipment`
+
+**Two-part plan:** (A) Desktop = two tab registrations (Schedule + Equipment Assignment). (B) Mobile = one tab registration (Equipment only — Schedule is intentionally desktop-only). Read both parts before starting.
+
+**Scope note:** This spec is now a pure tab port. The Planned Crew advisory sidebar that was originally part of WO-16 has moved to **WO-15c** (apply UI), since the advisory is template-driven and naturally pairs with the apply flow. Don't attempt to build it here.
+
+---
+
+## Part A · Desktop
+
+### TL;DR for the implementing agent
+
+You are registering TWO new tabs on the WO detail page. Both components already exist on the Job detail page and both consume the route's `id` param (which equals the Job id; a WorkOrder is a Job). **No data-layer or schema changes. No new components. No mutations. No conditional gates to remove** — the surfaces were simply never registered on the WO detail page.
+
+### Scope of this hand-off
+
+This is a pure tab port — same architectural pattern as WO-13, no new components. The Planned Crew advisory sidebar that originally lived in WO-16 has moved to **WO-15c** (apply UI). Do not build any advisory component here. Register the existing `JobScheduleCalendarPage` directly into the WO detail tab list and stop there; the 2-column layout / advisory mount is WO-15c's responsibility and ships with the apply flow.
+
+### Files you will edit
+
+Exactly one file:
+
+- `apps/frontend/src/components/DetailsPage/WorkOrderDetailsPage/index.tsx`
+
+References (read-only — do not edit):
+
+- `apps/frontend/src/components/DetailsPage/JobDetailsPage/index.tsx` (lines 386–429 for the analog tab registrations under the "Operations" group)
+- `apps/frontend/src/components/DetailsPage/JobDetailsPage/Tabs/AssignedEquipment.tsx` (component used as-is)
+
+### Step 1 · Imports to add
+
+At the top of `WorkOrderDetailsPage/index.tsx`, add three imports:
+
+```tsx
+import AssignedEquipment from "~root/components/DetailsPage/JobDetailsPage/Tabs/AssignedEquipment";
+import { JobScheduleCalendarPage } from "~root/pages/scheduling/calendar";
+import { SchedulingProvider } from "~root/context";
+```
+
+`SchedulingProvider` is already exported from `~root/context` (the Job detail page imports it from there: `JobDetailsPage/index.tsx:3`). `JobScheduleCalendarPage` is the same export the Job page uses (`JobDetailsPage/index.tsx:23`).
+
+If `useRouter` is not yet imported in this file, also add:
+
+```tsx
+import { useRouter } from "next/router";
+```
+
+(needed because the Schedule tab passes `jobId={router.query.id as string}` to `SchedulingProvider`).
+
+### Step 2 · Use the router inside the component
+
+Inside `WorkOrderTabs`, alongside the existing `const { permissions } = useAuth();`, add:
+
+```tsx
+const router = useRouter();
+```
+
+### Step 3 · Register the two new tabs
+
+Insert both tabs into the `tabs` array. **Place them between "Form Submissions" and "Files"** (assuming WO-13 has landed; if WO-13 has not landed yet, place them between "Invoices" and "Files"). Final desktop order: Overview → Invoices → Form Submissions → **Equipment Assignment** → **Schedule** → Files → Settings.
+
+```tsx
+{
+    label: "Equipment Assignment",
+    component: <AssignedEquipment />,
+    param: "assigned-equipment",
+    permission: hasPermissions({ equipment: { view: true } }, permissions)
+},
+{
+    label: "Schedule",
+    component: (
+        <SchedulingProvider type="calendar" jobId={router.query.id as string}>
+            <JobScheduleCalendarPage
+                className="!m-0"
+                enableFilters={{
+                    job: false,
+                    project: false,
+                    worker: true
+                }}
+                disableSearch
+                noBreadcrumbs
+                isJobView
+            />
+        </SchedulingProvider>
+    ),
+    param: "schedule",
+    permission: hasPermissions({ JobSchedule: { view: true } }, permissions)
+}
+```
+
+The `param`, `permission`, and prop set are byte-for-byte identical to the Job page's registration of the same surfaces (`JobDetailsPage/index.tsx:386-429`). Same param slugs mean any deep-link `?tab=schedule` or `?tab=assigned-equipment` works on WOs with no router changes.
+
+**Re: `isJobView` prop name** — keep it as `isJobView`. Despite the name, it is a behavioral prop that means "embedded inside a single-Job context, not the global scheduling page." A WO is a Job, and the prop's effect (filter UI tweaks, breadcrumb suppression) is exactly what we want here. Renaming would be a wider refactor outside this spec.
+
+### Step 4 · Final shape of the file
+
+```tsx
+import { FC } from "react";
+import { useRouter } from "next/router";
+import DetailsPageTabs, { IDetailsPageTab } from "../DetailsPageTabs";
+import { useAuth, SchedulingProvider } from "~root/context";
+import { WorkOrderOverviewTab } from "./Tabs/Overview";
+import { WorkOrderInvoices } from "./Tabs/Invoices";
+import { WorkOrderFiles } from "./Tabs/Files";
+import { WorkOrderSettings } from "./Tabs/Settings";
+import SafetyFormTab from "~root/components/DetailsPage/JobDetailsPage/Tabs/SafetyFormTab";
+import AssignedEquipment from "~root/components/DetailsPage/JobDetailsPage/Tabs/AssignedEquipment";
+import { JobScheduleCalendarPage } from "~root/pages/scheduling/calendar";
+import { hasPermissions } from "~root/lib";
+
+const WorkOrderTabs: FC = () => {
+    const { permissions } = useAuth();
+    const router = useRouter();
+
+    const tabs: IDetailsPageTab[] = [
+        { label: "Overview", component: <WorkOrderOverviewTab />, param: "overview", permission: hasPermissions({ job: { view: true } }, permissions) },
+        { label: "Invoices", component: <WorkOrderInvoices />, param: "invoices", permission: hasPermissions({ job: { view: true } }, permissions) },
+        { label: "Form Submissions", component: <SafetyFormTab />, param: "safety-form", permission: hasPermissions({ safetyForm: { view: true } }, permissions) },
+        { label: "Equipment Assignment", component: <AssignedEquipment />, param: "assigned-equipment", permission: hasPermissions({ equipment: { view: true } }, permissions) },
+        {
+            label: "Schedule",
+            component: (
+                <SchedulingProvider type="calendar" jobId={router.query.id as string}>
+                    <JobScheduleCalendarPage
+                        className="!m-0"
+                        enableFilters={{ job: false, project: false, worker: true }}
+                        disableSearch
+                        noBreadcrumbs
+                        isJobView
+                    />
+                </SchedulingProvider>
+            ),
+            param: "schedule",
+            permission: hasPermissions({ JobSchedule: { view: true } }, permissions)
+        },
+        { label: "Files", component: <WorkOrderFiles />, param: "files", permission: hasPermissions({ job: { view: true } }, permissions) },
+        { label: "Settings", component: <WorkOrderSettings />, param: "settings", permission: hasPermissions({ job: { edit: true } }, permissions) }
+    ];
+
+    return <DetailsPageTabs tabs={tabs} />;
+};
+
+export default WorkOrderTabs;
+export { WorkOrderTabs };
+```
+
+(`SafetyFormTab` line shown for context; it's added by WO-13. If WO-13 hasn't landed yet, omit the Form Submissions row entirely — Equipment Assignment and Schedule still slot in the same positions, and Files / Settings stay at the end.)
+
+### Why this is safe (sanity checks for the implementer)
+
+- **`AssignedEquipment` is parameterless.** It reads the route id via `useParams()` from `next/navigation`. The WO route (`pages/work-orders/[id]/index.tsx`) supplies that id, so the component picks it up automatically.
+- **`JobScheduleCalendarPage` consumes `jobId` from `SchedulingProvider`.** We pass `router.query.id as string` exactly as the Job page does. Same `EquipmentAssignment.checkoutJobId` and `JobSchedule.jobId` keys; a WO is a Job, so the queries return the right rows without backend changes.
+- **No conditional gate to flip.** Neither tab is currently registered with `permission: false` or hidden behind a classification check — they were simply never added to the WO tab list.
+- **Desktop only.** Spec scopes both surfaces to desktop in V1, matching existing Job-side scope.
+
+### Verification checklist (manual smoke test)
+
+1. Navigate to any existing WO detail page (`/work-orders/<wo-id>`). New "Equipment Assignment" and "Schedule" tabs appear in the tab bar.
+2. Click "Equipment Assignment". List renders showing any `EquipmentAssignment` rows whose `checkoutJobId` matches this WO's id (empty state for WOs with none).
+3. Create a new equipment assignment from the WO surface — confirm the row writes through the same mutation Jobs use.
+4. Click "Schedule". The calendar renders, scoped to this WO/Job. Drag a user onto a date — confirm a `JobSchedule` row writes via the existing mutation.
+5. Confirm the Schedule tab's filter UI matches the Job-side filters (worker filter on, job/project filters off, search hidden, breadcrumbs hidden) — these come from the prop set we passed.
+6. With `equipment.view = false` permission, confirm the Equipment Assignment tab is hidden (silent — no error).
+7. With `JobSchedule.view = false` permission, confirm the Schedule tab is hidden.
+8. Open `/work-orders/<wo-id>?tab=assigned-equipment` and `?tab=schedule` directly — confirm both deep links land on the right tabs.
+9. Open an existing Project Job (`/jobs/<job-id>`) — confirm the Job's Schedule and Assigned Equipment surfaces are unchanged (sanity check that we didn't break the donor surfaces).
+
+### Out of scope — do NOT do these
+
+- **Do not build the Planned Crew advisory sidebar.** That work has moved to **WO-15c** (apply UI) and ships with the template apply flow. Stop at the plain tab registration.
+- Do not modify `AssignedEquipment`, `JobScheduleCalendarPage`, `SchedulingProvider`, or any GraphQL schema / resolver / mutation.
+- Do not rename the `isJobView` prop. It already covers WO usage correctly.
+- Do not auto-schedule users based on any template — out of scope.
+- Do not add an "Equipment Rate Overrides" tab or other Operations-group items from the Job page; only the two surfaces named here.
+
+### Acceptance criteria mapping — Desktop (Part A)
+
+| Spec AC | Where covered |
+|---|---|
+| Desktop WO shows Schedule tab in same position/styling as Job | Step 3 (registration) |
+| Desktop WO shows Equipment Assignment surface | Step 3 (registration) |
+| Schedule tab loads existing Calendar Schedule scoped to this Job | `SchedulingProvider jobId={router.query.id}` |
+| Equipment list shows existing rows including any from WO-15c apply | Reused component path |
+| Create / edit / check-in / check-out via existing mutations | Reused component path |
+| Job-side surfaces unchanged | No edits to JobDetailsPage |
+| Cross-classification leaks not possible | Same query scoping as Job page (queries key off `jobId`) |
+| Planned Crew advisory rendered when template applied | **Moved to WO-15c** — ships with the apply flow |
+| Tally for structured plans, free-form plans without tally | **Moved to WO-15c** |
+| Advisory hidden when no template applied | **Moved to WO-15c** |
+| Advisory tally updates live as users dragged onto calendar | **Moved to WO-15c** |
+
+---
+
+## Part B · Mobile (Equipment tab only)
+
+### B-TL;DR for the implementing agent
+
+The mobile job-sites page (`apps/mobile/src/components/JobViews/SimplifiedJobTasks.tsx`) registers an **Equipment** tab using the `JobEquipment` component. You will register the same tab on the mobile WO detail page (`apps/mobile/src/components/WorkOrders/WODetail.tsx`).
+
+`JobEquipment` already accepts `jobId` as a prop and is otherwise self-contained — **no refactor needed**. This is a pure tab registration. **There is no Schedule tab on mobile** — the spec scopes Schedule to desktop only, which matches Kris's product-call confirmation.
+
+### B-Files you will edit
+
+Exactly one file:
+
+- `apps/mobile/src/components/WorkOrders/WODetail.tsx`
+
+References (read-only): `apps/mobile/src/components/JobViews/SimplifiedJobTasks.tsx:147-155` for the analog tab registration. `apps/mobile/src/components/JobViews/JobViewTabs/JobEquipment.tsx` is the donor component (takes `jobId: string` as a prop and queries `Equipment` rows where `assignedToJob = jobId`).
+
+### B-Step 1 · Add the import
+
+At the top of `WODetail.tsx`, add:
+
+```tsx
+import JobEquipment from "../JobViews/JobViewTabs/JobEquipment";
+```
+
+The Notes and Files imports already follow this same `../JobViews/JobViewTabs/...` pattern in this file.
+
+### B-Step 2 · Register the Equipment tab
+
+Insert into the `tabs` array. **Place it between "Notes" and "Files"** (or, if WO-13's Form Submission History tab has already landed, between "Form Submission History" and "Files"). Final preferred order: Overview → Notes → (Forms / Form History from WO-13) → Equipment → Files.
+
+```tsx
+{
+    id: "wo-equipment",
+    label: "Equipment",
+    headerClassName: (isActive: boolean) => {
+        return isActive && activeTabClass;
+    },
+    content: <JobEquipment jobId={woId} />,
+    permission: hasPermissions({ equipment: { view: true } }, permissions)
+},
+```
+
+`woId` is already declared in `WODetail.tsx` (`const woId = router.query.id as string;`). The `permission` predicate matches `SimplifiedJobTasks.tsx:154` exactly.
+
+### B-Step 3 · Verification (manual smoke test, mobile)
+
+1. On a mobile viewport, open an existing WO (`/admin/work-orders/<wo-id>`). A new **Equipment** tab appears between Notes and Files (or Form History and Files if WO-13 landed first).
+2. Click **Equipment**. The list of equipment with `assignedToJob = <wo-id>` renders, using `EquipmentCard` for each row (same UI as the job-sites Equipment tab).
+3. Tapping an equipment row navigates / opens the same flow it does on the job-sites page (no special wiring needed; `EquipmentCard` is parameterized by `sourceJobId`).
+4. With `equipment.view = false` permission, the Equipment tab is hidden silently.
+5. **Donor smoke test:** open the mobile job-sites view (`/job-sites/<job-id>`) and confirm the Equipment tab still works (no edits to `JobEquipment.tsx`, so this is a low-risk sanity check).
+
+### B-Out of scope — do NOT do these
+
+- **Do not register a Schedule tab on mobile.** Schedule is desktop-only in this spec — Kris confirmed during the product call that the mobile schedule view is not part of the WO surface.
+- Do not modify `JobEquipment.tsx` or any equipment query / mutation.
+- Do not register a separate "Equipment Rate Overrides" tab on mobile (that surface doesn't exist on the mobile job-sites page either).
+- Do not introduce the Planned Crew advisory on mobile — it's a desktop sidebar by definition, and ships with WO-15c on desktop only.
+
+### B-Acceptance criteria mapping
+
+| Spec AC | Where covered |
+|---|---|
+| Mobile WO shows Equipment tab matching job-sites mobile | B-Step 2 (registration) |
+| Equipment list scoped to this WO via `assignedToJob = woId` | `JobEquipment` `defaultWhere` keys off the prop |
+| Existing equipment permissions apply unchanged | `permission: hasPermissions({ equipment: { view: true } }, permissions)` |
+| No regressions on mobile job-sites Equipment tab | No edits to donor component |
+| No mobile Schedule surface introduced | Explicitly out of scope |
+
+---
+
+## Follow-up (handled by WO-15c, not this hand-off)
+
+The Planned Crew advisory sidebar — `WorkOrderPlannedCrewAdvisory.tsx`, the 2-column Schedule tab layout, and the live tally client-side composition — ships in **WO-15c** (apply UI) since the advisory is template-driven and naturally pairs with the apply flow. Nothing for the WO-16 implementer to do beyond registering the plain tabs.
+</script>
+
+<script src="plan-renderer.js"></script>
+<script>renderPlan();</script>
+</body>
+</html>

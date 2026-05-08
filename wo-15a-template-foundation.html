@@ -1,0 +1,782 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WO-15a: Work Order Templates · Schema & Load Engine</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+.in-iframe .top-nav { display: none !important; }
+.top-nav { position: sticky; top: 0; z-index: 100; background: #0f172a; border-bottom: 1px solid #1e293b; padding: 0 24px; display: flex; align-items: center; gap: 0; }
+.top-nav a { display: inline-flex; align-items: center; padding: 12px 18px; font-size: 13px; font-weight: 600; color: #94a3b8; text-decoration: none; border-bottom: 2px solid transparent; transition: all 0.15s; white-space: nowrap; }
+.top-nav a:hover { color: #f8fafc; background: #1e293b; }
+.top-nav .nav-logo { font-size: 11px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: #475569; padding-right: 18px; margin-right: 4px; border-right: 1px solid #1e293b; }
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Inter', -apple-system, sans-serif; background: #f1f5f9; color: #0f172a; }
+.uis-wrap { max-width: 960px; margin: 0 auto; padding: 40px 24px 80px; }
+.uis-hero { margin-bottom: 32px; }
+.uis-badges { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+.uis-badge { font-size: 11px; font-weight: 700; padding: 4px 12px; border-radius: 6px; display: inline-flex; align-items: center; gap: 5px; }
+.badge-q { background: #0f172a; color: #fff; }
+.badge-wo { background: #ec4899; color: #fff; }
+.badge-priority { background: #fef3c7; color: #92400e; }
+.badge-status { background: #fef3c7; color: #92400e; }
+.uis-h1 { font-size: 30px; font-weight: 800; color: #0f172a; margin: 0 0 8px; letter-spacing: -0.01em; }
+.uis-sub { font-size: 15px; color: #64748b; line-height: 1.5; margin: 0; }
+.uis-meta { display: flex; gap: 24px; flex-wrap: wrap; margin-top: 14px; font-size: 13px; color: #64748b; }
+.uis-meta strong { color: #0f172a; }
+.uis-toc { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px 28px; margin-bottom: 16px; }
+.uis-toc h3 { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; margin: 0 0 10px; }
+.uis-toc ol { margin: 0; padding-left: 20px; }
+.uis-toc li { font-size: 14px; color: #3b82f6; margin-bottom: 4px; }
+.uis-toc a { color: #3b82f6; text-decoration: none; }
+.uis-section { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px 28px; margin-bottom: 16px; }
+.uis-section h2 { font-size: 17px; font-weight: 700; margin: 0 0 14px; padding-bottom: 10px; border-bottom: 2px solid #e2e8f0; }
+.uis-section h3 { font-size: 15px; font-weight: 700; margin: 16px 0 8px; }
+.uis-section h4 { font-size: 14px; font-weight: 700; color: #334155; margin: 12px 0 6px; }
+.uis-section p, .uis-section li { font-size: 14px; color: #334155; line-height: 1.65; }
+.uis-section ul, .uis-section ol { padding-left: 20px; margin: 8px 0; }
+pre { background: #1e293b; color: #e2e8f0; border-radius: 8px; padding: 16px; overflow-x: auto; font-size: 13px; line-height: 1.5; font-family: 'SF Mono', monospace; margin: 12px 0; }
+code { font-family: 'SF Mono', monospace; background: #f1f5f9; padding: 1px 5px; border-radius: 3px; font-size: 12px; color: #7c3aed; }
+table.schema-table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 12px 0; }
+table.schema-table th { text-align: left; padding: 8px 12px; background: #f8fafc; border-bottom: 2px solid #e2e8f0; font-weight: 600; }
+table.schema-table td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
+.callout { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 14px 18px; margin: 14px 0; font-size: 13px; color: #1e40af; }
+.callout strong { color: #1e3a8a; }
+.decision { background: #fffbeb; border: 2px solid #f59e0b; border-radius: 10px; padding: 18px 22px; margin: 14px 0; }
+.decision h4 { color: #78350f; margin: 0 0 8px; font-size: 14px; }
+.decision p, .decision li { font-size: 13px; color: #78350f; }
+.action-new { background: #dcfce7; color: #166534; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 4px; }
+.action-mod { background: #fef3c7; color: #92400e; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 4px; }
+.ac-list { margin: 0; padding-left: 0; list-style: none; }
+.ac-list li { display: flex; gap: 10px; margin-bottom: 10px; font-size: 14px; color: #334155; line-height: 1.55; }
+.ac-list li::before { content: ''; flex-shrink: 0; width: 18px; height: 18px; border: 2px solid #e2e8f0; border-radius: 4px; margin-top: 2px; background: #fff; }
+.dep-tag { display: inline-block; font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 5px; margin-right: 6px; margin-bottom: 6px; }
+.dep-requires { background: #fee2e2; color: #dc2626; }
+.dep-enables { background: #dcfce7; color: #166534; }
+.scope-tag { display: inline-block; font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 5px; margin: 2px 4px 2px 0; }
+.scope-in { background: #dcfce7; color: #166534; }
+.scope-out { background: #fee2e2; color: #dc2626; }
+.scope-future { background: #eff6ff; color: #3b82f6; }
+.scope-done { background: #dbeafe; color: #1d4ed8; }
+.no-changes { background: #f0fdf4; border: 1px solid #86efac; border-radius: 8px; padding: 14px 18px; margin: 14px 0; font-size: 13px; color: #166534; }
+.no-changes strong { color: #14532d; }
+.tier-table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 12px 0; }
+.tier-table th { text-align: left; padding: 8px 10px; background: #f1f5f9; border-bottom: 2px solid #e2e8f0; font-weight: 600; font-size: 12px; }
+.tier-table td { padding: 8px 10px; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
+.tier-table .label { font-weight: 700; color: #475569; white-space: nowrap; }
+.model-list { display: grid; gap: 8px; margin: 12px 0; }
+.model-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 14px; font-size: 13px; }
+.model-card strong { color: #0f172a; font-family: 'SF Mono', monospace; font-size: 12px; }
+    </style>
+</head>
+<body>
+<script>if(self!==top)document.documentElement.classList.add("in-iframe")</script>
+<nav class="top-nav">
+    <span class="nav-logo">Appello SDLC</span>
+    <a href="index.html">Roadmap</a>
+    <a href="release-1.33-timeline.html">Release 1.33</a>
+    <a href="release-1.34-timeline.html">Release 1.34</a>
+    <a href="master-spec-reconciliation.html">Spec Reconciliation</a>
+    <a href="ui-interface-library.html">UI Library</a>
+</nav>
+<div class="uis-wrap">
+
+    <div class="uis-hero">
+        <div class="uis-badges">
+            <span class="uis-badge badge-q">WO-15a</span>
+            <span class="uis-badge badge-wo">Work Orders</span>
+            <span class="uis-badge badge-priority">P1 - 1.33</span>
+            <span class="uis-badge badge-status">Draft</span>
+        </div>
+        <h1 class="uis-h1">Work Order Templates · Schema &amp; Load Engine</h1>
+        <p class="uis-sub">Foundation spec for the Work Order Templates feature. Defines the seven new Prisma models that capture template content (name, fields, forms, checklist, materials, labor plans, equipment plans), the audit FK on Job, and the <code>previewWorkOrderTemplate</code> resolver that returns a snapshot package consumed by the create flow. No UI in this spec — settings UI lives in WO-15b, apply UI lives in WO-15c.</p>
+        <div class="uis-meta">
+            <span><strong>Estimate:</strong> 5-6 days</span>
+            <span><strong>Sequence:</strong> 1.33, before WO-15b / WO-15c</span>
+            <span><strong>Requires:</strong> WO-1, WO-13, WO-14</span>
+            <span><strong>Enables:</strong> WO-15b, WO-15c, WO-16</span>
+        </div>
+    </div>
+
+    <div style="background:#fef2f2;border:3px solid #dc2626;border-radius:12px;padding:18px 24px;margin:0 0 18px;">
+        <div style="font-size:12px;font-weight:800;letter-spacing:2px;color:#991b1b;text-transform:uppercase;margin-bottom:6px;">⚠ Review by Chris Required — DB Changes</div>
+        <p style="font-size:14px;color:#7f1d1d;line-height:1.55;margin:0;font-weight:500;">This spec includes <strong>database changes</strong> (new tables, columns, indexes, FKs, or seed data). Chris must sign off on the data model before implementation begins.</p>
+    </div>
+
+    <div class="uis-toc">
+        <h3>Contents</h3>
+        <ol>
+            <li><a href="#business-case">Business Case</a></li>
+            <li><a href="#scope">Scope</a></li>
+            <li><a href="#ui-concepts">UI Concepts</a></li>
+            <li><a href="#data-model">Data Model</a></li>
+            <li><a href="#api-surface">API Surface</a></li>
+            <li><a href="#change-surface">Change Surface</a></li>
+            <li><a href="#acceptance-criteria">Acceptance Criteria</a></li>
+            <li><a href="#dependencies">Dependencies</a></li>
+        </ol>
+    </div>
+
+    <!-- 1. Business Case -->
+    <div class="uis-section" id="business-case">
+        <h2>1. Business Case</h2>
+
+        <p>Service contractors run the same kinds of work orders week after week — annual inspection, generator service, boiler PM, leak diagnosis, refrigerant recharge. Today every WO is built from scratch: the dispatcher types the description, attaches the right forms, builds the checklist, lists the expected materials, and notes the trade levels and equipment categories needed. That work is repetitive, error-prone (a missed form is a compliance gap), and consumes the office staff's morning.</p>
+
+        <p>Work Order Templates capture this institutional knowledge once. An admin defines "HVAC Annual Inspection" once — the standard 12-step checklist, the inspection form, the consumables, the planned trade levels and equipment categories — and from then on, dispatchers create that WO with one click that snapshots the template's content into the new WO. The dispatcher edits anything that's job-specific (customer, address, notes) and saves. Field workflow follows.</p>
+
+        <p>This spec is the <strong>data foundation</strong> only — the seven new Prisma models, the load preview resolver, the audit FK on Job, and the snapshot semantics. The Settings UI for editing templates is <strong>WO-15b</strong>; the apply UI on the WO create form is <strong>WO-15c</strong>. The reverse "save WO as template" flow is post-1.33 (matches Corey's WOX-21).</p>
+    </div>
+
+    <!-- 2. Scope -->
+    <div class="uis-section" id="scope">
+        <h2>2. Scope</h2>
+
+        <div class="callout">
+            <strong>Maps WOX-05 (Placeholder Labor Lines):</strong> Corey's <a href="uis-WOX-05-generic-time-entry.html">WOX-05</a> proposed a "pre-fill labor on a WO before assigning users" pattern (e.g., "2 × Journeyman × 4hrs") that resolves to actual labor on schedule/check-in. <code>WorkOrderTemplateLaborPlan</code> in this spec is exactly that mechanism, scoped to template-driven pre-fill: structured plans (with <code>tradeLevelId</code>) display as advisory; actual labor records are still created via the normal scheduling flow once dated. WOX-05 is satisfied by this spec — no separate Path B build needed.
+        </div>
+
+        <h3>Already Built</h3>
+        <ul>
+            <li><span class="scope-tag scope-done">DONE</span> WO-as-Job classification routing (WO-1) — templates target a <code>jobTypeId</code> with <code>jobClassification = WorkOrder</code></li>
+            <li><span class="scope-tag scope-done">DONE</span> <code>DocumentAttributeAssignment</code> default/override pattern (<code>schema.prisma:3556</code>) — templates introduce a third tier between assignment-default and instance-value at form-render time</li>
+            <li><span class="scope-tag scope-done">DONE</span> <code>FormWrapper</code> + <code>JobSafetyFormWrapper</code> assignment plumbing (WO-13)</li>
+            <li><span class="scope-tag scope-done">DONE</span> <code>WorkOrderChecklistItem</code> + sanitized rich descriptions (WO-14) — templates store mirror items that copy on apply</li>
+            <li><span class="scope-tag scope-done">DONE</span> <code>WorkOrderMaterialItem</code> structured material lookup (<code>schema.prisma:5859</code>)</li>
+            <li><span class="scope-tag scope-done">DONE</span> <code>TradeLevel</code> (<code>schema.prisma:249</code>) — referenced by labor plans</li>
+            <li><span class="scope-tag scope-done">DONE</span> <code>EquipmentCategory</code> — referenced by equipment plans</li>
+            <li><span class="scope-tag scope-done">DONE</span> Existing TipTap editor + sanitization config (reused for rich field defaults)</li>
+            <li><span class="scope-tag scope-done">DONE</span> <code>InstanceSetting___edit</code> permission — gates template CRUD; no new permissions</li>
+        </ul>
+
+        <h3>In Scope (WO-15a)</h3>
+        <ul>
+            <li><span class="scope-tag scope-in">IN</span> Seven new Prisma models (full list below in Data Model §4.1)</li>
+            <li><span class="scope-tag scope-in">IN</span> Inverse relations on <code>Job</code>, <code>FormWrapper</code>, <code>Material</code>, <code>TradeLevel</code>, <code>EquipmentCategory</code>, <code>DocumentAttributeAssignment</code></li>
+            <li><span class="scope-tag scope-in">IN</span> <code>Job.appliedWorkOrderTemplateId</code> — optional audit FK set at WO creation when a template was applied; never changes after creation</li>
+            <li><span class="scope-tag scope-in">IN</span> CRUD GraphQL mutations for templates and their child collections (used by WO-15b)</li>
+            <li><span class="scope-tag scope-in">IN</span> <code>previewWorkOrderTemplate(templateId)</code> query that returns the full template snapshot package (used by WO-15c at apply time)</li>
+            <li><span class="scope-tag scope-in">IN</span> Extension of <code>createJob</code> input to accept a <code>workOrderTemplateApplication</code> payload that creates child records (forms, checklist, materials) atomically with the new Job</li>
+            <li><span class="scope-tag scope-in">IN</span> Atomic side-effect: when <code>createJob</code> applies a template, also bumps <code>WorkOrderTemplate.lastUsedAt</code> in the same transaction</li>
+            <li><span class="scope-tag scope-in">IN</span> Server-side sanitization of rich field default values (reuse WO-14 sanitization config)</li>
+            <li><span class="scope-tag scope-in">IN</span> Permission gate: template CRUD checks <code>InstanceSetting___edit</code>; previewing/applying checks <code>workOrder.create</code> (or equivalent on Job)</li>
+        </ul>
+
+        <h3>Out of Scope</h3>
+        <ul>
+            <li><span class="scope-tag scope-out">OUT</span> Settings UI for editing templates — <strong>WO-15b</strong></li>
+            <li><span class="scope-tag scope-out">OUT</span> Apply UI on the WO create form — <strong>WO-15c</strong></li>
+            <li><span class="scope-tag scope-out">OUT</span> Schedule tab + Equipment Assignment surface on WO detail page — <strong>WO-16</strong> (sibling, parallel to WO-13's forms surface — covers both the post-save scheduling UI and the EquipmentAssignment management surface in one spec)</li>
+            <li><span class="scope-tag scope-out">OUT</span> "Save this WO as a template" reverse flow — post-1.33 (matches WOX-21)</li>
+            <li><span class="scope-tag scope-out">OUT</span> Per-customer default template — dropped (workflow is "open form → load template", customer is selected later)</li>
+            <li><span class="scope-tag scope-out">OUT</span> Apply on edit (only on create); applying twice on the same WO; live-link semantics — snapshot only, one apply per WO</li>
+            <li><span class="scope-tag scope-out">OUT</span> Pre-creation of <code>TimeSheetRecord</code> / <code>EquipmentTimeEntry</code> rows from labor / equipment plans — date-tied, never templated</li>
+            <li><span class="scope-tag scope-out">OUT</span> Pre-creation of <code>EquipmentAssignment</code> rows — the equipment plan is category-level advisory; specific equipment selection happens during apply (WO-15c) and creates EquipmentAssignment rows on save, not at template-load</li>
+            <li><span class="scope-tag scope-out">OUT</span> Template versioning / change history — snapshot semantics make this unnecessary for V1</li>
+            <li><span class="scope-tag scope-future">FUTURE</span> AI / MCP-driven template generation (matches WOX-22)</li>
+        </ul>
+
+        <h3>Pending Business Decisions</h3>
+        <div class="decision">
+            <h4>1. What happens to applied WOs when a template is archived?</h4>
+            <p>Lean: <code>Job.appliedWorkOrderTemplateId</code> uses <code>SetNull</code> on archive, so historical WOs lose the audit pointer but keep all their snapshotted content (the WO is intact). Alternative: keep the FK but archive cascades nothing on the Job. Confirm.</p>
+        </div>
+        <div class="decision">
+            <h4>2. What happens when a template references a Material / TradeLevel / EquipmentCategory that's later archived?</h4>
+            <p>Lean: <code>SetNull</code> on the template's child row's FK to the upstream model. Apply UI surfaces the broken row with an inline warning ("Material no longer available — pick a replacement or remove this row"). Alternative: <code>Restrict</code> upstream archive when in use. Confirm.</p>
+        </div>
+        <div class="decision">
+            <h4>3. Default value resolution at form-render time</h4>
+            <p>Lean (per prior conversation): instance value > template value (if template applied) > DAA <code>defaultValue</code>. Confirmed — this spec implements the "template tier" that supersedes DAA defaults at <em>form-render time</em>, not as a stored hierarchy.</p>
+        </div>
+    </div>
+
+    <!-- 3. UI Concepts -->
+    <div class="uis-section" id="ui-concepts">
+        <h2>3. UI Concepts</h2>
+
+        <div class="no-changes">
+            <strong>No UI in this spec.</strong> WO-15a is pure backend foundation — schema, mutations, the load preview resolver. Settings UI for editing templates is <strong>WO-15b</strong>; the apply UI on the WO create form (template picker, "select specific equipment for each plan", overridable field defaults) is <strong>WO-15c</strong>.
+        </div>
+    </div>
+
+    <!-- 4. Data Model -->
+    <div class="uis-section" id="data-model">
+        <h2>4. Data Model</h2>
+
+        <h3>4.1 New models — overview</h3>
+        <div class="model-list">
+            <div class="model-card"><strong>WorkOrderTemplate</strong> — top-level: name, description, <code>estimatedDuration</code>, <code>isActive</code>, <code>lastUsedAt</code>. Untyped — any template can be applied to any WO regardless of <code>jobType</code>.</div>
+            <div class="model-card"><strong>WorkOrderTemplateChecklistItem</strong> — mirror of <code>WorkOrderChecklistItem</code>: label, sanitized HTML description, orderNo, photoRequired</div>
+            <div class="model-card"><strong>WorkOrderTemplateMaterialItem</strong> — mirror of <code>WorkOrderMaterialItem</code>: <code>materialId</code> (generic Material — variant + price selected at runtime), quantity, description, orderNo. Description-only rows are permitted (no FK).</div>
+            <div class="model-card"><strong>WorkOrderTemplateLaborPlan</strong> — <code>tradeLevelId</code> (nullable), qtyOfWorkers, plannedSeconds, description (optional), orderNo. With FK = advisory display; without FK + with description = creates a free-form <code>WorkOrderLaborItem</code> on apply. <em>Never creates <code>TimeSheetRecord</code> rows.</em></div>
+            <div class="model-card"><strong>WorkOrderTemplateEquipmentPlan</strong> — <code>equipmentCategoryId</code> (nullable), quantity, plannedSeconds, description (optional), orderNo. With FK = advisory + drives apply UI's specific-equipment prompt; without FK + with description = creates a free-form <code>WorkOrderEquipmentItem</code> on apply.</div>
+            <div class="model-card"><strong>WorkOrderTemplateFormWrapper</strong> — join: <code>formWrapperId</code>, orderNo. Copied to <code>JobSafetyFormWrapper</code> on apply.</div>
+            <div class="model-card"><strong>WorkOrderTemplateFieldDefault</strong> — default value for a field via <code>documentAttributeAssignmentId</code> + value. Renders as form default when this template is applied; supersedes DAA <code>defaultValue</code>.</div>
+        </div>
+
+        <h3>4.2 Default value resolution — runtime tiers</h3>
+
+        <table class="tier-table">
+            <thead><tr><th>Tier</th><th>Source</th><th>When</th></tr></thead>
+            <tbody>
+                <tr>
+                    <td class="label">3. Instance value</td>
+                    <td><code>DocumentAttributeValue.value</code> on the WO</td>
+                    <td>Always wins once the WO has been saved at least once with a value</td>
+                </tr>
+                <tr>
+                    <td class="label">2. Template value</td>
+                    <td><code>WorkOrderTemplateFieldDefault.value</code></td>
+                    <td>Form-render time, if a template was applied to this WO and this field has a template default</td>
+                </tr>
+                <tr>
+                    <td class="label">1. DAA default</td>
+                    <td><code>DocumentAttributeAssignment.defaultValue</code> / <code>overrideDefaultValue</code></td>
+                    <td>Form-render time, if no template was applied or the template has no value for this field</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <p>This is a <strong>render-time</strong> resolution. Once the user types a value and saves, the value lives in <code>DocumentAttributeValue</code> as the WO's instance value — no further resolution is needed. The template tier is only consulted when the form first renders (or when a field is reset).</p>
+
+        <h3>4.3 Prisma — WorkOrderTemplate</h3>
+<pre>
+model WorkOrderTemplate {
+  id          String   @id @db.VarChar(21)
+  isDeleted   Boolean  @default(false)
+  isArchived  Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @default(now()) @updatedAt
+
+  name        String   @db.VarChar(200)
+  description String?  @db.Text
+
+  // Admin-set basic estimate. Optional. Detailed breakdown comes from
+  // WorkOrderTemplateLaborPlan rows; not derived here.
+  estimatedDuration Int?
+
+  isActive    Boolean  @default(true)
+  lastUsedAt  DateTime?
+
+  // Children
+  ChecklistItems  WorkOrderTemplateChecklistItem[]
+  MaterialItems   WorkOrderTemplateMaterialItem[]
+  LaborPlans      WorkOrderTemplateLaborPlan[]
+  EquipmentPlans  WorkOrderTemplateEquipmentPlan[]
+  FormWrappers    WorkOrderTemplateFormWrapper[]
+  FieldDefaults   WorkOrderTemplateFieldDefault[]
+
+  // Reverse: which jobs were created from this template (audit only).
+  AppliedToJobs   Job[]    @relation("JobAppliedTemplate")
+
+  @@index([isDeleted, isArchived, isActive], map: "WOTemplate_active_idx")
+  @@index([lastUsedAt], map: "WOTemplate_lastUsed_idx")
+}
+</pre>
+
+        <h3>4.4 Prisma — child collections</h3>
+<pre>
+model WorkOrderTemplateChecklistItem {
+  id          String   @id @db.VarChar(21)
+  isDeleted   Boolean  @default(false)
+  isArchived  Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @default(now()) @updatedAt
+
+  workOrderTemplateId String            @db.VarChar(21)
+  WorkOrderTemplate   WorkOrderTemplate @relation(
+    fields: [workOrderTemplateId], references: [id], onDelete: Cascade)
+
+  label         String   @db.VarChar(500)
+  description   String?  @db.Text                    // sanitized HTML, like WO-14
+  orderNo       Int      @default(0)
+  // Carries through to WorkOrderChecklistItem.photoRequired on apply.
+  // When true, the runtime checklist item requires a photo at tick time.
+  photoRequired Boolean  @default(false)
+
+  @@index([workOrderTemplateId, isDeleted, orderNo],
+          map: "WOTplChk_template_order_idx")
+}
+
+model WorkOrderTemplateMaterialItem {
+  id          String   @id @db.VarChar(21)
+  isDeleted   Boolean  @default(false)
+  isArchived  Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @default(now()) @updatedAt
+
+  workOrderTemplateId String            @db.VarChar(21)
+  WorkOrderTemplate   WorkOrderTemplate @relation(
+    fields: [workOrderTemplateId], references: [id], onDelete: Cascade)
+
+  // Templates point at the generic Material, not a specific priced
+  // variant. The variant (and therefore unit price) is selected at
+  // runtime once the actual size / SKU is known — e.g. an insulation
+  // fitting template specifies the fitting type; the tech picks 1" or
+  // 2" depending on the pipe encountered. Null is permitted for
+  // description-only rows ("custom-cut gasket per spec").
+  materialId  String?    @db.VarChar(21)
+  Material    Material?  @relation(fields: [materialId], references: [id],
+                                    onDelete: SetNull)
+
+  description String?  @db.VarChar(500)
+  quantity    Decimal? @db.Decimal(10, 2)
+  orderNo     Int      @default(0)
+
+  @@index([workOrderTemplateId, isDeleted, orderNo],
+          map: "WOTplMat_template_order_idx")
+  @@index([materialId], map: "WOTplMat_material_idx")
+}
+
+model WorkOrderTemplateLaborPlan {
+  id          String   @id @db.VarChar(21)
+  isDeleted   Boolean  @default(false)
+  isArchived  Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @default(now()) @updatedAt
+
+  workOrderTemplateId String            @db.VarChar(21)
+  WorkOrderTemplate   WorkOrderTemplate @relation(
+    fields: [workOrderTemplateId], references: [id], onDelete: Cascade)
+
+  // Two modes:
+  //   A) Structured advisory — tradeLevelId is set. The plan describes
+  //      planned crew composition; description (if any) is an annotation.
+  //      On apply: NO runtime record is created (TimeSheetRecord rows are
+  //      created later via the normal scheduling flow once dated).
+  //   B) Unstructured pre-fill — tradeLevelId is null and description is
+  //      set. The plan represents an expected free-form labor line.
+  //      On apply: a WorkOrderLaborItem row is created on the new Job
+  //      with qtyOfWorkers, submittedDuration (= plannedSeconds), and
+  //      description copied across; rate is left NULL for the user to
+  //      fill at runtime.
+  // Resolvers reject create/edit when both tradeLevelId and description
+  // are null (a plan with neither is meaningless).
+  tradeLevelId String?     @db.VarChar(21)
+  TradeLevel   TradeLevel? @relation(fields: [tradeLevelId], references: [id],
+                                      onDelete: SetNull)
+
+  qtyOfWorkers   Int      @default(1)
+  plannedSeconds Int      @default(0)
+  description    String?  @db.VarChar(500)
+  orderNo        Int      @default(0)
+
+  @@index([workOrderTemplateId, isDeleted, orderNo],
+          map: "WOTplLab_template_order_idx")
+  @@index([tradeLevelId], map: "WOTplLab_tradeLevel_idx")
+}
+
+model WorkOrderTemplateEquipmentPlan {
+  id          String   @id @db.VarChar(21)
+  isDeleted   Boolean  @default(false)
+  isArchived  Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @default(now()) @updatedAt
+
+  workOrderTemplateId String            @db.VarChar(21)
+  WorkOrderTemplate   WorkOrderTemplate @relation(
+    fields: [workOrderTemplateId], references: [id], onDelete: Cascade)
+
+  // Two modes (mirrors WorkOrderTemplateLaborPlan):
+  //   A) Structured — equipmentCategoryId is set. Drives the apply UI's
+  //      "select specific equipment" prompts; user selections become
+  //      EquipmentAssignment rows on the new Job. No runtime line item.
+  //   B) Unstructured pre-fill — equipmentCategoryId is null and
+  //      description is set. On apply: a WorkOrderEquipmentItem row is
+  //      created on the new Job with quantity and description copied
+  //      across; unitRate is left NULL for the user to fill at runtime.
+  //      plannedSeconds is not copied (WorkOrderEquipmentItem has no
+  //      time field separate from quantity); admins should reflect time
+  //      in the description if needed.
+  // Resolvers reject create/edit when both equipmentCategoryId and
+  // description are null.
+  equipmentCategoryId String?            @db.VarChar(21)
+  EquipmentCategory   EquipmentCategory? @relation(
+    fields: [equipmentCategoryId], references: [id], onDelete: SetNull)
+
+  quantity       Int      @default(1)
+  plannedSeconds Int      @default(0)
+  description    String?  @db.VarChar(500)
+  orderNo        Int      @default(0)
+
+  @@index([workOrderTemplateId, isDeleted, orderNo],
+          map: "WOTplEq_template_order_idx")
+  @@index([equipmentCategoryId], map: "WOTplEq_category_idx")
+}
+
+model WorkOrderTemplateFormWrapper {
+  id          String   @id @db.VarChar(21)
+  isDeleted   Boolean  @default(false)
+  isArchived  Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @default(now()) @updatedAt
+
+  workOrderTemplateId String            @db.VarChar(21)
+  WorkOrderTemplate   WorkOrderTemplate @relation(
+    fields: [workOrderTemplateId], references: [id], onDelete: Cascade)
+
+  formWrapperId String       @db.VarChar(21)
+  FormWrapper   FormWrapper  @relation(fields: [formWrapperId], references: [id],
+                                        onDelete: Cascade)
+
+  orderNo Int @default(0)
+
+  @@unique([workOrderTemplateId, formWrapperId, isDeleted],
+           map: "WOTplForm_template_form_uq")
+  @@index([workOrderTemplateId, isDeleted, orderNo],
+          map: "WOTplForm_template_order_idx")
+  @@index([formWrapperId], map: "WOTplForm_form_idx")
+}
+
+model WorkOrderTemplateFieldDefault {
+  id          String   @id @db.VarChar(21)
+  isDeleted   Boolean  @default(false)
+  isArchived  Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @default(now()) @updatedAt
+
+  workOrderTemplateId String            @db.VarChar(21)
+  WorkOrderTemplate   WorkOrderTemplate @relation(
+    fields: [workOrderTemplateId], references: [id], onDelete: Cascade)
+
+  // Templates point at the DAA the same way DAA points at field config.
+  // Native fields get DAA rows too (per Emma), so a single FK covers
+  // both custom and native field defaults.
+  documentAttributeAssignmentId String                       @db.VarChar(21)
+  DocumentAttributeAssignment   DocumentAttributeAssignment  @relation(
+    fields: [documentAttributeAssignmentId], references: [id],
+    onDelete: Cascade)
+
+  // String per the DAA convention. Sanitized server-side for rich-text
+  // attribute types using the same allowlist as WO-14 descriptions.
+  value String? @db.Text
+
+  @@unique([workOrderTemplateId, documentAttributeAssignmentId, isDeleted],
+           map: "WOTplFD_template_daa_uq")
+  @@index([workOrderTemplateId, isDeleted],
+          map: "WOTplFD_template_idx")
+  @@index([documentAttributeAssignmentId],
+          map: "WOTplFD_daa_idx")
+}
+</pre>
+
+        <h3>4.5 Modifications to existing models</h3>
+<pre>
+// Job — audit FK to the template applied at creation. Set once on
+// createJob, never changed; SetNull when the template is archived.
+model Job {
+  // ...existing fields
+  appliedWorkOrderTemplateId String?            @db.VarChar(21)
+  AppliedWorkOrderTemplate   WorkOrderTemplate? @relation("JobAppliedTemplate",
+    fields: [appliedWorkOrderTemplateId], references: [id], onDelete: SetNull)
+
+  @@index([appliedWorkOrderTemplateId], map: "Job_appliedWOTemplate_idx")
+}
+</pre>
+
+        <p>Inverse relations on <code>FormWrapper</code>, <code>Material</code>, <code>TradeLevel</code>, <code>EquipmentCategory</code>, and <code>DocumentAttributeAssignment</code> are added to support the FKs above. Each is a one-line array relation following the convention.</p>
+
+        <h3>4.6 Migration</h3>
+<pre>
+-- All seven tables follow the same shape — id VARCHAR(21), soft-delete
+-- flags, timestamps, FK to WorkOrderTemplate with ON DELETE CASCADE,
+-- and content-specific columns. SQL omitted for brevity; standard
+-- conventions apply.
+
+-- Job audit FK
+ALTER TABLE `Job`
+    ADD COLUMN `appliedWorkOrderTemplateId` VARCHAR(21) NULL,
+    ADD INDEX `Job_appliedWOTemplate_idx` (`appliedWorkOrderTemplateId`),
+    ADD CONSTRAINT `Job_appliedWOTemplate_fkey`
+        FOREIGN KEY (`appliedWorkOrderTemplateId`) REFERENCES `WorkOrderTemplate`(`id`)
+        ON DELETE SET NULL ON UPDATE CASCADE;
+</pre>
+
+        <h3>4.7 Sanitization</h3>
+        <p>Two fields carry HTML: <code>WorkOrderTemplateChecklistItem.description</code> and <code>WorkOrderTemplateFieldDefault.value</code> (only when the target DAA's attribute type is rich-text). Both run through the existing TipTap-aligned sanitization in the model's <code>beforeCreate</code> / <code>beforeEdit</code> hooks — same allowlist as WO-14 (links, basic formatting; scripts and embedded media stripped).</p>
+    </div>
+
+    <!-- 5. API Surface -->
+    <div class="uis-section" id="api-surface">
+        <h2>5. API Surface</h2>
+
+        <p>Apollo GraphQL: resolvers and types in <code>apps/api/src/graphql/models/</code>; business logic in <code>apps/api/src/models/</code> extending <code>BaseModel</code>.</p>
+
+        <h3>5.1 Types (highlights)</h3>
+<pre>
+type WorkOrderTemplate {
+  id: String!
+  name: String!
+  description: String
+  estimatedDuration: Int
+  isActive: Boolean!
+  lastUsedAt: Date
+  isArchived: Boolean!
+  createdAt: Date!
+  updatedAt: Date!
+
+  checklistItems(includeArchived: Boolean = false): [WorkOrderTemplateChecklistItem!]!
+  materialItems(includeArchived: Boolean = false): [WorkOrderTemplateMaterialItem!]!
+  laborPlans(includeArchived: Boolean = false): [WorkOrderTemplateLaborPlan!]!
+  equipmentPlans(includeArchived: Boolean = false): [WorkOrderTemplateEquipmentPlan!]!
+  formWrappers: [WorkOrderTemplateFormWrapper!]!
+  fieldDefaults: [WorkOrderTemplateFieldDefault!]!
+}
+
+# Snapshot package returned by previewWorkOrderTemplate. Same shape as
+# the WorkOrderTemplate type but as a snapshot data structure consumed
+# by WO-15c without committing anything.
+type WorkOrderTemplateSnapshot {
+  templateId: String!
+  templateName: String!
+  estimatedDuration: Int
+  fieldDefaults: [WorkOrderTemplateFieldDefaultSnapshot!]!
+  formWrapperIds: [String!]!
+  checklistItems: [WorkOrderTemplateChecklistItemSnapshot!]!
+  materialItems: [WorkOrderTemplateMaterialItemSnapshot!]!
+  laborPlans: [WorkOrderTemplateLaborPlanSnapshot!]!
+  equipmentPlans: [WorkOrderTemplateEquipmentPlanSnapshot!]!
+}
+
+extend type Job {
+  appliedWorkOrderTemplateId: String
+  appliedWorkOrderTemplate: WorkOrderTemplate
+}
+</pre>
+
+        <h3>5.2 Queries</h3>
+<pre>
+# Templates list with pagination + filters (used by WO-15b settings list)
+workOrderTemplates(
+  isActive: Boolean,
+  searchTerm: String,
+  take: Int,
+  skip: Int
+): [WorkOrderTemplate!]!
+
+workOrderTemplate(id: String!): WorkOrderTemplate
+
+# Snapshot package — read-only, no side effects. Used by WO-15c to
+# populate the form draft. The snapshot reflects the template at the
+# moment of this call; subsequent changes to the template do NOT
+# propagate to a WO that has already been created.
+previewWorkOrderTemplate(templateId: String!): WorkOrderTemplateSnapshot!
+</pre>
+
+        <h3>5.3 Mutations — template CRUD</h3>
+<pre>
+# All template CRUD checks InstanceSetting___edit permission.
+createWorkOrderTemplate(
+  name: String!,
+  description: String,
+  estimatedDuration: Int,
+  isActive: Boolean
+): WorkOrderTemplate!
+
+editWorkOrderTemplate(
+  id: String!,
+  name: String,
+  description: String,
+  estimatedDuration: Int,
+  isActive: Boolean
+): WorkOrderTemplate!
+
+archiveWorkOrderTemplate(id: String!): WorkOrderTemplate!
+restoreWorkOrderTemplate(id: String!): WorkOrderTemplate!
+
+# Child collections — full set of CRUD per child model. Pattern is
+# uniform: createX, editX, archiveX, reorderX. Listed for one collection
+# only; the others mirror exactly.
+
+createWorkOrderTemplateChecklistItem(
+  workOrderTemplateId: String!,
+  label: String!,
+  description: String,
+  orderNo: Int,
+  photoRequired: Boolean
+): WorkOrderTemplateChecklistItem!
+
+editWorkOrderTemplateChecklistItem(
+  id: String!,
+  label: String,
+  description: String,
+  orderNo: Int,
+  photoRequired: Boolean
+): WorkOrderTemplateChecklistItem!
+
+archiveWorkOrderTemplateChecklistItem(id: String!): WorkOrderTemplateChecklistItem!
+
+reorderWorkOrderTemplateChecklistItems(
+  workOrderTemplateId: String!,
+  orderedIds: [String!]!
+): [WorkOrderTemplateChecklistItem!]!
+
+# ...same shape for MaterialItem, LaborPlan, EquipmentPlan, FormWrapper,
+# FieldDefault.
+</pre>
+
+        <h3>5.4 Mutations — apply at WO creation</h3>
+<pre>
+# createJob is extended to accept an optional template application
+# payload. When present, the resolver:
+#   1. Validates the template is not archived (templates are untyped —
+#      no jobType compatibility check).
+#   2. Creates the Job with appliedWorkOrderTemplateId set.
+#   3. Atomically creates child rows from the application payload:
+#        - WorkOrderChecklistItem rows (from template + any user edits
+#          made in the apply UI before submit). photoRequired carries
+#          through from the template item to the runtime item; no
+#          AssetReference rows are created at apply time — the runtime
+#          item is unticked until the user actually ticks it with
+#          captured photos (per WO-14).
+#        - WorkOrderMaterialItem rows — structured rows carry materialId
+#          (MAP picked at runtime); free-form rows (no materialId, just
+#          description) carry description only. unitPrice NULL in both
+#          cases.
+#        - JobSafetyFormWrapper rows (one per formWrapperId)
+#        - EquipmentAssignment rows (from user-selected specific equipment
+#          per structured equipment plan)
+#        - WorkOrderLaborItem rows (only for unstructured labor plans:
+#          tradeLevelId null, description set)
+#        - WorkOrderEquipmentItem rows (only for unstructured equipment
+#          plans: equipmentCategoryId null, description set)
+#        - DocumentAttributeValue rows for any field defaults the user
+#          accepted without editing
+#   4. Bumps WorkOrderTemplate.lastUsedAt to now().
+#
+# Structured labor plans (with tradeLevelId) and structured equipment
+# plans (with equipmentCategoryId) are NEVER materialized into TimeSheetRecord,
+# EquipmentTimeEntry, WorkOrderLaborItem, or WorkOrderEquipmentItem rows —
+# they remain advisory metadata on the template, surfaced in the apply UI
+# as planning guidance and (for equipment) as the "select specific
+# equipment" prompts that drive EquipmentAssignment creation.
+
+input WorkOrderTemplateApplicationInput {
+  templateId: String!
+  # Snapshot diff — what the user kept / edited in the apply UI before
+  # submitting. Mirrors the snapshot package from previewWorkOrderTemplate
+  # with the user's adjustments applied.
+  checklistItems:  [WorkOrderTemplateChecklistDraftInput!]
+  materialItems:   [WorkOrderTemplateMaterialDraftInput!]
+  formWrapperIds:  [String!]
+  equipmentSelections: [WorkOrderTemplateEquipmentSelectionInput!]
+  fieldDefaults:   [WorkOrderTemplateFieldDefaultDraftInput!]
+}
+
+# Selection per equipment plan: user picks specific equipment (or skips,
+# leaving the plan as advisory text on the WO).
+input WorkOrderTemplateEquipmentSelectionInput {
+  equipmentPlanId: String!         # id of the plan being fulfilled
+  equipmentIds:    [String!]!      # specific Equipment instances chosen
+}
+
+extend input CreateJobInput {
+  workOrderTemplateApplication: WorkOrderTemplateApplicationInput
+}
+</pre>
+
+        <div class="callout">
+            <strong>Why apply lives on <code>createJob</code>, not a separate <code>applyWorkOrderTemplate</code> mutation:</strong> a separate apply mutation would create the Job in one transaction and the template-derived rows in another, opening a window where a half-applied WO exists. Embedding the application into <code>createJob</code> keeps everything atomic — either the WO and all its template-derived content land together or nothing does.
+        </div>
+
+        <h3>5.5 Permissions</h3>
+
+        <table class="schema-table">
+            <thead><tr><th>Operation</th><th>Permission</th></tr></thead>
+            <tbody>
+                <tr><td>Create / edit / archive / restore template</td><td><code>InstanceSetting___edit</code></td></tr>
+                <tr><td>CRUD on template children (checklist, materials, plans, forms, field defaults)</td><td><code>InstanceSetting___edit</code></td></tr>
+                <tr><td>Query <code>workOrderTemplates</code> / <code>workOrderTemplate</code></td><td><code>InstanceSetting___edit</code> (for management) or any user with <code>workOrder.create</code> (for apply)</td></tr>
+                <tr><td><code>previewWorkOrderTemplate</code></td><td>Any user with <code>workOrder.create</code></td></tr>
+                <tr><td>Apply via <code>createJob</code> with <code>workOrderTemplateApplication</code></td><td>The standard <code>workOrder.create</code> check; the template payload doesn't add a permission step</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- 6. Change Surface -->
+    <div class="uis-section" id="change-surface">
+        <h2>6. Change Surface</h2>
+
+        <table class="schema-table">
+            <thead><tr><th>Action</th><th>Path</th><th>Change</th></tr></thead>
+            <tbody>
+                <tr><td><span class="action-mod">MODIFY</span></td><td><code>apps/api/prisma/schema.prisma</code></td><td>Seven new models; inverse relations on Job, FormWrapper, Material, TradeLevel, EquipmentCategory, DocumentAttributeAssignment; <code>appliedWorkOrderTemplateId</code> on Job</td></tr>
+                <tr><td><span class="action-new">NEW</span></td><td><code>apps/api/prisma/migrations/&lt;ts&gt;_wo_templates/</code></td><td>All seven tables + Job FK in a single migration</td></tr>
+                <tr><td><span class="action-new">NEW</span></td><td><code>apps/api/src/models/WorkOrderTemplate.ts</code></td><td>BaseModel subclass; permission gate on CRUD; <code>lastUsedAt</code> bump helper</td></tr>
+                <tr><td><span class="action-new">NEW</span></td><td><code>apps/api/src/models/WorkOrderTemplateChecklistItem.ts</code></td><td>BaseModel subclass; description sanitization in beforeCreate/beforeEdit (reuses WO-14 config)</td></tr>
+                <tr><td><span class="action-new">NEW</span></td><td><code>apps/api/src/models/WorkOrderTemplateMaterialItem.ts</code></td><td>BaseModel subclass</td></tr>
+                <tr><td><span class="action-new">NEW</span></td><td><code>apps/api/src/models/WorkOrderTemplateLaborPlan.ts</code></td><td>BaseModel subclass</td></tr>
+                <tr><td><span class="action-new">NEW</span></td><td><code>apps/api/src/models/WorkOrderTemplateEquipmentPlan.ts</code></td><td>BaseModel subclass</td></tr>
+                <tr><td><span class="action-new">NEW</span></td><td><code>apps/api/src/models/WorkOrderTemplateFormWrapper.ts</code></td><td>BaseModel subclass</td></tr>
+                <tr><td><span class="action-new">NEW</span></td><td><code>apps/api/src/models/WorkOrderTemplateFieldDefault.ts</code></td><td>BaseModel subclass; sanitization for rich-text attribute types</td></tr>
+                <tr><td><span class="action-new">NEW</span></td><td><code>apps/api/src/graphql/models/WorkOrderTemplate.ts</code></td><td>Type + queries + CRUD mutations + <code>previewWorkOrderTemplate</code> resolver</td></tr>
+                <tr><td><span class="action-new">NEW</span></td><td><code>apps/api/src/graphql/models/WorkOrderTemplate*.ts</code></td><td>Six child resolver files mirroring the model files</td></tr>
+                <tr><td><span class="action-mod">MODIFY</span></td><td><code>apps/api/src/graphql/models/Job.ts</code></td><td>Accept <code>workOrderTemplateApplication</code> in <code>createJob</code>; expose <code>appliedWorkOrderTemplate</code> resolver; transactional apply logic + <code>lastUsedAt</code> bump</td></tr>
+                <tr><td><span class="action-mod">MODIFY</span></td><td><code>apps/api/src/graphql/schema.ts</code></td><td>Register all seven new resolvers</td></tr>
+                <tr><td><span class="action-mod">MODIFY</span></td><td>DAA value resolution (form-render code path)</td><td>Insert template tier between DAA default and instance value when a template was applied to the WO being rendered</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- 7. Acceptance Criteria -->
+    <div class="uis-section" id="acceptance-criteria">
+        <h2>7. Acceptance Criteria</h2>
+
+        <ol class="ac-list">
+            <li>All seven new Prisma models migrate cleanly with the standard conventions (nanoid IDs, soft-delete flags, timestamps, indexes).</li>
+            <li>Templates can be created, edited, archived, and restored via GraphQL mutations gated by <code>InstanceSetting___edit</code>.</li>
+            <li>All six template child collections support full CRUD + reorder via uniform mutation patterns.</li>
+            <li>Templates are untyped — any active template can be applied to any WO regardless of its <code>jobType</code>; no compatibility validation runs at apply time.</li>
+            <li><code>previewWorkOrderTemplate</code> returns a complete snapshot package without any database writes.</li>
+            <li><code>createJob</code> with a <code>workOrderTemplateApplication</code> payload creates the Job, child rows (checklist, materials, forms, equipment assignments, field defaults), sets <code>appliedWorkOrderTemplateId</code>, and bumps <code>WorkOrderTemplate.lastUsedAt</code> in a single transaction; failure of any step rolls everything back.</li>
+            <li><strong>Structured</strong> labor plans (<code>tradeLevelId</code> set) and <strong>structured</strong> equipment plans (<code>equipmentCategoryId</code> set) are not materialized into <code>TimeSheetRecord</code>, <code>EquipmentTimeEntry</code>, <code>WorkOrderLaborItem</code>, or <code>WorkOrderEquipmentItem</code> rows — they remain advisory metadata on the template.</li>
+            <li><strong>Unstructured</strong> labor plans (no <code>tradeLevelId</code>, <code>description</code> set) materialize as a <code>WorkOrderLaborItem</code> row on the new Job: <code>qtyOfWorkers</code>, <code>submittedDuration</code> (= <code>plannedSeconds</code>), and <code>description</code> are copied; <code>rate</code> is NULL.</li>
+            <li><strong>Unstructured</strong> equipment plans (no <code>equipmentCategoryId</code>, <code>description</code> set) materialize as a <code>WorkOrderEquipmentItem</code> row on the new Job: <code>quantity</code> and <code>description</code> are copied; <code>unitRate</code> is NULL; <code>plannedSeconds</code> is intentionally not copied.</li>
+            <li>Resolvers reject creating a labor or equipment plan row with both the FK and description null.</li>
+            <li>Structured equipment plan rows drive the apply UI's "select specific equipment" prompts; user selections result in <code>EquipmentAssignment</code> rows on the new Job (created on save, not at preview time).</li>
+            <li>Form-render time field default resolution: when a template is applied, that template's <code>WorkOrderTemplateFieldDefault.value</code> supersedes <code>DocumentAttributeAssignment.defaultValue</code>; instance values still win once present.</li>
+            <li>Archiving a template sets <code>Job.appliedWorkOrderTemplateId</code> to NULL on referencing Jobs without altering any other content of those Jobs.</li>
+            <li>Archiving a referenced <code>Material</code>, <code>TradeLevel</code>, <code>EquipmentCategory</code>, or <code>FormWrapper</code> SetNulls the template child row's FK; the template itself remains valid; preview surfaces the broken row for the apply UI to warn about.</li>
+            <li><code>WorkOrderTemplateMaterialItem</code> rows are dual-mode: <strong>structured</strong> rows carry a generic <code>Material</code> reference (no <code>materialAttributePriceId</code> at the template tier); <strong>free-form</strong> rows carry only a description (no <code>Material</code> reference). Both modes materialize on apply as <code>WorkOrderMaterialItem</code> rows with <code>materialAttributePriceId</code> NULL and <code>unitPrice</code> NULL — variants and prices are filled in at runtime.</li>
+            <li>Rich-text values on <code>WorkOrderTemplateChecklistItem.description</code> and rich-text-targeted <code>WorkOrderTemplateFieldDefault.value</code> are sanitized server-side using the same allowlist as WO-14.</li>
+<li><code>WorkOrderTemplateChecklistItem.photoRequired</code> defaults to false; on apply the value carries through to the runtime <code>WorkOrderChecklistItem.photoRequired</code>. No <code>AssetReference</code> rows are created at apply time — the runtime item stays unticked until the user actually completes it with captured photos (per WO-14).</li>
+            <li>Once a WO is created, subsequent edits to its source template do <strong>not</strong> propagate to the WO (snapshot semantics).</li>
+            <li>The WO can never have a template applied a second time — applying is a create-only operation.</li>
+        </ol>
+    </div>
+
+    <!-- 8. Dependencies -->
+    <div class="uis-section" id="dependencies">
+        <h2>8. Dependencies</h2>
+
+        <h3>Requires</h3>
+        <p>
+            <span class="dep-tag dep-requires">WO-1</span> Job classification (<code>jobTypeId</code> + <code>jobClassification = WorkOrder</code>)<br>
+            <span class="dep-tag dep-requires">WO-13</span> Forms on WO (template forms join writes <code>JobSafetyFormWrapper</code> rows on apply)<br>
+            <span class="dep-tag dep-requires">WO-14</span> Checklist on WO (template checklist mirror copies into <code>WorkOrderChecklistItem</code> rows on apply; reuses sanitization)
+        </p>
+
+        <h3>Enables</h3>
+        <p>
+            <span class="dep-tag dep-enables">WO-15b</span> Templates Settings UI — consumes the CRUD mutations<br>
+            <span class="dep-tag dep-enables">WO-15c</span> Apply Template on WO Create — consumes <code>previewWorkOrderTemplate</code> and the <code>createJob</code> extension<br>
+            <span class="dep-tag dep-enables">WO-16</span> WO Detail Tabs — Schedule tab surfaces template labor advisories post-save; Equipment Assignment surface manages the rows created by template apply
+        </p>
+
+        <h3>Soft-requires</h3>
+        <p>
+            <span class="dep-tag dep-requires">WO-16</span> recommended to ship before or alongside WO-15c so users can manage the EquipmentAssignment rows the template apply creates and see the Planned Crew advisory on the post-save Schedule tab
+        </p>
+
+        <h3>Parent</h3>
+        <p>UIS-20 · T&amp;M Work Orders</p>
+
+        <h3>Siblings</h3>
+        <p>WO-15b (Settings UI), WO-15c (Apply UI), WO-16 (WO Detail Tabs — Schedule + Equipment Assignment), WOX-02 (the Path A concept sketch from Corey that informed this spec)</p>
+    </div>
+
+</div>
+</body>
+</html>

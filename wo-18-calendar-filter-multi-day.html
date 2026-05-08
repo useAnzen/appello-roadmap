@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WO-18: Schedule View Toggle + Status-Aware WO Filtering</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+.in-iframe .top-nav { display: none !important; }
+.top-nav { position: sticky; top: 0; z-index: 100; background: #0f172a; border-bottom: 1px solid #1e293b; padding: 0 24px; display: flex; align-items: center; gap: 0; }
+.top-nav a { display: inline-flex; align-items: center; padding: 12px 18px; font-size: 13px; font-weight: 600; color: #94a3b8; text-decoration: none; border-bottom: 2px solid transparent; transition: all 0.15s; white-space: nowrap; }
+.top-nav a:hover { color: #f8fafc; background: #1e293b; }
+.top-nav .nav-logo { font-size: 11px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: #475569; padding-right: 18px; margin-right: 4px; border-right: 1px solid #1e293b; }
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Inter', -apple-system, sans-serif; background: #f1f5f9; color: #0f172a; }
+.uis-wrap { max-width: 960px; margin: 0 auto; padding: 40px 24px 80px; }
+.uis-hero { margin-bottom: 32px; }
+.uis-badges { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+.uis-badge { font-size: 11px; font-weight: 700; padding: 4px 12px; border-radius: 6px; }
+.badge-q { background: #0f172a; color: #fff; }
+.badge-wo { background: #ec4899; color: #fff; }
+.badge-priority { background: #fef3c7; color: #92400e; }
+.badge-status { background: #fef3c7; color: #92400e; }
+.uis-h1 { font-size: 28px; font-weight: 800; color: #0f172a; margin: 0 0 8px; letter-spacing: -0.01em; }
+.uis-sub { font-size: 15px; color: #64748b; line-height: 1.5; margin: 0; }
+.uis-meta { display: flex; gap: 24px; flex-wrap: wrap; margin-top: 14px; font-size: 13px; color: #64748b; }
+.uis-meta strong { color: #0f172a; }
+.uis-toc { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px 28px; margin-bottom: 16px; }
+.uis-toc h3 { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; margin: 0 0 10px; }
+.uis-toc ol { margin: 0; padding-left: 20px; }
+.uis-toc li { font-size: 14px; color: #3b82f6; margin-bottom: 4px; }
+.uis-toc a { color: #3b82f6; text-decoration: none; }
+.uis-section { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px 28px; margin-bottom: 16px; }
+.uis-section h2 { font-size: 17px; font-weight: 700; margin: 0 0 14px; padding-bottom: 10px; border-bottom: 2px solid #e2e8f0; }
+.uis-section h3 { font-size: 15px; font-weight: 700; margin: 16px 0 8px; }
+.uis-section p, .uis-section li { font-size: 14px; color: #334155; line-height: 1.65; }
+.uis-section ul, .uis-section ol { padding-left: 20px; margin: 8px 0; }
+pre { background: #1e293b; color: #e2e8f0; border-radius: 8px; padding: 16px; overflow-x: auto; font-size: 13px; line-height: 1.5; font-family: 'SF Mono', monospace; margin: 12px 0; }
+code { font-family: 'SF Mono', monospace; background: #f1f5f9; padding: 1px 5px; border-radius: 3px; font-size: 12px; color: #7c3aed; }
+table.schema-table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 12px 0; }
+table.schema-table th { text-align: left; padding: 8px 12px; background: #f8fafc; border-bottom: 2px solid #e2e8f0; font-weight: 600; }
+table.schema-table td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
+.callout { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 14px 18px; margin: 14px 0; font-size: 13px; color: #1e40af; }
+.callout strong { color: #1e3a8a; }
+.no-changes { background: #f0fdf4; border: 1px solid #86efac; border-radius: 8px; padding: 14px 18px; margin: 14px 0; font-size: 13px; color: #166534; }
+.no-changes strong { color: #14532d; }
+.action-new { background: #dcfce7; color: #166534; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 4px; }
+.action-mod { background: #fef3c7; color: #92400e; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 4px; }
+.action-fix { background: #fee2e2; color: #991b1b; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 4px; }
+.ac-list { margin: 0; padding-left: 0; list-style: none; }
+.ac-list li { display: flex; gap: 10px; margin-bottom: 10px; font-size: 14px; color: #334155; line-height: 1.55; }
+.ac-list li::before { content: ''; flex-shrink: 0; width: 18px; height: 18px; border: 2px solid #e2e8f0; border-radius: 4px; margin-top: 2px; background: #fff; }
+.dep-tag { display: inline-block; font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 5px; margin-right: 6px; }
+.dep-requires { background: #fee2e2; color: #dc2626; }
+.dep-enables { background: #dcfce7; color: #166534; }
+.scope-tag { display: inline-block; font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 5px; margin: 2px 4px 2px 0; }
+.scope-in { background: #dcfce7; color: #166534; }
+.scope-out { background: #fee2e2; color: #dc2626; }
+.scope-future { background: #eff6ff; color: #3b82f6; }
+.scope-done { background: #dbeafe; color: #1d4ed8; }
+.bug-banner { background: #fef2f2; border-left: 4px solid #dc2626; padding: 10px 14px; border-radius: 0 6px 6px 0; font-size: 13px; color: #991b1b; margin: 8px 0 14px; }
+.bug-banner strong { color: #7f1d1d; }
+
+/* Toggle mockup */
+.mockup-container { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; margin: 14px 0; }
+.mockup-bar { background: #f1f5f9; padding: 8px 14px; font-size: 12px; font-weight: 600; color: #64748b; border-bottom: 1px solid #e2e8f0; display: flex; align-items: center; gap: 8px; }
+.mockup-dots { display: flex; gap: 5px; }
+.mockup-dot { width: 8px; height: 8px; border-radius: 50%; }
+.mockup-dot-r { background: #f87171; }
+.mockup-dot-y { background: #fbbf24; }
+.mockup-dot-g { background: #34d399; }
+.mockup-url { background: #fff; padding: 3px 9px; border-radius: 4px; font-size: 11px; font-family: 'SF Mono', monospace; color: #475569; margin-left: 6px; }
+.mockup-body { padding: 18px 20px; font-size: 13px; color: #334155; line-height: 1.6; }
+.mock-new-badge { background: #dcfce7; color: #166534; font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 3px; margin-left: 6px; }
+.view-toggle { display: inline-flex; padding: 3px; background: #f1f5f9; border-radius: 8px; gap: 0; }
+.view-toggle .opt { padding: 6px 14px; font-size: 12px; font-weight: 600; color: #64748b; cursor: pointer; border-radius: 5px; }
+.view-toggle .opt.active { background: #fff; color: #0f172a; box-shadow: 0 1px 2px rgba(0,0,0,0.06); }
+.filter-pill { display: inline-block; font-size: 11px; padding: 4px 10px; background: #fff; border: 1px solid #e2e8f0; border-radius: 14px; margin-right: 6px; color: #475569; font-weight: 500; }
+.filter-pill .check { color: #3b82f6; margin-right: 4px; }
+.filter-pill.wo-status { background: #fce7f3; border-color: #f9a8d4; color: #9d174d; }
+.filter-pill.job-status { background: #dbeafe; border-color: #93c5fd; color: #1d4ed8; }
+.cal-stub { background: #fff; border: 1px solid #e2e8f0; border-radius: 6px; padding: 12px; min-height: 120px; display: flex; align-items: center; justify-content: center; color: #94a3b8; font-style: italic; font-size: 12px; }
+    </style>
+</head>
+<body>
+<script>if(self!==top)document.documentElement.classList.add("in-iframe")</script>
+<nav class="top-nav">
+    <span class="nav-logo">Appello SDLC</span>
+    <a href="index.html">Roadmap</a>
+    <a href="release-1.33-timeline.html">Release 1.33</a>
+    <a href="release-1.34-timeline.html">Release 1.34</a>
+    <a href="WO-1.33-final-mapping.html">Final Mapping</a>
+</nav>
+<div class="uis-wrap">
+
+    <div class="uis-hero">
+        <div class="uis-badges">
+            <span class="uis-badge badge-q">WO-18</span>
+            <span class="uis-badge badge-wo">Work Orders</span>
+            <span class="uis-badge badge-priority">P1 - 1.33</span>
+            <span class="uis-badge badge-status">Draft</span>
+        </div>
+        <h1 class="uis-h1">Schedule View Toggle + Status-Aware WO Filtering</h1>
+        <p class="uis-sub">Add a <strong>Calendar / Work Orders</strong> toggle to <code>/scheduling</code>. When flipped to Work Orders, the status filter swaps from <code>jobStatus</code> values to <code>workOrderStatus</code> values (which is what WOs actually use), and the schedule-entry form's job picker filters to WO-classified jobs only. Fixes the bug where WOs are invisible on the schedule today (filter mismatch). Path B build of <a href="uis-WOX-01-dispatch-toggle.html">WOX-01</a>'s V0 toggle pattern + the underlying status predicate fix; satisfies Emma's previously-skipped scope item #1 at V0 fidelity.</p>
+        <div class="uis-meta">
+            <span><strong>Estimate:</strong> 1.5-2 days</span>
+            <span><strong>Sequence:</strong> 1.33, independent</span>
+            <span><strong>Requires:</strong> WO-1 (status seed)</span>
+            <span><strong>Enables:</strong> WOX-16 V2 dispatch board (post-V1)</span>
+        </div>
+    </div>
+
+    <div class="uis-toc">
+        <h3>Contents</h3>
+        <ol>
+            <li><a href="#business-case">Business Case</a></li>
+            <li><a href="#scope">Scope</a></li>
+            <li><a href="#ui-concepts">UI Concepts</a></li>
+            <li><a href="#data-model">Data Model</a></li>
+            <li><a href="#api-surface">API Surface</a></li>
+            <li><a href="#change-surface">Change Surface</a></li>
+            <li><a href="#acceptance-criteria">Acceptance Criteria</a></li>
+            <li><a href="#dependencies">Dependencies</a></li>
+        </ol>
+    </div>
+
+    <!-- 1 -->
+    <div class="uis-section" id="business-case">
+        <h2>1. Business Case</h2>
+        <div class="bug-banner">
+            <strong>Bug:</strong> WOs are invisible on the schedule. The Calendar Schedule pulls events from <code>TimeSheetRecord</code> (which works fine for WOs — they're Jobs), but pre-filters by <code>jobStatus</code>. WOs use a <strong>separate</strong> <code>workOrderStatus</code> property (per WO-1's split status systems), so a WO's status will never match a <code>jobStatus</code> "In Progress" predicate → WO time records are never returned to the calendar. Same root cause for the Job Schedule's pre-filter.
+        </div>
+        <p>WOs are Jobs in the data model but split off their status into a separate <code>workOrderStatus</code> PropertyValue category (Draft / Submitted / Awaiting Signature / Signed / Approved / Invoiced / Void) seeded in WO-1. That split is correct — WO and project-job lifecycles are different — but it leaks into the schedule layer where the predicate looks for <code>jobStatus</code> only.</p>
+        <p>The fix is two-sided: <strong>(a)</strong> route the schedule's status predicate based on classification (project jobs use <code>jobStatus</code>, WOs use <code>workOrderStatus</code>), and <strong>(b)</strong> give the user a clean way to <em>tell</em> the schedule which classification they're working with — which is what WOX-01's V0 Calendar/Work Orders toggle is for. The toggle is also what unlocks WOs being visible on a "I want to schedule WO labor" workflow at all, so this fix subsumes Emma's previously-skipped scope item #1 at V0 fidelity. Full Kanban dispatch (<a href="uis-WOX-16-dispatch-v2-concepts.html">WOX-16</a>) stays post-V1.</p>
+        <p>Schedule-entry form behavior also flows from the active view: in Calendar mode the form's job picker shows project jobs; in Work Orders mode it shows WOs. Mixing the two would let users accidentally schedule a WO from Calendar mode despite being invisible there — friction without value.</p>
+        <div class="callout">
+            <strong>Emma's scope #9 (multi-day labor date column) is not in this spec — it's already handled.</strong> WO labor entries flow through <code>TimeSheetRecord</code> (because WOs are Jobs), the same path Job labor uses. Date is already an attribute of every record. Adding a separate "date column" to the WO labor table would duplicate state that lives correctly in TimeSheetRecord. #9 is satisfied by existing infrastructure.
+        </div>
+    </div>
+
+    <!-- 2 -->
+    <div class="uis-section" id="scope">
+        <h2>2. Scope</h2>
+
+        <h3>Already Built</h3>
+        <ul>
+            <li><span class="scope-tag scope-done">DONE</span> WO classification routing (<a href="uis-20a-job-type-config.html">WO-1</a>) + <code>workOrderStatus</code> PropertyValue seed</li>
+            <li><span class="scope-tag scope-done">DONE</span> Calendar Schedule + Job Schedule pulling events from <code>TimeSheetRecord</code></li>
+            <li><span class="scope-tag scope-done">DONE</span> Existing Project filter on the calendar (no new filter needed there)</li>
+            <li><span class="scope-tag scope-done">DONE</span> Existing schedule-entry form (<code>+ Add to schedule</code> on calendar, <code>JobSchedule</code> creation flow)</li>
+            <li><span class="scope-tag scope-done">DONE</span> WO labor goes through <code>TimeSheetRecord</code> exactly like Job labor — multi-day handling is already correct (Emma's scope #9 is satisfied here)</li>
+        </ul>
+
+        <h3>In Scope (WO-18)</h3>
+        <ul>
+            <li><span class="scope-tag scope-in">IN</span> <strong>Calendar / Work Orders toggle</strong> at the top of <code>/scheduling</code> (segmented control). Default to Calendar (preserves current behavior).</li>
+            <li><span class="scope-tag scope-in">IN</span> When the toggle is set to Work Orders: the schedule feed query filters to events from Jobs with <code>jobClassification = WorkOrder</code>, and the Status filter UI swaps to expose <code>workOrderStatus</code> values</li>
+            <li><span class="scope-tag scope-in">IN</span> When the toggle is set to Calendar: existing behavior — events from <code>jobClassification = ProjectJob</code> Jobs, Status filter shows <code>jobStatus</code> values</li>
+            <li><span class="scope-tag scope-in">IN</span> Toggle state persists per-user via <code>localStorage</code> — same convention as other view-state toggles in the app</li>
+            <li><span class="scope-tag scope-in">IN</span> <strong>Schedule-entry form</strong> filters its job picker by the active toggle: Calendar mode → project jobs only; Work Orders mode → WOs only</li>
+            <li><span class="scope-tag scope-in">IN</span> Same job-classification awareness applied to other schedule surfaces that pre-filter by status (e.g., Job Schedule's "In Progress" filter) — for WO-classified jobs the predicate matches against <code>workOrderStatus</code> values that map to InProgress per WO-1's seed (Submitted / Awaiting Signature / Signed)</li>
+            <li><span class="scope-tag scope-in">IN</span> Two e2e regression tests: (1) WOs appear on the schedule when toggle is set to Work Orders; (2) the schedule-entry form opened from each mode lists only the appropriate classification</li>
+        </ul>
+
+        <h3>Out of Scope</h3>
+        <ul>
+            <li><span class="scope-tag scope-out">OUT</span> Job-type filter chip — <em>does not exist on the calendar today</em> (earlier draft of this spec assumed it did; corrected). Adding one is out of scope.</li>
+            <li><span class="scope-tag scope-out">OUT</span> Project filter — <em>already exists</em>. No work to do.</li>
+            <li><span class="scope-tag scope-out">OUT</span> Multi-day labor date column on the WO labor table — already handled by <code>TimeSheetRecord</code> (WOs are Jobs; same data path)</li>
+            <li><span class="scope-tag scope-out">OUT</span> Full Kanban dispatch board — <a href="uis-WOX-16-dispatch-v2-concepts.html">WOX-16</a> is post-V1. The toggle in this spec is V0; V2 is the choice between ServiceTitan-style / Jobber-style / Map-First concepts.</li>
+            <li><span class="scope-tag scope-out">OUT</span> Drag-to-reschedule across the toggle (e.g., dragging a project-job event onto a WO date) — toggle is presentational, scheduling within a mode uses the existing flow</li>
+            <li><span class="scope-tag scope-out">OUT</span> Showing both classifications simultaneously on the same view — explicit binary toggle</li>
+            <li><span class="scope-tag scope-future">FUTURE</span> Saved-view presets (e.g., "My WO board for the week") — promote later if customers ask</li>
+        </ul>
+    </div>
+
+    <!-- 3 -->
+    <div class="uis-section" id="ui-concepts">
+        <h2>3. UI Concepts</h2>
+
+        <h3>Mockup 1 — Calendar mode (existing behavior, unchanged)</h3>
+        <div class="mockup-container">
+            <div class="mockup-bar">
+                <div class="mockup-dots"><div class="mockup-dot mockup-dot-r"></div><div class="mockup-dot mockup-dot-y"></div><div class="mockup-dot mockup-dot-g"></div></div>
+                <span class="mockup-url">app.useappello.com/scheduling</span>
+            </div>
+            <div class="mockup-body">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+                    <div class="view-toggle">
+                        <div class="opt active">Calendar</div>
+                        <div class="opt">Work Orders <span class="mock-new-badge">NEW</span></div>
+                    </div>
+                    <div>
+                        <span class="filter-pill job-status"><span class="check">✓</span>Status: In Progress</span>
+                        <span class="filter-pill">Project: All</span>
+                    </div>
+                </div>
+                <div class="cal-stub">Existing Calendar Schedule UI — project-job events filtered by <code>jobStatus</code></div>
+            </div>
+        </div>
+
+        <h3>Mockup 2 — Work Orders mode</h3>
+        <p>Same calendar grid; the status filter swaps to expose <code>workOrderStatus</code> values; events filter to WO-classified Jobs.</p>
+        <div class="mockup-container">
+            <div class="mockup-bar">
+                <div class="mockup-dots"><div class="mockup-dot mockup-dot-r"></div><div class="mockup-dot mockup-dot-y"></div><div class="mockup-dot mockup-dot-g"></div></div>
+                <span class="mockup-url">app.useappello.com/scheduling</span>
+            </div>
+            <div class="mockup-body">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+                    <div class="view-toggle">
+                        <div class="opt">Calendar</div>
+                        <div class="opt active">Work Orders</div>
+                    </div>
+                    <div>
+                        <span class="filter-pill wo-status"><span class="check">✓</span>WO Status: Submitted, Signed</span>
+                        <span class="filter-pill">Project: All</span>
+                    </div>
+                </div>
+                <div class="cal-stub">Same calendar grid — events filtered to WOs with active <code>workOrderStatus</code></div>
+            </div>
+        </div>
+
+        <h3>Mockup 3 — Schedule-entry form (job picker filtered by active mode)</h3>
+        <p>Side-by-side: opening the schedule-entry form from Calendar mode shows project jobs; from Work Orders mode shows WOs. The job-type subfilter inside the picker is similarly classification-aware.</p>
+        <div class="mockup-container">
+            <div class="mockup-bar">Schedule entry form · two states</div>
+            <div class="mockup-body">
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+                    <div style="border:1px solid #93c5fd;border-radius:8px;padding:12px;background:#eff6ff;">
+                        <div style="font-size:11px;font-weight:700;color:#1d4ed8;margin-bottom:8px;letter-spacing:0.5px;text-transform:uppercase;">Opened from Calendar mode</div>
+                        <div style="font-size:11px;color:#475569;margin-bottom:4px;">Job</div>
+                        <div style="background:#fff;border:1px solid #cbd5e1;border-radius:6px;padding:6px 10px;font-size:12px;">Cedar Ridge HVAC Retrofit ▾</div>
+                        <div style="font-size:10px;color:#64748b;margin-top:4px;font-style:italic;">Picker scoped to project jobs</div>
+                    </div>
+                    <div style="border:1px solid #f9a8d4;border-radius:8px;padding:12px;background:#fce7f3;">
+                        <div style="font-size:11px;font-weight:700;color:#9d174d;margin-bottom:8px;letter-spacing:0.5px;text-transform:uppercase;">Opened from Work Orders mode</div>
+                        <div style="font-size:11px;color:#475569;margin-bottom:4px;">Work Order</div>
+                        <div style="background:#fff;border:1px solid #cbd5e1;border-radius:6px;padding:6px 10px;font-size:12px;">WO-2046 — RTU-3 quarterly service ▾</div>
+                        <div style="font-size:10px;color:#64748b;margin-top:4px;font-style:italic;">Picker scoped to WO-classified jobs</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 4 -->
+    <div class="uis-section" id="data-model">
+        <h2>4. Data Model</h2>
+        <div class="no-changes">
+            <strong>No schema changes.</strong> WO-1 already seeded the <code>workOrderStatus</code> values; the bug is that schedule queries don't consult them. Fix is at the query / filter-predicate layer.
+        </div>
+    </div>
+
+    <!-- 5 -->
+    <div class="uis-section" id="api-surface">
+        <h2>5. API Surface</h2>
+        <p>One change to the existing schedule events query input: classification-aware filtering.</p>
+<pre>
+extend input ScheduledEventsFilter {
+  # Active classification — drives which status property the predicate
+  # matches against. Defaults to "ProjectJob" (preserves existing
+  # behavior for clients that don't pass it).
+  jobClassification: JobClassification
+
+  # Status filter inputs become classification-aware.
+  # ProjectJob events match jobStatusIds; WorkOrder events match
+  # workOrderStatusIds. Server-side resolver picks the right one based
+  # on jobClassification.
+  jobStatusIds:       [String!]
+  workOrderStatusIds: [String!]
+}
+</pre>
+        <p>The same pattern applies to any other schedule-feed queries with a status pre-filter (e.g., Job Schedule's "In Progress" predicate). No new types, no new mutations.</p>
+    </div>
+
+    <!-- 6 -->
+    <div class="uis-section" id="change-surface">
+        <h2>6. Change Surface</h2>
+        <table class="schema-table">
+            <thead><tr><th>Action</th><th>Path</th><th>Change</th></tr></thead>
+            <tbody>
+                <tr><td><span class="action-new">NEW</span></td><td>Schedule view toggle component</td><td>Calendar / Work Orders segmented control at top of <code>/scheduling</code>; localStorage-backed state</td></tr>
+                <tr><td><span class="action-fix">FIX</span></td><td>Schedule events feed query (server-side)</td><td>Filter by <code>jobClassification</code>; route status filter to <code>jobStatus</code> or <code>workOrderStatus</code> based on classification</td></tr>
+                <tr><td><span class="action-mod">MODIFY</span></td><td>Calendar status filter UI</td><td>Status options swap source between <code>jobStatus</code> and <code>workOrderStatus</code> based on active toggle</td></tr>
+                <tr><td><span class="action-mod">MODIFY</span></td><td>Schedule-entry form (job picker)</td><td>Accept <code>classification</code> prop from caller; filter the picker's job list to that classification</td></tr>
+                <tr><td><span class="action-fix">FIX</span></td><td>Job Schedule "In Progress" pre-filter</td><td>Predicate becomes classification-aware (same routing as above) so WOs in active workOrderStatus values appear there too</td></tr>
+                <tr><td><span class="action-new">NEW</span></td><td>e2e tests</td><td>Two regression tests as specified — schedule visibility + form picker scoping</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- 7 -->
+    <div class="uis-section" id="acceptance-criteria">
+        <h2>7. Acceptance Criteria</h2>
+        <ol class="ac-list">
+            <li>The <code>/scheduling</code> page shows a Calendar / Work Orders toggle at the top, defaulted to Calendar.</li>
+            <li>In Calendar mode, the schedule shows events from project-job-classified Jobs only; the Status filter exposes <code>jobStatus</code> values; behavior matches the current pre-this-spec experience.</li>
+            <li>In Work Orders mode, the schedule shows events from WO-classified Jobs only; the Status filter exposes <code>workOrderStatus</code> values (Draft / Submitted / Awaiting Signature / Signed / Approved / Invoiced / Void).</li>
+            <li>Toggle state persists per-user via <code>localStorage</code>; revisiting the page restores the last-used view.</li>
+            <li>The schedule-entry form opened from Calendar mode lists only project jobs in its job picker.</li>
+            <li>The schedule-entry form opened from Work Orders mode lists only WOs in its job picker.</li>
+            <li>The Job Schedule's "In Progress" pre-filter matches WOs whose <code>workOrderStatus</code> maps to InProgress (Submitted / Awaiting Signature / Signed) — WOs are no longer invisible there.</li>
+            <li>Existing project-job behavior on every schedule surface is unchanged.</li>
+            <li>Two e2e tests pass: (1) WOs in active <code>workOrderStatus</code> appear in Work Orders mode; (2) schedule-entry form picker scoping respects the active toggle.</li>
+            <li>No schema changes; only the <code>ScheduledEventsFilter</code> input gains <code>jobClassification</code> + <code>workOrderStatusIds</code>.</li>
+        </ol>
+    </div>
+
+    <!-- 8 -->
+    <div class="uis-section" id="dependencies">
+        <h2>8. Dependencies</h2>
+        <h3>Requires</h3>
+        <p>
+            <span class="dep-tag dep-requires">WO-1</span> Job classification routing + <code>workOrderStatus</code> PropertyValue seed
+        </p>
+        <h3>Enables</h3>
+        <p>
+            <span class="dep-tag dep-enables">FUTURE</span> <a href="uis-WOX-16-dispatch-v2-concepts.html">WOX-16</a> — V2 Kanban dispatch board (post-V1; this spec is the V0 toggle that V2 builds on)
+        </p>
+        <h3>Parent</h3>
+        <p>UIS-20 · T&amp;M Work Orders</p>
+        <h3>Path A source</h3>
+        <p><a href="uis-WOX-01-dispatch-toggle.html">WOX-01 — Dispatch board V0 (Calendar Toggle)</a> · subsumes Emma's previously-skipped scope item #1 at V0 fidelity</p>
+    </div>
+
+</div>
+</body>
+</html>

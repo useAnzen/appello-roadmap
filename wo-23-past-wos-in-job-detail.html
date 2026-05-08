@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WO-23: Past WOs in Job Detail (Job → WO Parent Linkage)</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+.in-iframe .top-nav { display: none !important; }
+.top-nav { position: sticky; top: 0; z-index: 100; background: #0f172a; border-bottom: 1px solid #1e293b; padding: 0 24px; display: flex; align-items: center; gap: 0; }
+.top-nav a { display: inline-flex; align-items: center; padding: 12px 18px; font-size: 13px; font-weight: 600; color: #94a3b8; text-decoration: none; border-bottom: 2px solid transparent; transition: all 0.15s; white-space: nowrap; }
+.top-nav a:hover { color: #f8fafc; background: #1e293b; }
+.top-nav .nav-logo { font-size: 11px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: #475569; padding-right: 18px; margin-right: 4px; border-right: 1px solid #1e293b; }
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Inter', -apple-system, sans-serif; background: #f1f5f9; color: #0f172a; }
+.uis-wrap { max-width: 960px; margin: 0 auto; padding: 40px 24px 80px; }
+.uis-hero { margin-bottom: 32px; }
+.uis-badges { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+.uis-badge { font-size: 11px; font-weight: 700; padding: 4px 12px; border-radius: 6px; }
+.badge-q { background: #0f172a; color: #fff; }
+.badge-wo { background: #ec4899; color: #fff; }
+.badge-priority { background: #fef3c7; color: #92400e; }
+.badge-status { background: #fef3c7; color: #92400e; }
+.uis-h1 { font-size: 28px; font-weight: 800; color: #0f172a; margin: 0 0 8px; letter-spacing: -0.01em; }
+.uis-sub { font-size: 15px; color: #64748b; line-height: 1.5; margin: 0; }
+.uis-meta { display: flex; gap: 24px; flex-wrap: wrap; margin-top: 14px; font-size: 13px; color: #64748b; }
+.uis-meta strong { color: #0f172a; }
+.uis-toc { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px 28px; margin-bottom: 16px; }
+.uis-toc h3 { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; margin: 0 0 10px; }
+.uis-toc ol { margin: 0; padding-left: 20px; }
+.uis-toc li { font-size: 14px; color: #3b82f6; margin-bottom: 4px; }
+.uis-toc a { color: #3b82f6; text-decoration: none; }
+.uis-section { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px 28px; margin-bottom: 16px; }
+.uis-section h2 { font-size: 17px; font-weight: 700; margin: 0 0 14px; padding-bottom: 10px; border-bottom: 2px solid #e2e8f0; }
+.uis-section h3 { font-size: 15px; font-weight: 700; margin: 16px 0 8px; }
+.uis-section p, .uis-section li { font-size: 14px; color: #334155; line-height: 1.65; }
+.uis-section ul, .uis-section ol { padding-left: 20px; margin: 8px 0; }
+pre { background: #1e293b; color: #e2e8f0; border-radius: 8px; padding: 16px; overflow-x: auto; font-size: 13px; line-height: 1.5; font-family: 'SF Mono', monospace; margin: 12px 0; }
+code { font-family: 'SF Mono', monospace; background: #f1f5f9; padding: 1px 5px; border-radius: 3px; font-size: 12px; color: #7c3aed; }
+table.schema-table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 12px 0; }
+table.schema-table th { text-align: left; padding: 8px 12px; background: #f8fafc; border-bottom: 2px solid #e2e8f0; font-weight: 600; }
+table.schema-table td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
+.callout { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 14px 18px; margin: 14px 0; font-size: 13px; color: #1e40af; }
+.callout strong { color: #1e3a8a; }
+.no-changes { background: #f0fdf4; border: 1px solid #86efac; border-radius: 8px; padding: 14px 18px; margin: 14px 0; font-size: 13px; color: #166534; }
+.action-mod { background: #fef3c7; color: #92400e; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 4px; }
+.action-new { background: #dcfce7; color: #166534; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 4px; }
+.ac-list { margin: 0; padding-left: 0; list-style: none; }
+.ac-list li { display: flex; gap: 10px; margin-bottom: 10px; font-size: 14px; color: #334155; line-height: 1.55; }
+.ac-list li::before { content: ''; flex-shrink: 0; width: 18px; height: 18px; border: 2px solid #e2e8f0; border-radius: 4px; margin-top: 2px; background: #fff; }
+.dep-tag { display: inline-block; font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 5px; margin-right: 6px; }
+.dep-requires { background: #fee2e2; color: #dc2626; }
+.dep-enables { background: #dcfce7; color: #166534; }
+.scope-tag { display: inline-block; font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 5px; margin: 2px 4px 2px 0; }
+.scope-in { background: #dcfce7; color: #166534; }
+.scope-out { background: #fee2e2; color: #dc2626; }
+.scope-future { background: #eff6ff; color: #3b82f6; }
+.scope-done { background: #dbeafe; color: #1d4ed8; }
+.customer-quote { background: #fef3c7; border-left: 3px solid #f59e0b; padding: 12px 16px; border-radius: 0 8px 8px 0; margin: 14px 0; font-style: italic; font-size: 14px; color: #92400e; }
+.customer-quote .attribution { font-style: normal; font-weight: 600; display: block; margin-top: 6px; }
+    </style>
+</head>
+<body>
+<script>if(self!==top)document.documentElement.classList.add("in-iframe")</script>
+<nav class="top-nav">
+    <span class="nav-logo">Appello SDLC</span>
+    <a href="index.html">Roadmap</a>
+    <a href="release-1.33-timeline.html">Release 1.33</a>
+    <a href="release-1.34-timeline.html">Release 1.34</a>
+    <a href="WO-1.33-final-mapping.html">Final Mapping</a>
+</nav>
+<div class="uis-wrap">
+
+    <div class="uis-hero">
+        <div class="uis-badges">
+            <span class="uis-badge badge-q">WO-23</span>
+            <span class="uis-badge badge-wo">Work Orders</span>
+            <span class="uis-badge badge-priority">P1 - 1.33</span>
+            <span class="uis-badge badge-status">Draft</span>
+        </div>
+        <h1 class="uis-h1">Past WOs in Job Detail · Job → WO Parent Linkage</h1>
+        <p class="uis-sub">Surface the list of WOs nested under a Job on the Job detail page. Adds a small data-model piece (<code>Job.parentJobId</code> self-FK) plus a Work Orders tab on the Job detail (desktop + mobile). Smallest possible subset of the post-V1 sub-relationships work (WOX-23) — just enough to answer "what WOs have been done on this job?" Action item from the 2026-05-07 Kris × Corey × Emma demo call.</p>
+        <div class="uis-meta">
+            <span><strong>Estimate:</strong> 1-1.5 days</span>
+            <span><strong>Sequence:</strong> 1.33, independent</span>
+            <span><strong>Requires:</strong> WO-1</span>
+            <span><strong>Enables:</strong> Future WOX-23 sub-relationships build</span>
+        </div>
+    </div>
+
+    <div style="background:#fef2f2;border:3px solid #dc2626;border-radius:12px;padding:18px 24px;margin:0 0 18px;">
+        <div style="font-size:12px;font-weight:800;letter-spacing:2px;color:#991b1b;text-transform:uppercase;margin-bottom:6px;">⚠ Review by Chris Required — DB Changes</div>
+        <p style="font-size:14px;color:#7f1d1d;line-height:1.55;margin:0;font-weight:500;">This spec includes <strong>database changes</strong> (new tables, columns, indexes, FKs, or seed data). Chris must sign off on the data model before implementation begins.</p>
+    </div>
+
+    <div class="uis-toc">
+        <h3>Contents</h3>
+        <ol>
+            <li><a href="#business-case">Business Case</a></li>
+            <li><a href="#scope">Scope</a></li>
+            <li><a href="#ui-concepts">UI Concepts</a></li>
+            <li><a href="#data-model">Data Model</a></li>
+            <li><a href="#api-surface">API Surface</a></li>
+            <li><a href="#change-surface">Change Surface</a></li>
+            <li><a href="#acceptance-criteria">Acceptance Criteria</a></li>
+            <li><a href="#dependencies">Dependencies</a></li>
+        </ol>
+    </div>
+
+    <!-- 1 -->
+    <div class="uis-section" id="business-case">
+        <h2>1. Business Case</h2>
+        <p>In the existing forms-based "WO" workflow, every form submission is attached to a Job via <code>JobSafetyForm.jobId</code> — so when a customer (Thermogenics, etc.) opens a Job they see all the form-submission-style WOs that have ever been done on it. When 1.33 ships real WOs, that visibility breaks unless WOs can declare a parent Job.</p>
+        <p>Per Corey's framing of the hierarchy on the demo call: <em>"the order of hierarchy is project, job, work order, and then soon will be task."</em> A WO can stand alone (no parent Job, no project), but it can also nest inside a Job. This spec adds the smallest piece needed to make that nesting visible: a self-FK on Job (<code>parentJobId</code>) and a Work Orders tab on the Job detail page that lists child WOs. Full sub-relationship handling (Project → Job → WO → Task with rollups) is the post-V1 <a href="uis-WOX-23-sub-relationships.html">WOX-23</a> work.</p>
+        <div class="customer-quote">
+            "If you ever look at the job, so right now how it is is that whatever job that we go to and you go to form submission, you can see all the work orders associated with that job."
+            <span class="attribution">&mdash; Kris Grant (Thermogenics), 2026-05-07 demo call</span>
+        </div>
+    </div>
+
+    <!-- 2 -->
+    <div class="uis-section" id="scope">
+        <h2>2. Scope</h2>
+
+        <h3>Already Built</h3>
+        <ul>
+            <li><span class="scope-tag scope-done">DONE</span> WO classification routing (WO-1) — distinguishes WO-classified Jobs from Project Jobs</li>
+            <li><span class="scope-tag scope-done">DONE</span> Job detail page (desktop + mobile) — host for the new Work Orders tab</li>
+            <li><span class="scope-tag scope-done">DONE</span> WO list / detail pages (WO-4, WO-5) — child rows link to these</li>
+        </ul>
+
+        <h3>In Scope (WO-23)</h3>
+        <ul>
+            <li><span class="scope-tag scope-in">IN</span> New self-FK on Job: <code>parentJobId</code> (nullable; <code>SetNull</code> on parent archive)</li>
+            <li><span class="scope-tag scope-in">IN</span> Set <code>parentJobId</code> at WO creation when the WO is created from a Job's context (e.g., "+ New work order" button on the Job detail page passes the parent's id)</li>
+            <li><span class="scope-tag scope-in">IN</span> "+ New work order" button on Job detail page (desktop + mobile) for Project-Job-classified Jobs — opens the WO create form pre-wired with this Job as parent</li>
+            <li><span class="scope-tag scope-in">IN</span> Work Orders tab on the Job detail page (desktop + mobile) — lists Jobs where <code>parentJobId = this job's id</code> AND <code>jobClassification = WorkOrder</code>. Reuses the existing WO list row component (same as WO-5 portfolio list).</li>
+            <li><span class="scope-tag scope-in">IN</span> Tab visible only on Project-Job-classified Jobs (it's meaningless on a WO Job; WOs don't nest under WOs in V1)</li>
+            <li><span class="scope-tag scope-in">IN</span> Reverse pointer on the WO detail page header: when a WO has a <code>parentJobId</code>, render a small chip linking back to the parent Job ("Part of: Cedar Ridge HVAC Retrofit")</li>
+        </ul>
+
+        <h3>Out of Scope</h3>
+        <ul>
+            <li><span class="scope-tag scope-out">OUT</span> Multi-level nesting (WO under WO, Task under WO) — that's <a href="uis-WOX-23-sub-relationships.html">WOX-23</a> post-V1</li>
+            <li><span class="scope-tag scope-out">OUT</span> Rollup financials from child WOs to parent Job — financial summary continues to compute from the Job's own line items in V1</li>
+            <li><span class="scope-tag scope-out">OUT</span> Bulk-reparent UI (move N WOs to a different Job) — no demand in V1; can be done one-at-a-time via the WO edit form</li>
+            <li><span class="scope-tag scope-out">OUT</span> Cascading rules on parent Job archive — <code>SetNull</code> only; child WOs survive the parent's archive intact</li>
+            <li><span class="scope-tag scope-future">FUTURE</span> Parent breadcrumbs / hierarchy navigation — folds into WOX-23 work</li>
+        </ul>
+    </div>
+
+    <!-- 3 -->
+    <div class="uis-section" id="ui-concepts">
+        <h2>3. UI Concepts</h2>
+
+        <h3>Interfaces being added</h3>
+        <ul>
+            <li>Desktop Job detail · new "Work Orders" tab listing child WOs (with status, completion date, primary technician, link-through)</li>
+            <li>Desktop Job detail · "+ New work order" button at the top of the Work Orders tab, pre-wires the new WO with this Job as parent</li>
+            <li>Mobile Job detail · same Work Orders tab, mobile layout (compact list)</li>
+            <li>Desktop / Mobile WO detail header · "Part of: &lt;parent Job name&gt;" chip when <code>parentJobId</code> is set; tap to navigate to parent Job</li>
+        </ul>
+
+        <div class="callout">
+            <strong>Reuse:</strong> the WO list row component already exists for WO-5 (T&amp;M Work Order Log, in QA). The Work Orders tab on Job detail uses the same component with a different filter (<code>parentJobId = this.job.id</code> instead of portfolio-wide). No new list UI to build — just a new mount point.
+        </div>
+    </div>
+
+    <!-- 4 -->
+    <div class="uis-section" id="data-model">
+        <h2>4. Data Model</h2>
+
+        <h3>4.1 Job — self-FK addition</h3>
+<pre>
+// Added to existing Job model:
+parentJobId String?  @db.VarChar(21)
+ParentJob   Job?     @relation("JobChildJobs",
+                                fields: [parentJobId],
+                                references: [id],
+                                onDelete: SetNull)
+ChildJobs   Job[]    @relation("JobChildJobs")
+
+@@index([parentJobId, isDeleted], map: "Job_parentJob_idx")
+</pre>
+
+        <h3>4.2 Migration</h3>
+<pre>
+ALTER TABLE `Job`
+    ADD COLUMN `parentJobId` VARCHAR(21) NULL,
+    ADD INDEX `Job_parentJob_idx` (`parentJobId`, `isDeleted`),
+    ADD CONSTRAINT `Job_parentJobId_fkey`
+        FOREIGN KEY (`parentJobId`) REFERENCES `Job`(`id`)
+        ON DELETE SET NULL ON UPDATE CASCADE;
+</pre>
+
+        <div class="callout">
+            <strong>Why a self-FK on Job and not a join table:</strong> WOs are Jobs (per WO-1). The hierarchy "Project Job has child WOs" is a parent-child relationship between Job rows. A self-FK is the natural shape — and matches what WOX-23 will extend (Project Job → WO → Task all on the same Job table). Self-FK now means WOX-23 just adds nesting depth, not a new model.
+        </div>
+    </div>
+
+    <!-- 5 -->
+    <div class="uis-section" id="api-surface">
+        <h2>5. API Surface</h2>
+
+        <h3>5.1 Type extension</h3>
+<pre>
+extend type Job {
+  parentJobId: String
+  parentJob: Job
+  childWorkOrders(includeArchived: Boolean = false): [Job!]!
+    # field resolver — filters this.children to jobClassification = WorkOrder
+}
+</pre>
+
+        <h3>5.2 Mutation input extensions</h3>
+<pre>
+extend input CreateJobInput {
+  parentJobId: String     # set when creating a WO from a Job's "+ New work order" button
+}
+
+extend input EditJobInput {
+  parentJobId: String     # allows reparenting a WO; null clears the link
+}
+</pre>
+        <p>No new mutations. The existing <code>createJob</code> / <code>editJob</code> mutations gain the optional <code>parentJobId</code> input.</p>
+
+        <h3>5.3 Validation</h3>
+        <ul>
+            <li>The <code>parentJobId</code> target must be a Project-Job-classified Job (not another WO) — V1 doesn't allow WO under WO. Resolver enforces.</li>
+            <li>A Job cannot be its own parent (the resolver rejects <code>parentJobId == id</code>).</li>
+            <li>No cycle check needed in V1 since nesting is shallow (one level only).</li>
+        </ul>
+    </div>
+
+    <!-- 6 -->
+    <div class="uis-section" id="change-surface">
+        <h2>6. Change Surface</h2>
+        <table class="schema-table">
+            <thead><tr><th>Action</th><th>Path</th><th>Change</th></tr></thead>
+            <tbody>
+                <tr><td><span class="action-mod">MODIFY</span></td><td><code>apps/api/prisma/schema.prisma</code></td><td>Add <code>parentJobId</code> + self-FK on Job</td></tr>
+                <tr><td><span class="action-new">NEW</span></td><td>Migration</td><td>FK + index add</td></tr>
+                <tr><td><span class="action-mod">MODIFY</span></td><td><code>apps/api/src/models/Job.ts</code></td><td>Allow <code>parentJobId</code> in modelFields; resolver validates parent classification + non-self-reference</td></tr>
+                <tr><td><span class="action-mod">MODIFY</span></td><td><code>apps/api/src/graphql/models/Job.ts</code></td><td>Expose <code>parentJob</code> + <code>childWorkOrders</code> resolvers; accept <code>parentJobId</code> in create/edit inputs</td></tr>
+                <tr><td><span class="action-new">NEW</span></td><td>Job detail · Work Orders tab (desktop + mobile)</td><td>Mount the existing WO list row component filtered by <code>parentJobId</code></td></tr>
+                <tr><td><span class="action-mod">MODIFY</span></td><td>Job detail page</td><td>"+ New work order" CTA on the Work Orders tab; opens WO create form with <code>parentJobId</code> pre-set</td></tr>
+                <tr><td><span class="action-mod">MODIFY</span></td><td>WO detail header</td><td>Render "Part of: &lt;parent Job&gt;" chip when <code>parentJobId</code> is set</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- 7 -->
+    <div class="uis-section" id="acceptance-criteria">
+        <h2>7. Acceptance Criteria</h2>
+        <ol class="ac-list">
+            <li><code>Job.parentJobId</code> is added as a nullable self-FK with <code>SetNull</code> on parent archive.</li>
+            <li>Creating a WO from a Project Job's "+ New work order" button sets the new WO's <code>parentJobId</code> to that Project Job's id.</li>
+            <li>Project Job detail page (desktop + mobile) shows a Work Orders tab listing child Jobs where <code>jobClassification = WorkOrder</code>; uses the same WO list row component as WO-5.</li>
+            <li>The Work Orders tab is hidden on WO-classified Jobs in V1 (WOs don't nest under WOs).</li>
+            <li>WO detail header shows a "Part of: &lt;parent Job name&gt;" chip when <code>parentJobId</code> is set; tapping navigates to the parent Job.</li>
+            <li>The resolver rejects setting <code>parentJobId</code> to a Job whose <code>jobClassification = WorkOrder</code> (V1 prevents WO-under-WO).</li>
+            <li>The resolver rejects setting <code>parentJobId == id</code> (no self-parenting).</li>
+            <li>Archiving a parent Job <code>SetNull</code>s the <code>parentJobId</code> on every child WO; child WOs survive intact.</li>
+            <li>Existing Jobs with no <code>parentJobId</code> behave identically to before this spec — no regressions on standalone WOs or standalone Project Jobs.</li>
+        </ol>
+    </div>
+
+    <!-- 8 -->
+    <div class="uis-section" id="dependencies">
+        <h2>8. Dependencies</h2>
+        <h3>Requires</h3>
+        <p>
+            <span class="dep-tag dep-requires">WO-1</span> Job classification routing (filter / validation)
+        </p>
+        <h3>Enables</h3>
+        <p>
+            <span class="dep-tag dep-enables">FUTURE</span> <a href="uis-WOX-23-sub-relationships.html">WOX-23</a> — full Project / Job / WO / Task hierarchy with rollup financials, post-V1
+        </p>
+        <h3>Parent</h3>
+        <p>UIS-20 · T&amp;M Work Orders</p>
+        <h3>Source</h3>
+        <p>2026-05-07 Kris × Corey × Emma demo call · action item flagged at <a href="https://fathom.video/calls/665792088?timestamp=755.9999">12:35</a></p>
+    </div>
+
+</div>
+</body>
+</html>

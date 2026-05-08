@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Work Orders — Additional Scope for 1.33</title>
+<style>
+    body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        max-width: 1100px;
+        margin: 2rem auto;
+        padding: 0 1.5rem;
+        color: #1a1a1a;
+        line-height: 1.5;
+    }
+    h1 { border-bottom: 2px solid #ddd; padding-bottom: 0.4rem; }
+    h2 { margin-top: 2.5rem; }
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 1rem 0 2rem;
+        font-size: 0.95rem;
+    }
+    th, td {
+        border: 1px solid #ddd;
+        padding: 0.6rem 0.8rem;
+        vertical-align: top;
+        text-align: left;
+    }
+    th {
+        background: #f4f4f4;
+        font-weight: 600;
+    }
+    td.num { width: 2.5rem; text-align: center; font-weight: 600; }
+    td.owner { width: 8rem; }
+    td ul { margin: 0.4rem 0 0; padding-left: 1.2rem; }
+    td ul li { margin: 0.2rem 0; }
+    code {
+        background: #f4f4f4;
+        padding: 0.1rem 0.3rem;
+        border-radius: 3px;
+        font-size: 0.9em;
+    }
+    .meta { color: #666; font-size: 0.9rem; }
+    .open-q { background: #fff8e1; padding: 1rem 1.2rem; border-left: 4px solid #f9a825; border-radius: 4px; }
+    .open-q ul { margin: 0.5rem 0 0; }
+    a { color: #1565c0; }
+</style>
+</head>
+<body>
+
+<h1>Work Orders — Additional Scope for 1.33</h1>
+
+<p class="meta">
+    Combined backlog from the two 2026-05-05 Emma/Corey meetings
+    (<a href="https://fathom.video/share/j74tNXNjp9zW6pAwLnqrWWfG29t-sr3t">1pm</a>
+     · <a href="https://fathom.video/share/vCRfJvnSLefc4z5cFWRxcm6nKSbKUb7i">3:34pm</a>).
+    Suggested buckets — adjust the cut line as needed.
+</p>
+
+<h2>V1 (cut for 1.33 release)</h2>
+
+<table>
+    <thead>
+        <tr>
+            <th>#</th>
+            <th>Item</th>
+            <th>Notes</th>
+            <th>Owner</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td class="num">1</td>
+            <td><strong>Dispatch board</strong></td>
+            <td>
+                Kanban (unscheduled WOs left, user columns right, drag-to-assign) + calendar hybrid.
+                <strong>Open question:</strong> does the existing calendar scheduler work for V1 if we add a
+                "Work Order vs Job" toggle to the schedule form? If yes, the V1 ask shrinks to that toggle;
+                the full dispatch board moves to V2.
+                Folds in: verify dispatch shows in-progress WOs (WO status is a distinct property value from
+                job status — filter likely needs fix).
+            </td>
+            <td class="owner">Emma</td>
+        </tr>
+        <tr>
+            <td class="num">2</td>
+            <td><strong>Equipment ↔ WO subject relationship</strong></td>
+            <td>
+                Distinguish equipment that work is performed <em>on</em> (the vending machine being serviced)
+                vs. equipment used <em>with</em> the WO for billing (existing line-item model).
+                Foundational for the equipment-context view (scan QR → history).
+                New relationship on the data model.
+            </td>
+            <td class="owner">Emma</td>
+        </tr>
+        <tr>
+            <td class="num">3</td>
+            <td><strong>Open Forms on Work Orders (assigned-only UI)</strong></td>
+            <td>
+                Currently hidden. Trimmed UI: only forms assigned to this WO, no full library.
+                Form-assignment plumbing already exists on jobs (WO is a job) — this is a UI update.
+            </td>
+            <td class="owner">Emma</td>
+        </tr>
+        <tr>
+            <td class="num">4</td>
+            <td><strong>Default forms per WO template</strong></td>
+            <td>
+                Required pair to #3: if the WO UI only shows assigned forms, templates need to set them.
+                Easy — re-uses existing job-form assignment.
+            </td>
+            <td class="owner">Emma</td>
+        </tr>
+        <tr>
+            <td class="num">5</td>
+            <td><strong>Simple checklist on WO</strong></td>
+            <td>
+                Item + done checkbox only. Track who checked it off + timestamp. No assignment-to-user yet.
+            </td>
+            <td class="owner">Emma</td>
+        </tr>
+        <tr>
+            <td class="num">6</td>
+            <td><strong>Work Order Templates (standalone table + load action)</strong></td>
+            <td>
+                New standalone <code>WorkOrderTemplate</code> table (review w/ Chris).
+                Loading a template pre-fills: checklist, forms, materials, equipment, labor, description,
+                status, name, defaults.
+            </td>
+            <td class="owner">Emma</td>
+        </tr>
+        <tr>
+            <td class="num">7</td>
+            <td><strong>Templates settings location</strong></td>
+            <td>
+                Property Settings → Work Orders → new "Templates" tab.
+            </td>
+            <td class="owner">Emma</td>
+        </tr>
+        <tr>
+            <td class="num">8</td>
+            <td><strong>Match ClearStory's mobile WO flow</strong></td>
+            <td>
+                Run our mobile WO flow side-by-side against ClearStory; close gaps until field UX is on par.
+                <ul>
+                    <li><strong>Default WO field set</strong> — review TNM sheets from existing customers;
+                        propose default fields + order (PO #, etc.) — <em>Corey</em></li>
+                    <li><strong>Step-by-step edit flow</strong> — current edit is flat; create flow already
+                        steps through admin-defined sections. Mirror on edit — <em>Emma</em></li>
+                    <li><strong>Photo question polish</strong> — clean capture / preview / save experience —
+                        <em>Corey to test, Emma to build</em></li>
+                </ul>
+            </td>
+            <td class="owner">Corey + Emma</td>
+        </tr>
+        <tr>
+            <td class="num">9</td>
+            <td><strong>Multi-day WO labor UX polish</strong></td>
+            <td>
+                Mechanic already works (add-labor across dates groups properly).
+                Confirm visible date column on the labor list. UI only.
+            </td>
+            <td class="owner">Emma</td>
+        </tr>
+    </tbody>
+</table>
+
+<h2>Post-V1 (defer, let users pull)</h2>
+
+<ul>
+    <li><strong>Task entity definition</strong> — wait for Corey's draft (Task ⊂ WO ⊂ Job ⊂ Project,
+        opinionated definitions, conversion rules). Bucket once we see what a task actually is.</li>
+    <li><strong>Pre-fill labor/equipment hours from template</strong> — templates can describe
+        "4 guys × 2hrs" or "forklift × 2hrs", but <strong>timesheets need dates</strong>, so this can only
+        materialize on schedule, not on template-load. Defer until dispatch board flow is settled.</li>
+    <li><strong>Checklist item assignment</strong> to specific users, groups, or roles</li>
+    <li><strong>Pricing visibility permissions</strong> on WOs (view priced/unpriced) — V1 keeps it simple:
+        no prices until invoicing</li>
+    <li><strong>Job-to-job / WO-to-job sub-relationships</strong> (sub-jobs, sub-WOs)</li>
+    <li><strong>Equipment-context view on mobile</strong> — scan QR on equipment → see equipment details,
+        files, notes, past forms, every past WO completed (with photos, technician, materials). Depends on #2.</li>
+    <li><strong>Tap-and-talk / video-walk → auto-generated WO report</strong> (CompanyCam-style)</li>
+    <li><strong>ClearStory differentiation</strong> — once parity is hit (#8), push past it (animations,
+        agent-assisted entry, etc.)</li>
+    <li><strong>Template builder MCP</strong> — analyze past WOs to suggest a template</li>
+    <li><strong>WO → Template save action</strong> (skipped for V1; just build templates manually)</li>
+    <li><strong>Customer payment gateway</strong> (instant pay from approved invoice — Helix vs Stripe)</li>
+</ul>
+
+<h2>Outstanding action items from these calls (not WO scope but tracked)</h2>
+
+<ul>
+    <li>Corey: email Emma the Helix payments link</li>
+    <li>Corey: master V1 scope canvas/markdown for tomorrow's reconvene (this doc is a starting point)</li>
+</ul>
+
+<div class="open-q">
+    <strong>Open questions before tomorrow's reconvene:</strong>
+    <ul>
+        <li><strong>#1</strong>: does calendar-scheduler-with-toggle ship V1 in place of full dispatch board?</li>
+        <li><strong>#2</strong>: scope of equipment-as-subject — single FK on WO, or many-to-many with a role/type qualifier?</li>
+        <li><strong>#6</strong>: anything else templates need to set beyond what's listed?</li>
+    </ul>
+</div>
+
+</body>
+</html>

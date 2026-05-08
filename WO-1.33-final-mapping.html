@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WO 1.33 · Final Mapping — Emma's specs vs Corey's WOX</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Inter', -apple-system, sans-serif; background: #f1f5f9; color: #0f172a; line-height: 1.55; }
+
+.in-iframe .top-nav { display: none !important; }
+.top-nav { position: sticky; top: 0; z-index: 100; background: #0f172a; border-bottom: 1px solid #1e293b; padding: 0 24px; display: flex; align-items: center; gap: 0; }
+.top-nav a { display: inline-flex; align-items: center; padding: 12px 18px; font-size: 13px; font-weight: 600; color: #94a3b8; text-decoration: none; border-bottom: 2px solid transparent; transition: all 0.15s; white-space: nowrap; }
+.top-nav a:hover { color: #f8fafc; background: #1e293b; }
+.top-nav .nav-logo { font-size: 11px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: #475569; padding-right: 18px; margin-right: 4px; border-right: 1px solid #1e293b; }
+
+.wrap { max-width: 1180px; margin: 0 auto; padding: 36px 24px 80px; }
+
+.hero { background: linear-gradient(135deg, #4338ca, #7c3aed); color: #fff; border-radius: 14px; padding: 28px 36px; margin-bottom: 22px; }
+.hero .eyebrow { font-size: 11px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: #c7d2fe; margin-bottom: 8px; }
+.hero h1 { font-size: 28px; font-weight: 800; letter-spacing: -0.01em; margin-bottom: 10px; }
+.hero p { font-size: 15px; line-height: 1.6; color: #e0e7ff; max-width: 880px; }
+.hero .meta { display: flex; gap: 22px; margin-top: 14px; flex-wrap: wrap; font-size: 12px; color: #c7d2fe; }
+.hero .meta strong { color: #fff; }
+
+section.card { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 22px 26px; margin-bottom: 16px; }
+section.card h2 { font-size: 18px; font-weight: 800; color: #0f172a; margin-bottom: 12px; padding-bottom: 10px; border-bottom: 2px solid #f1f5f9; display: flex; align-items: baseline; gap: 10px; }
+section.card h2 .num { font-family: 'SF Mono', Menlo, monospace; font-size: 12px; color: #4338ca; background: #ede9fe; padding: 2px 9px; border-radius: 5px; font-weight: 700; }
+section.card h3 { font-size: 14px; font-weight: 700; color: #0f172a; margin: 16px 0 8px; }
+section.card p { font-size: 13.5px; color: #334155; margin-bottom: 8px; }
+section.card ul { padding-left: 20px; margin: 6px 0; }
+section.card li { font-size: 13.5px; color: #334155; margin-bottom: 4px; line-height: 1.55; }
+section.card code { background: #f1f5f9; padding: 1px 5px; border-radius: 3px; font-size: 12px; font-family: 'SF Mono', Menlo, monospace; color: #be185d; }
+section.card a { color: #3b82f6; text-decoration: none; font-weight: 600; }
+section.card a:hover { text-decoration: underline; }
+
+table.mapping { width: 100%; border-collapse: collapse; font-size: 13px; }
+table.mapping th { text-align: left; padding: 10px 12px; background: #f8fafc; border-bottom: 2px solid #e2e8f0; font-weight: 700; color: #475569; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
+table.mapping td { padding: 10px 12px; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
+table.mapping tr:last-child td { border-bottom: 0; }
+table.mapping tr:hover td { background: #f8fafc; }
+table.mapping td.id { font-family: 'SF Mono', Menlo, monospace; font-weight: 700; white-space: nowrap; }
+table.mapping td.id a { color: #4338ca; }
+table.mapping td.delta { font-size: 12.5px; color: #475569; line-height: 1.5; }
+table.mapping td.status { white-space: nowrap; text-align: center; }
+
+.pill { display: inline-block; font-size: 10px; font-weight: 700; padding: 3px 9px; border-radius: 4px; letter-spacing: 0.4px; }
+.pill-pathb { background: #ede9fe; color: #6b21a8; }
+.pill-patha { background: #dbeafe; color: #1e40af; }
+.pill-folded { background: #d1fae5; color: #065f46; }
+.pill-shipped { background: #dcfce7; color: #166534; }
+.pill-skipped { background: #f1f5f9; color: #475569; }
+.pill-deferred { background: #fef3c7; color: #92400e; }
+.pill-loose { background: #fee2e2; color: #991b1b; }
+.pill-ready { background: #dcfce7; color: #166534; }
+.pill-review { background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; }
+
+.legend { display: flex; gap: 12px; flex-wrap: wrap; margin: 8px 0 16px; padding: 12px 16px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 12px; align-items: center; color: #475569; }
+.legend strong { color: #0f172a; margin-right: 4px; }
+
+.loose { background: #fff7ed; border: 1px solid #fb923c; border-radius: 10px; padding: 14px 18px; margin: 10px 0; }
+.loose h4 { font-size: 13px; font-weight: 800; color: #9a3412; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+.loose p, .loose li { font-size: 13px; color: #7c2d12; line-height: 1.55; }
+.loose ul { padding-left: 20px; margin: 6px 0; }
+
+.decision { background: #fffbeb; border: 1px solid #f59e0b; border-radius: 8px; padding: 12px 16px; margin: 8px 0; font-size: 13px; color: #78350f; }
+.decision strong { color: #451a03; }
+.decision a { color: #b45309; }
+
+.footer { margin-top: 26px; padding: 20px 26px; background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; font-size: 12px; color: #64748b; line-height: 1.7; }
+.footer a { color: #3b82f6; }
+
+.tldr { background: #f8fafc; border-left: 4px solid #4338ca; border-radius: 0 10px 10px 0; padding: 16px 22px; margin-bottom: 16px; }
+.tldr h2 { font-size: 12px; font-weight: 800; letter-spacing: 1.5px; text-transform: uppercase; color: #4338ca; margin-bottom: 10px; }
+.tldr ul { list-style: none; padding: 0; }
+.tldr li { font-size: 13.5px; color: #0f172a; padding: 4px 0; padding-left: 22px; position: relative; }
+.tldr li::before { content: "▸"; position: absolute; left: 0; color: #4338ca; font-weight: 800; }
+</style>
+</head>
+<body>
+<script>if(self!==top)document.documentElement.classList.add("in-iframe")</script>
+<nav class="top-nav">
+    <span class="nav-logo">Appello SDLC</span>
+    <a href="index.html">Roadmap</a>
+    <a href="release-1.33-timeline.html">Release 1.33</a>
+    <a href="WO-1.33-scope.html">Source Backlog</a>
+    <a href="uis-WOX-index.html">Corey's WOX Index</a>
+</nav>
+
+<div class="wrap">
+
+<header class="hero">
+    <div class="eyebrow">Final mapping · for sign-off · 2026-05-08</div>
+    <h1>WO 1.33 — Emma's Path B vs Corey's Path A · Final Mapping</h1>
+    <p>One-pager reconciling Corey's <a href="uis-WOX-index.html" style="color:#fff;text-decoration:underline;">24-item WOX track</a> against Emma's deeper Path B specs in <a href="release-1.33-timeline.html" style="color:#fff;text-decoration:underline;">Phase 5 of the 1.33 timeline</a>. <strong>Emma's specs are the final version of record</strong> — this doc is the artifact for approval before implementation planning. Use it to (a) confirm coverage, (b) sign off on open Pending Decisions, (c) handle the loose threads still on the table.</p>
+    <div class="meta">
+        <span><strong>16</strong> Phase 5 timeline rows</span>
+        <span><strong>14</strong> Path B specs · 1.33</span>
+        <span><strong>2</strong> Deferred to 1.34 (WO-12, WO-19)</span>
+        <span><strong>1</strong> Folded (WOX-05)</span>
+        <span><strong>1</strong> Loose thread remaining</span>
+        <span><strong>9</strong> Open Pending Decisions</span>
+    </div>
+</header>
+
+<div class="tldr">
+    <h2>TL;DR</h2>
+    <ul>
+        <li>8 of Corey's V1-priority WOX items got <strong>full Path B treatment</strong> in 1.33 — the 5 originals (templates, checklist, equipment subject, forms-on-WO, default forms per template) plus 3 follow-ups (pricing permission gate, schedule WO toggle / status fix, SharePoint paste-link). Payment scaffolding (WOX-14 → WO-19) deferred to 1.34 to avoid premature data modeling.</li>
+        <li>WOX-05 (Placeholder Labor) is <strong>satisfied by WO-15a</strong> (template labor plans).</li>
+        <li>WOX-10 (Trade-Level Override) is <strong>already shipped</strong> in production WOs.</li>
+        <li>WOX-01 (Dispatch board V0 toggle) is <strong>folded into WO-18</strong> as the V0 surface for the WO/calendar toggle that fixes the dual-status visibility bug.</li>
+        <li><strong>2 small adds from the 2026-05-07 Kris demo</strong>: WO-23 (Past WOs in Job detail · ~1-1.5d) and WO-24 (Labor billable as Markup % · ~0.5-1d). Both extend existing 1.33 surfaces (WO-1 + LEM-1) without disturbing the rest of the build.</li>
+        <li>1 loose thread remains (TNM-default-fields review under Emma's scope #8 — research-then-implement, not a discrete spec) and needs ownership assignment before implementation kickoff.</li>
+    </ul>
+</div>
+
+<div class="legend">
+    <strong>Status:</strong>
+    <span><span class="pill pill-pathb">PATH B</span> Deeper rebuild (Emma)</span>
+    <span><span class="pill pill-patha">PATH A</span> Direct from Corey's WOX</span>
+    <span><span class="pill pill-folded">FOLDED</span> Covered by another spec</span>
+    <span><span class="pill pill-shipped">SHIPPED</span> Already in prod</span>
+    <span><span class="pill pill-skipped">SKIPPED</span> By call</span>
+    <span><span class="pill pill-deferred">1.34+</span> Deferred</span>
+    <span><span class="pill pill-loose">LOOSE</span> Still to decide</span>
+</div>
+
+<!-- 1 — Master mapping table -->
+<section class="card">
+    <h2><span class="num">1</span> Master Mapping</h2>
+    <table class="mapping">
+        <thead>
+            <tr>
+                <th style="width:90px;">Corey (Path A)</th>
+                <th style="width:160px;">Emma (Path B / final)</th>
+                <th>Key differences / decisions made</th>
+                <th style="width:120px;">Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td class="id"><a href="uis-WOX-02-wo-templates.html">WOX-02</a><br><span style="font-weight:400;color:#64748b;font-size:11px;font-family:Inter;">WO Templates</span></td>
+                <td class="id"><a href="wo-15a-template-foundation.html">WO-15a</a> · <a href="wo-15b-template-settings-ui.html">WO-15b</a> · <a href="wo-15c-template-apply-ui.html">WO-15c</a></td>
+                <td class="delta">Split into 3 specs: schema/load engine, settings UI, apply-on-create UI. <strong>7 new Prisma models</strong> (template + checklist mirror, dual-mode materials/labor/equipment, form join, field default). Untyped (any template applies to any WO). Per-customer default <em>dropped</em>. <code>Job.appliedWorkOrderTemplateId</code> audit FK + <code>lastUsedAt</code> bump on apply. Snapshot semantics — template edits don't propagate.</td>
+                <td class="status"><span class="pill pill-pathb">PATH B</span><br><span class="pill pill-review" style="margin-top:4px;">REVIEW</span></td>
+            </tr>
+            <tr>
+                <td class="id"><a href="uis-WOX-03-wo-checklist-v1.html">WOX-03</a><br><span style="font-weight:400;color:#64748b;font-size:11px;font-family:Inter;">Checklist V1</span></td>
+                <td class="id"><a href="wo-14-checklist.html">WO-14</a></td>
+                <td class="delta">Went deeper: <strong>rich descriptions</strong> (TipTap, expandable), <strong>5 surfaces</strong> (Settings / Overview / Create-Edit / Mobile detail / Mobile create), <strong>ticked-not-deletable</strong> rule, <strong>multi-photo</strong> support via <code>AssetReference</code> (not direct FK), camera glyph + thumbnail strip + lightbox. Folded in WOX-03's <code>photoRequired</code> flag and the <code>%</code>-complete rollup on WO header.</td>
+                <td class="status"><span class="pill pill-pathb">PATH B</span><br><span class="pill pill-review" style="margin-top:4px;">REVIEW</span></td>
+            </tr>
+            <tr>
+                <td class="id"><a href="uis-WOX-04-equipment-subject.html">WOX-04</a><br><span style="font-weight:400;color:#64748b;font-size:11px;font-family:Inter;">Equipment Subject</span></td>
+                <td class="id"><a href="wo-11-equipment-as-wo-subject.html">WO-11</a></td>
+                <td class="delta"><strong>Cardinality conflict resolved → 1:1</strong> (not M:M as Corey's WOX-04 proposed). Reasoning: equipment service history is only meaningful when each WO maps to exactly one piece of equipment; multi-asset visits become multiple WOs. Single FK <code>Job.subjectEquipmentId</code> + Equipment detail "Work Orders" tab (desktop &amp; mobile).</td>
+                <td class="status"><span class="pill pill-pathb">PATH B</span><br><span class="pill pill-review" style="margin-top:4px;">REVIEW</span></td>
+            </tr>
+            <tr>
+                <td class="id"><a href="uis-WOX-06-forms-assigned-only.html">WOX-06</a><br><span style="font-weight:400;color:#64748b;font-size:11px;font-family:Inter;">Forms Assigned-Only</span></td>
+                <td class="id"><a href="wo-13-forms-on-work-orders.html">WO-13</a></td>
+                <td class="delta"><strong>Scope clarified</strong>: "assigned-only UI" in our spec means <em>WO surface shows only forms attached to this WO</em> (not the full library). It does NOT include Corey's per-user-assignment mobile filter (the <code>visibilityScope: ASSIGNED_USER_ONLY | ALL_CREW</code> flag). That filter is deferred — revisit if mobile inbox clutter becomes a real complaint.</td>
+                <td class="status"><span class="pill pill-pathb">PATH B</span><br><span class="pill pill-ready" style="margin-top:4px;">READY</span></td>
+            </tr>
+            <tr>
+                <td class="id"><a href="uis-WOX-09-default-forms-template.html">WOX-09</a><br><span style="font-weight:400;color:#64748b;font-size:11px;font-family:Inter;">Default Forms per Template</span></td>
+                <td class="id"><a href="wo-15a-template-foundation.html">WO-15a</a> (folded)</td>
+                <td class="delta">Folded into WO-15a as the <code>WorkOrderTemplateFormWrapper</code> join collection — templates carry a list of <code>FormWrapper</code> IDs that copy to <code>JobSafetyFormWrapper</code> rows on apply. No separate Path B build needed.</td>
+                <td class="status"><span class="pill pill-folded">FOLDED</span></td>
+            </tr>
+            <tr>
+                <td class="id"><a href="uis-WOX-05-generic-time-entry.html">WOX-05</a><br><span style="font-weight:400;color:#64748b;font-size:11px;font-family:Inter;">Placeholder Labor</span></td>
+                <td class="id"><a href="wo-15a-template-foundation.html">WO-15a</a> + <a href="wo-16-wo-detail-tabs.html">WO-16</a> (folded)</td>
+                <td class="delta">Folded across two specs. <strong>WO-15a</strong>'s <code>WorkOrderTemplateLaborPlan</code> captures the structure (with <code>tradeLevelId</code>) — advisory-only, no runtime records created — matching WOX-05's "pre-fill labor before assigning users, resolve to actual on schedule/check-in" pattern. Free-form plans materialize as <code>WorkOrderLaborItem</code> rows on apply. <strong>WO-16</strong>'s Schedule tab is where the resolution happens: the new Planned Crew advisory sidebar surfaces those labor plans alongside the Calendar Schedule, so the dispatcher can see "need 2 × Apprentice × 4hrs" while dragging actual users onto the schedule, with a live scheduled-vs-expected tally.</td>
+                <td class="status"><span class="pill pill-folded">FOLDED</span></td>
+            </tr>
+            <tr>
+                <td class="id"><a href="uis-WOX-11-pricing-financial-gate.html">WOX-11</a><br><span style="font-weight:400;color:#64748b;font-size:11px;font-family:Inter;">Pricing Permission Gate</span></td>
+                <td class="id"><a href="wo-17-pricing-permission-gate.html">WO-17</a></td>
+                <td class="delta">New <code>workOrder___viewPricing</code> permission (Corey's WOX-11 referenced <code>Job___financialView</code> which doesn't actually exist; existing financial permissions like <code>job___salesSum</code> don't fit). Migration grants the new permission to every role with WO access on rollout — silent backward-compat. Hides pricing columns + aggregate totals; keeps hours total visible. <strong>Silent hide</strong> — no banner, no PDF watermark (Appello convention). Collapses Corey's deferred WOX-24 into this spec.</td>
+                <td class="status"><span class="pill pill-pathb">PATH B</span><br><span class="pill pill-ready" style="margin-top:4px;">READY</span></td>
+            </tr>
+            <tr>
+                <td class="id"><a href="uis-WOX-01-dispatch-toggle.html">WOX-01</a> + <a href="uis-WOX-13-calendar-filter-fix.html">WOX-13</a><br><span style="font-weight:400;color:#64748b;font-size:11px;font-family:Inter;">Schedule Toggle + Status Fix</span></td>
+                <td class="id"><a href="wo-18-calendar-filter-multi-day.html">WO-18</a></td>
+                <td class="delta"><strong>Reframed entirely</strong> after correcting the bug premise. Real bug: WOs use a separate <code>workOrderStatus</code> property (per WO-1) but schedule queries filter on <code>jobStatus</code>, so WOs are invisible. Fix: classification-aware status routing + a Calendar/Work Orders toggle on <code>/scheduling</code> (WOX-01 V0 pattern). Schedule-entry form's job picker filters to the active mode. <strong>Subsumes Emma's scope #1</strong> (skipped dispatch board) at V0 fidelity; full Kanban (WOX-16) stays post-V1. <strong>Emma's #9 is satisfied by existing infrastructure</strong> — WO labor flows through <code>TimeSheetRecord</code> exactly like Job labor, so dates already work; no separate column needed.</td>
+                <td class="status"><span class="pill pill-pathb">PATH B</span><br><span class="pill pill-ready" style="margin-top:4px;">READY</span></td>
+            </tr>
+            <tr>
+                <td class="id"><a href="uis-WOX-14-payment-scaffold.html">WOX-14</a><br><span style="font-weight:400;color:#64748b;font-size:11px;font-family:Inter;">Payment Scaffold</span></td>
+                <td class="id"><a href="wo-19-payment-gateway-scaffold.html">WO-19</a> (deferred)</td>
+                <td class="delta"><strong>Deferred to 1.34 activation sprint.</strong> Originally scoped as a 1.33 scaffold-only build to de-risk the 1.34 activation. Argument for deferring: payment gateway models are sensitive to UI-driven edge cases (partial-pay reconciliation, refund / dispute flows, multi-currency, tax handling, webhook state machine) that don't surface until UX is built. Shipping schema in 1.33 then reshaping it in 1.34 is more disruptive than building data model + UI together in one ~10-12d 1.34 sprint. Path B analysis preserved in WO-19 spec for reference when 1.34 picks this up.</td>
+                <td class="status"><span class="pill pill-deferred">1.34</span></td>
+            </tr>
+            <tr>
+                <td class="id"><a href="uis-WOX-07-mobile-edit-flow.html">WOX-07</a><br><span style="font-weight:400;color:#64748b;font-size:11px;font-family:Inter;">Mobile Edit Step-by-Step</span></td>
+                <td class="id"><a href="wo-21-mobile-wo-edit-stepped.html">WO-21</a></td>
+                <td class="delta">Mirrors WO-8a's create wizard for the mobile edit flow — same step indicator, same section rendering, same Summary step. <strong>Key delta vs create:</strong> free step navigation. All step dots tappable from any state, Save button on every step, required-field validation moves from Next-gate to Save-gate (since the WO already has required fields satisfied at create time). Section deep-links from WO detail page. <code>DataModelForm</code> gets three new optional props (<code>steppedFormMode</code>, <code>initialStep</code>, <code>saveOnEveryStep</code>); sequential mode preserved for create. No schema changes.</td>
+                <td class="status"><span class="pill pill-pathb">PATH B</span><br><span class="pill pill-ready" style="margin-top:4px;">READY</span></td>
+            </tr>
+            <tr>
+                <td class="id"><a href="uis-WOX-08-photo-question-polish.html">WOX-08</a><br><span style="font-weight:400;color:#64748b;font-size:11px;font-family:Inter;">Photo Question Polish</span></td>
+                <td class="id"><a href="wo-22-photo-question-polish.html">WO-22</a></td>
+                <td class="delta">Extracts <code>PhotoQuestion</code> as a dedicated mobile component (was inline in <code>QAForm</code> switch). Renderer polish: 2-column thumbnail grid, caption overlays, big × with delete confirm, min/max counter, action-sheet camera/gallery picker. <code>SafetyFormQuestion</code> gains 5 config fields (<code>photoMin</code>, <code>photoMax</code>, <code>captionMode</code>, <code>allowGalleryImport</code>, <code>storeExif</code>) exposed in the desktop form builder. <code>Asset</code> gets <strong>universal</strong> <code>caption</code> + GPS lat/long + <code>capturedAt</code> (distinct from <code>createdAt</code> for offline-then-upload flows). Upload-time compression (2MB max, 30-day retention of original). EXIF stripped from customer-facing PDFs. Benefits every form in the platform — and captions are now available on any asset, not just photo answers.</td>
+                <td class="status"><span class="pill pill-pathb">PATH B</span><br><span class="pill pill-ready" style="margin-top:4px;">READY</span></td>
+            </tr>
+            <tr>
+                <td class="id"><a href="uis-WOX-15-sharepoint-paste-link.html">WOX-15</a><br><span style="font-weight:400;color:#64748b;font-size:11px;font-family:Inter;">SharePoint Paste-Link</span></td>
+                <td class="id"><a href="wo-20-external-documents.html">WO-20</a></td>
+                <td class="delta">New <code>ExternalDocument</code> Prisma model with polymorphic <code>referenceModel</code> + <code>referenceId</code> (Appello convention; values <code>Job</code> + <code>Project</code>; WO inherits via Job-as-host). <strong>Top-level flat list on the entity</strong> — explicitly NOT inside the existing file/folder (<code>Asset</code> / <code>Folder</code>) system; different lifecycle, different ownership. Server-side URL format validation + <code>sourceDomain</code> derived at write time. <strong>SSRF invariant codified</strong>: server never fetches the stored URL — favicon / preview is client-side only, asserted in resolver tests. Anyone with edit on parent entity can manage; audit log entries on add/edit/remove. Mobile mirror.</td>
+                <td class="status"><span class="pill pill-pathb">PATH B</span><br><span class="pill pill-ready" style="margin-top:4px;">READY</span></td>
+            </tr>
+            <tr>
+                <td class="id"><span style="color:#64748b;">no Corey item</span></td>
+                <td class="id"><a href="wo-16-wo-detail-tabs.html">WO-16</a></td>
+                <td class="delta"><strong>Adjacent Path B</strong> — emerged from WO-15c apply requirements. Two new tabs on WO detail page: Schedule (existing Calendar Schedule + new advisory sidebar driven by template labor plans) and Equipment Assignment (existing Job-side UI ported via gate removal).</td>
+                <td class="status"><span class="pill pill-pathb">PATH B</span><br><span class="pill pill-ready" style="margin-top:4px;">READY</span></td>
+            </tr>
+            <tr>
+                <td class="id"><span style="color:#64748b;">no Corey item</span></td>
+                <td class="id"><a href="wo-12-maintenance-wo-linkage.html">WO-12</a></td>
+                <td class="delta"><strong>Adjacent Path B</strong> — surfaced during WO-11 conversation. Links <code>MaintenanceSchedule</code> to a fulfilling WO + unified service history. <strong>Deferred to 1.34</strong> — not in V1 scope.</td>
+                <td class="status"><span class="pill pill-deferred">1.34</span></td>
+            </tr>
+            <tr>
+                <td class="id"><span style="color:#64748b;">no Corey item</span><br><span style="font-weight:400;color:#64748b;font-size:11px;font-family:Inter;">Demo-call add</span></td>
+                <td class="id"><a href="wo-23-past-wos-in-job-detail.html">WO-23</a></td>
+                <td class="delta"><strong>Adjacent Path B · 2026-05-07 demo-call action item.</strong> Smallest possible subset of post-V1 WOX-23 sub-relationships work. Adds <code>Job.parentJobId</code> self-FK + Work Orders tab on Project Job detail (desktop + mobile) reusing the WO-5 list row. "+ New work order" CTA pre-wires the parent. "Part of: &lt;parent&gt;" chip on WO detail header. Validation: parent must be Project-Job-classified; no self-parenting; no WO-under-WO in V1.</td>
+                <td class="status"><span class="pill pill-pathb">PATH B</span><br><span class="pill pill-ready" style="margin-top:4px;">READY</span></td>
+            </tr>
+            <tr>
+                <td class="id"><span style="color:#64748b;">no Corey item</span><br><span style="font-weight:400;color:#64748b;font-size:11px;font-family:Inter;">Demo-call add</span></td>
+                <td class="id"><a href="wo-24-labor-rate-markup-percent.html">WO-24</a></td>
+                <td class="delta"><strong>Adjacent Path B · 2026-05-07 demo-call action item.</strong> Extends LEM-1's <code>TradeLevelRate.billableValue</code> with optional <code>markupPercent</code> column. Per-row mode toggle (Billable $ / Markup %) on the labor rate admin table; UI computes billable from cost × (1 + markup%) at save time. <code>billableValue</code> stays the runtime source of truth — no invoicing / timesheet / payroll changes. 3 open Pending Decisions (auto-recompute on cost change, implied-markup readout in $ mode, naming).</td>
+                <td class="status"><span class="pill pill-pathb">PATH B</span><br><span class="pill pill-ready" style="margin-top:4px;">READY</span></td>
+            </tr>
+            <tr>
+                <td class="id"><a href="uis-WOX-10-trade-level-override.html">WOX-10</a><br><span style="font-weight:400;color:#64748b;font-size:11px;font-family:Inter;">Trade-Level Override</span></td>
+                <td class="id"><span style="color:#64748b;">already in prod</span></td>
+                <td class="delta">Per-line trade level override with audit is already shipped in WOs. No work needed.</td>
+                <td class="status"><span class="pill pill-shipped">SHIPPED</span></td>
+            </tr>
+        </tbody>
+    </table>
+</section>
+
+<!-- 2 — Loose threads -->
+<section class="card">
+    <h2><span class="num">2</span> Loose Threads — decide before pass-off</h2>
+    <p>All three sit under Emma's original scope item <strong>#8 (Match ClearStory's mobile WO flow)</strong>. Each maps to a Corey item but none are wired into the timeline yet. Decide keep / fold / defer for each.</p>
+
+    <div class="loose" style="background:#f0fdf4;border-color:#16a34a;">
+        <h4 style="color:#065f46;">✓ Loose-1 · WOX-07 — Mobile EDIT flow (step-by-step) — CLOSED</h4>
+        <p style="color:#166534;">Resolved as <a href="wo-21-mobile-wo-edit-stepped.html" style="color:#166534;font-weight:700;">WO-21</a> · Path B spec, ~1-1.5d, READY for build. Adds free step navigation on top of WO-8a's wizard.</p>
+    </div>
+
+    <div class="loose" style="background:#f0fdf4;border-color:#16a34a;">
+        <h4 style="color:#065f46;">✓ Loose-2 · WOX-08 — Photo Question Polish (mobile forms) — CLOSED</h4>
+        <p style="color:#166534;">Resolved as <a href="wo-22-photo-question-polish.html" style="color:#166534;font-weight:700;">WO-22</a> · Path B spec, ~2-3d, <strong>READY</strong> for build (all 3 Pending Decisions locked: <code>Asset.caption</code> universal, GPS + <code>capturedAt</code> on Asset, upload-time compression). Benefits every form in the platform, not just WO forms.</p>
+    </div>
+
+    <div class="loose">
+        <h4>Loose-3 · TNM-default-fields review (no Corey doc)</h4>
+        <p><strong>From Emma's scope #8:</strong> review TNM sheets from existing customers, propose default WO fields + order (PO #, etc.). No Corey equivalent — this is research-then-implement work, not a discrete spec.</p>
+        <p><strong>Action needed (Corey):</strong> either (a) walk through the TNM sheets he already has and confirm the current WO field set + order covers them — flagging any gaps — <em>or</em> (b) hand the TNM sheets over to Emma so she can do that pass. Either path is fine; pick one and commit.</p>
+        <p>Once gaps are identified, implementation is small (DAA seed data updates for default fields / ordering).</p>
+    </div>
+</section>
+
+<!-- 3 — Open Pending Decisions in Path B specs -->
+<section class="card">
+    <h2><span class="num">3</span> Open Pending Decisions in Path B specs</h2>
+    <p>Nine decisions across four specs need your sign-off before those specs flip from <span class="pill pill-review">REVIEW</span> to ready-for-build. None are blockers in themselves; lean is documented in each spec.</p>
+
+    <div class="decision">
+        <strong>WO-11 — Equipment Subject (1 open):</strong> Single FK <code>subjectEquipmentId</code> vs polymorphic <code>subjectReferenceModel</code> + <code>subjectReferenceId</code>. <em>Lean:</em> single FK (Equipment-only); accept migration cost if a real polymorphic case shows up. → <a href="wo-11-equipment-as-wo-subject.html#scope">spec</a>
+    </div>
+
+    <div class="decision">
+        <strong>WO-15a — Template Schema (3 open):</strong> (a) what happens to applied WOs when a template is archived, (b) what happens when a referenced Material/TradeLevel/EquipmentCategory is archived, (c) confirm the form-render time field default resolution order (instance &gt; template &gt; DAA default). All have leans documented. → <a href="wo-15a-template-foundation.html#scope">spec</a>
+    </div>
+
+    <div class="decision">
+        <strong>WO-15c — Template Apply UI (2 open):</strong> (a) what if a structured equipment plan has no assignment created at submit time — block or allow with the plan staying as advisory; (b) switching template — confirm-and-replace vs merge. <em>Leans:</em> allow + confirm-and-replace. → <a href="wo-15c-template-apply-ui.html#scope">spec</a>
+    </div>
+
+    <div class="decision">
+        <strong>WO-24 — Labor Markup % (3 open):</strong> (a) auto-recompute <code>billableValue</code> when <code>costValue</code> changes elsewhere (lean: no, V1 = manual re-save); (b) show implied markup readout on rows saved in Billable $ mode (lean: yes, free); (c) naming — <code>markupPercent</code> (60.0) vs <code>markupRate</code> (0.6) (lean: <code>markupPercent</code>, whole-number input). → <a href="wo-24-labor-rate-markup-percent.html#pending-decisions">spec</a>
+    </div>
+</section>
+
+<!-- 4 — Already-decided log -->
+<section class="card">
+    <h2><span class="num">4</span> Decisions Already Locked (for the record)</h2>
+    <p>Decisions made during the planning conversation that diverge from Corey's WOX track. Each is baked into the relevant Path B spec; flagged here so reviewers see the divergence consciously.</p>
+    <ul>
+        <li><strong>Equipment subject cardinality is 1:1, not M:M</strong> — corrects WOX-04's misattribution of Emma's position; rationale is service-history meaningfulness (multi-asset visits become multiple WOs).</li>
+        <li><strong>Forms-on-WO scope is "trimmed library", not "per-user-assignment filter"</strong> — clarification vs WOX-06; the per-user mobile filter is deferred.</li>
+        <li><strong>Templates are untyped</strong> — any active template applies to any WO regardless of <code>jobType</code>. (Considered typed; rejected as unnecessary friction.)</li>
+        <li><strong>Per-customer default template dropped</strong> — workflow is "open form → Load template" picker; auto-loading on customer select adds little.</li>
+        <li><strong>Materials reference generic <code>Material</code> only at template tier</strong> — specific variant + price selected at runtime by tech (insulation-fitting case: 1" vs 2" depending on pipe size).</li>
+        <li><strong>Labor / Equipment plans on templates are dual-mode</strong> — structured (FK) = advisory; free-form (description-only) = creates <code>WorkOrderLaborItem</code> / <code>WorkOrderEquipmentItem</code> on apply.</li>
+        <li><strong>Photo workflow uses <code>AssetReference</code> polymorphic join</strong>, not direct FK — naturally supports multiple photos per item; locked down on metadata (no captions, no annotations).</li>
+        <li><strong>Checklist ticked-items-not-deletable</strong> — audit invariant; untick first to remove.</li>
+        <li><strong>Apply-on-create only, never apply-on-edit</strong>; one template per WO; snapshot semantics.</li>
+    </ul>
+</section>
+
+<!-- 5 — Post-V1 deferrals -->
+<section class="card">
+    <h2><span class="num">5</span> Post-V1 / 1.34+ Deferrals</h2>
+    <p>Items already deferred — listed for completeness so reviewers know what's NOT in 1.33.</p>
+    <ul>
+        <li><strong>WO-12</strong> — Maintenance ↔ Work Order Linkage (1.34)</li>
+        <li><strong>WO-19</strong> — Customer Payment Gateway (1.34) — deferred from V1 scaffold to "model + UI together" sprint to avoid premature data modeling</li>
+        <li><strong>WOX-16</strong> — Dispatch V2 (3 industry concepts to pick from)</li>
+        <li><strong>WOX-17</strong> — SharePoint Phase 2 (in-app iframe)</li>
+        <li><strong>WOX-18</strong> — BIM/Revit/IFC 3D Viewer</li>
+        <li><strong>WOX-19</strong> — AI voice-to-report (mobile)</li>
+        <li><strong>WOX-20</strong> — Checklist user/role assignment</li>
+        <li><strong>WOX-21</strong> — Save WO as Template action</li>
+        <li><strong>WOX-22</strong> — Template Builder MCP (AI)</li>
+        <li><strong>WOX-23</strong> — Project/Job/WO/Task hierarchy formalization</li>
+        <li><s style="color:#94a3b8;"><strong>WOX-24</strong> — Dedicated <code>workOrder.viewPricing</code> permission</s> — collapsed into WO-17 in V1 (Corey's predicate was that <code>Job___financialView</code> existed; it doesn't, so we add the new permission now rather than deferring)</li>
+    </ul>
+</section>
+
+<footer class="footer">
+    <strong>How to use this doc:</strong> walk Section 1 to confirm coverage, then Section 2 (loose threads — need decisions) and Section 3 (open Pending Decisions on Path B specs — need sign-off). Once those are resolved, the Phase 5 timeline is ready for implementation planning.<br><br>
+    <strong>Source materials:</strong> <a href="WO-1.33-scope.html">Emma's WO-1.33-scope.html</a> · <a href="release-1.33-timeline.html">Phase 5 timeline</a> · <a href="uis-WOX-index.html">Corey's WOX index</a> · <a href="wox-handover-corey-to-emma.html">Corey's handover doc</a>.<br>
+    <strong>Generated:</strong> 2026-05-08.
+</footer>
+
+</div>
+</body>
+</html>

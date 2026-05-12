@@ -1,0 +1,1099 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WO-14: Simple Checklist on Work Orders — Implementation Plan</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+.in-iframe .top-nav { display: none !important; }
+.top-nav { position: sticky; top: 0; z-index: 100; background: #0f172a; border-bottom: 1px solid #1e293b; padding: 0 24px; display: flex; align-items: center; gap: 0; }
+.top-nav a { display: inline-flex; align-items: center; padding: 12px 18px; font-size: 13px; font-weight: 600; color: #94a3b8; text-decoration: none; border-bottom: 2px solid transparent; transition: all 0.15s; white-space: nowrap; }
+.top-nav a:hover { color: #f8fafc; background: #1e293b; }
+.top-nav .nav-logo { font-size: 11px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: #475569; padding-right: 18px; margin-right: 4px; border-right: 1px solid #1e293b; }
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Inter', -apple-system, sans-serif; background: #f8fafc; color: #0f172a; }
+.plan-wrap { max-width: 880px; margin: 0 auto; padding: 40px 24px 80px; }
+h1 { font-size: 24px; font-weight: 800; margin: 0 0 16px; }
+h2 { font-size: 18px; font-weight: 700; margin: 28px 0 12px; padding-bottom: 8px; border-bottom: 2px solid #e2e8f0; }
+h3 { font-size: 15px; font-weight: 700; margin: 20px 0 8px; padding-top: 10px; border-top: 1px solid #f1f5f9; }
+h4 { font-size: 14px; font-weight: 700; margin: 14px 0 6px; }
+p { font-size: 14px; color: #334155; line-height: 1.7; margin: 6px 0; }
+ul, ol { padding-left: 20px; margin: 8px 0; }
+li { font-size: 14px; color: #334155; line-height: 1.7; margin: 3px 0; }
+strong { color: #0f172a; }
+code { font-family: 'SF Mono', monospace; background: #f1f5f9; padding: 1px 6px; border-radius: 4px; font-size: 12px; color: #7c3aed; }
+pre { background: #0f172a; color: #f8fafc; border-radius: 8px; padding: 16px; overflow-x: auto; font-size: 13px; line-height: 1.6; margin: 12px 0; font-family: 'SF Mono', monospace; }
+pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
+hr { border: none; border-top: 1px solid #e2e8f0; margin: 24px 0; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 12px 0; }
+th { text-align: left; padding: 8px 12px; background: #f1f5f9; border-bottom: 2px solid #e2e8f0; font-weight: 600; }
+td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
+.check-item { display: flex; gap: 8px; align-items: flex-start; padding: 5px 0; }
+.check-box { width: 16px; height: 16px; border: 2px solid #cbd5e1; border-radius: 3px; flex-shrink: 0; margin-top: 2px; }
+.callout { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 14px 18px; margin: 14px 0; font-size: 13px; color: #1e40af; }
+.callout strong { color: #1e3a8a; }
+    </style>
+</head>
+<body>
+
+<script>if(self!==top)document.documentElement.classList.add("in-iframe")</script>
+<nav class="top-nav">
+    <span class="nav-logo">Appello SDLC</span>
+    <a href="../index.html">Roadmap</a>
+    <a href="../release-1.33-timeline.html">Release 1.33</a>
+    <a href="../release-1.34-timeline.html">Release 1.34</a>
+    <a href="../master-spec-reconciliation.html">Spec Reconciliation</a>
+    <a href="../cross-release-continuity-audit.html">Continuity Audit</a>
+    <a href="ui-interface-library.html">UI Library</a>
+</nav>
+<div class="plan-wrap" id="rendered"></div>
+
+<script type="text/plain" id="plan-md">
+# WO-14: Simple Checklist on Work Orders — Implementation Plan
+
+## Overview
+
+Introduce a first-class procedural checklist on every Work Order (Job with `jobClassification = WorkOrder`). Items have a label + done checkbox + an optional rich description (stored as **markdown**, edited via the existing TipTap WYSIWYG — same pattern as Job description), with audit fields (`createdByUserId`, `completedByUserId`, `completedAt`) recorded server-side. An optional `photoRequired` flag gates ticking on attaching at least one photo via the existing polymorphic `AssetReference` table. A computed `% complete` is surfaced on the WO header. Five surfaces: Desktop Settings tab (full management), Desktop Overview tab (read / tick / quick-add / archive), Desktop Create/Edit form (drafts persist with form save; live ticks), Mobile WO Detail (read / tick / photo capture), Mobile WO Create/Edit form (read / tick). Templates that pre-populate items ship later with WO-15 — this spec keeps the data model open to it.
+
+**Estimated effort:** 3-4 days
+**Risk:** Medium-High — new model + child mutations on Job, photo capture flow, multiple surfaces (5), TipTap reuse, audit invariant requires per-tick atomicity
+**Spec:** `tm-work-orders-uis/wo-14-checklist.html`
+**Requires:** WO-1 (Job classification), WO-3 (DataModelForm WO foundation), WO-3d (WO Property Settings tab)
+**Enables:** WO-15 (Templates pre-fill checklist items)
+
+---
+
+## Decided — Model anchor, photos via AssetReference, classification gate at API
+
+**Naming.** The model is `WorkOrderChecklistItem` (not `JobChecklistItem`) per the spec: the feature is intentionally WO-only and the codebase should be honest about that. The FK is to `Job` because a WorkOrder is a Job; the WO scope is enforced both at the GraphQL resolver layer (every mutation rechecks `jobClassification`) and structurally via the DAA `subModel = 'WorkOrder'` rows from Step 2.5 — ProjectJob forms never render the checklist section.
+
+**Photos.** Photos attach via the existing `AssetReference` polymorphic join table (`apps/api/prisma/schema.prisma:1132-1152`) with `referenceTable = "WorkOrderChecklistItem"`, `referenceId = checklistItem.id`. **No new FK column** on `WorkOrderChecklistItem`. Multiple photos per item are supported natively; no captions, no annotations (locked-down per spec — richer photo flows belong in Forms / WO-13).
+
+**Ticks always live.** `setWorkOrderChecklistItemDone` fires on every surface, including from inside the WO Create/Edit form. The audit invariant requires "completed at" to be the wall-clock moment of the tick — never a later form save. The form-save embed only handles drafts (item upserts + archives), never ticks.
+
+**Form-save embed is upsert-based, not full-replace.** Quick-add and archive on the desktop Create/Edit form are batched into the `createJob` / `editJob` payload; ticks happening concurrently in another tab or on mobile are conflict-free because the form path never writes `isDone` / `completedByUserId` / `completedAt`.
+
+**Archive guard for ticked items.** Ticked items cannot be archived from any surface — the API rejects the call with a clear error, and the UI hides/disables the control. To remove a ticked item the user must first untick it (which clears the audit fields AND deletes attached photos), then archive.
+
+**Description is stored as markdown**, matching the project convention (Job description, Company description, RFI description — all use `defaultAttributeType = 'wysiwyg'` and round-trip markdown through TipTap via the `markdownValue` prop on `AdvancedTipTapEditor`). The frontend converts to HTML at render time using the existing `markdown2HTML` / `htmlToMarkdown` helpers in `@useanzen/shared-utils`. **No server-side HTML sanitization step** — markdown storage sidesteps the XSS surface that arbitrary HTML would create.
+
+---
+
+## Step 1: Prisma Schema — WorkOrderChecklistItem Model
+
+**File:** `apps/api/prisma/schema.prisma`
+
+Mirrors the shape of `WorkOrderLaborItem` / `WorkOrderMaterialItem` / `WorkOrderEquipmentItem` (line item children of Job) — same id format, same audit flags, `orderNo` for ordering, `onDelete: Cascade` to Job. Two `User` relations track who created the item and who ticked it; both use `onDelete: SetNull` so user deletion does not cascade-delete checklist history.
+
+```prisma
+model WorkOrderChecklistItem {
+    id          String   @id @db.VarChar(21)
+    isDeleted   Boolean  @default(false)
+    isArchived  Boolean  @default(false)
+    createdAt   DateTime @default(now())
+    updatedAt   DateTime @default(now()) @updatedAt
+
+    jobId String @db.VarChar(21)
+    Job   Job    @relation("WorkOrderChecklistItems", fields: [jobId], references: [id], onDelete: Cascade)
+
+    label       String  @db.VarChar(500)
+    description String? @db.Text                // markdown (round-tripped via TipTap); null when no rich body
+    orderNo     Int     @default(0)
+
+    createdByUserId String? @db.VarChar(21)
+    CreatedByUser   User?   @relation("WorkOrderChecklistItemsCreated",
+                                       fields: [createdByUserId],
+                                       references: [id],
+                                       onDelete: SetNull)
+
+    isDone            Boolean   @default(false)
+    completedByUserId String?   @db.VarChar(21)
+    CompletedByUser   User?     @relation("WorkOrderChecklistItemsCompleted",
+                                           fields: [completedByUserId],
+                                           references: [id],
+                                           onDelete: SetNull)
+    completedAt       DateTime?
+
+    photoRequired Boolean @default(false)
+
+    @@index([jobId, isDeleted, isArchived, orderNo], map: "WOChecklistItem_job_order_idx")
+    @@index([createdByUserId], map: "WOChecklistItem_createdBy_idx")
+    @@index([completedByUserId], map: "WOChecklistItem_completedBy_idx")
+}
+```
+
+Add inverse relations on existing models:
+
+```prisma
+// On Job (alongside WorkOrderLaborItems / WorkOrderMaterialItems / WorkOrderEquipmentItems):
+WorkOrderChecklistItems WorkOrderChecklistItem[] @relation("WorkOrderChecklistItems")
+
+// On User (alongside existing reverse relations):
+WorkOrderChecklistItemsCreated   WorkOrderChecklistItem[] @relation("WorkOrderChecklistItemsCreated")
+WorkOrderChecklistItemsCompleted WorkOrderChecklistItem[] @relation("WorkOrderChecklistItemsCompleted")
+```
+
+**No FK to Asset.** Photos are joined via the existing polymorphic `AssetReference` table — no schema change for the photo relationship.
+
+---
+
+## Step 2: Migration — Create WorkOrderChecklistItem Table
+
+**Create file:** `apps/api/prisma/migrations/[timestamp]_wo_14_checklist_item/migration.sql`
+
+```sql
+CREATE TABLE `WorkOrderChecklistItem` (
+    `id`                VARCHAR(21)  NOT NULL,
+    `isDeleted`         BOOLEAN      NOT NULL DEFAULT FALSE,
+    `isArchived`        BOOLEAN      NOT NULL DEFAULT FALSE,
+    `createdAt`         DATETIME(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `updatedAt`         DATETIME(3)  NOT NULL,
+    `jobId`             VARCHAR(21)  NOT NULL,
+    `label`             VARCHAR(500) NOT NULL,
+    `description`       TEXT         NULL,
+    `orderNo`           INT          NOT NULL DEFAULT 0,
+    `createdByUserId`   VARCHAR(21)  NULL,
+    `isDone`            BOOLEAN      NOT NULL DEFAULT FALSE,
+    `completedByUserId` VARCHAR(21)  NULL,
+    `completedAt`       DATETIME(3)  NULL,
+    `photoRequired`     BOOLEAN      NOT NULL DEFAULT FALSE,
+    PRIMARY KEY (`id`),
+    INDEX `WOChecklistItem_job_order_idx` (`jobId`, `isDeleted`, `isArchived`, `orderNo`),
+    INDEX `WOChecklistItem_createdBy_idx` (`createdByUserId`),
+    INDEX `WOChecklistItem_completedBy_idx` (`completedByUserId`),
+    CONSTRAINT `WOChecklistItem_jobId_fkey`
+        FOREIGN KEY (`jobId`) REFERENCES `Job`(`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT `WOChecklistItem_createdBy_fkey`
+        FOREIGN KEY (`createdByUserId`) REFERENCES `User`(`id`) ON DELETE SET NULL ON UPDATE CASCADE,
+    CONSTRAINT `WOChecklistItem_completedBy_fkey`
+        FOREIGN KEY (`completedByUserId`) REFERENCES `User`(`id`) ON DELETE SET NULL ON UPDATE CASCADE
+);
+
+-- Register WorkOrderChecklistItem as a known polymorphic reference target.
+-- Required by Audit, Comments, NoteReferences, NoteSubscriptions, Permission,
+-- TagReferences, etc. — any table that FKs into ReferenceModel(model). New
+-- models that participate in any polymorphic reference go in this registry;
+-- standard pattern across recent migrations (e.g. 20260423_signature_permissions,
+-- 20260428_equipment_maintenance, 20260223_drawing_annotation).
+INSERT IGNORE INTO `ReferenceModel` (`model`) VALUES ('WorkOrderChecklistItem');
+```
+
+No backfill — existing WOs start with zero checklist items.
+
+Photo references piggyback on the existing `AssetReference` table — no schema change needed for the photo relationship. The convention is documented in Step 5 and Step 8.
+
+---
+
+## Step 2.5: Migration — DAA + DocumentModelForm Seeding (`wo-checklist` slug)
+
+**Same migration file as Step 2.** The checklist is not a DAA-driven scalar field — it's a *custom column render* (same pattern as `wo-labor-items` / `wo-material-items` / `wo-equipment-items` in `JobDataModelForm.tsx:1191-1232`). A DAA row with a known slug is what tells the form engine to look up `customColumnRender["wo-checklist"]` and render the section component there. The DAA is seeded `subModel = 'WorkOrder'` so it appears only on WorkOrder forms.
+
+Mirrors the pattern in `apps/api/prisma/migrations/20260409100000_work_order_daa_setup/migration.sql` (DAAs for the WO subModel) and `apps/api/prisma/migrations/20260416000001_rfi_email_tweaks/migration.sql` (wiring DAAs into CREATE / EDIT / SETTINGS DocumentModelForms).
+
+### 2.5a. Find (do not create) the relevant WorkOrder DocumentSection
+
+Use the existing "Work Order Info" section — or create a new dedicated "Checklist" section if Product wants the checklist rendered as its own visually distinct section header. Either works; the default below uses a dedicated `Checklist` section since the spec mockups show it as a top-level section with its own header and helper text.
+
+```sql
+SET @workOrderChecklistSectionId = LEFT(MD5(UUID()), 21);
+
+INSERT INTO DocumentSection (
+    id, createdAt, updatedAt,
+    referenceModel, subModel,
+    name, orderNo, mobileOrderNo,
+    isDeleted, isArchived
+) VALUES (
+    @workOrderChecklistSectionId, NOW(), NOW(),
+    'Job', 'WorkOrder',
+    'Checklist', 90, 90,
+    FALSE, FALSE
+);
+```
+
+`orderNo: 90` places the section near the bottom of the WO form (after Labor / Materials / Equipment / Forms but before Signatures) per the spec mockups; adjust against the actual sibling orderNos shipped by WO-3a.
+
+### 2.5b. Insert the DAA — WorkOrder only
+
+```sql
+SET @woChecklistDaaId = LEFT(MD5(UUID()), 21);
+
+INSERT INTO DocumentAttributeAssignment (
+    id, createdAt, updatedAt,
+    referenceModel, subModel,
+    sectionId, orderNo, mobileSectionId, mobileOrderNo,
+    defaultAttribute, defaultAttributeLabel, defaultAttributeType,
+    defaultAttributeIsRequired, defaultAttributeIsDerived,
+    slug, referenceColumn,
+    isDeleted, isArchived
+) VALUES (
+    @woChecklistDaaId, NOW(), NOW(),
+    'Job', 'WorkOrder',
+    @workOrderChecklistSectionId, 10, @workOrderChecklistSectionId, 10,
+    'wo-checklist-items', 'Checklist', 'objects',
+    FALSE, FALSE,
+    'wo-checklist', 'wo-checklist-items',
+    FALSE, FALSE
+);
+```
+
+Key points:
+- `subModel = 'WorkOrder'` — structural guarantee this row can never render on a ProjectJob form.
+- `slug = 'wo-checklist'` — the key the frontend looks up in `customColumnRender` (matches the `wo-labor-items` / `wo-material-items` / `wo-equipment-items` convention).
+- `defaultAttribute = 'wo-checklist-items'` and `referenceColumn = 'wo-checklist-items'` — matches the slug convention used by `wo-labor-items` / `wo-material-items` / `wo-equipment-items` in `20260409100000_work_order_daa_setup/migration.sql`. The frontend field-level resolver is `Job.workOrderChecklistItems` (Step 7); the DAA's `defaultAttribute` is the section key, not the resolver field name.
+- `defaultAttributeType = 'objects'` — matches the existing WO custom-column-render DAAs (`wo-labor-items` / `wo-material-items` / `wo-equipment-items`); the form engine's default `objects` renderer is never reached because `customColumnRender["wo-checklist"]` overrides it.
+- `defaultAttributeIsRequired = FALSE` / `defaultAttributeIsDerived = FALSE` — items are user-managed; a WO with zero items is valid.
+
+### 2.5c. Wire the DAA to the three WorkOrder DocumentModelForms
+
+Look up the three `DocumentModelForm` rows for `(referenceModel = 'Job', subModel = 'WorkOrder')` and insert one `DocumentModelFormElements` row each. CREATE and EDIT are `isDeleted = FALSE` (visible to end users); SETTINGS is `isDeleted = FALSE` because the spec puts full management on the Settings tab.
+
+```sql
+-- CREATE form: drafted CRUD + live ticks (Mockup 3)
+INSERT INTO DocumentModelFormElements (
+    id, createdAt, updatedAt,
+    documentModelFormId, documentAttributeAssignmentId,
+    isDeleted, isArchived
+) VALUES (
+    LEFT(MD5(UUID()), 21), NOW(), NOW(),
+    (SELECT id FROM DocumentModelForm
+       WHERE referenceModel = 'Job' AND subModel = 'WorkOrder' AND formType = 'CREATE'),
+    @woChecklistDaaId,
+    FALSE, FALSE
+);
+
+-- EDIT form: drafted CRUD + live ticks (Mockup 3)
+INSERT INTO DocumentModelFormElements (
+    id, createdAt, updatedAt,
+    documentModelFormId, documentAttributeAssignmentId,
+    isDeleted, isArchived
+) VALUES (
+    LEFT(MD5(UUID()), 21), NOW(), NOW(),
+    (SELECT id FROM DocumentModelForm
+       WHERE referenceModel = 'Job' AND subModel = 'WorkOrder' AND formType = 'EDIT'),
+    @woChecklistDaaId,
+    FALSE, FALSE
+);
+
+-- SETTINGS form: full management surface (Mockup 1)
+INSERT INTO DocumentModelFormElements (
+    id, createdAt, updatedAt,
+    documentModelFormId, documentAttributeAssignmentId,
+    isDeleted, isArchived
+) VALUES (
+    LEFT(MD5(UUID()), 21), NOW(), NOW(),
+    (SELECT id FROM DocumentModelForm
+       WHERE referenceModel = 'Job' AND subModel = 'WorkOrder' AND formType = 'SETTINGS'),
+    @woChecklistDaaId,
+    FALSE, FALSE
+);
+```
+
+### 2.5d. Do NOT create a ProjectJob DAA
+
+The `wo-checklist` DAA is intentionally only seeded for `subModel = 'WorkOrder'`. No corresponding row is inserted for `ProjectJob` — structural guarantee that the checklist never renders on ProjectJob forms.
+
+---
+
+## Step 3: TypeScript Types
+
+**Create file:** `apps/api/src/types/WorkOrderChecklistItem.types.ts`
+
+```typescript
+export interface IWorkOrderChecklistItem {
+    jobId: string;
+    label: string;
+    description: string | null;
+    orderNo: number;
+    createdByUserId: string | null;
+    isDone: boolean;
+    completedByUserId: string | null;
+    completedAt: Date | null;
+    photoRequired: boolean;
+}
+```
+
+Audit fields (`createdByUserId`, `completedByUserId`, `completedAt`, `isDone`) are server-set; the GraphQL resolver and model hooks own them — they are never client-supplied except via the dedicated `setWorkOrderChecklistItemDone` mutation.
+
+---
+
+## Step 4: WorkOrderChecklistItem Model Class
+
+**Create file:** `apps/api/src/models/WorkOrderChecklistItem.ts`
+
+Extends **`BaseAuditableModel`** (not `BaseModel`) so every write — including ticks — generates an `AuditLog` row automatically. Matches the pattern used by `Holiday`, `ProgressReport`, `Department`, `Project`, etc.
+
+The model enforces one invariant:
+
+- **Archive guard** — `beforeEdit` rejects `isArchived = true` when the existing row has `isDone = true`.
+
+**Audit-field protection is enforced at the GraphQL input shape, not at the model layer.** The `editWorkOrderChecklistItem` mutation's input does not declare `isDone` / `completedByUserId` / `completedAt` / `createdByUserId` (Step 5), so clients cannot submit them. The only mutation that writes those fields is `setWorkOrderChecklistItemDone`, which sets them server-side from auth context and routes through `this.editItem(...)` — clean, audited, no Prisma-direct bypass.
+
+The `description` column stores **markdown** — no server-side HTML sanitization is needed (markdown storage sidesteps the XSS surface, matching the Job/Company/RFI description pattern in the codebase).
+
+```typescript
+protected modelFields: IField<IWorkOrderChecklistItem>[] = [
+    {
+        name: "jobId",
+        type: "string",
+        options: { isRequiredOnCreate: true, isFilterable: true, canEdit: false }
+    },
+    {
+        name: "label",
+        type: "string",
+        options: { isRequiredOnCreate: true, canEdit: true, validate: (v) => !!v && v.length <= 500 }
+    },
+    { name: "description",       type: "string",  options: { canEdit: true } },
+    { name: "orderNo",           type: "number",  options: { canEdit: true, isSortable: true } },
+    { name: "createdByUserId",   type: "string",  options: { canEdit: true } }, // server-set; resolver never accepts from client
+    { name: "isDone",            type: "boolean", options: { canEdit: true } }, // server-set via setItemDone / clearItemDone
+    { name: "completedByUserId", type: "string",  options: { canEdit: true } }, // server-set via setItemDone / clearItemDone
+    { name: "completedAt",       type: "date",    options: { canEdit: true } }, // server-set via setItemDone / clearItemDone
+    { name: "photoRequired",     type: "boolean", options: { canEdit: true } }
+];
+
+protected async beforeCreate(data, currentUserId) {
+    if (data.createdByUserId == null) data.createdByUserId = currentUserId;
+    if (data.orderNo == null) {
+        const max = await prisma.workOrderChecklistItem.aggregate({
+            where: { jobId: data.jobId, isDeleted: false },
+            _max: { orderNo: true }
+        });
+        data.orderNo = (max._max.orderNo ?? -1) + 1;
+    }
+    return data;
+}
+
+protected async beforeEdit(id, data, currentUserId) {
+    if (data.isArchived === true) {
+        const existing = await this.getItem(id, currentUserId);
+        if (existing?.isDone) {
+            throw new Error("Cannot archive a ticked checklist item. Untick it first.");
+        }
+    }
+    return data;
+}
+```
+
+`setItemDone` / `clearItemDone` are dedicated helper methods on the model class, called from the `setWorkOrderChecklistItemDone` resolver (Step 5). Both route through `this.editItem(...)` so the audit log captures the tick / untick automatically via `BaseAuditableModel`:
+
+```typescript
+async setItemDone(id: string, photoAssetIds: string[], currentUserId: string) {
+    const item = await this.getItem(id, currentUserId);
+    if (!item) throw new Error("Checklist item not found");
+    if (item.photoRequired && photoAssetIds.length === 0) {
+        throw new Error("This item requires at least one photo to be ticked");
+    }
+
+    // Audited via BaseAuditableModel — the AuditLog row records the field-level
+    // diff (isDone false→true, completedByUserId/At set) with currentUserId as actor.
+    await this.editItem(
+        id,
+        {
+            isDone: true,
+            completedByUserId: currentUserId,
+            completedAt: new Date()
+        },
+        currentUserId
+    );
+
+    // Attach photos via AssetReference (Step 8). AssetReference has no dedicated
+    // model class — direct Prisma is the existing house pattern for this table.
+    for (const assetId of photoAssetIds) {
+        await prisma.assetReference.create({
+            data: {
+                assetId,
+                referenceTable: "WorkOrderChecklistItem",
+                referenceId: id
+            }
+        });
+    }
+    return this.getItem(id, currentUserId);
+}
+
+async clearItemDone(id: string, currentUserId: string) {
+    // Audited via BaseAuditableModel — captures isDone true→false and the audit-field clears.
+    await this.editItem(
+        id,
+        { isDone: false, completedByUserId: null, completedAt: null },
+        currentUserId
+    );
+
+    // Untick clears photo references — the audit invariant requires that the photos
+    // captured at tick time disappear when the tick is undone.
+    await prisma.assetReference.deleteMany({
+        where: { referenceTable: "WorkOrderChecklistItem", referenceId: id }
+    });
+    return this.getItem(id, currentUserId);
+}
+```
+
+**Every change to a checklist item is audited.** Because the model extends `BaseAuditableModel` and every mutation in Step 5 (create / edit / setDone / reorder / archive / restore) routes through `this.createItem(...)` or `this.editItem(...)`, every field-level change generates an `AuditLog` row with the actor, timestamp, and field-level before/after diff. That covers:
+
+| Change | Audited via |
+|---|---|
+| Item created | `createItem` (initial AuditLog) |
+| Label edited | `editItem` (label diff) |
+| Description edited (markdown) | `editItem` (description diff — answers "did someone change the instructions for step 3 after the tech ticked it?") |
+| Reordered (orderNo) | `editItem` (orderNo diff, once per moved item) |
+| `photoRequired` toggled | `editItem` (photoRequired diff) |
+| Archived / restored | `editItem` (isArchived diff) |
+| Ticked | `editItem` via `setItemDone` (isDone + completedByUserId + completedAt diff) |
+| Unticked | `editItem` via `clearItemDone` (isDone + completedByUserId + completedAt diff) |
+
+**About the `canEdit: true` flips on audit fields:** those are necessary so `editItem` will accept the writes from `setItemDone` / `clearItemDone` (a `canEdit: false` field would be silently stripped). Audit-field protection against client tampering is not enforced at the model field-options layer — it's enforced at the GraphQL input boundary: the `editWorkOrderChecklistItem` mutation input (Step 5) simply does not declare `isDone` / `completedByUserId` / `completedAt` / `createdByUserId`, so a client cannot submit `{ id, isDone: true }` through it; the only mutation that writes those fields is `setWorkOrderChecklistItemDone`, which sources them from server-side state (`currentUserId` from auth context, `new Date()` for the timestamp). The model layer's job is uniform audit logging; the resolver layer's job is shape validation.
+
+---
+
+## Step 5: WorkOrderChecklistItem GraphQL Resolver
+
+**Create file:** `apps/api/src/graphql/models/WorkOrderChecklistItem.ts`
+
+Type plus six mutations: `create`, `edit`, `setDone`, `reorder`, `archive`, `restore`. All mutations recheck `jobClassification === "WorkOrder"` on the parent Job before proceeding.
+
+```graphql
+type WorkOrderChecklistItem {
+    id: ID!
+    jobId: String!
+    Job: Job
+    label: String!
+    description: String
+    orderNo: Int!
+    createdByUserId: String
+    CreatedByUser: User
+    isDone: Boolean!
+    completedByUserId: String
+    CompletedByUser: User
+    completedAt: DateTime
+    photoRequired: Boolean!
+    completionPhotos: [Asset!]!
+    isArchived: Boolean!
+    createdAt: DateTime!
+    updatedAt: DateTime!
+}
+
+type WorkOrderChecklistProgress {
+    doneCount: Int!
+    totalCount: Int!
+    percentComplete: Int  # null when totalCount = 0; otherwise 0..100
+}
+
+extend type Mutation {
+    createWorkOrderChecklistItem(
+        jobId: ID!,
+        label: String!,
+        description: String,
+        orderNo: Int,
+        photoRequired: Boolean
+    ): WorkOrderChecklistItem!
+
+    editWorkOrderChecklistItem(
+        id: ID!,
+        label: String,
+        description: String,
+        orderNo: Int,
+        photoRequired: Boolean
+    ): WorkOrderChecklistItem!
+
+    setWorkOrderChecklistItemDone(
+        id: ID!,
+        isDone: Boolean!,
+        photoAssetIds: [String!]
+    ): WorkOrderChecklistItem!
+
+    reorderWorkOrderChecklistItems(
+        jobId: ID!,
+        orderedIds: [String!]!
+    ): [WorkOrderChecklistItem!]!
+
+    archiveWorkOrderChecklistItem(id: ID!): WorkOrderChecklistItem!
+    restoreWorkOrderChecklistItem(id: ID!): WorkOrderChecklistItem!
+}
+```
+
+Resolver bodies follow the project's "thin resolver, fat model" rule (CLAUDE.md §3) — delegate to the `WorkOrderChecklistItemModel` for everything non-trivial.
+
+```typescript
+// Helper used by every mutation that takes (or implies) a job context.
+async function assertWorkOrderClassification(jobId: string) {
+    const job = await prisma.job.findUnique({
+        where: { id: jobId },
+        select: { jobTypeId: true }
+    });
+    if (!job?.jobTypeId) throw new Error("Job not found or missing jobType");
+    const pv = await prisma.propertyValue.findUnique({
+        where: { id: job.jobTypeId },
+        select: { jobClassification: true }
+    });
+    if (pv?.jobClassification !== "WorkOrder") {
+        throw new Error("Checklist is only available on Work Orders");
+    }
+}
+
+Resolvers: {
+    Job: (parent) => prisma.job.findUnique({ where: { id: parent.jobId } }),
+    CreatedByUser: (parent) =>
+        parent.createdByUserId
+            ? prisma.user.findUnique({ where: { id: parent.createdByUserId } })
+            : null,
+    CompletedByUser: (parent) =>
+        parent.completedByUserId
+            ? prisma.user.findUnique({ where: { id: parent.completedByUserId } })
+            : null,
+    completionPhotos: async (parent) => {
+        const refs = await prisma.assetReference.findMany({
+            where: {
+                referenceTable: "WorkOrderChecklistItem",
+                referenceId: parent.id
+            },
+            select: { assetId: true }
+        });
+        if (refs.length === 0) return [];
+        return prisma.asset.findMany({
+            where: { id: { in: refs.map((r) => r.assetId) }, isDeleted: false },
+            orderBy: { createdAt: "asc" }
+        });
+    }
+},
+Mutation: {
+    createWorkOrderChecklistItem: async (_, args, ctx) => {
+        await assertWorkOrderClassification(args.jobId);
+        return new WorkOrderChecklistItemModel().createItem(args, ctx.userId());
+    },
+    editWorkOrderChecklistItem: async (_, { id, ...rest }, ctx) => {
+        const existing = await prisma.workOrderChecklistItem.findUnique({ where: { id } });
+        if (!existing) throw new Error("Item not found");
+        await assertWorkOrderClassification(existing.jobId);
+        return new WorkOrderChecklistItemModel().editItem(id, rest, ctx.userId());
+    },
+    setWorkOrderChecklistItemDone: async (_, { id, isDone, photoAssetIds }, ctx) => {
+        const existing = await prisma.workOrderChecklistItem.findUnique({ where: { id } });
+        if (!existing) throw new Error("Item not found");
+        await assertWorkOrderClassification(existing.jobId);
+        const model = new WorkOrderChecklistItemModel();
+        return isDone
+            ? model.setItemDone(id, photoAssetIds ?? [], ctx.userId())
+            : model.clearItemDone(id, ctx.userId());
+    },
+    reorderWorkOrderChecklistItems: async (_, { jobId, orderedIds }, ctx) => {
+        await assertWorkOrderClassification(jobId);
+        const model = new WorkOrderChecklistItemModel();
+        for (let i = 0; i < orderedIds.length; i++) {
+            await model.editItem(orderedIds[i], { orderNo: i }, ctx.userId());
+        }
+        return model.getList(
+            { where: { jobId, isDeleted: false, isArchived: false } },
+            ctx.userId()
+        ).then((r) => r.list);
+    },
+    archiveWorkOrderChecklistItem: async (_, { id }, ctx) => {
+        const existing = await prisma.workOrderChecklistItem.findUnique({ where: { id } });
+        if (!existing) throw new Error("Item not found");
+        await assertWorkOrderClassification(existing.jobId);
+        // beforeEdit (Step 4) enforces the "cannot archive ticked" guard.
+        return new WorkOrderChecklistItemModel().editItem(id, { isArchived: true }, ctx.userId());
+    },
+    restoreWorkOrderChecklistItem: async (_, { id }, ctx) => {
+        const existing = await prisma.workOrderChecklistItem.findUnique({ where: { id } });
+        if (!existing) throw new Error("Item not found");
+        await assertWorkOrderClassification(existing.jobId);
+        return new WorkOrderChecklistItemModel().editItem(id, { isArchived: false }, ctx.userId());
+    }
+}
+```
+
+Register in `apps/api/src/graphql/schema.ts` (4 places: import + Resolvers spread + Mutation spread + typeDefs) and export from `apps/api/src/graphql/models/index.ts`.
+
+---
+
+## Step 6: Extend Job Model — Embedded Checklist Diff on Create/Edit
+
+**File:** `apps/api/src/models/Job.ts`
+
+The Create/Edit form on desktop persists checklist drafts (upserts + archives) atomically with the rest of the job save. Per the existing house pattern (e.g. `Job.ts:1458-1467` for `primaryContactId`), the field is **not** declared in `modelFields`; it is destructured and deleted from `data` inside `customCreateItem` / `customEditItem`, then handled separately afterward.
+
+### 6a. No modelFields entry needed
+
+Do **not** add `checklistItems` to `modelFields`. BaseModel has no concept of nested child writes — the convention is to strip the non-column field inside the custom hooks.
+
+### 6b. Hook into customCreateItem / customEditItem
+
+```typescript
+protected async customCreateItem(data, currentUserId) {
+    const dataAny = data as any;
+    const checklistDiff = dataAny.checklistItems as IWorkOrderChecklistDiff | null | undefined;
+    delete dataAny.checklistItems;
+
+    const job = await super.customCreateItem(data, currentUserId);
+    if (checklistDiff) {
+        await this.applyChecklistDiff(job.id, checklistDiff, currentUserId);
+    }
+    return job;
+}
+
+protected async customEditItem(id, data, currentUserId) {
+    const dataAny = data as any;
+    const hasChecklistKey = "checklistItems" in dataAny;
+    const checklistDiff = dataAny.checklistItems as IWorkOrderChecklistDiff | null | undefined;
+    delete dataAny.checklistItems;
+
+    const job = await super.customEditItem(id, data, currentUserId);
+    if (hasChecklistKey && checklistDiff) {
+        await this.applyChecklistDiff(id, checklistDiff, currentUserId);
+    }
+    return job;
+}
+
+private async applyChecklistDiff(
+    jobId: string,
+    diff: IWorkOrderChecklistDiff,
+    currentUserId: string
+) {
+    // Gate to WorkOrder classification — defensive, matches Step 5.
+    await assertWorkOrderClassification(jobId);
+
+    const model = new WorkOrderChecklistItemModel();
+
+    // Upserts: id present → edit; id absent → create.
+    for (const draft of diff.upsert ?? []) {
+        if (draft.id) {
+            await model.editItem(
+                draft.id,
+                {
+                    label: draft.label,
+                    description: draft.description,
+                    orderNo: draft.orderNo
+                },
+                currentUserId
+            );
+        } else {
+            await model.createItem(
+                {
+                    jobId,
+                    label: draft.label,
+                    description: draft.description ?? null,
+                    orderNo: draft.orderNo,
+                    photoRequired: false
+                },
+                currentUserId
+            );
+        }
+    }
+
+    // Archive: rejected per-id when item.isDone = true (beforeEdit enforces this).
+    for (const archiveId of diff.archiveIds ?? []) {
+        await model.editItem(archiveId, { isArchived: true }, currentUserId);
+    }
+}
+```
+
+### 6c. The form-save embed never writes `isDone`
+
+The diff intentionally has no `isDone` / `completedByUserId` / `completedAt` fields. Ticks happening concurrently in another tab or on mobile are conflict-free with the form save because the form path only writes label / description / orderNo and archive state — never audit fields. This preserves the "tick is the wall-clock truth" invariant called out in the spec.
+
+### 6d. `Job.upsert` does not need changes
+
+`Job.upsert()` (the DataModelForm entry point at `Job.ts:2962`) passes `restData` through to `customCreateItem` / `customEditItem`. The `checklistItems` field flows through the same way `performedOnEquipmentId` does in WO-11 — destructure-and-delete in the custom hooks. No new entry in `nullableIdFields` (the field is not a scalar id) and no other `upsert` change.
+
+---
+
+## Step 7: Extend Job GraphQL — workOrderChecklistItems + Progress + Diff Input
+
+**File:** `apps/api/src/graphql/models/Job.ts`
+
+### 7a. Add to Job type
+
+```graphql
+type Job {
+    # ...existing fields
+    workOrderChecklistItems(includeArchived: Boolean = false): [WorkOrderChecklistItem!]!
+    workOrderChecklistProgress: WorkOrderChecklistProgress
+}
+```
+
+### 7b. Add field-level resolvers
+
+```typescript
+workOrderChecklistItems: (parent, args) =>
+    prisma.workOrderChecklistItem.findMany({
+        where: {
+            jobId: parent.id,
+            isDeleted: false,
+            ...(args.includeArchived ? {} : { isArchived: false })
+        },
+        orderBy: { orderNo: "asc" }
+    }),
+
+workOrderChecklistProgress: async (parent) => {
+    const items = await prisma.workOrderChecklistItem.findMany({
+        where: { jobId: parent.id, isDeleted: false, isArchived: false },
+        select: { isDone: true }
+    });
+    const totalCount = items.length;
+    const doneCount = items.filter((i) => i.isDone).length;
+    const percentComplete =
+        totalCount === 0 ? null : Math.round((doneCount / totalCount) * 100);
+    return { doneCount, totalCount, percentComplete };
+}
+```
+
+### 7c. Extend CreateJob / EditJob inputs
+
+```graphql
+input WorkOrderChecklistItemDraftInput {
+    id: String          # null = create new; present = update existing
+    label: String!
+    description: String
+    orderNo: Int
+}
+
+input WorkOrderChecklistDiffInput {
+    upsert: [WorkOrderChecklistItemDraftInput!]
+    archiveIds: [String!]
+}
+
+extend input CreateJob {
+    checklistItems: WorkOrderChecklistDiffInput
+}
+
+extend input EditJob {
+    checklistItems: WorkOrderChecklistDiffInput
+}
+```
+
+No diff field accepts `isDone`, `photoRequired`, `createdByUserId`, or `completedByUserId` — those are out-of-band of the form-save embed. `photoRequired` is edited only through `editWorkOrderChecklistItem` (Settings tab live mutation).
+
+---
+
+## Step 8: AssetReference Photo Wiring
+
+**No new file.** Photos are joined via the existing `AssetReference` table (`prisma/schema.prisma:1132-1152`) with `referenceTable = "WorkOrderChecklistItem"`, `referenceId = checklistItem.id`. The lifecycle is owned by the resolver / model:
+
+| Action | Effect on AssetReference |
+|---|---|
+| Tick (photoRequired item, photoAssetIds = [a, b]) | Inserts two rows: `(a, "WorkOrderChecklistItem", item.id)` and `(b, "WorkOrderChecklistItem", item.id)` |
+| Untick | `deleteMany` by `referenceTable + referenceId` |
+| Archive a previously-ticked-then-unticked item | No additional AssetReference work — references were already cleared on untick |
+| Hard-delete the WO row (`onDelete: Cascade`) | Checklist items cascade-delete; AssetReference rows are orphaned by `referenceId` and cleaned up by the standard `AssetReference` housekeeping job. No app-layer action required. |
+
+The `completionPhotos` field on the GraphQL type (Step 5) is resolved by the `assetReference.findMany` → `asset.findMany` two-step shown in the resolver block. For volumes large enough to matter, batch this with DataLoader at the resolver layer if N+1 surfaces during testing — but the per-WO photo count is small (handful per item, dozens per WO) so the naive resolver is acceptable for V1.
+
+**Asset upload** itself uses the existing Asset upload flow — frontend creates the Asset row via the existing upload pipeline (`packages/server-side-utils` / `apps/api/src/graphql/models/Asset.ts`), receives the asset id back, then passes it in `photoAssetIds` to `setWorkOrderChecklistItemDone`. No new upload pathway is introduced.
+
+---
+
+## Step 9: Description Storage — Markdown (no HTML sanitizer)
+
+The `description` column stores **markdown**, matching the codebase convention for WYSIWYG-edited fields:
+- Job description → DAA `defaultAttributeType = 'wysiwyg'`, stored as markdown text (`apps/api/prisma/migrations/20260317000000_job_data_model_forms/migration.sql`)
+- Company description → DAA `defaultAttributeType = 'wysiwyg'` (`20251017000000_datamodel_002_company_migration/migration.sql:4`)
+- RFI description / response → same pattern (`20260311000000_rfi_description_response_wysiwyg/migration.sql`)
+
+The `AdvancedTipTapEditor` (`packages/ui/src/components/WYSIWYG/AdvancedTipTap.tsx`) is wired with the `markdownValue` prop and round-trips through the existing `markdown2HTML` / `htmlToMarkdown` helpers in `@useanzen/shared-utils`. Markdown storage sidesteps the XSS surface entirely — there is no server-side HTML sanitization step, and no `sanitize-html` dependency to add.
+
+The frontend component (Step 10) renders read-only descriptions by passing `description` through `markdown2HTML` and into a sanitizing `<Markdown />` component — same pattern used everywhere the codebase renders user-authored markdown today.
+
+---
+
+## Step 10: Frontend — WorkOrderChecklistSection Component (Desktop)
+
+**Create file:** `apps/frontend/src/components/WorkOrder/Checklist/WorkOrderChecklistSection.tsx`
+
+One component, three rendering modes via a `mode` prop. Mirrors the architectural pattern of `WOLaborEditor` / `WOMaterialEditor` / `WOEquipmentEditor` — same custom-column-render hook into the form, but with mode-specific UI affordances.
+
+```typescript
+interface IWorkOrderChecklistSectionProps {
+    jobId: string;
+    mode: "settings" | "overview" | "form";
+    // form-mode only: drafts buffered for form save (Step 6 diff)
+    draftItems?: IWorkOrderChecklistItemDraft[];
+    onDraftItemsChange?: (drafts: IWorkOrderChecklistItemDraft[]) => void;
+    archivedDraftIds?: string[];
+    onArchivedDraftIdsChange?: (ids: string[]) => void;
+}
+```
+
+**Mode behavior matrix** (matches the spec placement table):
+
+| Mode | Read | Tick | Quick-add | Rich edit / reorder | Archive (unticked) | Restore |
+|---|---|---|---|---|---|---|
+| `settings` | ✓ | live | live | live | live | ✓ |
+| `overview` | ✓ | live | live | hidden (link to Settings) | live | hidden |
+| `form` | ✓ | live | drafted | hidden | drafted | hidden |
+
+**Live operations** call the GraphQL mutations from Step 5 directly via Apollo hooks (`useCreateWorkOrderChecklistItemMutation`, `useSetWorkOrderChecklistItemDoneMutation`, etc.) and refetch the parent Job's `workOrderChecklistItems` field on success.
+
+**Drafted operations** (form mode only) buffer in form state. New items get a `nanoid()` client-id (no real `id` yet); archives push to `archivedDraftIds`. On form save, the parent form serializes both lists into the `checklistItems` diff input (Step 6 / Step 7).
+
+**Ticks are always live**, including in `mode="form"`. The component fires `setWorkOrderChecklistItemDone` directly; on success, it patches its local `data` cache so the row reflects "done" immediately. The form save never carries tick state.
+
+**Rich description editing** uses the existing `AdvancedTipTapEditor` from `@useanzen/ui` (`packages/ui/src/components/WYSIWYG/AdvancedTipTap.tsx`) wired via the `markdownValue` prop — same configuration as the Job description editor. The editor round-trips through `markdown2HTML` / `htmlToMarkdown` (`@useanzen/shared-utils`); the value persisted to the API is markdown text. Visible in `mode="settings"` only; collapsed read-only in `overview` and `form` modes (toggle to expand). Read-only render uses the existing `<Markdown />` component from `@useanzen/ui`.
+
+**Drag-and-drop reorder** (settings mode only) uses the project's existing drag-handle pattern (consult `packages/ui` for the shipped `Draggable` / `useReorder` primitive; if none exists, `@hello-pangea/dnd` is acceptable). On drop, fires `reorderWorkOrderChecklistItems` with the new ID order.
+
+**Archive control**: hidden when the row has `isDone === true`; disabled with a tooltip on `mode="settings"` so the user understands the constraint. The API enforces the same rule (Step 4 `beforeEdit` guard) — the UI is purely an affordance.
+
+**Photo capture + display use the existing `AssetViewer` component** (`apps/frontend/src/components/AssetViewer/AssetViewer.tsx` on desktop; `apps/mobile/src/components/AssetsViewer/AssetViewer.tsx` on mobile) — same component that powers the Note + Comment attachment flow (`apps/mobile/src/components/Note.tsx:386-401`, `apps/mobile/src/components/Forms/NoteAddEditForm/CommentAddEditForm.tsx:240-264`). No custom strip or lightbox component is built — `AssetViewer` already renders the thumbnail grid, opens its own lightbox/preview, handles uploads, handles deletes, and lets the parent trigger the file picker via a ref.
+
+**Display** (ticked photoRequired items, any surface):
+```tsx
+<AssetViewer
+    type="document"
+    referenceTable="WorkOrderChecklistItem"
+    initialAssets={item.completionPhotos.map((a) => ({ assetId: a.id }))}
+    fixedGridSize={3}
+    viewOnly
+    hideMessageIfNoAsset
+    hideLabel
+    key={item.completionPhotos.length}
+/>
+```
+
+**Capture** (untracked-but-photoRequired item, tap-to-tick flow):
+```tsx
+const assetsRef = useRef(null);
+const [uploadedAssetIds, setUploadedAssetIds] = useState<string[]>([]);
+
+// Tap on the checkbox of an unticked photoRequired item:
+const handleCheck = () => {
+    if (item.photoRequired && !item.isDone) {
+        assetsRef.current?.browseFiles(); // opens file picker / mobile camera
+        return;
+    }
+    setWorkOrderChecklistItemDone({ variables: { id: item.id, isDone: true } });
+};
+
+<AssetViewer
+    ref={assetsRef}
+    type="document"
+    externalRequest
+    referenceTable="WorkOrderChecklistItem"
+    onAllSettled={(uploaded) => {
+        // Fire the tick with the freshly-uploaded asset ids; resolver creates
+        // the AssetReference rows on the server side.
+        setWorkOrderChecklistItemDone({
+            variables: { id: item.id, isDone: true, photoAssetIds: uploaded }
+        });
+        setUploadedAssetIds(uploaded);
+    }}
+    hideUploadInterface  // the file picker is triggered via the ref, not via a visible upload UI
+/>
+```
+
+The flow:
+1. User taps the checkbox on an unticked, `photoRequired` item.
+2. Component calls `assetsRef.current?.browseFiles()`, which `AssetViewer` opens — file picker on desktop, camera on mobile (mobile `AssetViewer` already passes `capture="environment"` for image inputs).
+3. User selects/captures one or more photos; `AssetViewer` uploads each as an Asset.
+4. `AssetViewer` fires `onAllSettled` with the uploaded asset ids.
+5. Parent calls `setWorkOrderChecklistItemDone({ id, isDone: true, photoAssetIds: [...] })`.
+6. Resolver creates `AssetReference` rows (Step 8) and marks the item done.
+
+Render the camera glyph (`📷` or an `@useanzen/ui` icon if one fits) next to unticked photoRequired items as a visual hint — but the glyph is purely informational; the click target is the checkbox itself.
+
+**Note on AssetReference creation:** in the Note flow, `AssetViewer` doesn't create AssetReference rows directly — the parent mutation (`createNote` / `editNote`) takes `assetIds` and the resolver creates the references. We follow the same pattern: `setWorkOrderChecklistItemDone` is the mutation that creates the AssetReference rows. `AssetViewer` only handles the upload → Asset row + returns the ids.
+
+---
+
+## Step 11: Frontend — Register WorkOrderChecklistSection on All Surfaces (Desktop)
+
+Three integration points; all use the existing `customColumnRender` plumbing:
+
+### 11a. JobAddEditForm (Create + Edit + Settings — desktop)
+
+**File:** `apps/frontend/src/components/Forms/JobAddEditForm/JobDataModelForm.tsx`
+
+Add `wo-checklist` to the `customColumnRender` object (alongside `wo-labor-items` / `wo-material-items` / `wo-equipment-items` at lines 1191-1232):
+
+```typescript
+"wo-checklist": () => {
+    if (formData.jobClassification !== "WorkOrder") return null;
+    const isSettings = formType === "SETTINGS";
+    const isFormCtx = formType === "CREATE" || formType === "EDIT";
+    return (
+        <WorkOrderChecklistSection
+            jobId={formData.id ?? ""}                // empty on Create until save
+            mode={isSettings ? "settings" : "form"}
+            draftItems={isFormCtx ? formData._checklistDrafts : undefined}
+            onDraftItemsChange={isFormCtx ? (d) => setFormData({ ...formData, _checklistDrafts: d }) : undefined}
+            archivedDraftIds={isFormCtx ? formData._checklistArchives : undefined}
+            onArchivedDraftIdsChange={isFormCtx ? (ids) => setFormData({ ...formData, _checklistArchives: ids }) : undefined}
+        />
+    );
+}
+```
+
+The `_checklistDrafts` / `_checklistArchives` are private form-state fields stripped by `Job.upsert` (or earlier in the `customCreateItem` / `customEditItem` destructure) — they get serialized into the `checklistItems` GraphQL input shape at submit time. Naming with the underscore prefix prevents the DataModelForm field engine from treating them as DAA-backed.
+
+### 11b. WO Overview tab — fully live, no form involved
+
+**File:** `apps/frontend/src/components/DetailsPage/WorkOrderDetailsPage/Tabs/Overview/index.tsx`
+
+The Overview tab renders a `DataModelDetails` (the **read-only** detail view, not `JobAddEditForm`) with its own `customColumnRender` (consult lines 88-158). Add a `wo-checklist` entry that renders `<WorkOrderChecklistSection mode="overview" jobId={job.id} />`. On Create the WO already exists by the time Overview is reachable, so `jobId` is always populated.
+
+**Every checklist action on Overview is a standalone live mutation — there is no form to open, no save button to click.** Specifically:
+- Ticking / unticking → `setWorkOrderChecklistItemDone` fires immediately (audit row written via `BaseAuditableModel.editItem`).
+- Ticking a `photoRequired` item → `AssetViewer.browseFiles()` → on `onAllSettled`, `setWorkOrderChecklistItemDone` fires with `photoAssetIds` (audit + `AssetReference` rows written).
+- Quick-add (label + Enter) → `createWorkOrderChecklistItem` fires immediately.
+- Archive (unticked item) → `archiveWorkOrderChecklistItem` fires immediately.
+
+The form-save embed from Step 6 (`checklistItems` diff on `createJob` / `editJob`) is **only** consumed by the Create/Edit form surface — Overview never touches it.
+
+### 11c. WO Settings tab
+
+**File:** `apps/frontend/src/components/DetailsPage/WorkOrderDetailsPage/Tabs/Settings.tsx`
+
+The Settings tab already routes through `JobAddEditForm` with `formType="SETTINGS"` — the 11a wiring covers it (the `isSettings` branch returns `mode="settings"`). No additional change needed at the Settings.tsx level beyond making sure the section renders inside the form.
+
+### 11d. WO detail page header — progress indicator
+
+**File:** WO detail page header (likely `apps/frontend/src/components/DetailsPage/WorkOrderDetailsPage/index.tsx` near the title block)
+
+Render a small progress chip when `workOrderChecklistProgress.totalCount > 0`:
+
+```tsx
+{job.workOrderChecklistProgress && job.workOrderChecklistProgress.totalCount > 0 && (
+    <span className={new ClassNames(
+        "inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold",
+        "bg-info-light text-on-info-light border border-info"
+    ).list()}>
+        {job.workOrderChecklistProgress.doneCount} of {job.workOrderChecklistProgress.totalCount} complete · {job.workOrderChecklistProgress.percentComplete}%
+    </span>
+)}
+```
+
+Extend the existing GraphQL fragment that powers the WO detail page to include `workOrderChecklistProgress { doneCount totalCount percentComplete }` so this is fetched in the same round trip.
+
+---
+
+## Step 12: Frontend — Mobile
+
+### 12a. Mobile WO Detail — new Checklist tab
+
+**File:** `apps/mobile/src/components/WorkOrders/WODetail.tsx` (tab array at lines 112-186)
+
+Add a new tab after Overview:
+
+```tsx
+{
+    id: "wo-checklist",
+    label: "Checklist",
+    render: () => <MobileWorkOrderChecklistSection jobId={job.id} mode="detail" />
+}
+```
+
+**Create file:** `apps/mobile/src/components/WorkOrders/MobileWorkOrderChecklistSection.tsx`
+
+Mobile-specific component (separate file, not a prop on the desktop one) because the layout and gesture handling are different enough to justify divergence. Operation set: read + tick + expand/collapse description. **Photo capture and display reuse the mobile `AssetViewer`** from `apps/mobile/src/components/AssetsViewer/` (same component as `Note.tsx:386-401` and `CommentAddEditForm.tsx:240-264`) — `viewOnly` mode for ticked items, `externalRequest` + `onAllSettled` + `browseFiles()` ref for the tap-to-tick photo capture flow. No custom file input, no custom thumbnail grid, no custom lightbox — `AssetViewer` already does all of it. No add, no archive on mobile in V1 per the spec.
+
+### 12b. Mobile WO Create/Edit form
+
+**File:** `apps/mobile/src/components/WorkOrders/MobileWODataModelForm.tsx`
+
+Add `wo-checklist` to the mobile `customColumnRender`. Pass `mode="form-readonly"` (a fourth lightweight mode: read + tick only, no quick-add, no archive). The component uses the same `setWorkOrderChecklistItemDone` mutation for ticks.
+
+### 12c. Mobile WO header — progress chip
+
+**File:** `apps/mobile/src/components/WorkOrders/MobileWODetail.tsx` (or wherever the mobile WO header lives)
+
+Same chip as Step 11d, sized for the mobile viewport — small badge near the WO title.
+
+### 12d. Mobile photo capture flow — uses `AssetViewer`
+
+The tick handler on photoRequired items calls `assetViewerRef.current?.browseFiles()` on the mobile `AssetViewer` instance — on iOS Safari and Android Chrome this triggers the camera with a "take more" option in-flow (the mobile `AssetViewer` already passes `capture="environment"` for image inputs). `AssetViewer` uploads each captured photo as an Asset, then fires `onAllSettled` with the uploaded asset ids. The parent then calls `setWorkOrderChecklistItemDone` with `photoAssetIds`. If any upload fails, `AssetViewer` surfaces the error and `onAllSettled` is not called — the tick remains uncommitted and the user can retry.
+
+---
+
+## Step 13: Frontend Validation Rules
+
+**Files:** the two checklist section components (desktop + mobile)
+
+Client-side guards mirror the API:
+
+- The Archive button is hidden when `item.isDone === true`. On the Settings tab it is rendered disabled with a tooltip ("Cannot archive ticked items — untick first").
+- Tapping the checkbox on a `photoRequired` item launches the photo flow (file picker / camera) instead of firing `setWorkOrderChecklistItemDone` directly with empty `photoAssetIds`.
+- Quick-add input is disabled (with tooltip "Save the form first") when the form is in Create mode and the user hasn't saved yet — actually, the quick-add is *enabled* in form mode but the items go into `_checklistDrafts` until the form save; the previous bullet is wrong. Replace with: in form mode, quick-add items are appended to `_checklistDrafts` with a client-id and a visible "UNSAVED" badge (matches spec Mockup 3).
+- Cancelling the Create/Edit form clears both `_checklistDrafts` and `_checklistArchives` (the user's quick-adds and pending archives are discarded with the rest of the form's state).
+
+---
+
+## Verification Checklist
+
+- [ ] `WorkOrderChecklistItem` table created with correct indexes (job + orderNo composite, createdBy, completedBy) and FKs (CASCADE delete on Job, SetNull on User fields)
+- [ ] `INSERT IGNORE INTO ReferenceModel (model) VALUES ('WorkOrderChecklistItem')` runs in the same migration — required so Audit / Comments / NoteReferences / Permission / TagReferences can target this model
+- [ ] Job and User Prisma relations added with named relation strings (`WorkOrderChecklistItems`, `WorkOrderChecklistItemsCreated`, `WorkOrderChecklistItemsCompleted`)
+- [ ] DAA seeded in same migration: `slug = 'wo-checklist'`, `subModel = 'WorkOrder'`, attached to a new (or existing) WorkOrder DocumentSection
+- [ ] DAA `defaultAttribute` and `referenceColumn` both equal `'wo-checklist-items'` (matches the `wo-labor-items` / `wo-material-items` / `wo-equipment-items` convention)
+- [ ] DAA `defaultAttributeType = 'objects'` (matches existing WO custom-column DAAs)
+- [ ] **No DAA created for** `subModel = 'ProjectJob'` — structural guarantee the section never renders on ProjectJob forms
+- [ ] `DocumentModelFormElements` rows wire the DAA to CREATE, EDIT, and SETTINGS forms (all with `isDeleted = FALSE` — Settings is the full-management surface per spec)
+- [ ] `WorkOrderChecklistItemModel` extends **`BaseAuditableModel`** (not `BaseModel`) so every write — including ticks — generates an `AuditLog` row
+- [ ] `beforeCreate` server-sets `createdByUserId`, computes default `orderNo` (max + 1)
+- [ ] `beforeEdit` rejects archive of ticked items
+- [ ] `setItemDone` and `clearItemDone` route through `this.editItem(...)` (audited), not raw Prisma `update`
+- [ ] `editWorkOrderChecklistItem` GraphQL input does **not** declare `isDone` / `completedByUserId` / `completedAt` / `createdByUserId` — clients cannot submit them
+- [ ] Description is stored as **markdown** (no server-side HTML sanitization); matches Job / Company / RFI description pattern in the codebase
+- [ ] `setItemDone` rejects ticks of `photoRequired` items when `photoAssetIds.length === 0`
+- [ ] `setItemDone` writes `isDone = true`, `completedByUserId = currentUser`, `completedAt = now()` via `this.editItem`, and inserts `AssetReference` rows
+- [ ] `clearItemDone` writes `isDone = false`, clears `completedByUserId` + `completedAt` via `this.editItem`, and **deletes all** `AssetReference` rows for the item
+- [ ] Every tick / untick produces an `AuditLog` row (via `BaseAuditableModel.editItem`)
+- [ ] All checklist mutations reject when the parent Job's classification is not `WorkOrder`
+- [ ] `reorderWorkOrderChecklistItems` writes `orderNo = i` for each id in order; returns the new ordered list
+- [ ] `archiveWorkOrderChecklistItem` returns the archived item; rejects when `item.isDone = true`
+- [ ] `restoreWorkOrderChecklistItem` flips `isArchived` back to false; available only on the Settings tab UI-side
+- [ ] Hard-deleting a WO cascade-deletes its `WorkOrderChecklistItem` rows; orphaned `AssetReference` rows for those item ids are reclaimed by the standard housekeeping
+- [ ] `Job.customCreateItem` strips `checklistItems` from `data` before calling `super.customCreateItem`, then calls `applyChecklistDiff`
+- [ ] `Job.customEditItem` distinguishes "absent" from "null" via `"checklistItems" in data` so omission is a no-op
+- [ ] The form-save diff input has **no** `isDone` / `completedByUserId` / `completedAt` / `photoRequired` fields — tick + photoRequired editing are out-of-band
+- [ ] `Job.workOrderChecklistItems` field resolver returns rows ordered by `orderNo` ascending; respects `includeArchived` arg
+- [ ] `Job.workOrderChecklistProgress` returns `{ doneCount, totalCount, percentComplete }`; `percentComplete = null` when `totalCount = 0`
+- [ ] `AdvancedTipTapEditor` wired via the `markdownValue` prop (matches Job description); editor round-trips through `markdown2HTML` / `htmlToMarkdown` from `@useanzen/shared-utils`
+- [ ] Read-only description rendering uses `<Markdown />` from `@useanzen/ui` (or equivalent existing markdown renderer)
+- [ ] Frontend `customColumnRender["wo-checklist"]` in `JobDataModelForm.tsx` switches on `formType` to render `mode="settings"` vs `mode="form"`
+- [ ] Frontend `customColumnRender["wo-checklist"]` returns `null` when `jobClassification !== "WorkOrder"` (defensive; the DAA scoping already gates this server-side)
+- [ ] WO Overview tab renders the checklist section in `mode="overview"`
+- [ ] WO detail page header renders the progress chip when `workOrderChecklistProgress.totalCount > 0`; chip hides when no items
+- [ ] Mobile WO Detail has a new "Checklist" tab using `MobileWorkOrderChecklistSection`
+- [ ] Mobile WO Create/Edit form embeds the checklist section in `mode="form-readonly"` (read + tick only)
+- [ ] Photo capture + display reuses the existing `AssetViewer` component (desktop: `apps/frontend/src/components/AssetViewer/`, mobile: `apps/mobile/src/components/AssetsViewer/`) — same pattern as `Note.tsx` and `CommentAddEditForm.tsx`
+- [ ] Capture flow: `AssetViewer` rendered with `externalRequest`, triggered via `assetsRef.current?.browseFiles()`; `onAllSettled` fires with uploaded asset ids which are passed as `photoAssetIds` to `setWorkOrderChecklistItemDone`
+- [ ] Display flow: `AssetViewer` rendered with `viewOnly`, `referenceTable="WorkOrderChecklistItem"`, `initialAssets={completionPhotos.map(a => ({assetId: a.id}))}`
+- [ ] Mobile camera prompt is delivered by `AssetViewer`'s existing `capture="environment"` wiring — no custom file input in the checklist component
+- [ ] No custom `ChecklistPhotoStrip` / lightbox component built — `AssetViewer` already renders the thumbnail grid and its own preview modal
+- [ ] Photo upload failures (`AssetViewer` does not fire `onAllSettled`) leave the tick uncommitted; the user can retry
+- [ ] Untick clears the AssetReference rows AND the audit fields atomically
+- [ ] Ticked items display "Checked by &lt;User&gt; · &lt;Date&gt; · &lt;N&gt; photos" beneath the label; date-only if the user was deleted
+- [ ] Drag-and-drop reorder is available only on `mode="settings"`; fires `reorderWorkOrderChecklistItems` on drop
+- [ ] Rich description editor (TipTap) is available only on `mode="settings"`; other modes show collapsed description with expand toggle
+- [ ] Quick-add on `mode="form"` appends to `_checklistDrafts` with a client-id; displays "UNSAVED" badge
+- [ ] Cancelling the WO form clears `_checklistDrafts` and `_checklistArchives`; live ticks made while drafting remain (they were already committed)
+- [ ] All `customFormControl` photo glyph + thumbnail rendering is hidden when `formData.jobClassification !== "WorkOrder"`
+
+---
+
+## Files Summary
+
+| Action | File | What to do |
+|--------|------|------------|
+| MODIFY | `apps/api/prisma/schema.prisma` | Add `WorkOrderChecklistItem` model; inverse relations on `Job` (`WorkOrderChecklistItems`) and `User` (`WorkOrderChecklistItemsCreated`, `WorkOrderChecklistItemsCompleted`) |
+| CREATE | `apps/api/prisma/migrations/.../migration.sql` | CREATE TABLE `WorkOrderChecklistItem` + FKs + indexes; `INSERT IGNORE INTO ReferenceModel (model) VALUES ('WorkOrderChecklistItem')`; INSERT `DocumentSection` "Checklist" (`subModel = 'WorkOrder'`); INSERT DAA (`slug = 'wo-checklist'`, `subModel = 'WorkOrder'`); INSERT three `DocumentModelFormElements` rows wiring the DAA to CREATE / EDIT / SETTINGS forms |
+| CREATE | `apps/api/src/types/WorkOrderChecklistItem.types.ts` | `IWorkOrderChecklistItem` interface |
+| CREATE | `apps/api/src/models/WorkOrderChecklistItem.ts` | **`BaseAuditableModel`** subclass (matches `Holiday`, `ProgressReport`, `Department`, etc.); `beforeCreate` (default orderNo, server-set `createdByUserId`) and `beforeEdit` (archive guard); dedicated `setItemDone` / `clearItemDone` methods that route through `this.editItem` (audited, no Prisma-direct writes for the WorkOrderChecklistItem row). Description is stored as markdown — no sanitization step. |
+| CREATE | `apps/api/src/graphql/models/WorkOrderChecklistItem.ts` | Type + six mutations (create / edit / setDone / reorder / archive / restore); `assertWorkOrderClassification` helper used by every mutation; `completionPhotos` field resolver queries `AssetReference` |
+| MODIFY | `apps/api/src/graphql/schema.ts` | Register `WorkOrderChecklistItem` resolver (4 places: import + Resolvers spread + Mutation spread + typeDefs) |
+| MODIFY | `apps/api/src/graphql/models/index.ts` | Export `WorkOrderChecklistItem` resolver |
+| MODIFY | `apps/api/src/models/Job.ts` | `customCreateItem` / `customEditItem`: destructure `checklistItems` and `delete` from data before `super` call; afterward apply diff via `applyChecklistDiff` helper. No `modelFields` entry. No `upsert` change beyond `restData` carrying the field through. |
+| MODIFY | `apps/api/src/graphql/models/Job.ts` | Add `workOrderChecklistItems(includeArchived)` field + resolver; add `workOrderChecklistProgress` field + resolver; extend `CreateJob` / `EditJob` inputs with optional `checklistItems: WorkOrderChecklistDiffInput`; define `WorkOrderChecklistItemDraftInput` + `WorkOrderChecklistDiffInput` input types |
+| CREATE | `apps/frontend/src/components/WorkOrder/Checklist/WorkOrderChecklistSection.tsx` | One component, three modes (`settings` / `overview` / `form`); TipTap editor wired via `markdownValue` in settings mode; read-only markdown render via `<Markdown />` in other modes; drag reorder in settings mode; quick-add buffered in form mode; live ticks everywhere. Photo capture + display via the existing `AssetViewer` (`apps/frontend/src/components/AssetViewer/`) — `viewOnly` mode for ticked items, `externalRequest` + `onAllSettled` + `browseFiles()` ref for tap-to-tick capture. No custom thumbnail strip or lightbox built. |
+| MODIFY | `apps/frontend/src/components/Forms/JobAddEditForm/JobDataModelForm.tsx` | Add `wo-checklist` entry to `customColumnRender` (lines 1191-1232 region); branch on `formType` for `mode="settings"` vs `mode="form"`; thread `_checklistDrafts` / `_checklistArchives` through form state |
+| MODIFY | `apps/frontend/src/components/DetailsPage/WorkOrderDetailsPage/Tabs/Overview/index.tsx` | Add `wo-checklist` entry to the tab's `customColumnRender`; renders `<WorkOrderChecklistSection mode="overview" />` |
+| MODIFY | WO detail page header (in `apps/frontend/src/components/DetailsPage/WorkOrderDetailsPage/index.tsx`) | Render progress chip; extend WO header fragment to fetch `workOrderChecklistProgress` |
+| CREATE | `apps/mobile/src/components/WorkOrders/MobileWorkOrderChecklistSection.tsx` | Mobile-specific component: read + tick + expand description. Photo capture + display via the existing mobile `AssetViewer` (`apps/mobile/src/components/AssetsViewer/`) — same pattern used by `Note.tsx` and `CommentAddEditForm.tsx`. `viewOnly` for ticked items, `externalRequest` + `browseFiles()` ref for tap-to-tick capture (camera prompt via the mobile `AssetViewer`'s existing `capture="environment"` wiring). |
+| MODIFY | `apps/mobile/src/components/WorkOrders/WODetail.tsx` | Append `"Checklist"` tab to the tabs array (after Overview) |
+| MODIFY | `apps/mobile/src/components/WorkOrders/MobileWODataModelForm.tsx` | Add `wo-checklist` entry to mobile `customColumnRender`; render `mode="form-readonly"` |
+| MODIFY | Mobile WO header (e.g. `MobileWODetail.tsx`) | Render progress chip; extend mobile WO header fragment to fetch `workOrderChecklistProgress` |
+</script>
+
+<script src="plan-renderer.js"></script>
+<script>renderPlan();</script>
+</body>
+</html>

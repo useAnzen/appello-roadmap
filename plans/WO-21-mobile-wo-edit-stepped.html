@@ -54,17 +54,17 @@ td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
 
 ## Overview
 
-Mobile WO edit today opens `MobileWODataModelForm` with `steppedForm={false}` (`apps/mobile/src/components/WorkOrders/WODetail.tsx:89`) — a single flat scroll. WO-8a already shipped the stepped wizard for WO *create*, including the section-by-section flow, `StepIndicator`, `StepNavigation`, and Summary step inside `apps/mobile/src/components/Forms/DataModelForm/DataModelForm.tsx`. This plan flips edit onto that same wizard and adds a **free-navigation mode** so techs can jump straight to any section instead of walking sequentially. Three new props on `DataModelForm` carry the difference:
+Mobile WO edit today opens `MobileWODataModelForm` with `steppedForm={false}` (`apps/mobile/src/components/WorkOrders/WODetail.tsx:85`) — a single flat scroll. WO-8a already shipped the stepped wizard for WO *create*, including the section-by-section flow, `StepIndicator`, `StepNavigation`, and Summary step inside `apps/mobile/src/components/Forms/DataModelForm/DataModelForm.tsx`. This plan flips edit onto that same wizard and adds a **free-navigation mode** so techs can jump straight to any section instead of walking sequentially. Three new props on `DataModelForm` carry the difference:
 
 - `steppedFormMode: "sequential" | "free"` — sequential (default) preserves create's gated-Next behavior; free unlocks every step dot, surfaces Save on every step, and moves required-field enforcement from "Next gate" to "Save gate."
-- `initialStep: number` — lets the WO detail page open the flyout pointed straight at a specific section's step (deep-link-equivalent, since edit opens as a flyout, not a separate route).
+- `initialSectionId: string` — lets the WO detail page open the flyout pointed straight at a specific section. `DataModelForm` resolves it to a step index internally by matching `sections[].id`. Using a string (not numeric step index) keeps the deep-link stable if section order ever changes.
 - `saveOnEveryStep: boolean` — exposes Save on every step's action bar (not only Summary).
 
-> **Architecture decision — implement the deep-link via flyout prop, not URL routing.** The spec describes "deep-link into that section's step." Mobile edit opens as a `useFlyout()` flyout (not a separate `/edit` route), so the natural plumbing is to forward `initialStep` as a flyout prop. The result is identical from the user's perspective: tap a section on the detail page, the wizard opens at that step. URL routing would require a flyout-to-page rewrite that's well outside this ticket's 1–1.5d estimate.
+> **Architecture decision — implement the deep-link via flyout prop, not URL routing.** The spec describes "deep-link into that section's step." Mobile edit opens as a `useFlyout()` flyout (not a separate `/edit` route), so the natural plumbing is to forward `initialSectionId` as a flyout prop. The result is identical from the user's perspective: tap a section on the detail page, the wizard opens at that step. URL routing would require a flyout-to-page rewrite that's well outside this ticket's 1–1.5d estimate.
 
-> **Architecture decision — keep `validateAndAdvance` for sequential mode; add `validateAllSections` for free mode's Save.** `DataModelForm.validateAndAdvance` (`DataModelForm.tsx:417–447`) currently checks the *current* section only and is wired to the Next button. Sequential create depends on that. For free mode's Save, we add a sibling `validateAllSections` that runs `validateDataModelForm` (lines 75–128) across every section's fields and returns `{ field, message, stepIndex }[]` — same validators, broader scope, plus the step-index pointer the spec needs for the "tap to fix" error message.
+> **Architecture decision — keep `validateAndAdvance` for sequential mode; add `validateAllSections` for free mode's Save.** `DataModelForm.validateAndAdvance` (`DataModelForm.tsx:417–447`) currently checks the *current* section only and is wired to the Next button. Sequential create depends on that. For free mode's Save, we add a sibling `validateAllSections` that runs `validateDataModelForm` (lines 75–128) across every section's fields and returns `{ field, message, stepIndex, sectionLabel }[]` — same validators, broader scope, plus the step-index pointer the spec needs for the "tap to fix" error message. A `validateSection` helper already exists at `DataModelForm.tsx:130` and is reused inside `validateAllSections`.
 
-> **Architecture decision — the existing tabs in `WODetail.tsx` are the deep-link affordance.** `WODetail.tsx` already renders a tab list for Overview / Notes / Forms / Files / Equipment / line-item sections (lines 105–203). Rather than rebuild that into vertical section rows (the spec mockup), reuse the existing tabs: add an **"Edit this section"** affordance within each tab's content that opens the edit flyout with `initialStep` set to that section's step index. The top-of-page **"Edit"** button stays — it opens the flyout at step 0. This keeps the read-view tabs (which are already polished and permission-gated at line 86) intact; the deep-link is layered on top.
+> **Architecture decision — plumb the deep-link through `DetailOverview`, not via per-tab affordances.** `WODetail.tsx` actually only has three tabs (Overview / Notes / Files at lines 101–160), and all WO field sections are rendered *inside* the Overview tab via the shared `DetailOverview` component, which renders each section as a `DetailCard`. The line-item editors (`wo-labor-items`, `wo-material-items`, etc.) are not separate tabs — they are field columns inside the Overview's sectionedRecord, surfaced via `customColumnRender` + `fullWidthColumns` (lines 113–132). Today, `DetailOverview` only renders an edit handle on the *first* section (`DetailOverview.tsx:86` — `handleEdit={index === 0 ? onEdit : undefined}`) and the `onEdit` callback receives no section context. To support per-section deep-link, we extend `DetailOverview`'s `onEdit` signature to `(sectionId?: string) => void` and render the edit handle on every section when `editPermission` is true. WODetail's `handleEdit` accepts the optional `sectionId` and forwards it as `initialSectionId` to `MobileWODataModelForm`. The top-of-page Edit button stays — it calls `handleEdit()` with no argument, so the wizard lands on the first step.
 
 **Estimated effort:** 1–1.5 days
 **Risk:** Low — sequential mode default keeps all create flows untouched. The new free-mode behavior is additive, gated by a prop.
@@ -86,32 +86,37 @@ interface IDataModelFormProps {
     // ... existing props
     steppedForm?: boolean;
     steppedFormMode?: "sequential" | "free"; // defaults "sequential"
-    initialStep?: number;                     // defaults 0; clamped to [0, totalSteps - 1]
+    initialSectionId?: string;                // resolved to step index by matching sections[].id
     saveOnEveryStep?: boolean;                // defaults false; when true, Save on every step's action bar
 }
 ```
 
-Defaults preserve every current call site — `steppedFormMode` defaults to `"sequential"`, `initialStep` to `0`, `saveOnEveryStep` to `false`. WO-8a's create flow continues to behave exactly as today.
+Defaults preserve every current call site — `steppedFormMode` defaults to `"sequential"`, `initialSectionId` is unset (lands on step 0), `saveOnEveryStep` to `false`. WO-8a's create flow continues to behave exactly as today.
 
-### 1b. Honor `initialStep` in the `activeStep` initial state
+### 1b. Honor `initialSectionId` once the form definition loads
 
-The stepped-form state lives at lines 220–222:
-
-```typescript
-const [activeStep, setActiveStep] = useState<number>(0);
-```
-
-Change to:
+The stepped-form state lives at line 221:
 
 ```typescript
-const [activeStep, setActiveStep] = useState<number>(() => {
-    if (!steppedForm) return 0;
-    const totalSteps = sections.length + 1; // +1 for Summary
-    return Math.max(0, Math.min(initialStep ?? 0, totalSteps - 1));
-});
+const [activeStep, setActiveStep] = useState(0);
 ```
 
-The clamp guards against a stale `initialStep` carried over from a record with a different section count.
+Leave this initialization alone — sections are not yet known at mount time (they come from a query). Inside the existing `useEffect` that initializes form data once `data` arrives (lines 236–252), append a resolver:
+
+```typescript
+useEffect(() => {
+    if (!loading && data) {
+        // ... existing init
+        if (steppedForm && initialSectionId) {
+            const sectionsLocal = (data?.dataModel?.form?.sections ?? []) as FormSection[];
+            const idx = sectionsLocal.findIndex((s) => s.id === initialSectionId);
+            if (idx >= 0) setActiveStep(idx);
+        }
+    }
+}, [loading, data, formType]);
+```
+
+If the section id isn't found, we silently leave `activeStep` at 0 — preserves graceful behavior if the form definition changes.
 
 ### 1c. Pass mode + saveOnEveryStep down
 
@@ -129,10 +134,11 @@ The current props (lines 5–11):
 
 ```typescript
 interface IStepIndicatorProps {
+    className?: string | ClassNames;
     totalSteps: number;
     activeStep: number;
-    sectionLabels: string[];
-    onStepTap: (stepIndex: number) => void;
+    sectionLabels?: string[];
+    onStepTap: (step: number) => void;
 }
 ```
 
@@ -144,32 +150,44 @@ mode?: "sequential" | "free"; // defaults "sequential"
 
 ### 2b. Make every dot tappable in free mode
 
-Line 45 currently gates the tap by completion:
+Line 44–47 currently gates the tap and disables the button when not completed:
 
-```typescript
-if (isCompleted) onStepTap(index);
+```tsx
+onClick={() => {
+    if (isCompleted) onStepTap(index);
+}}
+disabled={!isCompleted}
 ```
 
 Change to:
 
-```typescript
-if (mode === "free" || isCompleted) onStepTap(index);
+```tsx
+onClick={() => {
+    if (mode === "free" || isCompleted) onStepTap(index);
+}}
+disabled={mode !== "free" && !isCompleted}
 ```
 
-### 2c. Tappable visual treatment for pending dots
+### 2c. Tappable visual treatment for pending dots in free mode
 
-Pending dots in sequential mode render greyed out. In free mode, render with the blue-outline tappable styling (`border-info text-info` per CLAUDE.md semantic colors, matching the spec mockup at `wo-21-mobile-wo-edit-stepped.html` Mockup 2). Use `ClassNames`:
+The dot uses inline Tailwind classes today (lines 37–43): `bg-success` for completed, `bg-info` for active, `bg-gray-200 text-gray-500` for pending. In free mode, pending dots should render with a tappable blue-outline treatment (per CLAUDE.md semantic colors). Add an extra `.if(...)` branch before the gray pending fallback:
 
 ```tsx
-className={new ClassNames("step-dot")
-    .if(isCompleted, "step-dot-done")
-    .if(isActive, "step-dot-active")
-    .if(isPending && mode === "free", "step-dot-pending border-info text-info cursor-pointer")
-    .if(isPending && mode !== "free", "step-dot-pending")
+className={new ClassNames(
+    "w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0"
+)
+    .if(isCompleted, "bg-success text-white cursor-pointer")
+    .if(isActive, "bg-info text-white")
+    .if(
+        !isCompleted && !isActive && mode === "free",
+        "bg-white text-info border-2 border-info cursor-pointer"
+    )
+    .if(
+        !isCompleted && !isActive && mode !== "free",
+        "bg-gray-200 text-gray-500"
+    )
     .list()}
 ```
-
-(Adjust class names to match whatever `StepIndicator.tsx` already uses — the existing `step-dot-pending` class likely exists; the addition is the free-mode override.)
 
 ### 2d. Sequential mode unchanged
 
@@ -183,34 +201,42 @@ When `mode === "sequential"` (default), the component behaves exactly as today: 
 
 ### 3a. Accept new props
 
-Current props (lines 5–13) include `activeStep`, `totalSteps`, `onPrevious`, `onNext`, `onCancel`. Add:
+Current props (lines 5–13) include `activeStep`, `totalSteps`, `onPrevious`, `onNext`, `onCancel`, `returnToSummary`. Add:
 
 ```typescript
-mode?: "sequential" | "free"; // defaults "sequential"
-saveOnEveryStep?: boolean;     // defaults false
-onSave?: () => void;            // free-mode Save handler; required when saveOnEveryStep is true
+saveOnEveryStep?: boolean; // defaults false
+onSave?: () => void;        // free-mode Save handler; required when saveOnEveryStep is true
+isSaving?: boolean;         // for disabling/labeling the Save button while submitting
 ```
 
 ### 3b. Render Save button when `saveOnEveryStep`
 
-Current render (lines 27–45) shows Cancel + Previous + Next/Review. In free mode with `saveOnEveryStep=true`, render the trio Previous + **Save** + Next:
+Current render (lines 27–45) shows Cancel + (Previous when not first) + Next/Review with `Button` from `~root/components`. When `saveOnEveryStep=true`, insert a Save button between Previous and Next. The Next button still shows "Next" / "Review Summary" / "Back to Summary" — Save coexists with it:
 
 ```tsx
-<div className="flex gap-2">
-    <Button color="secondary" onClick={onCancel}>Cancel</Button>
-    {activeStep > 0 && (
-        <Button color="secondary" onClick={onPrevious}>Previous</Button>
-    )}
-    {saveOnEveryStep && (
-        <Button color="success" onClick={onSave}>Save</Button>
-    )}
-    {activeStep < totalSteps - 1 && (
-        <Button color="primary" onClick={onNext}>Next</Button>
-    )}
+<div className={new ClassNames("flex gap-3 px-4 py-3 border-t border-gray-200 bg-white")
+    .add(className)
+    .list()}>
+    <Button color="white" onClick={onCancel} fullWidth size="xl" outline>
+        Cancel
+    </Button>
+    {!isFirst ? (
+        <Button color="default" onClick={onPrevious} fullWidth size="xl">
+            Previous
+        </Button>
+    ) : null}
+    {saveOnEveryStep && onSave ? (
+        <Button color="success" onClick={onSave} fullWidth size="xl" disabled={isSaving}>
+            {isSaving ? "Saving..." : "Save"}
+        </Button>
+    ) : null}
+    <Button color={saveOnEveryStep ? "info" : "success"} onClick={onNext} fullWidth size="xl">
+        {returnToSummary ? "Back to Summary" : isLast ? "Review Summary" : "Next"}
+    </Button>
 </div>
 ```
 
-Use `Button` from `@useanzen/ui` per CLAUDE.md (no raw `<button>`). Match the existing button styling from this file.
+Use `Button` from `~root/components` (already the existing import) — not `@useanzen/ui`. In free mode the primary CTA on each non-summary step shifts to Save (success-green); Next becomes the secondary "info" blue.
 
 ### 3c. Sequential mode unchanged
 
@@ -224,48 +250,47 @@ When `saveOnEveryStep` is `false`/undefined, the action bar renders exactly as t
 
 ### 4a. Add `validateAllSections` helper
 
-Sibling to `validateAndAdvance` (lines 417–447). Runs `validateDataModelForm` (lines 75–128) across every section's fields and tags each error with its source step index:
+Sibling to `validateAndAdvance` (lines 417–447). Reuses the existing `validateSection` helper at line 130 across every section and tags each error with its step index + section label:
 
 ```typescript
-interface ISectionValidationError {
+const validateAllSections = useCallback((): Array<{
     field: string;
     message: string;
     stepIndex: number;
     sectionLabel: string;
-}
-
-const validateAllSections = (): ISectionValidationError[] => {
-    const errors: ISectionValidationError[] = [];
-    sections.forEach((section, stepIndex) => {
-        const sectionErrors = validateDataModelForm(formData, section.fields);
-        sectionErrors.forEach((err) => {
-            errors.push({ ...err, stepIndex, sectionLabel: section.label });
-        });
-    });
-    return errors;
-};
+}> => {
+    return sections.flatMap((section, stepIndex) =>
+        validateSection(section, formData).map((err) => ({
+            ...err,
+            stepIndex,
+            sectionLabel: section.label
+        }))
+    );
+}, [sections, formData]);
 ```
 
 ### 4b. Wire the free-mode Save handler
 
-At the stepped-form render branch (lines 457–525), pass `onSave` to `StepNavigation` only when `steppedFormMode === "free"` and `saveOnEveryStep === true`:
+At the stepped-form render branch (lines 458–525), pass `onSave` to `StepNavigation` only when `steppedFormMode === "free"` and `saveOnEveryStep === true`. The toast mechanism is `notify.error` from `useNotification()` already imported at line 209:
 
 ```typescript
-const handleFreeSave = async () => {
+const handleFreeSave = useCallback(async () => {
     const allErrors = validateAllSections();
     if (allErrors.length > 0) {
         const first = allErrors[0];
-        showError(
-            `${first.sectionLabel}: ${first.message}. Tap step ${first.stepIndex + 1} to fix.`,
-            { onTap: () => setActiveStep(first.stepIndex) }
+        setErrors(allErrors.map(({ field, message }) => ({ field, message })));
+        setActiveStep(first.stepIndex);
+        scrollRef.current?.scrollTo({ top: 0, behavior: "smooth" });
+        notify.error(
+            `${first.sectionLabel}: ${first.message}. Jumped to step ${first.stepIndex + 1}.`
         );
         return;
     }
-    await handleSubmit(); // existing submit handler at line 292
-};
+    await handleSubmit(); // existing submit handler at line 260
+}, [validateAllSections, handleSubmit, notify]);
 ```
 
-`showError` should use the existing toast/snackbar utility on mobile (locate it via `useToast` / `useNotification` — confirm in `apps/mobile/src/components/Notifications/` or similar before use; do not introduce a new mechanism).
+The handler jumps the user to the first failing step automatically (in addition to surfacing the toast) — simpler UX than a tappable toast, and the existing `notify` API doesn't support tap callbacks.
 
 ### 4c. Sequential mode keeps current behavior
 
@@ -273,7 +298,7 @@ const handleFreeSave = async () => {
 
 ### 4d. Summary step Save in free mode
 
-The Summary step (lines 476–486) already calls `handleSubmit`. In free mode the same Save-gate validation should apply — wrap the Summary step's submit through `handleFreeSave` when `steppedFormMode === "free"` so the user gets the same step-pointer error UX whether they tap Save from a section step or the Summary step.
+The Summary step (`SteppedFormSummary` at lines 477–486) already calls `handleSubmit`. In free mode, route the Summary's `onSubmit` through `handleFreeSave` instead so the user gets the same step-jump-on-error UX whether they tap Save from a section step or the Summary step.
 
 ---
 
@@ -291,7 +316,7 @@ The wrapper already lays most of the groundwork for this step:
 - `steppedForm` is forwarded straight through to `DataModelForm` at line 413
 - `handleSaved` (line 380) already wraps `onSaved` and invokes `saveLineItems` (line 195) — this is the integration point for save and **needs no change**: the new save-gate validation lives inside `DataModelForm` (Step 4), so `handleSaved` continues to receive the post-validation submit and run line-item saves exactly as today
 
-The three new props (`steppedFormMode`, `initialStep`, `saveOnEveryStep`) are not present yet — that is the work this step adds.
+The three new props (`steppedFormMode`, `initialSectionId`, `saveOnEveryStep`) are not present yet — that is the work this step adds.
 
 ### 5a. Extend `IMobileWODataModelFormProps`
 
@@ -301,14 +326,14 @@ interface IMobileWODataModelFormProps {
     formType?: DataModelFormType;
     steppedForm?: boolean;
     steppedFormMode?: "sequential" | "free";
-    initialStep?: number;
+    initialSectionId?: string;
     saveOnEveryStep?: boolean;
     onSaved?: (id?: string) => void;
     onCanceled?: () => void;
 }
 ```
 
-Preserve the existing defaults at the destructure (line 42–47): `formType = DataModelFormType.Create`, `steppedForm = true`. Leave the three new props without defaults at the destructure — they get resolved in 5b.
+Preserve the existing defaults at the destructure: `formType = DataModelFormType.Create`, `steppedForm = true`. Leave the three new props without defaults at the destructure — they get resolved in 5b.
 
 ### 5b. Default to free + saveOnEveryStep when editing
 
@@ -323,7 +348,7 @@ When the caller is editing (`recordId` present), free-nav + Save-on-every-step a
 
 ### 5c. Forward to `DataModelForm`
 
-At the render site (line 407–408), add the three props alongside the existing `steppedForm` pass-through at line 413:
+At the render site (line 407 onward), add the three props alongside the existing `steppedForm` pass-through at line 413:
 
 ```tsx
 <DataModelForm
@@ -333,7 +358,7 @@ At the render site (line 407–408), add the three props alongside the existing 
     subModel="WorkOrder"
     steppedForm={steppedForm}
     steppedFormMode={resolvedSteppedFormMode}
-    initialStep={initialStep}
+    initialSectionId={initialSectionId}
     saveOnEveryStep={resolvedSaveOnEveryStep}
     onSaved={handleSaved}
     onCanceled={onCanceled}
@@ -341,48 +366,95 @@ At the render site (line 407–408), add the three props alongside the existing 
 />
 ```
 
-`handleSaved` and `saveLineItems` stay untouched — the new save-gate validation is enforced inside `DataModelForm` (Step 4) before it ever fires `onSaved`, so by the time `handleSaved` runs, line-item saves can proceed exactly as today.
+`handleSaved` (line 380) and `saveLineItems` (line 195) stay untouched — the new save-gate validation is enforced inside `DataModelForm` (Step 4) before it ever fires `onSaved`, so by the time `handleSaved` runs, line-item saves can proceed exactly as today.
 
 ---
 
-## Step 6: `WODetail.tsx` — Stepped Edit + Per-Section Deep-Link
-
-**File:** `apps/mobile/src/components/WorkOrders/WODetail.tsx`
+## Step 6: `DetailOverview` + `WODetail.tsx` — Stepped Edit + Per-Section Deep-Link
 
 ### 6a. Flip the existing edit flyout to stepped mode
 
-Line 89 currently passes `steppedForm={false}` to `MobileWODataModelForm` inside the flyout. Change to `steppedForm={true}`. The wrapper from Step 5 will pick up the edit-mode defaults (`steppedFormMode="free"`, `saveOnEveryStep=true`). The top-of-page "Edit" button (line 84–101) keeps its current handler — opens the flyout with no `initialStep`, so the user lands on Step 1.
+**File:** `apps/mobile/src/components/WorkOrders/WODetail.tsx`
 
-### 6b. Build a tab-id → step-index map
+Line 85 currently passes `steppedForm={false}` to `MobileWODataModelForm` inside the flyout. Change to `steppedForm={true}`. The wrapper from Step 5 will pick up the edit-mode defaults (`steppedFormMode="free"`, `saveOnEveryStep=true`). The top-of-page "Edit" button (lines 172–176) keeps its current handler — calling `handleEdit()` with no argument so the user lands on the first section.
 
-The detail page's tabs (lines 105–203) include both static sections (Overview / Notes / Forms / Files / Equipment) and the line-item sections (`wo-labor-items`, `wo-material-items`, `wo-equipment-items`, `wo-signatures` at lines 117–122). The DataModelForm's section ordering is sourced from the form definition (`formType`). Build a small lookup that maps each tab id to its corresponding step index in that form definition.
+### 6b. Extend `DetailOverview` to support per-section edit deep-link
 
-The most reliable place to build this mapping is alongside the `tabs` array. Either:
+**File:** `apps/mobile/src/components/DetailOverview/DetailOverview.tsx`
 
-1. Query the same form definition the DataModelForm uses (e.g., via the existing `getDataModelForm` query) and walk its `sections[]` array to derive `{ [sectionId]: stepIndex }`, **or**
-2. Hard-code the map for the WO form types since the section ordering is stable per form type.
+Today, `DetailOverview`'s `onEdit` is a no-arg callback rendered only on the first section (`handleEdit={index === 0 ? onEdit : undefined}` at line 86). To support deep-linking, broaden the signature and render the edit handle on every section when `editPermission` is true:
 
-Option 1 is more robust to schema changes; option 2 is faster to ship. **Recommend option 1** — the cost is one query the page already runs (or near-runs) and it auto-corrects if a section is added or reordered.
-
-### 6c. Add an "Edit this section" affordance per tab
-
-Inside each tab's content (where the read-view sits today), render a subtle action button — `Button` from `@useanzen/ui` with a small edit icon (`IconEdit`) — that opens the edit flyout passing `initialStep` for that tab's mapped step:
-
-```tsx
-<Button
-    color="secondary"
-    size="sm"
-    onClick={() => openEditFlyout({ initialStep: tabIdToStepIndex[tab.id] })}
->
-    <IconEdit /> Edit this section
-</Button>
+```typescript
+type DataModelMode = {
+    // ...existing
+    onEdit?: (sectionId?: string) => void; // now takes optional sectionId
+    editPermission: boolean;
+    // ...rest unchanged
+};
 ```
 
-`openEditFlyout` is the existing `useFlyout()` open-handler used by the top-of-page Edit button (line 85). Extend its signature to accept `{ initialStep?: number }` and forward into the rendered `MobileWODataModelForm`.
+In `SectionsList`:
+
+```tsx
+{sections.map((section) => (
+    <DetailCard
+        label={section.label}
+        key={section.id}
+        handleEdit={onEdit ? () => onEdit(section.id) : undefined}
+        editPermission={editPermission}
+        // ...rest unchanged
+    >
+        {/* elements */}
+    </DetailCard>
+))}
+```
+
+This is backwards-compatible:
+- `RFIDetail.tsx` (line 111–112) passes `onEdit={canEdit ? handleEdit : undefined}` where `handleEdit: () => void` — TS accepts the wider signature because the optional `sectionId` arg can be ignored.
+- `ProjectDetail.tsx` uses `CustomQueryMode`, which doesn't render edit handles (the prop isn't on that variant).
+- Existing consumers that ignore the new argument get the same "edit the whole record" behavior; the difference is the handle now renders on every section, not just the first. For RFI, this is desirable (any section can be edited).
+
+### 6c. Wire `WODetail.tsx` to forward the section id as `initialSectionId`
+
+In `WODetail.tsx`:
+
+```tsx
+const handleEdit = (sectionId?: string) => {
+    openFlyout(
+        <MobileWODataModelForm
+            formType={DataModelFormType.Edit}
+            recordId={woId}
+            steppedForm={true}
+            initialSectionId={sectionId}
+            onSaved={() => {
+                setRefetchKey((k) => k + 1);
+                closeFlyout();
+            }}
+        />,
+        { /* ...existing flyout opts */ }
+    );
+};
+```
+
+Pass `onEdit` and `editPermission` to `DetailOverview` inside the Overview tab:
+
+```tsx
+<DetailOverview
+    modelName={TableDataName.Job}
+    recordId={woId}
+    subModel="WorkOrder"
+    onEdit={canEdit ? handleEdit : undefined}
+    editPermission={canEdit}
+    fullWidthColumns={[...]}
+    customColumnRender={{...}}
+/>
+```
+
+The top-of-page Edit button (line 173) calls `handleEdit()` with no argument → lands on the first step. Tapping a section's edit handle calls `handleEdit(section.id)` → wizard opens at that section.
 
 ### 6d. Permission gating
 
-The existing tabs are already permission-gated via the `permission` field on each tab entry (line 86). Reuse the same gate for the Edit-this-section button — if a user can read the tab but not edit, hide the button. Use `hasPermissions()` per CLAUDE.md (never raw boolean comparison on permission values).
+`canEdit` is already computed at lines 38–45 of `WODetail.tsx` via `hasPermissions()` — reuse it for both `onEdit` (conditionally passed) and `editPermission` (always passed as a boolean, since `DataModelMode` requires it). Per-section affordances inherit the same gate.
 
 ---
 
@@ -394,9 +466,9 @@ Run the mobile dev server (`pnpm run dev:mobile`) and exercise:
 
 1. **Create flow regression** — Create a new WO. Step indicator gates on Next, pending dots greyed, Save only on Summary. Confirm sequential behavior unchanged.
 2. **Edit from "Edit" button** — Open an existing WO, tap top-of-page Edit. Wizard opens at Step 1. All step dots tappable (blue outline on pending). Save button visible on every step.
-3. **Edit from section deep-link** — Open the same WO, tap a tab (e.g., Materials), tap "Edit this section." Wizard opens at the Materials step directly. All other steps still tappable.
+3. **Edit from section deep-link** — Open the same WO. Scroll to a section card (e.g., "Equipment") in the Overview tab and tap its pencil/edit handle. Wizard opens at that section's step directly. All other steps still tappable.
 4. **Free-mode jump-around** — From edit Step 1, tap step 4 directly. Form jumps without validating step 1. Tap step 2. Edit a field. Tap step 5. Edit a field. Tap Save. Confirm both edits persist.
-5. **Save-gate validation** — Open edit. Tap Customer step. Clear a required field. Tap Save (from any step). Toast/error names the offending step ("Customer & Site: Customer name is required. Tap step 2 to fix."). Tap the toast. Wizard jumps to that step.
+5. **Save-gate validation** — Open edit. Tap a section step. Clear a required field. Tap Save (from any step). Toast names the offending section ("Customer & Site: Customer name is required. Jumped to step 2."). Wizard auto-jumps to that step; the failing field shows its inline error.
 6. **Summary step in edit** — Tap Summary step (last). Confirm same overview layout as create's Summary. Save from Summary runs the same Save-gate validation as Save from any other step.
 
 ### 7b. Things that must still work
@@ -414,41 +486,41 @@ Run the mobile dev server (`pnpm run dev:mobile`) and exercise:
 Follow CLAUDE.md throughout:
 
 - FC arrow function pattern; import `FC` from `"react"`
-- `ClassNames` from `@useanzen/shared-utils` for any dynamic className (Step 2c, Step 6c)
-- `Button` from `@useanzen/ui` — never raw `<button>`
+- `ClassNames` from `@useanzen/shared-utils` for any dynamic className (Step 2c, Step 3b)
+- `Button` from `~root/components` inside `StepNavigation` (matches existing import) — never raw `<button>`
 - `IconEdit` from `@useanzen/ui` for the edit affordance — never inline SVG
-- Semantic color classes (`text-info`, `bg-info-light`, `border-info`) — never `text-blue-500`
-- `hasPermissions()` from `~root/lib` for the per-tab edit gate (Step 6d)
+- Semantic color classes (`text-info`, `bg-info`, `border-info`) — never `text-blue-500`
+- `hasPermissions()` from `@useanzen/shared-utils` for the edit gate (Step 6d) — already in place via `canEdit` in `WODetail.tsx`
 - No trailing commas, 4-space indent, double quotes
 - One component per file
-- `gql` queries (if any added in Step 6b option 1) at the bottom of the wrapper file
 
 ---
 
 ## Verification Checklist
 
 ### `DataModelForm`
-- [ ] `IDataModelFormProps` gains `steppedFormMode`, `initialStep`, `saveOnEveryStep` (all optional, defaults preserve current behavior)
-- [ ] `activeStep` initial state honors `initialStep`, clamped to `[0, totalSteps - 1]`
-- [ ] `validateAllSections` helper added; iterates every section, returns `{ field, message, stepIndex, sectionLabel }[]`
-- [ ] Free-mode Save handler runs `validateAllSections` first; on failure, surfaces a toast naming the offending step and tapping it jumps to that step via `setActiveStep`
-- [ ] Summary step's Save in free mode routes through the same Save-gate validation
+- [ ] `IDataModelFormProps` gains `steppedFormMode`, `initialSectionId`, `saveOnEveryStep` (all optional, defaults preserve current behavior)
+- [ ] Existing `useEffect` that initializes form data resolves `initialSectionId` to a step index via `sections.findIndex((s) => s.id === initialSectionId)`; silently no-ops if not found
+- [ ] `validateAllSections` helper added; reuses existing `validateSection`; returns `{ field, message, stepIndex, sectionLabel }[]`
+- [ ] Free-mode `handleFreeSave` runs `validateAllSections` first; on failure, jumps to the first failing step via `setActiveStep` AND surfaces a toast naming the section
+- [ ] Summary step's `onSubmit` in free mode is routed through `handleFreeSave`
 - [ ] Sequential mode (`steppedFormMode` undefined or `"sequential"`) preserves `validateAndAdvance` Next-gate behavior — no regression for create
 
 ### `StepIndicator`
 - [ ] Accepts `mode?: "sequential" | "free"`
-- [ ] In free mode, every dot is tappable regardless of completion state
-- [ ] Pending dots in free mode render with the tappable visual treatment (blue outline / `border-info text-info`)
+- [ ] In free mode, every dot is tappable regardless of completion state (`disabled` is `false`)
+- [ ] Pending dots in free mode render with the blue-outline tappable treatment (`bg-white text-info border-2 border-info`)
 - [ ] Sequential mode unchanged — only completed dots tappable, pending greyed out
 
 ### `StepNavigation`
-- [ ] Accepts `saveOnEveryStep`, `onSave`, `mode`
-- [ ] Renders the Save button on every step's action bar when `saveOnEveryStep` is true
+- [ ] Accepts `saveOnEveryStep`, `onSave`, `isSaving`
+- [ ] When `saveOnEveryStep && onSave`, renders Save button between Previous and Next on every step
 - [ ] When `saveOnEveryStep` is false, action bar matches today (Cancel / Previous / Next/Review)
-- [ ] Buttons use `@useanzen/ui` `Button`, no raw `<button>`
+- [ ] Save button is disabled while `isSaving` is true and shows "Saving..." label
+- [ ] Continues to use `Button` from `~root/components`
 
 ### `MobileWODataModelForm`
-- [ ] Three new props added to `IMobileWODataModelFormProps`: `steppedFormMode`, `initialStep`, `saveOnEveryStep` (all optional)
+- [ ] Three new props added to `IMobileWODataModelFormProps`: `steppedFormMode`, `initialSectionId`, `saveOnEveryStep` (all optional)
 - [ ] Reuses the existing `isEdit` at line 50 — does not redefine
 - [ ] When `recordId` is present (edit), `resolvedSteppedFormMode = "free"` and `resolvedSaveOnEveryStep = true`
 - [ ] When `recordId` is absent (create), both resolve to sequential / `false` — WO-8a create flow untouched
@@ -456,12 +528,18 @@ Follow CLAUDE.md throughout:
 - [ ] All three new props forwarded to `DataModelForm` alongside the existing `steppedForm`, `subModel="WorkOrder"`, etc.
 - [ ] `handleSaved` (line 380) and `saveLineItems` (line 195) are unchanged — the new save-gate validation runs inside `DataModelForm` before `onSaved` fires
 
+### `DetailOverview`
+- [ ] `onEdit` signature broadened from `() => void` to `(sectionId?: string) => void`
+- [ ] `SectionsList` renders the edit handle on every section (not just index 0) when `editPermission` is true and `onEdit` is provided
+- [ ] The handle calls `onEdit(section.id)`
+- [ ] `RFIDetail` and `ProjectDetail` still compile — the signature is widening, so existing `() => void` callbacks remain assignable
+
 ### `WODetail.tsx`
-- [ ] The existing edit flyout passes `steppedForm={true}` (changed from `false` at line 89)
-- [ ] Top-of-page Edit button opens flyout with no `initialStep` → wizard lands on Step 1
-- [ ] Tab id → step-index map built from the form definition (Step 6b option 1) so it stays in sync if sections change
-- [ ] Each tab's content renders an "Edit this section" `Button` with `IconEdit` that opens the flyout with the matching `initialStep`
-- [ ] Edit-this-section affordance is permission-gated via `hasPermissions()`
+- [ ] The existing edit flyout passes `steppedForm={true}` (changed from `false`)
+- [ ] `handleEdit` accepts an optional `sectionId` and forwards it as `initialSectionId` to `MobileWODataModelForm`
+- [ ] Top-of-page Edit button calls `handleEdit()` with no argument → wizard lands on the first section
+- [ ] `DetailOverview` receives `onEdit={canEdit ? handleEdit : undefined}` and `editPermission={canEdit}`
+- [ ] Per-section edit affordances inherit the existing `canEdit` gate (no new permission lookup)
 
 ### Behavior end-to-end
 - [ ] Create flow on mobile is unchanged (sequential, gated Next, Save on Summary only)
@@ -476,9 +554,9 @@ Follow CLAUDE.md throughout:
 
 | Spec section | Deviation | Reason |
 |---|---|---|
-| Mockup 1 — vertical section row list with chevrons | Reuse existing `WODetail.tsx` tabs and add an "Edit this section" affordance inside each tab's content | The existing tabs are already polished, permission-gated, and shipping. Replacing them with vertical rows is a larger UX change than the 1–1.5d estimate supports and would lose the read-view tabs the detail page needs. The deep-link UX is preserved; only the visual entry differs. |
-| §5 "edit?step=N" deep-link URL | Pass `initialStep` as a flyout prop, not a URL query param | Mobile edit opens as a flyout via `useFlyout()`, not a separate route. URL routing would require rewriting the edit surface from flyout to page. Functionally equivalent for the user. |
-| §6 Mobile WO detail page section list — replace the section list | Reuse tabs (above) | Same reason. |
+| Mockup 1 — vertical section row list with chevrons | Reuse existing `DetailOverview` section cards inside the Overview tab and surface a per-section edit handle on each card | `WODetail.tsx` only has three tabs (Overview / Notes / Files). All WO field sections render as `DetailCard`s inside the Overview tab via the shared `DetailOverview` component. Rebuilding the page into a vertical row layout is a larger UX change than 1–1.5d supports and would impact `RFIDetail`/`ProjectDetail` too. The deep-link UX is preserved via the per-card edit handle; only the visual entry differs. |
+| §5 "edit?step=N" deep-link URL | Pass `initialSectionId` as a flyout prop, not a URL query param | Mobile edit opens as a flyout via `useFlyout()`, not a separate route. URL routing would require rewriting the edit surface from flyout to page. Functionally equivalent for the user. |
+| Step-index deep-link | Use `initialSectionId` (string) instead of `initialStep` (number) | Section IDs from the form definition are stable across schema changes; numeric step indexes silently drift if a section is added/reordered. |
 
 ---
 
@@ -486,11 +564,12 @@ Follow CLAUDE.md throughout:
 
 | Action | File | What to do |
 |--------|------|------------|
-| MODIFY | `apps/mobile/src/components/Forms/DataModelForm/DataModelForm.tsx` | Extend `IDataModelFormProps` with `steppedFormMode`, `initialStep`, `saveOnEveryStep`. Initialize `activeStep` from `initialStep` (clamped). Add `validateAllSections` helper. Add free-mode `handleFreeSave` that runs full-form validation, surfaces a step-pointer toast on failure, and routes Summary step Save through the same gate. Forward new props into `StepIndicator` and `StepNavigation`. |
-| MODIFY | `apps/mobile/src/components/Forms/DataModelForm/StepIndicator.tsx` | Accept `mode?: "sequential" \| "free"`. In free mode, every dot is tappable; pending dots render with the blue-outline tappable treatment. Sequential mode unchanged. |
-| MODIFY | `apps/mobile/src/components/Forms/DataModelForm/StepNavigation.tsx` | Accept `mode`, `saveOnEveryStep`, `onSave`. When `saveOnEveryStep`, render Save button on every step's action bar. Use `Button` from `@useanzen/ui`. |
-| MODIFY | `apps/mobile/src/components/WorkOrders/MobileWODataModelForm.tsx` | Extend props with the new trio. Default `steppedFormMode="free"` and `saveOnEveryStep=true` when `recordId` is present (edit). Forward all three to `DataModelForm`. |
-| MODIFY | `apps/mobile/src/components/WorkOrders/WODetail.tsx` | Flip `steppedForm` on the edit flyout to `true`. Build a tab-id → step-index map from the form definition. Add an "Edit this section" `Button` (`IconEdit`) inside each tab's content that opens the flyout with the matching `initialStep`. Permission-gate via `hasPermissions()`. |
+| MODIFY | `apps/mobile/src/components/Forms/DataModelForm/DataModelForm.tsx` | Extend `IDataModelFormProps` with `steppedFormMode`, `initialSectionId`, `saveOnEveryStep`. Resolve `initialSectionId` to a step index inside the existing data-init `useEffect`. Add `validateAllSections` helper (reusing existing `validateSection`). Add free-mode `handleFreeSave` that runs full-form validation, jumps to the offending step, and surfaces a section-name toast. Route Summary step Save through the same gate. Forward new props into `StepIndicator` and `StepNavigation`. |
+| MODIFY | `apps/mobile/src/components/Forms/DataModelForm/StepIndicator.tsx` | Accept `mode?: "sequential" \| "free"`. In free mode, every dot is tappable and `disabled` is false; pending dots render with the `bg-white text-info border-2 border-info` tappable treatment. Sequential mode unchanged. |
+| MODIFY | `apps/mobile/src/components/Forms/DataModelForm/StepNavigation.tsx` | Accept `saveOnEveryStep`, `onSave`, `isSaving`. When `saveOnEveryStep && onSave`, render Save button between Previous and Next on every step. Keep using `Button` from `~root/components`. |
+| MODIFY | `apps/mobile/src/components/WorkOrders/MobileWODataModelForm.tsx` | Extend props with `steppedFormMode`, `initialSectionId`, `saveOnEveryStep`. Default `steppedFormMode="free"` and `saveOnEveryStep=true` when `recordId` is present (edit). Forward all three to `DataModelForm`. |
+| MODIFY | `apps/mobile/src/components/DetailOverview/DetailOverview.tsx` | Broaden `onEdit` signature to `(sectionId?: string) => void`. Render the edit handle on every section (not just index 0) when `editPermission` is true and `onEdit` is provided. Backwards-compatible for `RFIDetail` / `ProjectDetail`. |
+| MODIFY | `apps/mobile/src/components/WorkOrders/WODetail.tsx` | Flip `steppedForm` on the edit flyout to `true`. Update `handleEdit` to accept an optional `sectionId` and forward it as `initialSectionId` to `MobileWODataModelForm`. Pass `onEdit={canEdit ? handleEdit : undefined}` and `editPermission={canEdit}` to `DetailOverview`. |
 </script>
 
 <script src="plan-renderer.js"></script>

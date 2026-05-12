@@ -233,7 +233,7 @@ table.schema-table td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; ver
 
         <h3>In Scope (WO-14)</h3>
         <ul>
-            <li><span class="scope-tag scope-in">IN</span> New <code>WorkOrderChecklistItem</code> model with <code>jobId</code>, <code>label</code>, <code>description</code> (sanitized HTML, optional), <code>orderNo</code>, <code>isDone</code>, <code>completedByUserId</code>, <code>completedAt</code>, <code>photoRequired</code> (Boolean), <code>completionPhotoAssetId</code> (FK to <code>Asset</code>, optional)</li>
+            <li><span class="scope-tag scope-in">IN</span> New <code>WorkOrderChecklistItem</code> model with <code>jobId</code>, <code>label</code>, <code>description</code> (sanitized HTML, optional), <code>orderNo</code>, <code>createdByUserId</code>, <code>isDone</code>, <code>completedByUserId</code>, <code>completedAt</code>, <code>photoRequired</code> (Boolean), <code>completionPhotoAssetId</code> (FK to <code>Asset</code>, optional)</li>
             <li><span class="scope-tag scope-in">IN</span> When <code>photoRequired = true</code>, ticking the item requires capturing a photo; the resolver rejects the tick if no <code>photoAssetId</code> is supplied. Untick clears the photo reference along with the audit fields. Locked-down minimum behavior — no captions, no multiple photos, no annotations.</li>
             <li><span class="scope-tag scope-in">IN</span> Computed <strong>% complete</strong> on the WO — derived field <code>(count of <code>isDone=true</code> non-archived items) / (count of all non-archived items)</code>. Surfaced on the WO detail page header (desktop) as a small progress indicator (e.g., "4 of 12 complete · 33%"). Not stored; recomputed on read.</li>
             <li><span class="scope-tag scope-in">IN</span> Direct CRUD GraphQL mutations for the Settings + Overview surfaces</li>
@@ -723,6 +723,12 @@ model WorkOrderChecklistItem {
   description String?  @db.Text                  // sanitized HTML from TipTap; null when no rich body
   orderNo     Int      @default(0)
 
+  createdByUserId    String?   @db.VarChar(21)
+  CreatedByUser      User?     @relation("WorkOrderChecklistItemsCreated",
+                                          fields: [createdByUserId],
+                                          references: [id],
+                                          onDelete: SetNull)
+
   isDone             Boolean   @default(false)
   completedByUserId  String?   @db.VarChar(21)
   CompletedByUser    User?     @relation("WorkOrderChecklistItemsCompleted",
@@ -740,6 +746,7 @@ model WorkOrderChecklistItem {
   photoRequired      Boolean   @default(false)
 
   @@index([jobId, isDeleted, isArchived, orderNo], map: "WOChecklistItem_job_order_idx")
+  @@index([createdByUserId], map: "WOChecklistItem_createdBy_idx")
   @@index([completedByUserId], map: "WOChecklistItem_completedBy_idx")
 }
 </pre>
@@ -750,6 +757,8 @@ model WorkOrderChecklistItem {
 WorkOrderChecklistItems  WorkOrderChecklistItem[]
 
 // Added to existing User model:
+WorkOrderChecklistItemsCreated    WorkOrderChecklistItem[]
+    @relation("WorkOrderChecklistItemsCreated")
 WorkOrderChecklistItemsCompleted  WorkOrderChecklistItem[]
     @relation("WorkOrderChecklistItemsCompleted")
 </pre>
@@ -766,15 +775,19 @@ CREATE TABLE `WorkOrderChecklistItem` (
     `label`              VARCHAR(500)  NOT NULL,
     `description`        TEXT          NULL,
     `orderNo`            INT           NOT NULL DEFAULT 0,
+    `createdByUserId`        VARCHAR(21)   NULL,
     `isDone`                 BOOLEAN       NOT NULL DEFAULT FALSE,
     `completedByUserId`      VARCHAR(21)   NULL,
     `completedAt`            DATETIME(3)   NULL,
     `photoRequired`          BOOLEAN       NOT NULL DEFAULT FALSE,
     PRIMARY KEY (`id`),
     INDEX `WOChecklistItem_job_order_idx` (`jobId`, `isDeleted`, `isArchived`, `orderNo`),
+    INDEX `WOChecklistItem_createdBy_idx` (`createdByUserId`),
     INDEX `WOChecklistItem_completedBy_idx` (`completedByUserId`),
     CONSTRAINT `WOChecklistItem_jobId_fkey`
         FOREIGN KEY (`jobId`) REFERENCES `Job`(`id`) ON DELETE CASCADE,
+    CONSTRAINT `WOChecklistItem_createdBy_fkey`
+        FOREIGN KEY (`createdByUserId`) REFERENCES `User`(`id`) ON DELETE SET NULL,
     CONSTRAINT `WOChecklistItem_completedBy_fkey`
         FOREIGN KEY (`completedByUserId`) REFERENCES `User`(`id`) ON DELETE SET NULL
 );
@@ -809,6 +822,8 @@ type WorkOrderChecklistItem {
   label: String!
   description: String           # sanitized HTML, null when no rich body
   orderNo: Int!
+  createdByUserId: String
+  createdByUser: User           # null after the user is deleted (SetNull)
   isDone: Boolean!
   completedByUserId: String
   completedByUser: User         # null after the user is deleted (SetNull)
@@ -842,6 +857,7 @@ type WorkOrderChecklistProgress {
 
         <h3>5.2 Live mutations (Settings + Overview surfaces, and ticks everywhere)</h3>
 <pre>
+# Records createdByUserId from auth context server-side — not client-supplied.
 createWorkOrderChecklistItem(
   jobId: String!,
   label: String!,

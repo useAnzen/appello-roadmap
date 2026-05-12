@@ -175,7 +175,8 @@ table.schema-table td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; ver
             <li><span class="scope-tag scope-in">IN</span> Server-side URL format validation (RFC-3986). Reject malformed URLs in the resolver</li>
             <li><span class="scope-tag scope-in">IN</span> Server-side <code>sourceDomain</code> derivation at write time (parse the URL host) — used for the source badge in the UI</li>
             <li><span class="scope-tag scope-in">IN</span> Widget on Job detail page (renders for both Project Job and Work Order classifications), Project detail page, and the mobile Job/WO detail page</li>
-            <li><span class="scope-tag scope-in">IN</span> Add / edit / remove flows. Adding requires URL + label; editing changes URL or label; removing soft-deletes</li>
+            <li><span class="scope-tag scope-in">IN</span> Add / edit / remove flows. Adding requires URL + label; editing changes URL, label, or mobile visibility; removing soft-deletes</li>
+            <li><span class="scope-tag scope-in">IN</span> Per-document <code>hiddenFromMobile</code> toggle (mirrors the existing <code>Folder.hiddenFromMobile</code> pattern). Defaults to <code>false</code>; when <code>true</code>, the row is excluded from the mobile widget but still visible on desktop. Allows admins to keep desktop-only references (long-form scope docs, dense drawings) out of the field crew's mobile view.</li>
             <li><span class="scope-tag scope-in">IN</span> Permission model: anyone with edit access on the parent entity (same gate as adding a comment) can add / edit / remove</li>
             <li><span class="scope-tag scope-in">IN</span> Audit log entries for add / edit / remove (uses existing audit infrastructure; no new schema)</li>
             <li><span class="scope-tag scope-in">IN</span> Client-side source-domain badge: SP (SharePoint) / OneDrive / Drive / Dropbox / "?" fallback. Pure presentation — derived from <code>sourceDomain</code></li>
@@ -211,7 +212,8 @@ table.schema-table td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; ver
             <li>Label (user-typed; auto-detected from URL if blank)</li>
             <li>Added-by + relative time ("Emma Mann · 2 days ago")</li>
             <li>Open button → opens URL in new tab</li>
-            <li>Kebab menu: Edit, Remove</li>
+            <li>Mobile-visibility indicator (desktop only): a small "Desktop only" pill on rows where <code>hiddenFromMobile = true</code></li>
+            <li>Kebab menu: Edit, Hide on mobile / Show on mobile (toggles <code>hiddenFromMobile</code>), Remove</li>
         </ul>
 
         <h3>Mockup 1 — Desktop Job detail · External Documents widget (sidebar)</h3>
@@ -244,7 +246,7 @@ table.schema-table td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; ver
                         <div class="doc-row">
                             <div class="doc-icon sp">SP</div>
                             <div style="flex:1;min-width:0;">
-                                <div style="font-weight:700;color:#0f172a;">Project scope · Cedar Ridge.docx</div>
+                                <div style="font-weight:700;color:#0f172a;">Project scope · Cedar Ridge.docx <span class="pill" style="background:#f1f5f9;color:#475569;margin-left:4px;">Desktop only</span></div>
                                 <div class="doc-meta">SharePoint · added by Emma Mann · 2 days ago</div>
                             </div>
                             <a href="#" class="btn btn-secondary btn-sm" style="text-decoration:none;">↗ Open</a>
@@ -276,6 +278,10 @@ table.schema-table td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; ver
                                 <div class="doc-icon sp" style="width:18px;height:18px;font-size:9px;">SP</div>
                                 <span>Detected: SharePoint · contoso.sharepoint.com</span>
                             </div>
+                            <label style="display:flex;align-items:center;gap:6px;font-size:11px;color:#475569;margin-bottom:8px;cursor:pointer;">
+                                <input type="checkbox" style="margin:0;">
+                                <span>Hide on mobile (desktop only)</span>
+                            </label>
                             <div style="display:flex;gap:6px;">
                                 <button class="btn btn-primary btn-sm" style="flex:1;justify-content:center;">Save link</button>
                                 <button class="btn btn-secondary btn-sm">Cancel</button>
@@ -290,7 +296,7 @@ table.schema-table td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; ver
         </div>
 
         <h3>Mockup 2 — Mobile Job / WO detail · compact list</h3>
-        <p>Same data, mobile layout. Tap a row → opens the URL in the device's default browser. Add a link via the floating button; long-press paste-from-clipboard is the expected URL-entry workflow.</p>
+        <p>Same data, mobile layout. Tap a row → opens the URL in the device's default browser. Add a link via the floating button; long-press paste-from-clipboard is the expected URL-entry workflow. Rows with <code>hiddenFromMobile = true</code> (e.g. the "Project scope · Cedar Ridge.docx" desktop-only row in Mockup 1) are filtered out — the count drops from 3 → 2.</p>
 
         <div class="mobile-frame">
             <div class="mobile-screen">
@@ -299,16 +305,9 @@ table.schema-table td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; ver
 
                 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
                     <div style="font-size:12px;font-weight:800;color:#0f172a;text-transform:uppercase;letter-spacing:0.5px;">External documents</div>
-                    <span class="pill pill-purple">3</span>
+                    <span class="pill pill-purple">2</span>
                 </div>
 
-                <div class="doc-row">
-                    <div class="doc-icon sp">SP</div>
-                    <div style="flex:1;min-width:0;">
-                        <div style="font-weight:700;color:#0f172a;font-size:13px;">Project scope · Cedar Ridge.docx</div>
-                        <div class="doc-meta">SharePoint · 2d ago</div>
-                    </div>
-                </div>
                 <div class="doc-row">
                     <div class="doc-icon pc">PC</div>
                     <div style="flex:1;min-width:0;">
@@ -357,6 +356,10 @@ model ExternalDocument {
   url    String  @db.VarChar(2000)            // RFC-3986 validated at write
   label  String  @db.VarChar(200)
 
+  // When true, row is excluded from the mobile widget (still shown on
+  // desktop). Mirrors the existing Folder.hiddenFromMobile pattern.
+  hiddenFromMobile Boolean @default(false)
+
   // Cached at write time from URL parse — drives the source badge in the
   // UI without needing to re-parse on every render. Lowercased.
   sourceDomain String? @db.VarChar(255)
@@ -391,6 +394,7 @@ CREATE TABLE `ExternalDocument` (
     `referenceId`   VARCHAR(21)   NOT NULL,
     `url`              VARCHAR(2000) NOT NULL,
     `label`            VARCHAR(200)  NOT NULL,
+    `hiddenFromMobile` BOOLEAN       NOT NULL DEFAULT FALSE,
     `sourceDomain`     VARCHAR(255)  NULL,
     `addedByUserId`    VARCHAR(21)   NULL,
     PRIMARY KEY (`id`),
@@ -418,6 +422,7 @@ type ExternalDocument {
   referenceId: String!
   url: String!
   label: String!
+  hiddenFromMobile: Boolean!
   sourceDomain: String
   addedByUserId: String
   addedByUser: User
@@ -440,13 +445,15 @@ addExternalDocument(
   referenceModel: String!,    # "Job" or "Project" — validated against allowlist
   referenceId: String!,
   url: String!,                 # RFC-3986 validated server-side
-  label: String!
+  label: String!,
+  hiddenFromMobile: Boolean     # defaults to false server-side if omitted
 ): ExternalDocument!
 
 editExternalDocument(
   id: String!,
   url: String,                  # re-validated if provided
-  label: String
+  label: String,
+  hiddenFromMobile: Boolean
 ): ExternalDocument!
 
 archiveExternalDocument(id: String!): ExternalDocument!
@@ -454,6 +461,9 @@ archiveExternalDocument(id: String!): ExternalDocument!
 
         <h3>5.3 Permissions</h3>
         <p>All mutations check that the calling user has edit access on the parent entity (same gate as adding a comment to that entity). Read access on the parent entity grants list access.</p>
+
+        <h3>5.4 Mobile filtering</h3>
+        <p>The <code>externalDocuments</code> field resolver does <em>not</em> filter by <code>hiddenFromMobile</code> server-side — desktop and mobile call the same resolver and the mobile client filters on read. This keeps the API surface uniform and makes the desktop "Desktop only" indicator trivial. (Open question for Chris: prefer a <code>platform: Platform</code> argument on the resolver instead? Server-side filtering would mean one less list-trim on the mobile client but a slightly less uniform API.)</p>
     </div>
 
     <!-- 6 -->
@@ -469,7 +479,7 @@ archiveExternalDocument(id: String!): ExternalDocument!
                 <tr><td><span class="action-new">NEW</span></td><td><code>ExternalDocumentsWidget.tsx</code></td><td>Listing + add form on desktop Job / Project / WO detail pages</td></tr>
                 <tr><td><span class="action-new">NEW</span></td><td><code>ExternalDocumentRow.tsx</code></td><td>Single row with badge, label, URL truncation, kebab menu</td></tr>
                 <tr><td><span class="action-new">NEW</span></td><td><code>AddExternalDocumentForm.tsx</code></td><td>URL + label form; client-side URL format check (mirror of server)</td></tr>
-                <tr><td><span class="action-new">NEW</span></td><td>Mobile Job / WO detail · External Documents surface</td><td>Compact list mirroring desktop; tap-to-open in default browser</td></tr>
+                <tr><td><span class="action-new">NEW</span></td><td>Mobile Job / WO detail · External Documents surface</td><td>Compact list mirroring desktop; filters out rows where <code>hiddenFromMobile = true</code>; tap-to-open in default browser</td></tr>
                 <tr><td><span class="action-mod">MODIFY</span></td><td>Audit log writers</td><td>Emit add / edit / archive events for ExternalDocument operations</td></tr>
             </tbody>
         </table>
@@ -488,6 +498,8 @@ archiveExternalDocument(id: String!): ExternalDocument!
             <li>A user with edit access can remove a document; removal is a soft-delete (<code>isArchived = true</code>) and is logged in the audit log.</li>
             <li>Users without edit access on the parent entity see the document list but cannot add / edit / remove (UI controls hidden, API calls rejected).</li>
             <li>Mobile renders a compact version of the same data; long-press paste from clipboard is supported in the URL field.</li>
+            <li>The Add-link form and edit flow expose a "Hide on mobile" checkbox that sets <code>hiddenFromMobile</code>. Defaults to off. Toggling it from the kebab menu on an existing row updates the value without re-opening the edit form.</li>
+            <li>Rows with <code>hiddenFromMobile = true</code> are excluded from the mobile widget (and from the mobile count). On desktop, those rows render with a "Desktop only" indicator pill so admins can see the state at a glance.</li>
             <li>The <code>referenceModel</code> field accepts only the allowlisted values "Job" and "Project"; arbitrary values are rejected.</li>
         </ol>
     </div>

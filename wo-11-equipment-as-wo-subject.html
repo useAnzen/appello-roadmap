@@ -181,17 +181,18 @@ table.schema-table td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; ver
             <li><span class="scope-tag scope-future">FUTURE</span> "Scan equipment QR &rarr; auto-create WO with this equipment as subject" deep-link flow</li>
             <li><span class="scope-tag scope-future">FUTURE</span> Linking subject-equipment WOs to <code>MaintenanceSchedule</code> — covered by sibling spec <strong>WO-12</strong> (Maintenance ↔ Work Order Linkage)</li>
             <li><span class="scope-tag scope-future">FUTURE</span> Subject equipment for non-WO job types — surfaced only on WOs in V1</li>
-            <li><span class="scope-tag scope-out">OUT</span> Many-to-many subject equipment per WO — explicitly rejected (see "Decided" callout below for reasoning)</li>
+            <li><span class="scope-tag scope-out">OUT</span> Multiple subject equipment per WO <em>at the product level</em> — backend caps to 1 connection in V1 (see "Decided" callout below). Data model is structured as many-to-many to keep the door open for a future product change without a schema migration.</li>
             <li><span class="scope-tag scope-future">FUTURE</span> Polymorphic subject (e.g., a Location, a vehicle as subject) — see Pending Decision below</li>
             <li><span class="scope-tag scope-future">FUTURE</span> Equipment line item / billing changes — covered by WO-2, EQ-0</li>
         </ul>
 
         <h3>Decided</h3>
         <div class="decision" style="background:#f0fdf4;border-color:#16a34a;">
-            <h4 style="color:#065f46;">✓ DECIDED — One subject equipment per WO (1:1)</h4>
-            <p style="color:#166534;">A WO has exactly <strong>one</strong> subject piece of equipment. If a tech services 4 rooftop units in one building, that becomes 4 separate WOs.</p>
-            <p style="color:#166534;"><strong>Reasoning:</strong> The whole point of equipment service history (the "Work Orders" tab on Equipment detail) is being able to look at a piece of equipment and see what was done to it. With many-to-many, a WO's notes / hours / materials / signatures would all be ambiguous across the equipment it touched — you couldn't tell which equipment a particular detail was for. 1:1 keeps history meaningful: "this WO is the record of work performed on <em>this</em> RTU on Mar 12." Multi-asset visits become multiple WOs (which the dispatch board / templates make cheap).</p>
-            <p style="color:#166534;"><strong>Source:</strong> Emma, 2026-05-05 PM call — <em>"I think a WO would be distinct to a piece of equipment and if they were to do 4 in a building they would have 4 distinct WOs."</em></p>
+            <h4 style="color:#065f46;">✓ DECIDED — One subject equipment per WO (V1 product), m2m at the data layer</h4>
+            <p style="color:#166534;"><strong>Product:</strong> A WO has exactly <strong>one</strong> subject piece of equipment in V1. If a tech services 4 rooftop units in one building, that becomes 4 separate WOs.</p>
+            <p style="color:#166534;"><strong>Reasoning:</strong> The whole point of equipment service history (the "Work Orders" tab on Equipment detail) is being able to look at a piece of equipment and see what was done to it. With many subject equipment per WO, a WO's notes / hours / materials / signatures would all be ambiguous across the equipment it touched — you couldn't tell which equipment a particular detail was for. 1:1 keeps history meaningful: "this WO is the record of work performed on <em>this</em> RTU on Mar 12." Multi-asset visits become multiple WOs (which the dispatch board / templates make cheap).</p>
+            <p style="color:#166534;"><strong>Data model:</strong> Stored as a <code>JobSubjectEquipment</code> join table (many-to-many) with the V1 cap of 1 enforced server-side in the resolver, not by schema. Per Chris's DB review (2026-05-08): if product later opens this up, lifting the cap is a one-line change instead of a table migration. UI, GraphQL surface, and product behavior remain singular for V1.</p>
+            <p style="color:#166534;"><strong>Source:</strong> Emma, 2026-05-05 PM call — <em>"I think a WO would be distinct to a piece of equipment and if they were to do 4 in a building they would have 4 distinct WOs."</em> · Chris, 2026-05-08 DB review — <em>"set up as many-to-many with backend max of 1 so future relaxation is simple."</em></p>
         </div>
 
         <h3>Pending Business Decisions</h3>
@@ -306,35 +307,73 @@ table.schema-table td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; ver
     <div class="uis-section" id="data-model">
         <h2>4. Data Model</h2>
 
-        <h3>4.1 Job — add subjectEquipmentId</h3>
+        <h3>4.1 New model: JobSubjectEquipment (join table)</h3>
 <pre>
-// Added to existing Job model:
-subjectEquipmentId  String?     @db.VarChar(21)
-SubjectEquipment    Equipment?  @relation("JobsAsSubjectEquipment",
-                                          fields: [subjectEquipmentId],
-                                          references: [id])
+model JobSubjectEquipment {
+  id           String   @id @db.VarChar(21)
+  isDeleted    Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @default(now()) @updatedAt
 
-@@index([subjectEquipmentId], map: "Job_subjectEquipmentId_fkey")
+  jobId        String   @db.VarChar(21)
+  Job          Job      @relation("JobSubjectEquipments",
+                                   fields: [jobId],
+                                   references: [id],
+                                   onDelete: Cascade)
+
+  equipmentId  String   @db.VarChar(21)
+  Equipment    Equipment @relation("EquipmentSubjectOfJobs",
+                                   fields: [equipmentId],
+                                   references: [id],
+                                   onDelete: Cascade)
+
+  @@unique([jobId, equipmentId], map: "JobSubjectEquipment_jobId_equipmentId_key")
+  @@index([jobId], map: "JobSubjectEquipment_jobId_idx")
+  @@index([equipmentId], map: "JobSubjectEquipment_equipmentId_idx")
+}
 </pre>
 
-        <h3>4.2 Equipment — add inverse relation</h3>
+        <h3>4.2 Inverse relations</h3>
 <pre>
+// Added to existing Job model:
+SubjectEquipments  JobSubjectEquipment[]  @relation("JobSubjectEquipments")
+
 // Added to existing Equipment model:
-JobsAsSubject  Job[]  @relation("JobsAsSubjectEquipment")
+JobsAsSubject      JobSubjectEquipment[]  @relation("EquipmentSubjectOfJobs")
 </pre>
 
         <h3>4.3 Migration</h3>
 <pre>
-ALTER TABLE `Job`
-    ADD COLUMN `subjectEquipmentId` VARCHAR(21) NULL,
-    ADD INDEX `Job_subjectEquipmentId_fkey` (`subjectEquipmentId`),
-    ADD CONSTRAINT `Job_subjectEquipmentId_fkey`
-        FOREIGN KEY (`subjectEquipmentId`) REFERENCES `Equipment` (`id`)
-        ON DELETE SET NULL ON UPDATE CASCADE;
+CREATE TABLE `JobSubjectEquipment` (
+    `id`           VARCHAR(21)  NOT NULL,
+    `isDeleted`    BOOLEAN      NOT NULL DEFAULT FALSE,
+    `createdAt`    DATETIME(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `updatedAt`    DATETIME(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+    `jobId`        VARCHAR(21)  NOT NULL,
+    `equipmentId`  VARCHAR(21)  NOT NULL,
+    PRIMARY KEY (`id`),
+    UNIQUE INDEX `JobSubjectEquipment_jobId_equipmentId_key` (`jobId`, `equipmentId`),
+    INDEX `JobSubjectEquipment_jobId_idx` (`jobId`),
+    INDEX `JobSubjectEquipment_equipmentId_idx` (`equipmentId`),
+    CONSTRAINT `JobSubjectEquipment_jobId_fkey`
+        FOREIGN KEY (`jobId`) REFERENCES `Job` (`id`)
+        ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT `JobSubjectEquipment_equipmentId_fkey`
+        FOREIGN KEY (`equipmentId`) REFERENCES `Equipment` (`id`)
+        ON DELETE CASCADE ON UPDATE CASCADE
+);
 </pre>
 
         <div class="callout">
-            <strong>Why on Job, not WorkOrder:</strong> per WO-1, a WO is just a Job with <code>jobClassification = WorkOrder</code>. There is no separate WorkOrder model. Adding the FK to Job keeps options open for future job classifications without retrofitting; the V1 UI gates the field to WOs only.
+            <strong>Why a join table with a backend cap, not an FK on Job:</strong> per Chris's DB review (2026-05-08), structuring the relationship as many-to-many at the schema level lets us relax the V1 product cap (max 1 subject equipment per WO) by changing a single guard in the resolver — no table migration, no column drop, no data backfill. The cap is enforced server-side: <code>upsertSubjectEquipment</code> rejects writes that would push a Job's non-deleted <code>JobSubjectEquipment</code> row count above 1.
+        </div>
+
+        <div class="callout">
+            <strong>Why on Job, not WorkOrder:</strong> per WO-1, a WO is just a Job with <code>jobClassification = WorkOrder</code>. There is no separate WorkOrder model. Targeting the join table at Job keeps options open for future job classifications without retrofitting; the V1 UI gates the field to WOs only.
+        </div>
+
+        <div class="callout">
+            <strong>On Equipment delete:</strong> the FK uses <code>ON DELETE CASCADE</code>, so hard-deleting an Equipment row removes the join entry (the Job is unaffected and simply has no subject equipment afterward). Equipment uses soft-delete (<code>isDeleted</code> / <code>isArchived</code>) in practice, so hard deletion is rare; soft-deleted equipment continues to appear in service-history queries until explicitly filtered.
         </div>
     </div>
 
@@ -348,12 +387,16 @@ ALTER TABLE `Job`
 <pre>
 type Job {
   # ...existing fields
+  # V1: at most one row in JobSubjectEquipment, so these resolve to the
+  # single linked equipment (or null). The resolver picks the only
+  # non-deleted JobSubjectEquipment row for this Job.
   subjectEquipmentId: String
   subjectEquipment: Equipment
 }
 
 type Equipment {
   # ...existing fields
+  # Resolved through the JobSubjectEquipment join table.
   jobsAsSubject(
     isCompleted: Boolean
     take: Int
@@ -361,6 +404,8 @@ type Equipment {
   ): [Job!]!
 }
 </pre>
+
+        <p>The GraphQL surface stays singular in V1 to match the product (one subject per WO). When the product cap is lifted, expose a plural <code>subjectEquipments: [Equipment!]!</code> field alongside the singular accessors — no breaking change for existing consumers.</p>
 
         <h3>5.2 Mutation Inputs (existing mutations extended)</h3>
 <pre>
@@ -371,14 +416,16 @@ input CreateJobInput {
 
 input EditJobInput {
   # ...existing fields
+  # null clears the link; a value upserts (and replaces, since cap = 1)
+  # the single JobSubjectEquipment row for this Job.
   subjectEquipmentId: String
 }
 </pre>
 
-        <p>No new mutations needed — <code>createJob</code> and <code>editJob</code> already cover the field-level write surface.</p>
+        <p>No new mutations needed — <code>createJob</code> and <code>editJob</code> already cover the field-level write surface. Internally these write through to <code>JobSubjectEquipment</code>: on save, the Job model's <code>beforeEdit</code> / <code>beforeCreate</code> hook upserts the join row (or soft-deletes the existing row when cleared). The hook enforces the V1 cap of 1: any write that would leave a Job with more than one non-deleted <code>JobSubjectEquipment</code> row is rejected with a validation error.</p>
 
         <h3>5.3 Query — Equipment WOs Tab</h3>
-        <p>The Equipment detail page's Work Orders tab uses the existing TableFeed pattern, filtered by <code>subjectEquipmentId = $equipmentId</code> AND <code>jobClassification = 'WorkOrder'</code>. No new resolver required if the existing JobListFeed view exposes <code>subjectEquipmentId</code> as a column.</p>
+        <p>The Equipment detail page's Work Orders tab uses the existing TableFeed pattern. The filter joins through <code>JobSubjectEquipment</code> — show Jobs where there exists a non-deleted <code>JobSubjectEquipment</code> row with <code>equipmentId = $equipmentId</code> AND the Job has <code>jobClassification = 'WorkOrder'</code>. Implement either as a SQL view that left-joins <code>JobSubjectEquipment</code> and surfaces <code>subjectEquipmentId</code> as a column on the existing JobListFeed (preferred — keeps the WO list page's "Subject Equipment" column free), or as a dedicated feed if the join cost on JobListFeed is unacceptable.</p>
     </div>
 
     <!-- 6. Change Surface -->
@@ -388,16 +435,17 @@ input EditJobInput {
         <table class="schema-table">
             <thead><tr><th>Action</th><th>Path</th><th>Change</th></tr></thead>
             <tbody>
-                <tr><td><span class="action-mod">MODIFY</span></td><td><code>apps/api/prisma/schema.prisma</code></td><td>Add <code>subjectEquipmentId</code> + relation on Job; inverse on Equipment</td></tr>
-                <tr><td><span class="action-new">NEW</span></td><td><code>apps/api/prisma/migrations/&lt;ts&gt;_job_subject_equipment/</code></td><td>FK migration</td></tr>
-                <tr><td><span class="action-mod">MODIFY</span></td><td><code>apps/api/src/models/Job.ts</code></td><td>Allow <code>subjectEquipmentId</code> in modelFields</td></tr>
-                <tr><td><span class="action-mod">MODIFY</span></td><td><code>apps/api/src/graphql/models/Job.ts</code></td><td>Expose <code>subjectEquipmentId</code> &amp; <code>subjectEquipment</code> resolver</td></tr>
-                <tr><td><span class="action-mod">MODIFY</span></td><td><code>apps/api/src/graphql/models/Equipment.ts</code></td><td>Add <code>jobsAsSubject</code> field resolver</td></tr>
-                <tr><td><span class="action-mod">MODIFY</span></td><td>JobListFeed SQL view</td><td>Surface <code>subjectEquipmentId</code> as a column</td></tr>
+                <tr><td><span class="action-mod">MODIFY</span></td><td><code>apps/api/prisma/schema.prisma</code></td><td>Add <code>JobSubjectEquipment</code> join model; inverse relations on Job and Equipment</td></tr>
+                <tr><td><span class="action-new">NEW</span></td><td><code>apps/api/prisma/migrations/&lt;ts&gt;_job_subject_equipment/</code></td><td>Create <code>JobSubjectEquipment</code> table + FKs + unique index</td></tr>
+                <tr><td><span class="action-new">NEW</span></td><td><code>apps/api/src/models/JobSubjectEquipment.ts</code></td><td>BaseModel for the join table</td></tr>
+                <tr><td><span class="action-mod">MODIFY</span></td><td><code>apps/api/src/models/Job.ts</code></td><td>Virtual <code>subjectEquipmentId</code> input on create/edit; <code>beforeCreate</code>/<code>beforeEdit</code> hook upserts <code>JobSubjectEquipment</code> and enforces V1 cap of 1 non-deleted row per Job</td></tr>
+                <tr><td><span class="action-mod">MODIFY</span></td><td><code>apps/api/src/graphql/models/Job.ts</code></td><td>Expose singular <code>subjectEquipmentId</code> &amp; <code>subjectEquipment</code> field resolvers (read first / only non-deleted join row)</td></tr>
+                <tr><td><span class="action-mod">MODIFY</span></td><td><code>apps/api/src/graphql/models/Equipment.ts</code></td><td>Add <code>jobsAsSubject</code> field resolver (joins through <code>JobSubjectEquipment</code>)</td></tr>
+                <tr><td><span class="action-mod">MODIFY</span></td><td>JobListFeed SQL view</td><td>Left-join <code>JobSubjectEquipment</code> and surface <code>subjectEquipmentId</code> as a derived column for sort / filter</td></tr>
                 <tr><td><span class="action-mod">MODIFY</span></td><td>WO create/edit form (desktop &amp; mobile)</td><td>Add Equipment Serviced combobox field</td></tr>
                 <tr><td><span class="action-mod">MODIFY</span></td><td>WO detail page header (desktop &amp; mobile)</td><td>Render subject equipment chip with link</td></tr>
                 <tr><td><span class="action-mod">MODIFY</span></td><td>WO list page</td><td>Add Subject Equipment column (filterable / sortable)</td></tr>
-                <tr><td><span class="action-new">NEW</span></td><td>Equipment detail · Work Orders tab (desktop)</td><td>ListTable view filtered by <code>subjectEquipmentId</code> + WO classification</td></tr>
+                <tr><td><span class="action-new">NEW</span></td><td>Equipment detail · Work Orders tab (desktop)</td><td>ListTable view filtered through <code>JobSubjectEquipment</code> + WO classification</td></tr>
                 <tr><td><span class="action-new">NEW</span></td><td>Equipment detail · Work Orders tab (mobile)</td><td>List view, same filter, mobile layout</td></tr>
             </tbody>
         </table>
@@ -408,15 +456,16 @@ input EditJobInput {
         <h2>7. Acceptance Criteria</h2>
 
         <ol class="ac-list">
-            <li>A user creating a WO can optionally select a piece of equipment as the subject; saving persists <code>subjectEquipmentId</code> on the Job row.</li>
-            <li>A user editing a WO can change or clear the subject equipment.</li>
+            <li>A user creating a WO can optionally select a piece of equipment as the subject; saving persists a single <code>JobSubjectEquipment</code> row linking the Job and the Equipment.</li>
+            <li>A user editing a WO can change or clear the subject equipment. Changing replaces the existing <code>JobSubjectEquipment</code> row; clearing soft-deletes it.</li>
             <li>The WO detail page shows the subject equipment as a chip linked to the equipment detail page.</li>
             <li>The WO list page shows a "Subject Equipment" column that is sortable and filterable.</li>
             <li>The Equipment detail page (desktop) shows a "Work Orders" tab listing every WO where this equipment is the subject, in reverse-chronological order.</li>
             <li>The Equipment detail page (mobile) shows the same Work Orders tab in a mobile list layout.</li>
             <li>Tapping a WO row in the equipment Work Orders tab navigates to that WO's detail page.</li>
             <li>The subject equipment field is hidden on Job types whose <code>jobClassification</code> is not <code>WorkOrder</code>.</li>
-            <li>Deleting an Equipment record sets <code>subjectEquipmentId</code> to NULL on referencing Jobs (does not cascade-delete).</li>
+            <li>Hard-deleting an Equipment record cascades to remove its <code>JobSubjectEquipment</code> rows (the referencing Jobs are unaffected and simply have no subject equipment afterward; soft-deleted equipment continues to appear in service-history queries until explicitly filtered).</li>
+            <li>The backend rejects any <code>createJob</code> / <code>editJob</code> mutation that would leave a Job with more than one non-deleted <code>JobSubjectEquipment</code> row, with a clear validation error. (V1 cap of 1; data model supports many.)</li>
             <li>Existing line-item-based equipment associations (<code>WorkOrderEquipmentItem</code>, <code>EquipmentTimeSheetRecordValue</code>) are unaffected and remain visible in their existing places.</li>
         </ol>
     </div>

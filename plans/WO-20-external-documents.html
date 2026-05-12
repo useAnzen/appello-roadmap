@@ -1,0 +1,856 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WO-20: External Documents — Implementation Plan</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+.in-iframe .top-nav { display: none !important; }
+.top-nav { position: sticky; top: 0; z-index: 100; background: #0f172a; border-bottom: 1px solid #1e293b; padding: 0 24px; display: flex; align-items: center; gap: 0; }
+.top-nav a { display: inline-flex; align-items: center; padding: 12px 18px; font-size: 13px; font-weight: 600; color: #94a3b8; text-decoration: none; border-bottom: 2px solid transparent; transition: all 0.15s; white-space: nowrap; }
+.top-nav a:hover { color: #f8fafc; background: #1e293b; }
+.top-nav .nav-logo { font-size: 11px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: #475569; padding-right: 18px; margin-right: 4px; border-right: 1px solid #1e293b; }
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Inter', -apple-system, sans-serif; background: #f8fafc; color: #0f172a; }
+.plan-wrap { max-width: 880px; margin: 0 auto; padding: 40px 24px 80px; }
+h1 { font-size: 24px; font-weight: 800; margin: 0 0 16px; }
+h2 { font-size: 18px; font-weight: 700; margin: 28px 0 12px; padding-bottom: 8px; border-bottom: 2px solid #e2e8f0; }
+h3 { font-size: 15px; font-weight: 700; margin: 20px 0 8px; padding-top: 10px; border-top: 1px solid #f1f5f9; }
+h4 { font-size: 14px; font-weight: 700; margin: 14px 0 6px; }
+p { font-size: 14px; color: #334155; line-height: 1.7; margin: 6px 0; }
+ul, ol { padding-left: 20px; margin: 8px 0; }
+li { font-size: 14px; color: #334155; line-height: 1.7; margin: 3px 0; }
+strong { color: #0f172a; }
+code { font-family: 'SF Mono', monospace; background: #f1f5f9; padding: 1px 6px; border-radius: 4px; font-size: 12px; color: #7c3aed; }
+pre { background: #0f172a; color: #f8fafc; border-radius: 8px; padding: 16px; overflow-x: auto; font-size: 13px; line-height: 1.6; margin: 12px 0; font-family: 'SF Mono', monospace; }
+pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
+hr { border: none; border-top: 1px solid #e2e8f0; margin: 24px 0; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 12px 0; }
+th { text-align: left; padding: 8px 12px; background: #f1f5f9; border-bottom: 2px solid #e2e8f0; font-weight: 600; }
+td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
+.callout { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 14px 18px; margin: 14px 0; font-size: 13px; color: #1e40af; }
+.callout strong { color: #1e3a8a; }
+.security-banner { background: #fef2f2; border-left: 4px solid #dc2626; padding: 12px 16px; border-radius: 0 6px 6px 0; font-size: 13px; color: #991b1b; margin: 14px 0; }
+.security-banner strong { color: #7f1d1d; }
+    </style>
+</head>
+<body>
+
+<script>if(self!==top)document.documentElement.classList.add("in-iframe")</script>
+<nav class="top-nav">
+    <span class="nav-logo">Appello SDLC</span>
+    <a href="../index.html">Roadmap</a>
+    <a href="../release-1.33-timeline.html">Release 1.33</a>
+    <a href="../release-1.34-timeline.html">Release 1.34</a>
+    <a href="../WO-1.33-final-mapping.html">Final Mapping</a>
+</nav>
+<div class="plan-wrap" id="rendered"></div>
+
+<script type="text/plain" id="plan-md">
+# WO-20: External Documents — Implementation Plan
+
+## Overview
+
+Add an "External documents" widget on Job, Project, and WO detail pages. Users paste a URL (typically SharePoint / OneDrive / Drive / Procore / Dropbox), label it, optionally hide it from mobile, and click to open in a new tab. The platform stores URL strings + provenance metadata only — **no server-fetch, no iframe, no OAuth**. Phase 2 (in-app iframe via Microsoft Graph) is out of scope for V1 and lives at WOX-17.
+
+The data model is polymorphic on `referenceModel` ("Job" or "Project") + `referenceId`, mirroring the existing `AssetReference` and `MaintenanceThreshold` patterns. WO detail pages reuse the Job-side widget because WorkOrder is a `Job.classification` value, not a separate model.
+
+Edits are first-class: users can fix a typo'd label, swap the URL (re-validated server-side), or toggle mobile visibility on an existing row. The mobile-visibility toggle uses the repo's existing `IconEye` / `IconEyeOff` convention as an inline clickable on each row (cribbed from `FileItem.tsx`), with optimistic update + revert-on-error.
+
+**Estimated effort:** 1.5–2 days · 0.25d schema + migration · 0.4d API model + GraphQL · 0.5d desktop widget · 0.3d mobile · 0.2d tests + audit wiring
+**Risk:** Low — additive schema, no backfill, no resolver-layer changes outside the new model, no permission seeding (uses parent-entity edit gate)
+**Spec:** `wo-20-external-documents.html`
+**Requires:** WO-3 / WO-4 (WO detail page scaffolding — Job-side surface)
+**Enables:** Future WOX-17 (Phase 2 SharePoint iframe — extends this same model with a `provider` enum)
+
+<div class="security-banner"><strong>Security invariant:</strong> the platform stores URL strings as user-pasted text. We <em>never</em> server-fetch a stored URL — that's an SSRF vector. Favicon / preview is client-side only. This rule is encoded in a unit test on the resolver (Step 11) and shouldn't be relaxed casually.</div>
+
+<div class="callout"><strong>Distinct from the file/folder system.</strong> External documents are intentionally <em>not</em> part of the existing <code>Asset</code> + <code>Folder</code> + <code>AssetReference</code> tree — they're a flat list of pasted URLs at the entity level. Different lifecycle (pasted URLs vs uploaded assets), different ownership (external host vs Appello), different auth model. Keeping them separate avoids "is this folder mine to delete or just a link?" ambiguity.</div>
+
+---
+
+## Step 1: Prisma Schema — ExternalDocument Model
+
+**File:** `apps/api/prisma/schema.prisma`
+
+Insert after the `Folder` model (currently around line 4829 — the cluster of polymorphic-reference models). Cribbed from `Folder` (for `hiddenFromMobile`) and `AssetReference` (for the polymorphic `referenceModel` + `referenceId` shape).
+
+```prisma
+model ExternalDocument {
+  id         String   @id @db.VarChar(21)
+  isDeleted  Boolean  @default(false)
+  isArchived Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @default(now()) @updatedAt
+
+  referenceModel String @db.VarChar(50)
+  referenceId    String @db.VarChar(21)
+
+  url   String @db.VarChar(2000)
+  label String @db.VarChar(200)
+
+  hiddenFromMobile Boolean @default(false)
+
+  sourceDomain String? @db.VarChar(255)
+
+  addedByUserId String? @db.VarChar(21)
+  AddedByUser   User?   @relation("ExternalDocumentsAdded", fields: [addedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([referenceModel, referenceId, isDeleted, isArchived], map: "ExternalDocument_reference_idx")
+  @@index([addedByUserId], map: "ExternalDocument_addedBy_idx")
+}
+```
+
+Add the inverse relation on the existing `User` model:
+
+```prisma
+// On User:
+ExternalDocumentsAdded ExternalDocument[] @relation("ExternalDocumentsAdded")
+```
+
+**Notes for Chris's review:**
+
+- `referenceModel` allowlist (`"Job"` and `"Project"`) is enforced in the model layer (Step 4), not at the schema level. WorkOrder is a `Job.classification` value so WOs use `referenceModel = "Job"`.
+- `hiddenFromMobile Boolean @default(false)` mirrors `Folder.hiddenFromMobile` (line ~4821) exactly. Existing `Folder` callers filter server-side via `extendedWhere` (see `FileListFeed.ts` lines 114–115); this plan follows the same convention (Step 5).
+- `sourceDomain` is cached at write time from `new URL(url).host.toLowerCase()` so the source-domain badge in the UI doesn't need to re-parse on every render. Phase 2 (WOX-17) will layer a `provider` enum on top.
+- `url` capped at 2000 chars (covers any realistic SharePoint deep link with query params).
+- `addedByUserId` is `onDelete: SetNull` so soft-deleting a user doesn't cascade-delete their pasted links.
+- `isDeleted` / `isArchived` are inherited semantics from `BaseAuditableModel`; this model uses `isArchived` for soft-delete (spec §AC #7).
+
+---
+
+## Step 2: Migration
+
+**Create file:** `apps/api/prisma/migrations/<YYYYMMDDHHMMSS>_add_external_document/migration.sql`
+
+Use a timestamp greater than the most recent migration in `apps/api/prisma/migrations/`. `migration_lock.toml` lives at the migrations root and is unchanged.
+
+```sql
+-- WO-20: ExternalDocument table — pasted URLs at Job/Project level.
+-- Polymorphic reference (referenceModel allowlist enforced in model layer).
+-- Server NEVER fetches stored URLs — SSRF prevention is a code invariant.
+
+CREATE TABLE `ExternalDocument` (
+    `id`               VARCHAR(21)   NOT NULL,
+    `isDeleted`        BOOLEAN       NOT NULL DEFAULT FALSE,
+    `isArchived`       BOOLEAN       NOT NULL DEFAULT FALSE,
+    `createdAt`        DATETIME(3)   NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `updatedAt`        DATETIME(3)   NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+    `referenceModel`   VARCHAR(50)   NOT NULL,
+    `referenceId`      VARCHAR(21)   NOT NULL,
+    `url`              VARCHAR(2000) NOT NULL,
+    `label`            VARCHAR(200)  NOT NULL,
+    `hiddenFromMobile` BOOLEAN       NOT NULL DEFAULT FALSE,
+    `sourceDomain`     VARCHAR(255)  NULL,
+    `addedByUserId`    VARCHAR(21)   NULL,
+
+    PRIMARY KEY (`id`),
+    INDEX `ExternalDocument_reference_idx` (`referenceModel`, `referenceId`, `isDeleted`, `isArchived`),
+    INDEX `ExternalDocument_addedBy_idx`   (`addedByUserId`),
+    CONSTRAINT `ExternalDocument_addedBy_fkey`
+        FOREIGN KEY (`addedByUserId`) REFERENCES `User`(`id`) ON DELETE SET NULL
+);
+```
+
+Pure additive — no backfill, no data movement, safe to deploy ahead of API code.
+
+---
+
+## Step 3: TypeScript Types
+
+**Create file:** `apps/api/src/types/ExternalDocument.types.ts`
+
+```typescript
+export interface IExternalDocument {
+    referenceModel: string;
+    referenceId: string;
+    url: string;
+    label: string;
+    hiddenFromMobile: boolean;
+    sourceDomain?: string;
+    addedByUserId?: string;
+}
+
+export const EXTERNAL_DOCUMENT_REFERENCE_MODELS = ["Job", "Project"] as const;
+export type ExternalDocumentReferenceModel = typeof EXTERNAL_DOCUMENT_REFERENCE_MODELS[number];
+
+export const ALLOWED_URL_SCHEMES = ["http:", "https:"] as const;
+```
+
+---
+
+## Step 4: ExternalDocument Model Class
+
+**Create file:** `apps/api/src/models/ExternalDocument.ts`
+
+Extends `BaseAuditableModel<IExternalDocument>` (cribbed from `Comment.ts`). `BaseAuditableModel.createItem` / `editItem` / `archiveItem` automatically emit `prisma.audit.create` calls — the spec's audit-log requirement is satisfied by inheritance, no per-call wiring needed.
+
+### 4.1 · Model fields
+
+```typescript
+protected modelFields: IField<IExternalDocument>[] = [
+    { name: "referenceModel", type: "string", options: { isRequiredOnCreate: true, isFilterable: true, canEdit: false } },
+    { name: "referenceId",    type: "string", options: { isRequiredOnCreate: true, isFilterable: true, canEdit: false } },
+    {
+        name: "url",
+        type: "string",
+        options: {
+            isRequiredOnCreate: true,
+            canEdit: true,
+            validation: async (value: string) => {
+                let parsed: URL;
+                try { parsed = new URL(value); } catch { throw new BadRequestError("Invalid URL"); }
+                if (!ALLOWED_URL_SCHEMES.includes(parsed.protocol as typeof ALLOWED_URL_SCHEMES[number])) {
+                    throw new BadRequestError("URL must use http or https");
+                }
+            }
+        }
+    },
+    { name: "label",            type: "string",  options: { isRequiredOnCreate: true, canEdit: true } },
+    { name: "hiddenFromMobile", type: "boolean", options: { canEdit: true, isFilterable: true, defaultValue: false } },
+    { name: "sourceDomain",     type: "string",  options: { canEdit: false } },
+    { name: "addedByUserId",    type: "string",  options: { canEdit: false } }
+];
+```
+
+The URL validator covers AC #2 (RFC-3986 rejection — `new URL()` enforces this), AC #6 (re-validated on edit — `BaseAuditableModel.editItem` re-runs field validators on changed fields), and additionally rejects `javascript:` / `data:` schemes which `new URL()` would otherwise accept.
+
+### 4.2 · `customCreateItem` override
+
+```typescript
+protected async customCreateItem(
+    data: Partial<IExternalDocument>,
+    currentUserId: string
+): Promise<Partial<IExternalDocument>> {
+    if (!EXTERNAL_DOCUMENT_REFERENCE_MODELS.includes(data.referenceModel as ExternalDocumentReferenceModel)) {
+        throw new BadRequestError(`Invalid referenceModel: ${data.referenceModel}`);
+    }
+
+    await this.assertParentExistsAndUserCanEdit(data.referenceModel!, data.referenceId!, currentUserId);
+
+    if (data.url) {
+        data.sourceDomain = new URL(data.url).host.toLowerCase();
+    }
+    if (!data.addedByUserId) {
+        data.addedByUserId = currentUserId;
+    }
+
+    return data;
+}
+```
+
+### 4.3 · `customEditItem` override
+
+```typescript
+protected async customEditItem(
+    id: string,
+    data: Partial<IExternalDocument>,
+    currentUserId: string
+): Promise<Partial<IExternalDocument>> {
+    const existing = await prisma.externalDocument.findUniqueOrThrow({ where: { id } });
+    await this.assertParentExistsAndUserCanEdit(existing.referenceModel, existing.referenceId, currentUserId);
+
+    delete data.referenceModel;
+    delete data.referenceId;
+    delete data.addedByUserId;
+
+    if (data.url) {
+        data.sourceDomain = new URL(data.url).host.toLowerCase();
+    }
+
+    return data;
+}
+```
+
+`referenceModel` / `referenceId` / `addedByUserId` are stripped from the edit payload silently — moving a document between parents or rewriting authorship is not a supported V1 operation. (Same defensive pattern `Comment.ts` uses for its `createdById`.)
+
+### 4.4 · `customArchiveItem` override
+
+```typescript
+protected async customArchiveItem(id: string, currentUserId: string): Promise<void> {
+    const existing = await prisma.externalDocument.findUniqueOrThrow({ where: { id } });
+    await this.assertParentExistsAndUserCanEdit(existing.referenceModel, existing.referenceId, currentUserId);
+}
+```
+
+`BaseAuditableModel.archiveItem` performs the actual `isArchived = true` update and audit emit; this override is just the permission gate.
+
+### 4.5 · Permission helper
+
+```typescript
+private async assertParentExistsAndUserCanEdit(
+    referenceModel: string,
+    referenceId: string,
+    currentUserId: string
+): Promise<void> {
+    if (referenceModel === "Job") {
+        const job = await prisma.job.findUnique({ where: { id: referenceId }, select: { id: true } });
+        if (!job) throw new NotFoundError("Job not found");
+        await continueIfUserCanPerform(currentUserId, "job", "edit", referenceId);
+    } else if (referenceModel === "Project") {
+        const project = await prisma.project.findUnique({ where: { id: referenceId }, select: { id: true } });
+        if (!project) throw new NotFoundError("Project not found");
+        await continueIfUserCanPerform(currentUserId, "project", "edit", referenceId);
+    } else {
+        throw new BadRequestError(`Invalid referenceModel: ${referenceModel}`);
+    }
+}
+```
+
+Same gate as adding a comment (`continueIfUserCanPerform` from `apps/api/src/lib/canUserPerformAction.ts`). Read access on the parent grants list access, which is enforced at the resolver layer (Step 5) by the standard list-permission flow.
+
+### 4.6 · Empty stubs
+
+`archiveChildren`, `restoreChildren`, `getRelatedDeleteCount`, `deleteChildren` returning `Promise.resolve()` / `{}` — same as `Comment.ts`. ExternalDocument has no children.
+
+---
+
+## Step 5: GraphQL Resolver
+
+**Create file:** `apps/api/src/graphql/models/ExternalDocument.ts`
+
+Cribbed from `apps/api/src/graphql/models/Comment.ts`.
+
+### 5.1 · Type + inputs
+
+```graphql
+type ExternalDocument {
+    id: ID!
+    referenceModel: String!
+    referenceId: String!
+    url: String!
+    label: String!
+    hiddenFromMobile: Boolean!
+    sourceDomain: String
+    addedByUserId: String
+    AddedByUser: User
+    createdAt: DateTime!
+    updatedAt: DateTime!
+    isArchived: Boolean!
+}
+
+input AddExternalDocumentInput {
+    referenceModel: String!
+    referenceId: ID!
+    url: String!
+    label: String!
+    hiddenFromMobile: Boolean
+}
+
+input EditExternalDocumentInput {
+    url: String
+    label: String
+    hiddenFromMobile: Boolean
+}
+
+extend type Query {
+    externalDocuments(options: GetListOptions): GetListResult
+    externalDocument(id: ID!): ExternalDocument
+}
+
+extend type Mutation {
+    addExternalDocument(data: AddExternalDocumentInput!): ExternalDocument!
+    editExternalDocument(id: ID!, data: EditExternalDocumentInput!): ExternalDocument!
+    archiveExternalDocument(id: ID!): ExternalDocument!
+}
+```
+
+### 5.2 · Resolvers
+
+```typescript
+Resolvers: {
+    AddedByUser: (parent) => parent.addedByUserId
+        ? prisma.user.findUnique({ where: { id: parent.addedByUserId } })
+        : null
+},
+Query: {
+    externalDocuments: (_, args, context) =>
+        new ExternalDocumentModel().getList(args.options ?? {}, context.userId()),
+    externalDocument: (_, args, context) =>
+        new ExternalDocumentModel().getItem(args.id, context.userId())
+},
+Mutation: {
+    addExternalDocument: (_, args, context) =>
+        new ExternalDocumentModel().createItem(args.data, context.userId()),
+    editExternalDocument: (_, args, context) =>
+        new ExternalDocumentModel().editItem(args.id, args.data, context.userId()),
+    archiveExternalDocument: (_, args, context) =>
+        new ExternalDocumentModel().archiveItem(args.id, context.userId())
+}
+```
+
+### 5.3 · Schema registration
+
+Register in `apps/api/src/graphql/schema.ts` (5 places — same pattern as `Comment`):
+
+1. Import `ExternalDocumentResolvers`.
+2. Spread its `typeDefs` into the typeDefs array.
+3. Spread `Resolvers` into the model-resolvers object.
+4. Spread `Query` resolvers.
+5. Spread `Mutation` resolvers.
+
+Export from `apps/api/src/graphql/models/index.ts`.
+
+### 5.4 · Mobile filtering — server-side via `extendedWhere`
+
+The mobile client passes `hiddenFromMobile = false` as a filter on the `externalDocuments` list query. This matches the existing `FileListFeed.ts` convention (lines 114–115) for `Folder.hiddenFromMobile` and is more secure than client-side filtering (mobile cannot bypass it by tweaking client code).
+
+The `hiddenFromMobile` field is marked `isFilterable: true` in Step 4.1 so the standard filter pipeline accepts `{fieldName: "hiddenFromMobile", value: false, fieldOperation: "equals"}` without resolver changes.
+
+### 5.5 · Decision: top-level query vs Job/Project field resolvers
+
+The spec's §5.1 sketches `extend type Job { externalDocuments: [ExternalDocument!]! }` field resolvers. **This plan instead uses the top-level `externalDocuments(options)` query with a `referenceModel` + `referenceId` filter** — same pattern as `Comment` (no `Job.comments` field exists; the comment widget filters by reference). Lower-risk, fewer files touched, matches existing convention. The frontend widget passes the filter via the standard `where.filter` shape (Step 8.1).
+
+---
+
+## Step 6: Audit Log Verification
+
+`BaseAuditableModel` emits `prisma.audit.create` rows automatically on `createItem` / `editItem` / `archiveItem` (see `apps/api/src/models/base/_BaseAuditableModel.ts`). No additional wiring is needed. Verify by adding / editing / archiving a doc in dev and querying:
+
+```sql
+SELECT operation, entityType, entityId, userId, createdAt
+FROM Audit
+WHERE entityType = 'ExternalDocument'
+ORDER BY createdAt DESC LIMIT 10;
+```
+
+Expect three rows after add → edit → archive: `Create`, `Update`, `Delete`.
+
+---
+
+## Step 7: Frontend GraphQL Queries + Mutations
+
+**Create files:**
+
+- `apps/frontend/src/graphql/queries/externalDocuments.query.ts`
+- `apps/frontend/src/graphql/mutations/externalDocuments.mutation.ts`
+
+(Apollo codegen picks these up via the existing pipeline — `apps/frontend/src/graphql/generated/` regenerates after running the codegen command.)
+
+Per CLAUDE.md, `gql` definitions go at the **bottom** of the file. Single fragment + four operations:
+
+```typescript
+// At the bottom of externalDocuments.query.ts:
+export const EXTERNAL_DOCUMENT_FIELDS = gql`
+    fragment ExternalDocumentFields on ExternalDocument {
+        id
+        referenceModel
+        referenceId
+        url
+        label
+        hiddenFromMobile
+        sourceDomain
+        addedByUserId
+        AddedByUser { id firstName lastName fullName }
+        createdAt
+        updatedAt
+        isArchived
+    }
+`;
+
+export const EXTERNAL_DOCUMENTS_QUERY = gql`
+    query ExternalDocuments($options: GetListOptions) {
+        externalDocuments(options: $options) {
+            items { ...ExternalDocumentFields }
+            total
+        }
+    }
+    ${EXTERNAL_DOCUMENT_FIELDS}
+`;
+```
+
+Mutations file: `ADD_EXTERNAL_DOCUMENT`, `EDIT_EXTERNAL_DOCUMENT`, `ARCHIVE_EXTERNAL_DOCUMENT` — each returns `...ExternalDocumentFields` for cache update.
+
+---
+
+## Step 8: Desktop Widget
+
+**Create files** under `apps/frontend/src/components/DetailsPage/ExternalDocuments/`:
+
+1. `ExternalDocumentsWidget.tsx` — list + add form, mounted on Job / Project / WO Overview tabs.
+2. `ExternalDocumentRow.tsx` — single row (badge, label, eye toggle, open, kebab).
+3. `AddExternalDocumentForm.tsx` — URL + label + "Hide on mobile" checkbox; reused for create AND edit (via optional `existingDocument` prop).
+4. `getSourceBadge.ts` — pure helper mapping `sourceDomain` → `{label: "SP", colorClass: "bg-sharepoint"}` etc.
+
+Cribbed from `apps/frontend/src/components/DetailsPage/Notes/CollapsableNoteFeed.tsx` (sidebar widget shape) and `packages/ui/src/components/FileViewer/FileItem.tsx` lines 781–826 (eye-toggle pattern).
+
+### 8.1 · `ExternalDocumentsWidget.tsx`
+
+```tsx
+import { FC, useState } from "react";
+import { useQuery } from "@apollo/client";
+import { ClassNames } from "@useanzen/shared-utils";
+import { EXTERNAL_DOCUMENTS_QUERY } from "~root/graphql/queries/externalDocuments.query";
+
+interface IExternalDocumentsWidgetProps {
+    referenceModel: "Job" | "Project";
+    referenceId: string;
+    canEdit: boolean;
+    className?: string | ClassNames;
+}
+
+const ExternalDocumentsWidget: FC<IExternalDocumentsWidgetProps> = ({
+    referenceModel,
+    referenceId,
+    canEdit,
+    className = ""
+}) => {
+    // State
+    const [isAdding, setIsAdding] = useState(false);
+    const [editingId, setEditingId] = useState<string | null>(null);
+
+    // Hooks
+    const { data, loading, error, refetch } = useQuery(EXTERNAL_DOCUMENTS_QUERY, {
+        variables: {
+            options: {
+                where: {
+                    filter: {
+                        logic: "AND",
+                        filters: [
+                            { fieldName: "referenceModel", value: referenceModel, fieldOperation: "equals" },
+                            { fieldName: "referenceId",    value: referenceId,    fieldOperation: "equals" },
+                            { fieldName: "isArchived",     value: false,          fieldOperation: "equals" }
+                        ]
+                    }
+                }
+            }
+        }
+    });
+
+    // ... loading / empty / error states + render list + add form
+    return <div className={new ClassNames().add(className).list()}>...</div>;
+};
+
+export { ExternalDocumentsWidget };
+```
+
+### 8.2 · `ExternalDocumentRow.tsx` — IconEye toggle (the user's specific request)
+
+Imported from `@useanzen/ui` exactly as `FileItem.tsx` does:
+
+```tsx
+import { FC, memo } from "react";
+import { IconEye, IconEyeOff, Tooltip } from "@useanzen/ui";
+import { useMutation } from "@apollo/client";
+import { EDIT_EXTERNAL_DOCUMENT } from "~root/graphql/mutations/externalDocuments.mutation";
+
+interface IExternalDocumentRowProps {
+    document: GqlExternalDocument;
+    canEdit: boolean;
+    onEdit: (id: string) => void;
+    onArchive: (id: string) => Promise<void>;
+}
+
+const ExternalDocumentRow: FC<IExternalDocumentRowProps> = ({ document, canEdit, onEdit, onArchive }) => {
+    // Hooks
+    const [editDoc] = useMutation(EDIT_EXTERNAL_DOCUMENT);
+
+    // Functions
+    const toggleHidden = async (e: React.MouseEvent) => {
+        e.stopPropagation();
+        const next = !document.hiddenFromMobile;
+        try {
+            await editDoc({
+                variables: { id: document.id, data: { hiddenFromMobile: next } },
+                optimisticResponse: {
+                    editExternalDocument: { ...document, hiddenFromMobile: next }
+                }
+            });
+        } catch (err) {
+            notify.error("Couldn't update mobile visibility");
+        }
+    };
+
+    return (
+        <div className="doc-row">
+            <SourceBadge sourceDomain={document.sourceDomain} />
+            <div className="flex-1">
+                <div className="font-bold">{document.label}</div>
+                <div className="doc-meta">{document.sourceDomain} · {document.AddedByUser?.fullName} · {dayjs(document.createdAt).fromNow()}</div>
+            </div>
+            {canEdit && (
+                <button onClick={toggleHidden} aria-label="Toggle mobile visibility">
+                    {document.hiddenFromMobile
+                        ? <Tooltip icon={<IconEyeOff className="mr-2 w-5 h-5 text-danger" />} description="Hidden from mobile users" disableClick />
+                        : <Tooltip icon={<IconEye    className="mr-2 w-5 h-5 text-success" />} description="Visible to mobile users" disableClick />}
+                </button>
+            )}
+            <a href={document.url} target="_blank" rel="noopener noreferrer" className="btn btn-secondary btn-sm">↗ Open</a>
+            {canEdit && <KebabMenu items={[
+                { label: "Edit",   onClick: () => onEdit(document.id) },
+                { label: "Remove", onClick: () => onArchive(document.id), variant: "danger" }
+            ]} />}
+        </div>
+    );
+};
+
+export { ExternalDocumentRow };
+```
+
+The optimistic update mirrors `FileItem.tsx` `toggleSensitive` behaviour — toggle UI immediately, revert + notify on error. This is the AC #10 path: visibility flips without re-opening the edit form.
+
+### 8.3 · `AddExternalDocumentForm.tsx` — reused for create AND edit
+
+The user explicitly asked that items be editable (label typo fixes, URL swaps). Same form serves both flows — pass an optional `existingDocument` prop and the form pre-fills + calls `editExternalDocument` on submit.
+
+```tsx
+interface IAddExternalDocumentFormProps {
+    referenceModel: "Job" | "Project";
+    referenceId: string;
+    existingDocument?: GqlExternalDocument;
+    onSaved: () => void;
+    onCancel: () => void;
+}
+
+const AddExternalDocumentForm: FC<IAddExternalDocumentFormProps> = ({
+    referenceModel,
+    referenceId,
+    existingDocument,
+    onSaved,
+    onCancel
+}) => {
+    // State
+    const [url,   setUrl]   = useState(existingDocument?.url   ?? "");
+    const [label, setLabel] = useState(existingDocument?.label ?? "");
+    const [hideOnMobile, setHideOnMobile] = useState(existingDocument?.hiddenFromMobile ?? false);
+    const [urlError, setUrlError] = useState<string | null>(null);
+
+    // Hooks
+    const [add]  = useMutation(ADD_EXTERNAL_DOCUMENT);
+    const [edit] = useMutation(EDIT_EXTERNAL_DOCUMENT);
+
+    // Functions
+    const validateUrl = (v: string): string | null => {
+        try {
+            const parsed = new URL(v);
+            if (!["http:", "https:"].includes(parsed.protocol)) return "URL must use http or https";
+            return null;
+        } catch { return "Invalid URL"; }
+    };
+
+    const handleSubmit = async () => {
+        const err = validateUrl(url);
+        if (err) { setUrlError(err); return; }
+
+        const finalLabel = label.trim() || derivedLabelFromUrl(url);
+
+        if (existingDocument) {
+            await edit({ variables: { id: existingDocument.id, data: { url, label: finalLabel, hiddenFromMobile: hideOnMobile } } });
+        } else {
+            await add({ variables: { data: { referenceModel, referenceId, url, label: finalLabel, hiddenFromMobile: hideOnMobile } } });
+        }
+        onSaved();
+    };
+
+    return (
+        // URL input, label input, "Hide on mobile" checkbox, Save / Cancel
+        // Boolean shorthand props go at the bottom of JSX prop lists per CLAUDE.md
+        ...
+    );
+};
+```
+
+### 8.4 · Mount points
+
+Add the widget to the Overview tab on three host pages:
+
+- **Job:** `apps/frontend/src/components/DetailsPage/JobDetailsPage/Tabs/Overview/index.tsx` — beside `<CollapsableNoteFeed>`. Same file is reached via WO detail because WO is a `Job.classification` (the spec's "WO inherits via Job-as-host" flow), so WOs get the widget for free.
+- **Project:** `apps/frontend/src/components/DetailsPage/ProjectDetailPage/index.tsx` — Overview tab equivalent.
+
+```tsx
+<ExternalDocumentsWidget
+    referenceModel="Job"
+    referenceId={jobId}
+    canEdit={canEdit}
+/>
+```
+
+`canEdit` is the existing parent-entity edit permission already computed on these pages (passed to other widgets like `<CollapsableNoteFeed>`).
+
+---
+
+## Step 9: Mobile Surface
+
+**Create files** under `apps/mobile/src/components/ExternalDocumentList/`:
+
+1. `ExternalDocumentList.tsx` — shared list + add modal, used on Job and WO mobile detail screens.
+2. `MobileExternalDocumentRow.tsx` — compact row with source badge + tap-to-open.
+3. `AddExternalDocumentModal.tsx` — bottom-sheet add form (long-press paste-from-clipboard supported).
+
+### 9.1 · `ExternalDocumentList.tsx` — server-side mobile filter
+
+```tsx
+const { data, refetch } = useQuery(EXTERNAL_DOCUMENTS_QUERY, {
+    variables: {
+        options: {
+            where: {
+                filter: {
+                    logic: "AND",
+                    filters: [
+                        { fieldName: "referenceModel",   value: referenceModel, fieldOperation: "equals" },
+                        { fieldName: "referenceId",      value: referenceId,    fieldOperation: "equals" },
+                        { fieldName: "isArchived",       value: false,          fieldOperation: "equals" },
+                        { fieldName: "hiddenFromMobile", value: false,          fieldOperation: "equals" }
+                    ]
+                }
+            }
+        }
+    }
+});
+```
+
+The `hiddenFromMobile = false` filter is the difference from desktop. Matches the existing `FileListFeed.ts` server-side filtering convention for `Folder.hiddenFromMobile`.
+
+### 9.2 · Tap-to-open + paste-from-clipboard
+
+```tsx
+import { Linking, Clipboard } from "react-native";
+
+const handleRowPress = (url: string) => Linking.openURL(url);
+
+// In the URL input — long-press handler:
+const handleUrlLongPress = async () => {
+    const clipboard = await Clipboard.getString();
+    if (clipboard) setUrl(clipboard);
+};
+```
+
+### 9.3 · Mount points
+
+Register the new screen in the mobile Job / WO detail tab navigator:
+
+- `apps/mobile/src/components/JobViews/JobViewTabs/index.tsx` — add tab definition.
+- WO detail (likely `apps/mobile/src/components/WorkOrders/WODetail.tsx`) — embed via the same tab list (WO inherits the Job tab structure).
+
+---
+
+## Step 10: Permissions Wiring
+
+**No new permissions seeded.** All mutations gate on parent-entity edit access via `continueIfUserCanPerform(currentUserId, "job"|"project", "edit", referenceId)` (Step 4.5). This matches the spec ("same gate as adding a comment to that entity") and avoids any seed-data migration.
+
+Read access is the standard list-permission flow — users who can read the parent Job/Project see the document list; the widget hides add/edit/remove controls when `canEdit === false` (Step 8.1).
+
+---
+
+## Step 11: Tests
+
+### 11.1 · Backend unit tests
+
+**Create file:** `apps/api/src/models/ExternalDocument.test.ts`
+
+Cribbed from `apps/api/src/models/Comment.test.ts` (Prisma-mock pattern).
+
+Required cases:
+
+- **SSRF assertion (AC #4 — load-bearing):** spy on `fetch`, `axios.request`, `node:http.request`, `node:https.request`. Call `createItem({url: "http://attacker.example.com/", referenceModel: "Job", ...})` — assert none of the spies were called. Repeat on `editItem`. This test is what enforces the security invariant from the spec banner.
+- **Allowlist validation (AC #12):** `createItem({referenceModel: "User", ...})` rejects with `BadRequestError`; `"Job"` and `"Project"` succeed.
+- **URL format validation (AC #2):** `"not a url"`, `""` rejected.
+- **URL scheme allowlist:** `"javascript:alert(1)"`, `"data:text/html,..."`, `"file:///etc/passwd"` rejected.
+- **`sourceDomain` derivation (AC #3):** `createItem({url: "https://Contoso.SharePoint.com/sites/x"})` stores `sourceDomain === "contoso.sharepoint.com"`. Same on `editItem` URL re-validation.
+- **Edit re-validates URL (AC #6):** `editItem(id, {url: "not-a-url"})` rejects.
+- **Edit cannot change parent:** `editItem(id, {referenceModel: "Project", referenceId: "different"})` succeeds but the persisted row keeps the original parent (the override silently strips them).
+- **Permission denial (AC #8):** stub `continueIfUserCanPerform` to throw `PermissionError` — assert `createItem` / `editItem` / `archiveItem` all reject.
+- **Soft-delete (AC #7):** `archiveItem` sets `isArchived = true`, does not hard-delete the row.
+
+### 11.2 · Frontend smoke tests
+
+- `ExternalDocumentsWidget` renders empty state, loaded state, error state.
+- Click on `IconEye` fires `editExternalDocument` mutation with the inverted `hiddenFromMobile` value; UI flips immediately (optimistic), reverts if mutation rejects.
+
+---
+
+## Step 12: Codegen + Roll-out
+
+1. Run codegen after schema + GraphQL changes: `pnpm --filter api codegen && pnpm --filter frontend codegen` (or whatever the repo's standard codegen pipeline is — check `turbo.json`).
+2. Generated TS types (`GqlExternalDocument`, `useAddExternalDocumentMutation`, etc.) become available — wire them through Steps 7–9.
+3. Deploy schema migration first (additive, safe). Deploy API + frontend after codegen lands.
+4. **MCP tools.** The `mcp__appello-canary__*` toolset has no `externalDocument` bindings today — adding them is a follow-up, not part of WO-20.
+5. **Phase 2 (WOX-17) compat.** This model has no `provider` enum yet; Phase 2 will add one. `sourceDomain` parsing is loose (any host string accepted) so Phase 2 can layer enum mapping on top without a backfill.
+
+---
+
+## Verification Checklist
+
+- [ ] `ExternalDocument` table created with both indexes and the `addedByUserId` FK (`ON DELETE SET NULL`)
+- [ ] `User.ExternalDocumentsAdded` inverse relation present
+- [ ] `IExternalDocument` type exported from `apps/api/src/types/`
+- [ ] `ExternalDocumentModel` extends `BaseAuditableModel` (not `BaseModel`)
+- [ ] `customCreateItem` rejects `referenceModel` outside `["Job", "Project"]`
+- [ ] `customCreateItem` derives `sourceDomain` lowercased from URL host
+- [ ] `customCreateItem` sets `addedByUserId` from `context.userId()` when not provided
+- [ ] `customEditItem` re-validates URL on change and re-derives `sourceDomain`
+- [ ] `customEditItem` strips `referenceModel` / `referenceId` / `addedByUserId` from edit payload (defensive)
+- [ ] `customArchiveItem` permission-gates archival
+- [ ] `assertParentExistsAndUserCanEdit` resolves Job / Project parent and calls `continueIfUserCanPerform` with `"edit"`
+- [ ] URL field validator rejects malformed URLs AND non-http(s) schemes (`javascript:`, `data:`, `file:`)
+- [ ] **SSRF unit test passes — server never invokes `fetch` / `axios` / `http.request` / `https.request` during create or edit**
+- [ ] Audit rows appear for Create / Update / Delete operations on `ExternalDocument` (inherited from `BaseAuditableModel`)
+- [ ] GraphQL `ExternalDocument` type, `Add/Edit/ArchiveExternalDocumentInput` inputs, `externalDocuments(options)` query, three mutations all present
+- [ ] `ExternalDocument.AddedByUser` field resolver loads the user when `addedByUserId` is set
+- [ ] `ExternalDocumentResolvers` registered in `schema.ts` (5 places — same pattern as `Comment`)
+- [ ] Exported from `graphql/models/index.ts`
+- [ ] `EXTERNAL_DOCUMENT_FIELDS` fragment + `EXTERNAL_DOCUMENTS_QUERY` written at the bottom of the query file
+- [ ] Add / Edit / Archive mutations written at the bottom of the mutation file
+- [ ] `ExternalDocumentsWidget` mounted on Job Overview tab (covers Project Jobs AND Work Orders since WO is a Job classification)
+- [ ] `ExternalDocumentsWidget` mounted on Project Overview tab
+- [ ] `ExternalDocumentRow` uses `IconEye` / `IconEyeOff` from `@useanzen/ui` wrapped in `Tooltip` (mirrors `FileItem.tsx` exactly)
+- [ ] Eye-icon click toggles `hiddenFromMobile` via `editExternalDocument` mutation with optimistic update
+- [ ] Eye-icon failure path reverts UI and calls `notify.error`
+- [ ] Eye-icon hidden when `canEdit === false` (read-only viewers do not see the toggle)
+- [ ] Kebab menu has Edit + Remove (no "Hide on mobile" item — that's the inline IconEye instead)
+- [ ] `AddExternalDocumentForm` reused for both create and edit flows via optional `existingDocument` prop
+- [ ] Edit flow allows changing label (typo fix), URL (swap), AND `hiddenFromMobile`
+- [ ] Form's "Hide on mobile" checkbox writes to `hiddenFromMobile` on save
+- [ ] Client-side URL validator mirrors server-side (URL parse + http/https scheme allowlist)
+- [ ] Mobile widget filters out `hiddenFromMobile = true` rows server-side via `extendedWhere`
+- [ ] Mobile tap-to-open uses `Linking.openURL`
+- [ ] Mobile URL field supports long-press paste-from-clipboard
+- [ ] No new `Permission` rows seeded — gate is parent-entity edit access only
+- [ ] Boolean JSX shorthand props placed at the bottom of prop lists (CLAUDE.md)
+- [ ] `gql` definitions placed at the bottom of their files (CLAUDE.md)
+- [ ] All new React components follow `FC` arrow function pattern with `interface IComponentNameProps` (CLAUDE.md)
+- [ ] No GraphQL `"""..."""` triple-quote descriptions used (CLAUDE.md)
+
+---
+
+## Files Summary
+
+| Action | File | What to do |
+|--------|------|------------|
+| MODIFY | `apps/api/prisma/schema.prisma` | Add `ExternalDocument` model after `Folder`; add `ExternalDocumentsAdded` inverse on `User` |
+| CREATE | `apps/api/prisma/migrations/<ts>_add_external_document/migration.sql` | `CREATE TABLE ExternalDocument` with both indexes + `addedByUserId` FK |
+| CREATE | `apps/api/src/types/ExternalDocument.types.ts` | `IExternalDocument`, `EXTERNAL_DOCUMENT_REFERENCE_MODELS`, `ALLOWED_URL_SCHEMES` |
+| CREATE | `apps/api/src/models/ExternalDocument.ts` | `ExternalDocumentModel extends BaseAuditableModel` — modelFields with URL validator, `customCreateItem` / `customEditItem` / `customArchiveItem`, `assertParentExistsAndUserCanEdit` helper, empty child-relation stubs |
+| CREATE | `apps/api/src/models/ExternalDocument.test.ts` | SSRF spy assertion, allowlist + URL + scheme rejections, `sourceDomain` derivation, edit re-validation, parent-strip defensive test, permission denial paths |
+| CREATE | `apps/api/src/graphql/models/ExternalDocument.ts` | Type + inputs + query + 3 mutations + `AddedByUser` field resolver |
+| MODIFY | `apps/api/src/graphql/schema.ts` | Register `ExternalDocumentResolvers` (5 places — typeDefs / model resolvers / Query / Mutation / import) |
+| MODIFY | `apps/api/src/graphql/models/index.ts` | Export `ExternalDocumentResolvers` |
+| CREATE | `apps/frontend/src/graphql/queries/externalDocuments.query.ts` | `ExternalDocumentFields` fragment + `ExternalDocumentsQuery` |
+| CREATE | `apps/frontend/src/graphql/mutations/externalDocuments.mutation.ts` | Add / Edit / Archive mutations |
+| CREATE | `apps/frontend/src/components/DetailsPage/ExternalDocuments/ExternalDocumentsWidget.tsx` | Top-level widget — list + add toggle, used on Job / Project Overview |
+| CREATE | `apps/frontend/src/components/DetailsPage/ExternalDocuments/ExternalDocumentRow.tsx` | Row with source badge, label, `IconEye` / `IconEyeOff` toggle, Open link, kebab menu |
+| CREATE | `apps/frontend/src/components/DetailsPage/ExternalDocuments/AddExternalDocumentForm.tsx` | Reused for create AND edit (`existingDocument?` prop); URL + label + "Hide on mobile" checkbox |
+| CREATE | `apps/frontend/src/components/DetailsPage/ExternalDocuments/getSourceBadge.ts` | Pure helper: sourceDomain → `{label, colorClass}` |
+| MODIFY | `apps/frontend/src/components/DetailsPage/JobDetailsPage/Tabs/Overview/index.tsx` | Mount `<ExternalDocumentsWidget referenceModel="Job" .../>` (covers Project Jobs + WOs) |
+| MODIFY | `apps/frontend/src/components/DetailsPage/ProjectDetailPage/index.tsx` | Mount `<ExternalDocumentsWidget referenceModel="Project" .../>` on Overview |
+| CREATE | `apps/mobile/src/components/ExternalDocumentList/ExternalDocumentList.tsx` | List with `hiddenFromMobile = false` server-side filter |
+| CREATE | `apps/mobile/src/components/ExternalDocumentList/MobileExternalDocumentRow.tsx` | Compact row, tap-to-open via `Linking.openURL` |
+| CREATE | `apps/mobile/src/components/ExternalDocumentList/AddExternalDocumentModal.tsx` | Bottom-sheet add/edit form with long-press paste-from-clipboard |
+| MODIFY | `apps/mobile/src/components/JobViews/JobViewTabs/index.tsx` | Register External Documents tab (Job + WO inherit) |
+
+---
+
+## Open Questions to Confirm Before Coding
+
+1. **Permission gate.** Spec says "same gate as adding a comment" but Comment uses role-based `Comment.create`, not parent-entity edit. AC #8 explicitly says parent-entity edit. Plan goes with parent-entity edit (`continueIfUserCanPerform("job"|"project", "edit")`). Confirm.
+2. **Field resolvers vs top-level query.** Spec sketches `extend type Job/Project { externalDocuments }`; plan uses the top-level `externalDocuments(options)` query (matches `Comment` convention). Lower-risk, no Job/Project type changes. Confirm.
+3. **URL scheme allowlist.** Plan rejects `javascript:` / `data:` / `file:` in addition to RFC-3986 violations. The spec only mentions RFC-3986 explicitly. The scheme block is anti-XSS belt-and-suspenders. Confirm.
+4. **Edit form vs inline IconEye toggle.** Plan: inline IconEye is the *quick* visibility toggle (no form open); kebab "Edit" opens the form pre-filled for label / URL / visibility changes. Mobile uses tap-to-open and a separate edit affordance in the row's swipe action. Confirm shape.
+5. **Top-level WO host page.** WO detail reuses the Job Overview tab (WO is a Job classification). If a separate WO detail tab structure exists outside the Job-derived layout, the widget mount needs an additional entry point — flag if so.
+</script>
+
+<script src="plan-renderer.js"></script>
+<script>renderPlan();</script>
+</body>
+</html>

@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WO-18: Schedule View Toggle + Status-Aware WO Filtering — Implementation Plan (as-built)</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+.in-iframe .top-nav { display: none !important; }
+.top-nav { position: sticky; top: 0; z-index: 100; background: #0f172a; border-bottom: 1px solid #1e293b; padding: 0 24px; display: flex; align-items: center; gap: 0; }
+.top-nav a { display: inline-flex; align-items: center; padding: 12px 18px; font-size: 13px; font-weight: 600; color: #94a3b8; text-decoration: none; border-bottom: 2px solid transparent; transition: all 0.15s; white-space: nowrap; }
+.top-nav a:hover { color: #f8fafc; background: #1e293b; }
+.top-nav .nav-logo { font-size: 11px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: #475569; padding-right: 18px; margin-right: 4px; border-right: 1px solid #1e293b; }
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Inter', -apple-system, sans-serif; background: #f8fafc; color: #0f172a; }
+.plan-wrap { max-width: 880px; margin: 0 auto; padding: 40px 24px 80px; }
+h1 { font-size: 24px; font-weight: 800; margin: 0 0 16px; }
+h2 { font-size: 18px; font-weight: 700; margin: 28px 0 12px; padding-bottom: 8px; border-bottom: 2px solid #e2e8f0; }
+h3 { font-size: 15px; font-weight: 700; margin: 20px 0 8px; padding-top: 10px; border-top: 1px solid #f1f5f9; }
+h4 { font-size: 14px; font-weight: 700; margin: 14px 0 6px; }
+p { font-size: 14px; color: #334155; line-height: 1.7; margin: 6px 0; }
+ul, ol { padding-left: 20px; margin: 8px 0; }
+li { font-size: 14px; color: #334155; line-height: 1.7; margin: 3px 0; }
+strong { color: #0f172a; }
+code { font-family: 'SF Mono', monospace; background: #f1f5f9; padding: 1px 6px; border-radius: 4px; font-size: 12px; color: #7c3aed; }
+pre { background: #0f172a; color: #f8fafc; border-radius: 8px; padding: 16px; overflow-x: auto; font-size: 13px; line-height: 1.6; margin: 12px 0; font-family: 'SF Mono', monospace; }
+pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
+hr { border: none; border-top: 1px solid #e2e8f0; margin: 24px 0; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 12px 0; }
+th { text-align: left; padding: 8px 12px; background: #f1f5f9; border-bottom: 2px solid #e2e8f0; font-weight: 600; }
+td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
+.check-item { display: flex; gap: 8px; align-items: flex-start; padding: 5px 0; }
+.check-box { width: 16px; height: 16px; border: 2px solid #cbd5e1; border-radius: 3px; flex-shrink: 0; margin-top: 2px; }
+.callout { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 14px 18px; margin: 14px 0; font-size: 13px; color: #1e40af; }
+.callout strong { color: #1e3a8a; }
+    </style>
+</head>
+<body>
+
+<script>if(self!==top)document.documentElement.classList.add("in-iframe")</script>
+<nav class="top-nav">
+    <span class="nav-logo">Appello SDLC</span>
+    <a href="../index.html">Roadmap</a>
+    <a href="../release-1.33-timeline.html">Release 1.33</a>
+    <a href="../release-1.34-timeline.html">Release 1.34</a>
+    <a href="../master-spec-reconciliation.html">Spec Reconciliation</a>
+    <a href="../cross-release-continuity-audit.html">Continuity Audit</a>
+    <a href="ui-interface-library.html">UI Library</a>
+</nav>
+<div class="plan-wrap" id="rendered"></div>
+
+<script type="text/plain" id="plan-md">
+# WO-18: Schedule View Toggle + Status-Aware WO Filtering — As-Built
+
+> **Status: implemented.** This document was rewritten after delivery to match the code that shipped. Significant deviations from the original plan are called out inline and summarised in §11.
+
+## Overview
+
+The `/scheduling/calendar` page silently dropped Work Orders. The page's job-status filter is driven by PropertyValues from the `jobStatus` category, and the "In Progress" pre-filter never includes WO-classified Jobs' statuses (which live in the `workOrderStatus` category per WO-1), so WO Jobs never matched and were invisible.
+
+The shipped fix adds a **Calendar / Work Orders toggle** to `/scheduling/calendar`, defaulted to Calendar and persisted per-user in `localStorage` under key `scheduleClassification`. When set to Work Orders, the feed scopes events to `jobClassification = WorkOrder`, the Status filter chip flips its label to "WO Status," and the schedule-entry form's job picker scopes to the active classification. The other three schedule surfaces (Daily Workforce, User Workforce, Job Schedule) are hard-pinned to `ProjectJob` so they continue to behave the way they used to today, but now as a deliberate filter rather than as a side effect of the bug.
+
+> **Plan-vs-reality correction:** the original plan named `getProjectsAndSchedule` + `JobScheduleContext` as the calendar's entry points. They are not. The calendar is driven by `getScheduledProjects` (a typed-input resolver in `apps/api/src/viewModels/ScheduleView2.ts`) and `SchedulingContext`. The `JobScheduleContext` + `getProjectsAndSchedule` path serves `/scheduling/jobs` (Job Schedule), which is one of the three pages we hard-pin to ProjectJob.
+
+> **Architecture decision — typed GraphQL input, not JSON:** `getScheduledProjects` accepts a typed `GetScheduledProjectsWhere` input. We added `jobClassification: JobClassification` as a new optional field on that input rather than smuggling it through a JSON blob. The filter is applied via a correlated subquery in `buildJobScheduleListWhereBlock`, so all 5 facet queries inherit the filter without any caller having to thread the parameter individually.
+
+> **Architecture decision — toggle state is provider-level, not page-level:** the toggle's value is owned by `/scheduling/calendar`'s outer `JobScheduleCalendarIndex` component. It is forwarded into the `SchedulingProvider` as a new optional prop (`scheduleClassification`, default `"ProjectJob"`) AND into the page so it can render the radio control + handler. `SchedulingContext` exposes `scheduleClassification` on its value object so child components (`UserScheduleFilters`, `UserScheduleInfo`, `JobScheduleCalendarView`) can read it without re-threading.
+
+**Estimated effort:** 1.5–2 days
+**Actual effort:** delivered same-session, ~3 hours including discovery, fixes, and Playwright validation.
+**Risk realised:** low. Two real bugs caught and fixed during validation (see §11.B).
+**Spec:** `tm-work-orders-uis/wo-18-calendar-filter-multi-day.html`
+**Requires:** WO-1 (`jobClassification` enum + `workOrderStatus` PropertyValue seed) ✓
+**Enables:** WOX-16 V2 dispatch board (post-V1)
+
+---
+
+## Step 1: API — extend `getScheduledProjects` to filter by `jobClassification`
+
+**File:** `apps/api/src/viewModels/ScheduleView2.ts`
+
+### 1a. Extend `IJobScheduleWhere`
+
+Around line 15, add the optional discriminant:
+
+```typescript
+interface IJobScheduleWhere {
+    // …existing keys
+    jobClassification: "ProjectJob" | "WorkOrder";
+}
+```
+
+### 1b. Extend the GraphQL input type
+
+Around line 375:
+
+```graphql
+input GetScheduledProjectsWhere {
+    date: [LocalDate!]!
+    projectId: [String]
+    jobScheduleId: [String]
+    projectStatusId: [String]
+    showUnscheduledJobs: Boolean
+    isArchived: Boolean
+    calendarViewId: [String]
+    jobClassification: JobClassification
+}
+```
+
+The `JobClassification` enum is already registered globally by `PropertyValueResolvers.typeDef`, so no other schema work is needed.
+
+### 1c. Wire the filter into `buildJobScheduleListWhereBlock`
+
+The model uses one shared `Prisma.sql` helper across every query that needs JobSchedule scoping. Add a correlated-subquery clause so callers don't have to JOIN `PropertyValue` themselves:
+
+```typescript
+${
+    extendedWhere.jobClassification != null
+        ? Prisma.sql`AND COALESCE(
+            (SELECT pv_type.jobClassification FROM PropertyValue pv_type WHERE pv_type.id = j.jobTypeId),
+            'ProjectJob'
+        ) = ${extendedWhere.jobClassification}`
+        : Prisma.empty
+}
+```
+
+**Why `!= null` and not `!== undefined`:** an explicit GraphQL `null` would otherwise produce `AND COALESCE(...) = NULL`, matching zero rows and silently breaking unfiltered callers. `!= null` treats both `null` and `undefined` as "no filter." (This was a real regression caught in Playwright validation — see §11.B.)
+
+The same helper feeds `getScheduledProjects`, `getScheduledProjectFacets` (×5 facet queries), and other internal queries, so they all become classification-aware in one place — including the `jobStatus` facet that powers the Status filter dropdown.
+
+### 1d. In-progress fallback in `getScheduledProjects`
+
+`getScheduledProjects` has a `if (where.showUnscheduledJobs)` branch (~line 673) that bypasses `buildJobScheduleListWhereBlock` and runs its own raw SQL to fetch unscheduled in-progress jobs. Add the same correlated subquery there so the fallback also honours the filter.
+
+### 1e. `apps/api/src/models/JobSchedule.ts` — mirror in `getJobsAndSchedule`
+
+The model behind `JobScheduleContext` (which powers `/scheduling/jobs` and mobile) reads `jobClassification` directly from the `JobListFeed` view's denormalised column (the view already exposes it, COALESCE'd to `'ProjectJob'`). Extract `where.jobClassification` (using `!= null`) and add `j.jobClassification = ?` to the `andWhere()` chain.
+
+### 1f. `getProjectsAndSchedule` — NO API change required
+
+This was the entry point the plan thought we needed to extend. We do not. `getProjectsAndSchedule` (line ~481 in `JobSchedule.ts`) is **TableFeed-backed** — it calls `getTableRecordSet("Job", { where: {...where, ...} })`. The Job TableFeed registry at `apps/api/src/graphql/models/TableFeed/ConfigureColumnsData/job.ts:469` already exposes `jobClassification` as a filterable computed column with a working `whereIdIn` predicate. Spreading `{ jobClassification: ["ProjectJob"] }` into the caller's where just works.
+
+---
+
+## Step 2: API — resolver passthrough
+
+**File:** `apps/api/src/viewModels/ScheduleView2.ts`
+
+No resolver changes. `getScheduledProjects` and `getScheduledProjectFacets` already destructure `where` and pass it through to the model layer, so the new optional `jobClassification` field flows through unmodified.
+
+---
+
+## Step 3: Calendar page — Calendar / Work Orders toggle
+
+**File:** `apps/frontend/src/pages/scheduling/calendar.tsx`
+
+### 3a. State owner is the outer index component
+
+`JobScheduleCalendarIndex` (the wrapper that mounts `SchedulingProvider`) owns the toggle state. This keeps the provider props consistent and lets the page read the value via `useScheduling()` too.
+
+```tsx
+const SCHEDULE_CLASSIFICATION_STORAGE_KEY = "scheduleClassification";
+
+function JobScheduleCalendarIndex(): React.ReactNode {
+    const [scheduleClassification, setScheduleClassification] =
+        useState<ScheduleClassification>("ProjectJob");
+
+    useEffect(() => {
+        const stored = localStorage.getItem(SCHEDULE_CLASSIFICATION_STORAGE_KEY);
+        if (stored === "ProjectJob" || stored === "WorkOrder") {
+            setScheduleClassification(stored);
+        }
+    }, []);
+
+    const handleClassificationChange = (next: ScheduleClassification) => {
+        setScheduleClassification(next);
+        localStorage.setItem(SCHEDULE_CLASSIFICATION_STORAGE_KEY, next);
+    };
+
+    return (
+        <SchedulingProvider type="calendar" scheduleClassification={scheduleClassification}>
+            <JobScheduleCalendarPage
+                scheduleClassification={scheduleClassification}
+                onClassificationChange={handleClassificationChange}
+            />
+        </SchedulingProvider>
+    );
+}
+```
+
+### 3b. Page renders the toggle conditionally
+
+`JobScheduleCalendarPage` accepts `scheduleClassification` and `onClassificationChange` as **optional** props. When `onClassificationChange` is absent (the page is being embedded by `ProjectDetailPage` or `JobDetailsPage`), the radio control simply does not render. The embedded calendars also pass no `scheduleClassification` to their own `SchedulingProvider`, so they fall back to the provider's `"ProjectJob"` default — preserving existing behaviour on the detail pages.
+
+```tsx
+{onClassificationChange && (
+    <RadioButtonGroup
+        size="default"
+        color="primary"
+        selectedIndex={scheduleClassification === "WorkOrder" ? 1 : 0}
+        options={[...CLASSIFICATION_OPTIONS]}
+        onChange={(option) =>
+            onClassificationChange(option.value as ScheduleClassification)
+        }
+    />
+)}
+```
+
+Toggle is placed in the same header row as the breadcrumb/title.
+
+---
+
+## Step 4: `SchedulingContext` — thread classification into queries
+
+**File:** `apps/frontend/src/context/SchedulingContext.tsx`
+
+### 4a. Provider props + context value
+
+Add `scheduleClassification?: ScheduleClassification` to `SchedulingProviderProps` (default `"ProjectJob"`), promote it to a required field on `ISchedulingContext`, and include it in the provider's `value` object so children read it via `useScheduling()`. Also export the new `ScheduleClassification` type for downstream importers.
+
+### 4b. Inject into both `getScheduledProjects` GraphQL operations
+
+`SchedulingContext` has two queries that fire `getScheduledProjects`:
+
+1. `getUpdateFromScheduleViews` — the incremental delta poller (5-second interval)
+2. `fetchSelectDateData` — the full initial fetch
+
+Both gained `$jobClassification: JobClassification` as a query variable, plumbed into:
+- `getScheduledProjects(where: { …, jobClassification: $jobClassification })`
+- `getScheduledProjectFacets(where: { …, jobClassification: $jobClassification })`
+
+`variables` objects pass `jobClassification: scheduleClassification` straight through.
+
+### 4c. Refetch + filter reset on classification flip
+
+Three changes:
+
+1. Add `scheduleClassification` to the `useCallback` deps of both `getUpdateFromScheduleViews` and `fetchSelectDateData` so the closures don't capture a stale value.
+2. Add `scheduleClassification` to the deps of the two `useEffect`s that re-fire `fetchSelectDateData` (matrix mode + calendar mode), so the feed refetches when the toggle flips.
+3. New `useEffect` that resets the applied `filterJobs.jobStatus` selection on classification flip (a previous selection cannot be valid against the other category):
+
+```typescript
+useEffect(() => {
+    dispatch({
+        type: ActionType.SET_FILTER_JOBS,
+        payload: { filterJobs: { jobStatus: [] } }
+    });
+}, [scheduleClassification]);
+```
+
+### 4d. Facet swap is automatic — no `propertyValuesByClassification` fetch needed
+
+The original plan proposed swapping the facet source to `propertyValuesByClassification(category: "workOrderStatus")` on the client. This is unnecessary. `getScheduledProjectFacets.jobStatus` is built server-side from the actual `j.jobStatusId` values of the **filtered** result set (see `ScheduleView2.ts:991`). Once the feed is scoped to `jobClassification = WorkOrder`, the facet naturally returns only `workOrderStatus`-category PropertyValues. No second hook, no client-side de-duplication, no extra query.
+
+---
+
+## Step 5: `UserScheduleFilters` — chip label swap
+
+**File:** `apps/frontend/src/components/Scheduling/UserScheduleFilters/UserScheduleFilters.tsx`
+
+Read `scheduleClassification` from `useScheduling()`, and swap the hardcoded `"Job Status"` label to `"WO Status"` when in WO mode. The `filterOptions.jobStatus` reference itself does not change — Step 4 already ensures the underlying data flips with the toggle.
+
+```tsx
+filter={
+    {
+        columnName: k,
+        label:
+            scheduleClassification === "WorkOrder"
+                ? "WO Status"
+                : "Job Status",
+        filterOptions: filterOptions?.jobStatus
+    } as IListFilter
+}
+```
+
+---
+
+## Step 6: Schedule-entry form — scope picker by active classification
+
+**File:** `apps/frontend/src/components/Forms/JobScheduleCalendarAddEditForm/JobScheduleCalendarAddEditForm.tsx`
+
+### 6a. Optional prop on the form
+
+```tsx
+interface JobScheduleCalendarAddEditFormProps {
+    // …
+    scheduleClassification?: ScheduleClassification;
+}
+
+const JobScheduleCalendarAddEditForm: FC<JobScheduleCalendarAddEditFormProps> = ({
+    // …,
+    scheduleClassification = "ProjectJob"
+}) => { … }
+```
+
+### 6b. Inject into the picker's TableFeed `where`
+
+The Job picker is a `CustomCombobox` with `useTableFeed` and a `query` callback that builds a `where` JSON. Append `jobClassification` to that `where`:
+
+```tsx
+where.jobClassification = [scheduleClassification];
+```
+
+### 6c. Label / placeholder / queryResultLabel swap
+
+Three string ternaries flip the visible noun between "Job" and "Work Order":
+
+```tsx
+queryResultLabel={
+    scheduleClassification === "WorkOrder" ? "Work Order" : "Job"
+}
+label={
+    scheduleClassification === "WorkOrder"
+        ? "Select Work Order to add to schedule"
+        : JobScheduleCalendarFormLabels.Job
+}
+placeholder={
+    scheduleClassification === "WorkOrder"
+        ? "Select Work Order"
+        : "Select Job"
+}
+```
+
+### 6d. THREE call sites must forward the prop
+
+The original plan accounted for two flyouts. Validation found a third. All three now forward `scheduleClassification`:
+
+1. **`JobScheduleCalendarView.tsx:479`** — `eventClick` opens the form when clicking an existing schedule event.
+2. **`JobScheduleCalendarView.tsx:528`** — `select` opens the form on a date-range drag.
+3. **`UserScheduleInfo.tsx:68`** — the toolbar "Schedule Job" button. This is the one the original plan missed; without it the toolbar entry point still showed "Select Job" even in WO mode.
+
+All three pull `scheduleClassification` from `useScheduling()` and pass it through.
+
+---
+
+## Step 7: Hard-pin Daily / User / Job Schedule pages to ProjectJob
+
+These three pages do not get the toggle. They are pinned to `ProjectJob` so the previously-invisible-bug becomes a deliberate filter.
+
+### 7a. `/scheduling/jobs` — Job Schedule
+
+**File:** `apps/frontend/src/context/JobScheduleContext.tsx`
+
+Both `getProjectsAndSchedule` call sites spread `{ jobClassification: ["ProjectJob"] }` into the JSON `where`:
+
+```typescript
+variables: {
+    // …
+    where: { ...where, jobClassification: ["ProjectJob"] }
+}
+```
+
+(The TableFeed Job registry — see §1f — accepts the filter as a string array out of the box.)
+
+### 7b. `/scheduling/daily-workforce` — Daily Workforce
+
+**File:** `apps/frontend/src/pages/scheduling/daily-workforce.tsx`
+
+No edit needed. The page renders `<SchedulingProvider type="matrix">` without passing `scheduleClassification`, so it falls back to the provider's `"ProjectJob"` default. The pin is therefore implicit — and that default value is now the single source of truth for "what classification do most callers want."
+
+### 7c. `/scheduling/user-workforce` — User Workforce
+
+**File:** `apps/frontend/src/context/UserSchedulingContext.tsx`
+
+The User Workforce page wraps **two** providers — `UserSchedulingProvider` AND `JobScheduleProvider` — so the pin has to happen in both:
+
+- `JobScheduleProvider` is already covered by §7a.
+- `UserSchedulingProvider` runs three queries with `getScheduledProjects` / `getScheduledProjectFacets`. Each one was edited inline to add `jobClassification: ProjectJob` to its `where` literal (e.g. `where: { date: $date, jobClassification: ProjectJob }`).
+
+No new provider prop was added on `UserSchedulingProvider` — pinning inline keeps the diff small and the intent clear at the call site.
+
+### 7d. Embedded calendars
+
+`ProjectDetailPage` and `JobDetailsPage` both embed `JobScheduleCalendarPage` inside their own `SchedulingProvider`. Because Step 3b made the page's classification props optional and the provider defaults to `"ProjectJob"`, these embeds get the right behaviour for free.
+
+---
+
+## Step 8: Mobile — no changes
+
+`apps/mobile/src/components/CalendarSchedule/` and `apps/mobile/src/pages/admin/job-schedules.tsx` are intentionally untouched. The mobile calendar answers "where am I scheduled?" — both Jobs and Work Orders that the signed-in user is on should appear there, which is the existing behaviour.
+
+This works without changes because Step 1's filter is additive: mobile never sets `jobClassification`, so the predicate is skipped and both classifications flow through.
+
+---
+
+## Step 9: e2e tests
+
+Two new specs created under `apps/frontend/e2e/`:
+
+- `wo-18-calendar-toggle-shows-wos.spec.ts` — toggle visibility, localStorage persistence, chip label swap.
+- `wo-18-form-picker-classification.spec.ts` — picker scoping in both modes.
+
+Both specs use `test.fixme()` gated on `WO18_SEED_*` env vars so they're skipped in CI until fixture data is wired in. The patterns follow the existing `signature-question.spec.ts` (env-driven credentials, login helper, `getByText`/`getByPlaceholder` selectors).
+
+---
+
+## Step 10: Style conventions
+
+Followed CLAUDE.md throughout:
+
+- FC arrow function pattern for new code.
+- `ClassNames` from `@useanzen/shared-utils` for any dynamic `className`.
+- No raw `<button>` / `<select>` — toggle uses `RadioButtonGroup` from `@useanzen/ui`.
+- Existing `gql` queries left at the bottom of their files.
+- No trailing commas, 4-space indent, double quotes.
+- No `pnpm build` / prettier run during implementation per user preference (TS errors surface in dev).
+
+---
+
+## Step 11: Deviations + bugs caught during validation
+
+### A. Deviations from the original plan
+
+| Plan said | Reality | Why it matters |
+|---|---|---|
+| Calendar feed = `getProjectsAndSchedule` | Calendar feed = `getScheduledProjects` (typed `GetScheduledProjectsWhere` input) | The API change happens in `ScheduleView2.ts`, not `JobSchedule.ts`. `JobSchedule.ts` was still edited for the Job Schedule page / mobile path. |
+| Calendar state = `JobScheduleContext` | Calendar state = `SchedulingContext` | All toggle-aware wiring landed in `SchedulingContext`; `JobScheduleContext` was used only for its (now pinned) `/scheduling/jobs` role. |
+| `getProjectsAndSchedule` needs SQL extraction + `andWhere()` clause for `jobClassification` | No change required | Job TableFeed registry (`ConfigureColumnsData/job.ts:469`) already exposes a filterable `jobClassification` column. |
+| Swap Status dropdown options client-side via `propertyValuesByClassification` | Server-side facet adapts automatically | `getScheduledProjectFacets.jobStatus` derives from the actual filtered jobs' statuses, so once the feed is filtered the facet's category swap is free. |
+| Two form openers (`eventClick`, `select`) | Three: also `UserScheduleInfo.tsx:68` (toolbar "Schedule Job" button) | All three call sites now forward `scheduleClassification`. |
+| `JobScheduleCalendarView` accepts `scheduleClassification` as a prop from `JobScheduleCalendarPage` | View reads `scheduleClassification` from `useScheduling()` | Cleaner — the value lives on the context anyway. |
+| Embedded calendars need explicit pinning | Optional props + provider default = no embedded edits | `JobScheduleCalendarPage`'s new toggle props are optional and `SchedulingProvider` defaults to `ProjectJob`. |
+| Spec AC #7 "WOs appear in Job Schedule's In Progress" | Removed — Job Schedule is hard-pinned to ProjectJob in V0 | Per scope decision. WO dispatch deferred to WOX-16 V2. |
+
+### B. Bugs found and fixed in Playwright validation
+
+1. **`!== undefined` regression.** Initial commit used `extendedWhere.jobClassification !== undefined`, which evaluated `true` when the field was explicit `null`. Any caller that included the variable without a value (perfectly valid GraphQL) got `AND COALESCE(...) = NULL`, matching zero rows. Fixed by changing both the helper and the in-progress fallback to `!= null`, which uses JS's loose-equality null check covering both `null` and `undefined`. Same fix applied in `JobSchedule.ts` for symmetry.
+
+2. **Missing third form caller.** `UserScheduleInfo.tsx`'s "Schedule Job" toolbar button was overlooked initially; the form opened from there ignored the toggle. Added the third forwarder.
+
+3. **Label parallelism.** First pass shipped `label="Work Order"`, which dropped the existing pattern `"Select Job to add to schedule"`. Updated to the parallel `"Select Work Order to add to schedule"`.
+
+### C. Validation receipts
+
+Validated via Playwright MCP against local dev (`pnpm run dev:frontend`, seed = `admin@fortyfournorth.com`):
+
+- Toggle renders, defaults to Calendar.
+- `localStorage.scheduleClassification` updates to `"WorkOrder"` / `"ProjectJob"` on each click.
+- Reload restores the chosen mode.
+- Status filter chip flips `"Job Status"` ↔ `"WO Status"`.
+- `getScheduledProjectFacets` probe — `{ jobClassification: null }` returns the unfiltered superset (regression check), `ProjectJob` returns the same (all seed data is ProjectJob this week), `WorkOrder` returns empty (no scheduled WOs this week).
+- `tableData(modelName: Job, options: { where: { jobClassification: [...] } })` — ProjectJob = 50 (capped), WorkOrder = 3 (seed).
+- Toolbar "Schedule Job" → form opens with `"Select Work Order"` placeholder and `"Select Work Order to add to schedule"` label in WO mode.
+
+---
+
+## Verification checklist
+
+### API
+
+- [x] `getScheduledProjects` accepts `where.jobClassification: JobClassification`.
+- [x] `buildJobScheduleListWhereBlock` adds a `COALESCE(...) = ${classification}` predicate when the field is non-null.
+- [x] In-progress fallback in `getScheduledProjects` mirrors the filter.
+- [x] `getJobsAndSchedule` (mobile/Job-Schedule path) accepts `where.jobClassification` and adds `j.jobClassification = ?` to its `andWhere()` chain.
+- [x] `getProjectsAndSchedule` requires no code change (already accepts `jobClassification` via the Job TableFeed registry).
+- [x] `JobClassification` enum already registered globally — no new schema export needed.
+
+### Calendar page
+
+- [x] `/scheduling/calendar` renders a Calendar / Work Orders toggle, defaulted to Calendar.
+- [x] Toggle persists via `localStorage` under `scheduleClassification`.
+- [x] Calendar mode shows ProjectJob events only; Work Orders mode shows WO-classified events only.
+- [x] Status filter dropdown's **option list** swaps between `jobStatus`-category and `workOrderStatus`-category PropertyValues based on toggle (driven entirely by server-side facet computation against the filtered feed).
+- [x] Status filter chip label reads "Job Status" / "WO Status" based on toggle.
+- [x] Flipping the toggle clears the applied `jobStatus` selection and refetches the feed.
+
+### Schedule-entry form
+
+- [x] All three openers (`eventClick`, `select`, toolbar) forward `scheduleClassification`.
+- [x] Picker label reads "Select Job to add to schedule" / "Select Work Order to add to schedule".
+- [x] Picker placeholder reads "Select Job" / "Select Work Order".
+- [x] Picker results scope to the active classification.
+
+### Pinned surfaces
+
+- [x] `/scheduling/jobs` (Job Schedule) — `JobScheduleContext` pins `jobClassification: ["ProjectJob"]` on both `getProjectsAndSchedule` call sites.
+- [x] `/scheduling/daily-workforce` — inherits `SchedulingProvider` default `"ProjectJob"`.
+- [x] `/scheduling/user-workforce` — `UserSchedulingContext` pins all three of its `getScheduledProjects` / `getScheduledProjectFacets` calls; `JobScheduleProvider` pin above also applies.
+- [x] Embedded calendars in `ProjectDetailPage` / `JobDetailsPage` inherit the provider default.
+- [x] Mobile calendar — unchanged.
+
+### e2e
+
+- [x] `wo-18-calendar-toggle-shows-wos.spec.ts` created.
+- [x] `wo-18-form-picker-classification.spec.ts` created.
+- [ ] (Follow-up) wire `WO18_SEED_*` fixtures and remove `test.fixme()`.
+
+---
+
+## Files touched
+
+| Action | File | What changed |
+|--------|------|------------|
+| MODIFY | `apps/api/src/viewModels/ScheduleView2.ts` | `IJobScheduleWhere` extended; `GetScheduledProjectsWhere` input gains `jobClassification: JobClassification`; `buildJobScheduleListWhereBlock` adds correlated-subquery clause; `getScheduledProjects` in-progress fallback mirrors the filter. |
+| MODIFY | `apps/api/src/models/JobSchedule.ts` | `getJobsAndSchedule` extracts and applies `where.jobClassification` (uses `!= null`). |
+| MODIFY | `apps/frontend/src/pages/scheduling/calendar.tsx` | `RadioButtonGroup` toggle, `localStorage` persistence, optional toggle props on the page so embeds aren't affected. |
+| MODIFY | `apps/frontend/src/context/SchedulingContext.tsx` | New `scheduleClassification` prop (default `"ProjectJob"`); injected into both `getScheduledProjects` + `getScheduledProjectFacets` query variables; reset-jobStatus-on-flip effect; exposed on context value; new exported `ScheduleClassification` type. |
+| MODIFY | `apps/frontend/src/components/Scheduling/JobScheduleCalendarView.tsx` | Pulls `scheduleClassification` from context; forwards to both `<JobScheduleCalendarAddEditForm>` flyouts. |
+| MODIFY | `apps/frontend/src/components/Scheduling/UserScheduleInfo.tsx` | Pulls `scheduleClassification` from context; forwards to the toolbar's "Schedule Job" flyout (third caller). |
+| MODIFY | `apps/frontend/src/components/Scheduling/UserScheduleFilters/UserScheduleFilters.tsx` | Reads `scheduleClassification`; swaps chip label "Job Status" ↔ "WO Status". |
+| MODIFY | `apps/frontend/src/components/Forms/JobScheduleCalendarAddEditForm/JobScheduleCalendarAddEditForm.tsx` | Optional `scheduleClassification` prop; injects `where.jobClassification` into the picker's TableFeed query; flips label / placeholder / queryResultLabel. |
+| MODIFY | `apps/frontend/src/context/JobScheduleContext.tsx` | Both `getProjectsAndSchedule` calls spread `{ jobClassification: ["ProjectJob"] }` into the JSON `where`. |
+| MODIFY | `apps/frontend/src/context/UserSchedulingContext.tsx` | All three `getScheduledProjects` / `getScheduledProjectFacets` calls pin `jobClassification: ProjectJob` inline. |
+| CREATE | `apps/frontend/e2e/wo-18-calendar-toggle-shows-wos.spec.ts` | Playwright skeleton (gated on `WO18_SEED_*` env vars). |
+| CREATE | `apps/frontend/e2e/wo-18-form-picker-classification.spec.ts` | Playwright skeleton (gated on `WO18_SEED_*` env vars). |
+</script>
+
+<script src="plan-renderer.js"></script>
+<script>renderPlan();</script>
+</body>
+</html>

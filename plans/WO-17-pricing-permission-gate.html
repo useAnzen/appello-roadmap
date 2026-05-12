@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WO-17: Pricing Permission Gate — Implementation Plan</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+.in-iframe .top-nav { display: none !important; }
+.top-nav { position: sticky; top: 0; z-index: 100; background: #0f172a; border-bottom: 1px solid #1e293b; padding: 0 24px; display: flex; align-items: center; gap: 0; }
+.top-nav a { display: inline-flex; align-items: center; padding: 12px 18px; font-size: 13px; font-weight: 600; color: #94a3b8; text-decoration: none; border-bottom: 2px solid transparent; transition: all 0.15s; white-space: nowrap; }
+.top-nav a:hover { color: #f8fafc; background: #1e293b; }
+.top-nav .nav-logo { font-size: 11px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: #475569; padding-right: 18px; margin-right: 4px; border-right: 1px solid #1e293b; }
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Inter', -apple-system, sans-serif; background: #f8fafc; color: #0f172a; }
+.plan-wrap { max-width: 880px; margin: 0 auto; padding: 40px 24px 80px; }
+h1 { font-size: 24px; font-weight: 800; margin: 0 0 16px; }
+h2 { font-size: 18px; font-weight: 700; margin: 28px 0 12px; padding-bottom: 8px; border-bottom: 2px solid #e2e8f0; }
+h3 { font-size: 15px; font-weight: 700; margin: 20px 0 8px; padding-top: 10px; border-top: 1px solid #f1f5f9; }
+h4 { font-size: 14px; font-weight: 700; margin: 14px 0 6px; }
+p { font-size: 14px; color: #334155; line-height: 1.7; margin: 6px 0; }
+ul, ol { padding-left: 20px; margin: 8px 0; }
+li { font-size: 14px; color: #334155; line-height: 1.7; margin: 3px 0; }
+strong { color: #0f172a; }
+code { font-family: 'SF Mono', monospace; background: #f1f5f9; padding: 1px 6px; border-radius: 4px; font-size: 12px; color: #7c3aed; }
+pre { background: #0f172a; color: #f8fafc; border-radius: 8px; padding: 16px; overflow-x: auto; font-size: 13px; line-height: 1.6; margin: 12px 0; font-family: 'SF Mono', monospace; }
+pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
+hr { border: none; border-top: 1px solid #e2e8f0; margin: 24px 0; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 12px 0; }
+th { text-align: left; padding: 8px 12px; background: #f1f5f9; border-bottom: 2px solid #e2e8f0; font-weight: 600; }
+td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
+.callout { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 14px 18px; margin: 14px 0; font-size: 13px; color: #1e40af; }
+.callout strong { color: #1e3a8a; }
+    </style>
+</head>
+<body>
+
+<script>if(self!==top)document.documentElement.classList.add("in-iframe")</script>
+<nav class="top-nav">
+    <span class="nav-logo">Appello SDLC</span>
+    <a href="../index.html">Roadmap</a>
+    <a href="../release-1.33-timeline.html">Release 1.33</a>
+    <a href="../release-1.34-timeline.html">Release 1.34</a>
+    <a href="../WO-1.33-final-mapping.html">Final Mapping</a>
+</nav>
+<div class="plan-wrap" id="rendered"></div>
+
+<script type="text/plain" id="plan-md">
+# WO-17 — Pricing Permission Gate · Implementation Plan
+
+**Spec:** [wo-17-pricing-permission-gate.html](../wo-17-pricing-permission-gate.html)
+**Estimate:** ~3.5–4 days · 0.25d Prisma migration · 0.15d PermissionMap wiring · ~2.5d shared-UI billable-rate plumbing + prop split (incl. API resolvers, mapper, 3 displays, 3 editors with live re-resolution, Material rename cascade) · 0.25d desktop wiring · 0.25d mobile wiring · 0.25d PDF wiring.
+**Branch suggestion:** `wo-17-pricing-permission-gate`
+
+**Six-part plan, must ship in order.** Read all six before starting — Part 3 changes the meaning of existing props on the shared display + editor components, adds new billable-rate plumbing, and renames Material's `showCost` prop to `showPrice`; Parts 4–6 depend on those changes.
+
+1. Prisma migration to seed the permission and grant it to `super-admin` + `admin` roles only.
+2. `PermissionMap.ts` wiring so the permission appears in the role editor under a new "Work Orders" group.
+3. Shared-UI billable-rate plumbing + prop split. Three concerns: (a) surface `TradeLevelRate.billableValue ?? baseValue` and `EquipmentRateValue.amount` on Labor + Equipment structured rows for the first time (the displays currently render zero pricing on structured rows; the row data types carry no rate field) — including new GraphQL resolvers for live re-resolution in the editor; (b) split the existing `showRates` / `showPrice` props so they gate **structured rows only** — blank-row pricing is user input and renders unconditionally; (c) rename Material's `showCost` prop and "Unit Cost" header to `showPrice` / "Unit Price" since the displayed value is the sell price, not cost. This is the load-bearing piece of WO-17.
+4. Desktop wiring on the WO Overview tab (read-only display) and the WO create/edit form (line item editors).
+5. Mobile wiring on `WODetail.tsx` (display) and the mobile WO edit flow.
+6. PDF wiring: compute `canViewPricing` on the client at the export trigger (same `useAuth()` + `hasPermissions()` pattern as desktop / mobile), send it in the export request, and pass it through to the existing rate-toggle props on `WorkOrderSectionPDF` from `pdf-export.ts`.
+
+<div class="callout"><strong>Blank vs. structured — the rule that drives this plan:</strong> "Structured" labour / equipment / material lines pull their rate from a catalog source — TimeSheetRecord (via TradeLevelRate) for labour, EquipmentTimeEntry (via EquipmentRateLabel) for equipment, the Material catalog (via LEM-3 sell-price cascade) for material. Those catalog rates are the thing the permission protects. "Blank" lines have <code>materialId == null</code> / no FK to TradeLevelRate or Equipment — the user types description, qty, and rate by hand. Hiding a user's own typed-in rate from them is nonsensical, and hiding it on read-back makes the row unreadable, so blank-row pricing is exempt from this gate on every surface (display, editor, and PDF).</div>
+
+---
+
+## Part 1 · Prisma migration (REVIEW BY CHRIS)
+
+### 1.1 · File
+
+Mirror the existing convention: `apps/api/prisma/migrations/<YYYYMMDDHHMMSS>_<snake_case_name>/migration.sql`. Use a timestamp greater than the most recent migration. As of 2026-05-08 the latest is `20260507000000_tsr_override_furthest_detail_record`, so use:
+
+```
+apps/api/prisma/migrations/20260508000000_add_work_order_view_pricing_permission/migration.sql
+```
+
+`migration_lock.toml` lives at the migrations root and is unchanged — no per-directory lock file.
+
+### 1.2 · Migration body
+
+Two `INSERT IGNORE` statements: one to seed the permission row, one to grant it to `super-admin` + `admin` only. The grant uses a `CROSS JOIN` between `Role` and `Permission` filtered by slug so the same SQL is re-runnable on any environment without needing the permission's generated id baked in.
+
+```sql
+-- WO-17: Add WorkOrder___viewPricing permission and grant it to super-admin
+-- and admin roles only. Other roles get the permission turned ON deliberately
+-- by an admin via the role editor when a customer wants techs to see pricing.
+-- Permission.name uses PascalCase model + lowercase first letter of the
+-- action so hasPermissions() maps WorkOrder___viewPricing ->
+-- { workOrder: { viewPricing } }.
+
+INSERT IGNORE INTO `Permission` (`id`, `name`, `slug`) VALUES
+    (SUBSTRING(MD5(UUID()), 1, 21), 'WorkOrder___viewPricing', 'workOrder___viewPricing');
+
+INSERT IGNORE INTO `RolePermission` (`id`, `roleId`, `permissionId`, `scope`, `createdAt`, `updatedAt`)
+SELECT
+    LEFT(MD5(CONCAT(UUID(), r.id, p.id)), 21),
+    r.id,
+    p.id,
+    'ALL',
+    NOW(),
+    NOW()
+FROM
+    `Role` r
+    CROSS JOIN `Permission` p
+WHERE
+    p.slug = 'workOrder___viewPricing'
+    AND r.slug IN ('super-admin', 'admin');
+```
+
+Notes for Chris's review:
+
+- ID generation uses the `SUBSTRING(MD5(UUID()), 1, 21)` / `LEFT(MD5(CONCAT(UUID(), r.id, p.id)), 21)` pattern (nanoid VarChar(21)) consistent with how `Permission` and `RolePermission` ids are minted elsewhere in the schema.
+- `INSERT IGNORE` keeps the migration idempotent — re-running on an environment that already has the row is a no-op.
+- No `ReferenceModel` row needed — `WorkOrder` is a `Job.classification` value, not a Prisma model, so there is no model row for the role editor to scope against.
+- Grant scope is super-admin + admin only — non-admin roles do NOT receive the permission on deploy. WO pricing surfaces are not yet live in any environment, so this is the initial state at launch — no role loses visibility they currently have. Customers who want techs to see pricing turn the permission ON via the role editor (Part 2).
+
+---
+
+## Part 2 · PermissionMap wiring
+
+### 2.1 · File
+
+`packages/ui/src/components/Permission/PermissionMap.ts`
+
+### 2.2 · Add a "Work Orders" group under Operations
+
+The Operations main group already contains "Projects" (line ~1075), "Jobs" (line ~1115), "Job Material Specification" (line ~1159), and "Request For Information" (line ~1201). Insert a new "Work Orders" group immediately after the closing `},` of the Jobs group (line ~1158, before "Job Material Specification"):
+
+```ts
+{
+    label: "Work Orders",
+    description: "User can access work order pricing in Appello.",
+    permissionGroups: [
+        {
+            label: "View Pricing",
+            permissionActions: [{ permissionSlug: "workOrder___viewPricing" }]
+        }
+    ]
+},
+```
+
+The `permissionSlug` must match the slug seeded in Part 1. The role editor reads from this map to render the form and saves by `permissionSlug` — there is no separate registration step. The permission appears in the role-editor UI under Operations → Work Orders → View Pricing as a binary toggle.
+
+### 2.3 · Verification
+
+1. Run the dev frontend.
+2. Navigate to Settings → Roles → edit any role.
+3. Expand Operations. Confirm a "Work Orders" group appears containing "View Pricing".
+4. Toggle it OFF for a non-admin role, save, reload. The toggle stays OFF.
+5. Spot check the DB: `SELECT * FROM RolePermission WHERE roleId = '<role>' AND permissionId = '<workOrder___viewPricing perm id>';` — row absent after the OFF save.
+
+---
+
+## Part 3 · Shared-UI: surface billable rate on structured rows + prop split
+
+This is the load-bearing piece of WO-17, and it's bigger than a permission gate. Three intertwined concerns:
+
+1. **Surface the catalog billable rate on Labor + Equipment structured rows.** Today these structured rows render zero pricing — `ILaborTimeRowData` and `IStructuredEquipmentRowData` carry no rate or total fields, and the displays render no rate column on structured rows (the existing `showRates` prop only gates blank-row rate cells today). The plan adds the missing data plumbing and column rendering. Material is already plumbed end-to-end via `MaterialAttributePrice.value` → `WorkOrderMaterialItem.unitPrice`.
+2. **Reframe the existing `showRates` / `showPrice` props so they gate structured rows only.** Blank rows always render their own pricing — they're user-typed input.
+3. **Material prop / header naming cleanup.** Today the prop is `showCost` and the header reads "Unit Cost" but the value displayed is `MaterialAttributePrice.value` (the customer-facing sell price). Rename the prop to `showPrice` and the header to "Unit Price" so the API matches what's actually shown.
+
+Rates are resolved fresh on every load (no stored `billableRate` column). Catalog rate changes propagate automatically — same pattern Material uses today.
+
+### 3.0 · Catalog rate sources
+
+| Type | Catalog billable field | Resolver |
+|---|---|---|
+| Labor | `TradeLevelRate.billableValue ?? baseValue` | Pattern in `apps/api/src/models/WorkOrderConversion.ts:54–89` |
+| Equipment | `EquipmentRateValue.amount` (no separate cost field) | `EquipmentRateValueModel.resolveEquipmentRate(equipmentId, rateLabelId, per, jobId?, operatorIncluded?, date?)` (`apps/api/src/models/EquipmentRateValue.ts:300–364`) |
+| Material | `MaterialAttributePrice.value` → already populated to `WorkOrderMaterialItem.unitPrice` | `resolveMaterialAttributePrice()` GraphQL query (already wired) |
+
+### 3.1 · API — extend WO query response + add live re-resolve resolvers
+
+**Display path (extend the WO load query):**
+
+The GraphQL query that loads work-order labor + equipment line items for the Overview tab and the edit form must include the resolved billable rate so the row renders without a second round-trip:
+
+- **Labor structured row**: `billableRate: Float` — resolved as `TradeLevelRate.billableValue ?? baseValue` for the row's `tradeLevelId` + `employeeAgreementId` + `rateLabelId`.
+- **Equipment structured row**: `billableRate: Float` — resolved via `resolveEquipmentRate(equipmentId, rateLabelId, per, jobId, operatorIncluded, date)`. Also expose `operatorIncluded: Boolean` on the row so the editor has it for re-resolution.
+
+Add thin field resolvers on the relevant GraphQL types — delegate to the existing model methods, no business logic in the resolver layer.
+
+**Editor path (live re-resolve resolvers):**
+
+Add two new query resolvers for the editor to call when the user changes catalog inputs on a structured row:
+
+- `resolveLaborBillableRate(tradeLevelId: ID!, employeeAgreementId: ID, rateLabelId: ID): Float` — wraps `TradeLevelRate.billableValue ?? baseValue`.
+- `resolveEquipmentBillableRate(equipmentId: ID!, rateLabelId: ID!, per: String!, operatorIncluded: Boolean!, jobId: ID, date: String): Float` — wraps `resolveEquipmentRate()`.
+
+Both follow the thin-resolver convention (`apps/api/src/graphql/models/`); register in `apps/api/src/graphql/schema.ts`. Run `pnpm run codegen` so the frontend gets generated hooks.
+
+### 3.2 · Type updates — `packages/ui/src/components/WorkOrder/types.ts`
+
+Add to `ILaborTimeRowData`:
+
+```ts
+billableRate?: number; // resolved fresh on load; not stored on the WO
+```
+
+Add to `IStructuredEquipmentRowData`:
+
+```ts
+billableRate?: number;
+operatorIncluded?: boolean;
+```
+
+(No change to `IMaterialRowData` — `unitPrice` already carries the sell price.)
+
+The mapper in `packages/ui/src/components/WorkOrder/mappers.ts` populates `billableRate` from the extended GraphQL response.
+
+### 3.3 · Files
+
+Six shared-UI components, all in `packages/ui/src/components/WorkOrder/`:
+
+Read-only display components:
+
+1. `LaborItemDisplay.tsx`
+2. `MaterialItemDisplay.tsx`
+3. `EquipmentItemDisplay.tsx`
+
+Editor components (introduced in WO-3b):
+
+4. `LaborItemEditor.tsx`
+5. `MaterialItemEditor.tsx`
+6. `EquipmentItemEditor.tsx`
+
+Plus:
+
+- `types.ts` — type updates per 3.2.
+- `mappers.ts` — populate `billableRate` on Labor / Equipment rows from the GraphQL response.
+
+### 3.4 · Material naming cleanup (cascade)
+
+Rename `showCost` → `showPrice` and the header text "Unit Cost" → "Unit Price" through the entire caller chain. The displayed value is unchanged (still `MaterialAttributePrice.value` / `unitPrice`), only the names change:
+
+- `MaterialItemDisplay.tsx` — prop name + header text.
+- `MaterialItemEditor.tsx` — new prop added in 3.8 is `showPrice`, not `showCost`.
+- `apps/frontend/src/components/WorkOrder/WOMaterialDisplay.tsx` — wrapper prop.
+- `apps/mobile/src/components/WorkOrders/MobileWOMaterialDisplay.tsx` — wrapper prop.
+- `apps/frontend/src/components/DetailsPage/WorkOrderDetailsPage/Tabs/Overview/index.tsx` — caller (`showPrice={canViewPricing}`).
+- `apps/mobile/src/components/WorkOrders/WODetail.tsx` — caller.
+- The desktop and mobile WO form hosts — pass `showPrice={canViewPricing}` to `MaterialItemEditor`.
+- `apps/frontend/src/components/DownloadablePDF/WorkOrderSectionPDF.tsx` — `showMaterialCost` → `showMaterialPrice` on both the inner section component (lines 110–112) and the `renderWorkOrderSectionsHTML` argument type.
+- `apps/frontend/src/pages/api/pdf-export.ts` — pass `showMaterialPrice: canViewPricing`.
+
+### 3.5 · `LaborItemDisplay.tsx`
+
+- **Structured rows** (`dateGroups[].rows[]` of `ILaborTimeRowData`):
+  - **NEW**: render a billable-rate column showing `$X.XX/hr` from `row.billableRate`.
+  - **NEW**: render a row-level dollar total = `Σ hours × billableRate`.
+  - Both new column / cell render only when `showRates === true`. When `showRates === false` structured rows render no pricing (current behaviour — there's nothing to render today).
+- **Blank rows** (`blankItems[]` of `IBlankLaborRowData`): today the `rate` / total cells are gated by `showRates`. Move that gate so it applies to structured rows only — render blank-row `rate` / total unconditionally. Update the type comment on `IBlankLaborRowData.rate` to reflect "always rendered (user input)".
+- **Subtotal footer.** Today renders only an hours total (no $ subtotal). Replace with three rows:
+  - (a) Hours subtotal — always renders (existing behaviour).
+  - (b) Structured $ subtotal = `Σ rows hours × row.billableRate` — gated by `showRates`.
+  - (c) Blank $ subtotal = `Σ blanks duration × rate` — never gated.
+
+### 3.6 · `MaterialItemDisplay.tsx` (with naming cleanup)
+
+- **Prop**: rename `showCost` → `showPrice` (default `true`).
+- **Header**: "Unit Cost" → "Unit Price".
+- The items array is a flat list of `IMaterialRowData` with discriminator `type: "structured" | "blank"`:
+  - `type === "structured"` — `unitPrice` and `total` come from the LEM-3 sell-price cascade (`priceFromCatalog === true`). Continue to gate the unit price + total cells on `showPrice`.
+  - `type === "blank"` — `unitPrice`, `description`, `quantity`, and derived `total = quantity * unitPrice` are user-typed. Render `unitPrice` + `total` unconditionally on these rows; remove the `showCost &&` (now `showPrice &&`) guard from the blank branch.
+- **Subtotal.** Today the entire subtotal is gated by `showCost`. Split into two rows: structured subtotal gated by `showPrice`; blank subtotal never gated. When `showPrice === false` only the blank subtotal renders.
+- **Column headers.** Render the price columns when `showPrice === true` OR at least one blank row exists. Acceptable to simplify by always rendering the columns to avoid layout shift.
+
+### 3.7 · `EquipmentItemDisplay.tsx`
+
+Mirror Labor exactly:
+
+- **Structured rows** (`dateGroups[].rows[]` of `IStructuredEquipmentRowData`):
+  - **NEW**: render a billable-rate column showing `$X.XX / <per>` from `row.billableRate`.
+  - **NEW**: render a row-level dollar total = `duration × billableRate`.
+  - Both gated by `showRates === true`.
+- **Blank rows** (`blankItems[]` of `IBlankEquipmentRowData`): user-typed `unitRate` + derived total. Move the gate so it applies to structured rows only; render blank-row rate + total unconditionally. Update the type comment on `IBlankEquipmentRowData.unitRate` to reflect "always rendered (user input)".
+- **Subtotal footer.** Today renders only a duration summary. Replace with three rows: duration summary always; structured $ subtotal = `Σ rows duration × row.billableRate` gated by `showRates`; blank $ subtotal never gated.
+
+### 3.8 · Editor components
+
+Editors today do **not** accept any price-toggle prop, structured-row rate displays do **not** exist, and live rate re-resolution does **not** exist. All three are new.
+
+**Default values when adding the prop**: match the displays — `showRates` defaults to `false` (Labor / Equipment), `showPrice` defaults to `true` (Material).
+
+**`LaborItemEditor.tsx`:**
+
+- **Add prop**: `showRates?: boolean` (default `false`).
+- **Structured rows** (`ILaborTimeRowData`): render a billable-rate display showing `$X.XX/hr` from `row.billableRate`, gated by `{showRates && …}`. Also render a per-row derived total (`Σ hours × billableRate`) under the same gate.
+- **Live re-resolution**: when the user changes `tradeLevelId`, `employeeAgreementId`, or `rateLabelId` on a structured row, fire the new `resolveLaborBillableRate` query and update `row.billableRate` in-place. Show a brief loading state on the rate cell while the request is in flight.
+- **Blank rows** (`IBlankLaborRowData`): "Rate ($/hr)" input is already always rendered with no wrapper — leave as-is. Per-card derived total (`hours * rate * qtyOfWorkers`) likewise.
+
+**`MaterialItemEditor.tsx`:**
+
+- **Add prop**: `showPrice?: boolean` (default `true`).
+- **Structured rows** (`item.type === "structured"`): wrap the existing `unitPrice` display + any "override unit price" input in `{showPrice && …}` — NEW gate. Existing material catalog selection re-resolves `unitPrice` via `resolveMaterialAttributePrice()` already; no new query needed.
+- **Blank rows** (`item.type === "blank"`): manual "Unit Price" input + derived "Total" — already always rendered — leave as-is.
+
+**`EquipmentItemEditor.tsx`:**
+
+- **Add prop**: `showRates?: boolean` (default `false`).
+- **Structured rows** (`IStructuredEquipmentRowData`): render a billable-rate display showing `$X.XX / <per>` from `row.billableRate`, gated by `{showRates && …}`. Also render a derived row total (`duration × billableRate`) under the same gate.
+- **Live re-resolution**: when the user changes `equipmentRateLabelId`, `per`, or `operatorIncluded` on a structured row, fire `resolveEquipmentBillableRate` and update `row.billableRate` in-place.
+- **Blank rows** (`IBlankEquipmentRowData`): "Rate" input + derived "Total" already always render — leave as-is.
+
+**Add-row dropdowns are not gated.** "Log Time / Blank Line" (labor), "Structured Line / Blank Line" (material), "Log Equipment / Blank Line" (equipment) — every user with edit access keeps these. The permission only hides catalog-sourced rate values, not the ability to add or describe rows.
+
+### 3.9 · Verification
+
+Render each component in a scratch harness with a mix of structured + blank rows and confirm:
+
+1. **Labor + Equipment displays**:
+   - With `showRates === true`: structured rows render billable rate + row total; blank rows render rate + total; hours/duration subtotal + structured $ subtotal + blank $ subtotal all render.
+   - With `showRates === false`: structured rows render no pricing; blank rows still render rate + total; only hours/duration subtotal + blank $ subtotal render.
+2. **Material display**:
+   - With `showPrice === true`: structured rows render unit price + total; blank rows render unit price + total; both subtotals render. Header reads "Unit Price".
+   - With `showPrice === false`: structured rows render no price; blank rows still render price + total; only blank subtotal renders.
+3. **Editors**:
+   - With prop set to `false`: structured-row rate displays hidden; blank-row rate inputs remain present, focusable, accept input.
+   - With prop set to `true`: structured rows show resolved billable rate + derived row total. Changing trade level / rate label / equipment / `per` / `operatorIncluded` re-resolves the rate via the new GraphQL query and updates the row.
+4. Hours / qty / duration / unit-of-measure render in all states on every row.
+
+---
+
+## Part 4 · Desktop wiring
+
+### 4.1 · Files
+
+1. `apps/frontend/src/components/DetailsPage/WorkOrderDetailsPage/Tabs/Overview/index.tsx` — read-only display (Overview tab).
+2. `apps/frontend/src/components/WorkOrder/WOLaborDisplay.tsx` — wrapper over `LaborItemDisplay`. Already accepts `showRates?: boolean`.
+3. `apps/frontend/src/components/WorkOrder/WOMaterialDisplay.tsx` — wrapper over `MaterialItemDisplay`. Currently accepts `showCost?: boolean`; renamed to `showPrice?: boolean` in Part 3.4.
+4. `apps/frontend/src/components/WorkOrder/WOEquipmentDisplay.tsx` — wrapper over `EquipmentItemDisplay`. Already accepts `showRates?: boolean`.
+5. The WO create/edit form (DataModelForm host) — wherever the three editors (`LaborItemEditor` / `MaterialItemEditor` / `EquipmentItemEditor`) are mounted via `customFormControl` (WO-3a). Forward `showRates` (Labor / Equipment) / `showPrice` (Material) from the form-level `canViewPricing` to each editor.
+
+### 4.2 · Overview tab — add the permission lookup
+
+Add to the imports:
+
+```tsx
+import { useAuth } from "~root/context";
+import { hasPermissions } from "~root/lib";
+```
+
+(`useAuth` may already be imported via another hook elsewhere in the file — check before adding.)
+
+Inside the component body, alongside the existing hooks:
+
+```tsx
+const { permissions } = useAuth();
+const canViewPricing = hasPermissions({ workOrder: { viewPricing: true } }, permissions);
+```
+
+Update the three `customColumnRender` entries:
+
+```tsx
+"wo-labor-items":     () => <WOLaborDisplay     jobId={jobId} showRates={canViewPricing} />,
+"wo-material-items":  () => <WOMaterialDisplay  jobId={jobId} showPrice={canViewPricing} />,
+"wo-equipment-items": () => <WOEquipmentDisplay jobId={jobId} showRates={canViewPricing} />,
+```
+
+The wrapper components already forward these props — no changes needed in `WO*Display.tsx` themselves.
+
+### 4.3 · WO create/edit form — wire the editors
+
+Locate the form host (the file that mounts `LaborItemEditor` / `MaterialItemEditor` / `EquipmentItemEditor` on the WO create/edit page — per WO-3b this is the desktop form's `customFormControl` for the three line-item DAA positions). Compute `canViewPricing` the same way:
+
+```tsx
+const { permissions } = useAuth();
+const canViewPricing = hasPermissions({ workOrder: { viewPricing: true } }, permissions);
+```
+
+Pass through to each editor:
+
+```tsx
+<LaborItemEditor     {...laborProps}     showRates={canViewPricing} />
+<MaterialItemEditor  {...materialProps}  showPrice={canViewPricing} />
+<EquipmentItemEditor {...equipmentProps} showRates={canViewPricing} />
+```
+
+The editors accept `showRates` (Labor / Equipment) / `showPrice` (Material) after Part 3.8 (defaults `false` / `true`). No additional changes inside the editor files at this step — Part 4.3 is purely wiring `canViewPricing` from the form host through to each editor's prop.
+
+### 4.4 · Why this is safe
+
+- `WO*Display.tsx` forwards `showRates` (Labor / Equipment) / `showPrice` (Material — renamed in Part 3.4) to the shared display components — Part 3 changed the meaning of those props inside the shared components and renamed the Material prop, but otherwise the wrapper signatures stay structurally the same.
+- `useAuth().permissions` is the authoritative source on every desktop page; `hasPermissions()` is the standard reader (used by every other gate in the app, e.g. `JobDetailsPage` for safetyForm and equipment).
+- The underlying display + editor components hide structured-row pricing only — no resolver / GraphQL changes; the data still arrives, the UI omits it.
+
+### 4.5 · Verification
+
+1. As an admin, open `/work-orders/<wo-id>`. Confirm pricing columns + structured subtotal render on Labor, Materials, and Equipment line items. Add a blank row to each section in the editor (open the create form for a fresh WO if needed) — confirm pricing inputs are present in the editor.
+2. Edit a non-admin role; toggle OFF "Operations → Work Orders → View Pricing"; save.
+3. Log out / log in as a user with that role. Open the same WO detail page:
+   - Structured rows: rate / cost / total columns absent.
+   - Blank rows: rate / cost / total columns **present** (user-typed values).
+   - Hours / qty / duration / units columns remain everywhere.
+   - Bottom totals: structured subtotal absent; blank subtotal present; hours subtotal present.
+   - No banner, no watermark.
+4. Open the WO edit form as that same user:
+   - Structured-row rate / cost / total displays gated.
+   - Blank-row rate / unit-price / unit-rate **inputs** are still present and editable.
+   - "Add blank line" still works.
+5. Re-grant the permission; refresh; pricing reappears everywhere.
+6. Open a Project Job (`/jobs/<job-id>`) — pricing visibility on the Job side is unchanged regardless of the new permission. Confirms WO-17 only touches WO surfaces.
+
+### 4.6 · Acceptance criteria mapping — Desktop (Part 4)
+
+| Spec AC | Where covered |
+|---|---|
+| User WITH permission sees billable pricing on desktop WO surfaces (rate + row total + structured subtotal) | Parts 3.5 / 3.6 / 3.7 (display rendering) + Steps 4.2, 4.3 (toggles set to `true`) |
+| User WITHOUT permission sees structured line items without rate / total columns | Parts 3.5 / 3.6 / 3.7 + Step 4.2 |
+| Blank line items remain fully visible (description + rate + qty + total) | Parts 3.5 / 3.6 / 3.7 (blank-row pricing always rendered) |
+| Editor: blank-line rate input remains visible to gated users | Part 3.8 + Step 4.3 |
+| Editor: structured-row rate updates live when catalog inputs change | Part 3.8 (live re-resolution) |
+| Hours / qty / duration columns remain visible regardless | Underlying display behaviour (non-pricing) |
+| Structured $ subtotal hidden when gated; blank $ subtotal + hours/duration subtotal stay | Parts 3.5 / 3.6 / 3.7 |
+| No banner / stamp anywhere | We add none |
+
+---
+
+## Part 5 · Mobile wiring
+
+### 5.1 · Files
+
+1. `apps/mobile/src/components/WorkOrders/MobileWOLaborDisplay.tsx` — add `showRates?: boolean` prop, default `false`, forward to `<LaborItemDisplay layout="card" />`.
+2. `apps/mobile/src/components/WorkOrders/MobileWOMaterialDisplay.tsx` — add `showPrice?: boolean` prop, default `true`, forward to `<MaterialItemDisplay layout="card" />`.
+3. `apps/mobile/src/components/WorkOrders/MobileWOEquipmentDisplay.tsx` — add `showRates?: boolean` prop, default `false`, forward to `<EquipmentItemDisplay layout="card" />`.
+4. `apps/mobile/src/components/WorkOrders/WODetail.tsx` — compute `canViewPricing` and pass to all three.
+5. The mobile WO edit flow — wherever the three line-item editors are mounted on mobile. Same wiring as Step 4.3.
+
+### 5.2 · Display wrappers
+
+For each `MobileWO*Display.tsx`, add the toggle prop, default to current behaviour, and forward to the shared component:
+
+```tsx
+interface IMobileWOLaborDisplayProps {
+    className?: string | ClassNames;
+    jobId: string;
+    refetchKey?: number;
+    showRates?: boolean;
+}
+
+const MobileWOLaborDisplay: FC<IMobileWOLaborDisplayProps> = ({
+    className = "",
+    jobId,
+    refetchKey,
+    showRates = false
+}) => {
+    // ...existing body unchanged...
+    return (
+        <LaborItemDisplay
+            className={className}
+            layout="card"
+            dateGroups={dateGroups}
+            blankItems={blankItems}
+            showRates={showRates}
+        />
+    );
+};
+```
+
+Same shape for `MobileWOMaterialDisplay` (`showPrice?: boolean` default `true`) and `MobileWOEquipmentDisplay` (`showRates?: boolean` default `false`).
+
+`MobileWOMaterialDisplay` currently does NOT pass any price-toggle prop to its inner display, so it gets the inner default of `true` and the price is visible on mobile material today. Adding `showPrice` with default `true` preserves that for any other caller; only `WODetail.tsx` overrides it.
+
+### 5.3 · `WODetail.tsx`
+
+The file already calls `useAuth()` and uses `hasPermissions(...)` for the WO-13 + WO-16 tab gates — reuse the existing `permissions` reference. Add one line near the top of the component body:
+
+```tsx
+const canViewPricing = hasPermissions({ workOrder: { viewPricing: true } }, permissions);
+```
+
+Update the three display call-sites (current locations: lines 124, 127, 130):
+
+```tsx
+<MobileWOLaborDisplay     jobId={woId} refetchKey={refetchKey} showRates={canViewPricing} />
+<MobileWOMaterialDisplay  jobId={woId} refetchKey={refetchKey} showPrice={canViewPricing} />
+<MobileWOEquipmentDisplay jobId={woId} refetchKey={refetchKey} showRates={canViewPricing} />
+```
+
+### 5.4 · Mobile edit flow
+
+The mobile WO edit flow mounts the same three editor components. Compute `canViewPricing` at the form level and forward `showRates` (Labor / Equipment) / `showPrice` (Material) to each editor — same pattern as Step 4.3. WO-21 (form restructure) is a presentation refactor and does not change the editor components used; it is independent and does not need to land before WO-17.
+
+### 5.5 · Verification
+
+1. As an admin, open `/admin/work-orders/<wo-id>` on a mobile viewport. Material cards show unit price + total. Labor + equipment cards behave per their existing default (no rates shown on mobile today; that's the inner default of `false` — Part 5 doesn't change visible behaviour there, it wires the toggle for future use).
+2. Revoke the permission on a tech role; impersonate / log in as that role:
+   - Structured material cards: unit price + total absent.
+   - **Blank** material cards: unit price + total **present** (user input).
+   - Description / quantity / unit fields remain visible.
+   - No banner.
+3. In the mobile WO edit flow, confirm the structured-row rate displays are gated and the blank-row rate inputs remain editable.
+4. Re-grant; reload; structured material pricing reappears.
+
+<div class="callout"><strong>Why bother wiring mobile labor + equipment if the visible default stays the same:</strong> the prop addition keeps mobile consistent with desktop and means the toggle is in place when a future spec turns labor or equipment pricing on for mobile. Without the wiring, that future spec would have to do this work first.</div>
+
+### 5.6 · Acceptance criteria mapping — Mobile (Part 5)
+
+| Spec AC | Where covered |
+|---|---|
+| Mobile WO surfaces honour the gate identically to desktop | Steps 5.2 + 5.3 |
+| Mobile editor: blank-line rate input remains visible to gated users | Step 5.4 + Part 3.8 |
+| No regressions on mobile job-sites (donor) surfaces | No edits to `JobViews/JobViewTabs/*` |
+
+---
+
+## Part 6 · PDF wiring
+
+### 6.1 · Files
+
+1. **Client-side PDF trigger** — wherever the WO PDF export action is dispatched (the button / menu item that posts to `/api/pdf-export`). Compute `canViewPricing` here using the same `useAuth()` + `hasPermissions()` pattern as desktop (Part 4) and mobile (Part 5), and include it in the request payload.
+2. `apps/frontend/src/pages/api/pdf-export.ts` — read the flag from the request and pass through to `renderWorkOrderSectionsHTML`. No server-side permission lookup.
+3. `apps/frontend/src/components/DownloadablePDF/WorkOrderSectionPDF.tsx` — verify the wrapper (`renderWorkOrderSectionsHTML`) accepts the rate-toggle props and forwards them to the inner section component. The inner component currently declares `showLaborRates` / `showMaterialCost` / `showEquipmentRates` (lines 110–112) with defaults `false` / `true` / `false`; rename `showMaterialCost` → `showMaterialPrice` per Part 3.4. Once Part 3 ships, those toggles only gate structured rows in the PDF table — blank rows render their rate / unit price / total unconditionally.
+
+### 6.2 · Client trigger — compute and send `canViewPricing`
+
+Same pattern as Steps 4.2 and 5.3:
+
+```tsx
+const { permissions } = useAuth();
+const canViewPricing = hasPermissions({ workOrder: { viewPricing: true } }, permissions);
+```
+
+Include `canViewPricing` in the export request payload alongside the existing fields. Match the request shape the rest of the export call already uses (body field for POST, query param for GET) — the field name should be `canViewPricing` for consistency with the desktop / mobile variable.
+
+### 6.3 · `pdf-export.ts` — read the flag and pass through
+
+Inside the WorkOrder branch (around the existing `customSectionHTML` block at line ~1217), read the flag from the request — match how the surrounding handler reads its other inputs (`req.body` for POST handlers, `req.query` for GET):
+
+```ts
+const canViewPricing = !!req.body?.canViewPricing;
+
+customSectionHTML = await renderWorkOrderSectionsHTML({
+    jobId: jobDetail.id,
+    axiosConfig,
+    selectedSectionNames,
+    showLaborRates:     canViewPricing,
+    showMaterialPrice:  canViewPricing,
+    showEquipmentRates: canViewPricing
+});
+```
+
+If the flag is absent (legacy caller, server-to-server, or unauthenticated request), `canViewPricing` stays `false` — fail closed.
+
+### 6.4 · `WorkOrderSectionPDF.tsx` — verify the wrapper signature
+
+Open the file and confirm `renderWorkOrderSectionsHTML`'s argument type accepts the three rate-toggle props and forwards them into the React tree it server-renders. If it currently does not, extend the argument interface and pass through to the inner section component (which already declares the three toggle props at lines 110–112). The inner section component re-uses the same shared display components updated in Part 3, so the structured-vs-blank split is inherited automatically — no PDF-specific column logic.
+
+### 6.5 · Verification
+
+1. As an admin, trigger a WO PDF export. Confirm structured labor rates, structured material cost, and structured equipment rates render. Confirm blank-row rate / total values render too (they always do).
+2. As a tech (without permission), trigger a WO PDF export of the same record:
+   - Structured rows: rate / cost / total columns absent.
+   - Blank rows: rate / total columns **present**.
+   - PDF is otherwise identical (no watermark, no "redacted" stamp, no informational text).
+3. Revoke the permission on a logged-in admin's role mid-session, refresh the dashboard (so `useAuth()` re-fetches permissions), then export a WO PDF. The export request sends the new `canViewPricing = false`, so the resulting PDF has structured-row pricing absent. Blank-row pricing remains.
+
+### 6.6 · Acceptance criteria mapping — PDF (Part 6)
+
+| Spec AC | Where covered |
+|---|---|
+| PDF rendered by creator WITH permission includes pricing | Step 6.3 (toggles set to `true`) |
+| PDF rendered by creator WITHOUT permission has structured pricing absent | Step 6.3 + Part 3 (toggle gates structured only) |
+| Blank-row pricing renders in the PDF regardless of creator permission | Parts 3.5 / 3.6 / 3.7 (shared component behaviour inherited by PDF) |
+| Permission revocation mid-session takes effect on next PDF request | `useAuth()` re-fetches on refresh; client sends new `canViewPricing` |
+| No watermark or "redacted" stamp | We add none |
+
+---
+
+## Out of scope — do NOT do these
+
+- **No banner / stamp / watermark anywhere.** Silent hide per Appello convention.
+- **No backend resolver changes** to strip pricing fields. Resolvers continue returning pricing; the UI hides the columns.
+- **No new GraphQL types / queries / mutations.** Part 6 reuses `useAuth()` on the client; the server endpoint just reads a boolean from the request — no server-side permission lookup.
+- **No mid-session live-revocation UX.** Page reload picks up new state.
+- **No editor-surface gating beyond rate visibility on look-up rows.** The "Add blank line" affordance is not gated; users without the permission can still add blank rows. Any tighter editor gating (block creation, hide structured-row editing entirely) is a separate follow-up if a customer asks.
+- **No WO list page changes.** The list page does not currently expose pricing per row; if it gains a Total column later, it inherits this gate at that time.
+- **No `ReferenceModel` row.** `WorkOrder` is a `Job.classification` value, not a model.
+- **No "—" or "$ ---" placeholders.** Hide entire columns on structured rows; blank rows render their own values.
+- **Do not gate blank-row pricing on any surface.** Blank-row rate / unit price / total are user-typed input. Hiding user-typed input from the user who typed it is nonsensical and breaks editor usability.
+- **Do not modify the underlying `LaborItemDisplay` / `MaterialItemDisplay` / `EquipmentItemDisplay` row-rendering schema** beyond the structured-vs-blank gate split in Part 3 — column layout and styling stay as-is.
+</script>
+
+<script src="plan-renderer.js"></script>
+<script>renderPlan();</script>
+</body>
+</html>

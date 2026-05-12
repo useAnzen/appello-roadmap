@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WO-23: Past WOs in Job Detail — Implementation Plan</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+.in-iframe .top-nav { display: none !important; }
+.top-nav { position: sticky; top: 0; z-index: 100; background: #0f172a; border-bottom: 1px solid #1e293b; padding: 0 24px; display: flex; align-items: center; gap: 0; }
+.top-nav a { display: inline-flex; align-items: center; padding: 12px 18px; font-size: 13px; font-weight: 600; color: #94a3b8; text-decoration: none; border-bottom: 2px solid transparent; transition: all 0.15s; white-space: nowrap; }
+.top-nav a:hover { color: #f8fafc; background: #1e293b; }
+.top-nav .nav-logo { font-size: 11px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: #475569; padding-right: 18px; margin-right: 4px; border-right: 1px solid #1e293b; }
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Inter', -apple-system, sans-serif; background: #f8fafc; color: #0f172a; }
+.plan-wrap { max-width: 880px; margin: 0 auto; padding: 40px 24px 80px; }
+h1 { font-size: 24px; font-weight: 800; margin: 0 0 16px; }
+h2 { font-size: 18px; font-weight: 700; margin: 28px 0 12px; padding-bottom: 8px; border-bottom: 2px solid #e2e8f0; }
+h3 { font-size: 15px; font-weight: 700; margin: 20px 0 8px; padding-top: 10px; border-top: 1px solid #f1f5f9; }
+h4 { font-size: 14px; font-weight: 700; margin: 14px 0 6px; }
+p { font-size: 14px; color: #334155; line-height: 1.7; margin: 6px 0; }
+ul, ol { padding-left: 20px; margin: 8px 0; }
+li { font-size: 14px; color: #334155; line-height: 1.7; margin: 3px 0; }
+strong { color: #0f172a; }
+code { font-family: 'SF Mono', monospace; background: #f1f5f9; padding: 1px 6px; border-radius: 4px; font-size: 12px; color: #7c3aed; }
+pre { background: #0f172a; color: #f8fafc; border-radius: 8px; padding: 16px; overflow-x: auto; font-size: 13px; line-height: 1.6; margin: 12px 0; font-family: 'SF Mono', monospace; }
+pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
+hr { border: none; border-top: 1px solid #e2e8f0; margin: 24px 0; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 12px 0; }
+th { text-align: left; padding: 8px 12px; background: #f1f5f9; border-bottom: 2px solid #e2e8f0; font-weight: 600; }
+td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
+.check-item { display: flex; gap: 8px; align-items: flex-start; padding: 5px 0; }
+.check-box { width: 16px; height: 16px; border: 2px solid #cbd5e1; border-radius: 3px; flex-shrink: 0; margin-top: 2px; }
+.callout { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 14px 18px; margin: 14px 0; font-size: 13px; color: #1e40af; }
+.callout strong { color: #1e3a8a; }
+    </style>
+</head>
+<body>
+
+<script>if(self!==top)document.documentElement.classList.add("in-iframe")</script>
+<nav class="top-nav">
+    <span class="nav-logo">Appello SDLC</span>
+    <a href="../index.html">Roadmap</a>
+    <a href="../release-1.33-timeline.html">Release 1.33</a>
+    <a href="../release-1.34-timeline.html">Release 1.34</a>
+    <a href="../master-spec-reconciliation.html">Spec Reconciliation</a>
+    <a href="../cross-release-continuity-audit.html">Continuity Audit</a>
+    <a href="ui-interface-library.html">UI Library</a>
+</nav>
+<div class="plan-wrap" id="rendered"></div>
+
+<script type="text/plain" id="plan-md">
+# WO-23: Past WOs in Job Detail — Implementation Plan
+
+## Overview
+
+Surface the list of WOs nested under a Project Job on the Job detail page, and surface the reverse pointer ("Part of: &lt;parent Job&gt;") on the WO detail header. Data-model piece is a single self-FK on `Job`: `parentJobId` (nullable, `SetNull` on parent archive). UI piece is a new "Work Orders" tab on the Project Job detail page (desktop + mobile) that mounts the existing `JobList` component with a `parentJobId = this.job.id` filter — no new list UI to build. A "+ New work order" button on that tab opens the existing `JobAddEditForm` pre-wired with this Job as the parent.
+
+Smallest possible subset of the post-V1 sub-relationships work (WOX-23) — just enough to answer "what WOs have been done on this job?" Action item from the 2026-05-07 Kris × Corey × Emma demo call.
+
+**Estimated effort:** 1-1.5 days
+**Risk:** Low — additive self-FK with `SetNull`, no migration of existing data, reuse of `JobList` for both list rendering and "+ Create" flow
+**Spec:** `tm-work-orders-uis/wo-23-past-wos-in-job-detail.html`
+**Requires:** WO-1 (Job classification routing)
+**Enables:** Future WOX-23 sub-relationships (Project / Job / WO / Task with rollup financials)
+
+---
+
+## Decided — self-FK on Job, classification gate, JobList reuse, no rollups
+
+**Self-FK on `Job`, not a join table.** WOs *are* Jobs (per WO-1) — the hierarchy "Project Job has child WOs" is a parent-child relationship between rows of the same table. A self-FK is the natural shape and mirrors the existing `Department` self-hierarchy in the schema (`schema.prisma:5510-5513` — `parentId`/`Parent`/`Children` named `DepartmentHierarchy`). Self-FK now means WOX-23 just extends the nesting; no new model to migrate later.
+
+**`SetNull` on parent archive, no cascade.** A child WO is a first-class record with its own labor / materials / equipment / financials. Removing or archiving the parent Job must never delete the child. The FK is `ON DELETE SET NULL` — the child loses its pointer but survives intact.
+
+**Validation lives in the Job model, not in the resolver.** `Job.customCreateItem` and `Job.customEditItem` enforce both invariants on every write path (resolver, upsert, DAA-form save): (a) the parent must be a `ProjectJob`-classified Job — V1 forbids WO-under-WO, and (b) a Job cannot be its own parent. The existing `customEditItem` (`apps/api/src/models/Job.ts:1348-1399`) already validates classification changes; the parent-classification check slots into the same block.
+
+**No cycle check in V1.** Nesting is shallow — one level only. Cycles cannot form when the parent must be a ProjectJob and the child must be a WO. WOX-23 will revisit when nesting depth grows.
+
+**`JobList` is the list-rendering surface.** The desktop "Work Orders" tab on the Project Job detail page mounts `JobList` (`apps/frontend/src/components/SharedListViews/JobList.tsx`) — the same component that powers the WO portfolio page (`apps/frontend/src/pages/work-orders/index.tsx`). New `parentJobId` prop threads through `queryVariableDefaultFilters` so the underlying `tableData` resolver filters server-side by the parent's id. No new list component, no new "+ New work order" flyout — `JobList` already opens the existing `JobAddEditForm` flyout.
+
+**No rollup financials in V1.** Child WO financials do **not** roll up into the parent Job's financial summary. The parent's totals continue to compute from its own labor / materials / equipment / line items. Rollups are explicitly WOX-23.
+
+**Tab visibility is classification-scoped.** The "Work Orders" tab is hidden on WO-classified Jobs in V1 — WOs don't nest under WOs, so the list would always be empty. Gating: same `data.job.rateType?.slug` / `jobClassification` branch used elsewhere on the Job detail tabs array (`apps/frontend/src/components/DetailsPage/JobDetailsPage/index.tsx:109-148`).
+
+---
+
+## Step 1: Prisma Schema — `Job.parentJobId` Self-FK
+
+**File:** `apps/api/prisma/schema.prisma` (Job model at lines 1154-1244)
+
+Add the FK column, the two named relations (forward + inverse), and a composite index on `(parentJobId, isDeleted)` so the per-parent filter used by the new "Work Orders" tab can be served from the index without scanning the table.
+
+```prisma
+model Job {
+    // ...existing fields
+
+    parentJobId String? @db.VarChar(21)
+    ParentJob   Job?    @relation("JobChildJobs",
+                                  fields: [parentJobId],
+                                  references: [id],
+                                  onDelete: SetNull,
+                                  onUpdate: Cascade)
+    ChildJobs   Job[]   @relation("JobChildJobs")
+
+    // ...existing indexes
+    @@index([parentJobId, isDeleted], map: "Job_parentJob_idx")
+}
+```
+
+Why named relation `JobChildJobs`: Prisma requires explicit relation names on every self-relation. The name has to match the inverse field. Same convention as the existing `Department` self-relation (`DepartmentHierarchy` — `schema.prisma:5512-5513`).
+
+Why `SetNull` on the FK: archiving the parent Job must not delete the child WO. The child loses its pointer but survives. Matches the "Out of Scope: Cascading rules on parent Job archive" decision in the spec.
+
+---
+
+## Step 2: Migration — Column + FK + Index + DAA + Form Wiring (single file)
+
+**Create file:** `apps/api/prisma/migrations/[timestamp]_wo_23_job_parent_hierarchy/migration.sql`
+
+Everything for WO-23's data layer lands in one migration: the schema change (column + index + FK), the DAA that makes the field show up on the WO forms, and the `DocumentModelFormElements` rows that wire the DAA to the WorkOrder CREATE / EDIT / SETTINGS forms. Pattern mirrors `apps/api/prisma/migrations/20260409100000_work_order_daa_setup/migration.sql` which does the same one-file column-plus-DAA-plus-form-wiring move for the original WO sub-model setup.
+
+```sql
+-- =============================================================
+-- 1. Schema: nullable self-FK + composite index + foreign key
+-- =============================================================
+
+-- 1a. Add the nullable self-FK column.
+ALTER TABLE `Job` ADD COLUMN `parentJobId` VARCHAR(21) NULL;
+
+-- 1b. Composite index for the per-parent child lookup. Combined with isDeleted
+--     so the live-rows-only query path used by the "Work Orders" tab is served
+--     entirely from the index.
+ALTER TABLE `Job` ADD INDEX `Job_parentJob_idx` (`parentJobId`, `isDeleted`);
+
+-- 1c. Self-FK with SET NULL on parent archive/delete. Children survive intact.
+ALTER TABLE `Job`
+    ADD CONSTRAINT `Job_parentJobId_fkey`
+    FOREIGN KEY (`parentJobId`) REFERENCES `Job`(`id`)
+    ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- No backfill — every existing Job starts with parentJobId = NULL. Standalone
+-- WOs remain standalone. The existing JobSafetyForm.jobId form-submission
+-- visibility path is untouched; this column is purely additive.
+--
+-- No ReferenceModel registration — the column is a real FK to an existing
+-- table, not a polymorphic reference.
+
+-- =============================================================
+-- 2. DAA: `wo-parent-job` field on the WorkOrder subModel
+-- =============================================================
+-- Without a DAA the parentJobId field will not appear on the DAA-driven WO
+-- Create / Edit / Settings forms — the form engine renders nothing for columns
+-- that have no corresponding DocumentAttributeAssignment row.
+--
+-- Pattern mirrors `job-project` (single-FK relationship field, `defaultAttributeType = 'object'`).
+--
+-- subModel = 'WorkOrder' is a structural guarantee this row only renders on
+-- WO forms. NO corresponding DAA is seeded for subModel = 'ProjectJob' — V1
+-- forbids ProjectJob-under-ProjectJob and WO-under-WO; a ProjectJob is itself
+-- the top of the hierarchy.
+
+SET @woParentJobDaaId = LEFT(MD5(UUID()), 21);
+
+INSERT INTO `DocumentAttributeAssignment` (
+    `id`, `createdAt`, `updatedAt`,
+    `referenceModel`, `subModel`,
+    `sectionId`, `orderNo`, `mobileSectionId`, `mobileOrderNo`,
+    `defaultAttribute`, `defaultAttributeLabel`, `defaultAttributeType`,
+    `defaultAttributeIsRequired`, `defaultAttributeIsDerived`,
+    `slug`, `referenceColumn`,
+    `isDeleted`, `isArchived`
+) VALUES (
+    @woParentJobDaaId, NOW(), NOW(),
+    'Job', 'WorkOrder',
+    (SELECT id FROM `DocumentSection`
+        WHERE `referenceModel` = 'Job' AND `subModel` = 'WorkOrder' AND `name` = 'Work Order Info' LIMIT 1),
+    20,
+    (SELECT id FROM `DocumentSection`
+        WHERE `referenceModel` = 'Job' AND `subModel` = 'WorkOrder' AND `name` = 'Work Order Info' LIMIT 1),
+    20,
+    'wo-parent-job', 'Parent Job', 'object',
+    FALSE, FALSE,
+    'wo-parent-job', 'parentJobId',
+    FALSE, FALSE
+);
+
+-- =============================================================
+-- 3. DocumentModelFormElements: wire the DAA to all three WorkOrder forms
+-- =============================================================
+-- CREATE, EDIT, and SETTINGS all show the Parent Job picker.
+
+INSERT INTO `DocumentModelFormElements` (
+    `id`, `createdAt`, `updatedAt`,
+    `documentModelFormId`, `documentAttributeAssignmentId`,
+    `isDeleted`, `isArchived`
+) VALUES
+    (LEFT(MD5(UUID()), 21), NOW(), NOW(),
+     (SELECT id FROM `DocumentModelForm`
+         WHERE `referenceModel` = 'Job' AND `subModel` = 'WorkOrder' AND `formType` = 'CREATE'),
+     @woParentJobDaaId, FALSE, FALSE),
+    (LEFT(MD5(UUID()), 21), NOW(), NOW(),
+     (SELECT id FROM `DocumentModelForm`
+         WHERE `referenceModel` = 'Job' AND `subModel` = 'WorkOrder' AND `formType` = 'EDIT'),
+     @woParentJobDaaId, FALSE, FALSE),
+    (LEFT(MD5(UUID()), 21), NOW(), NOW(),
+     (SELECT id FROM `DocumentModelForm`
+         WHERE `referenceModel` = 'Job' AND `subModel` = 'WorkOrder' AND `formType` = 'SETTINGS'),
+     @woParentJobDaaId, FALSE, FALSE);
+```
+
+Key points on the DAA / form wiring:
+- `defaultAttributeType = 'object'` (singular) — single-FK relationship; the standard DataModelForm engine renders the combobox via its built-in `'object'` renderer. No `customFormControl` slot needed.
+- `slug = 'wo-parent-job'`, `defaultAttribute = 'wo-parent-job'`, `referenceColumn = 'parentJobId'` — the DB column the value writes back to is `parentJobId` on the `Job` row.
+- `defaultAttributeIsRequired = FALSE` — a standalone WO with no parent is valid.
+- Section: drops into the existing "Work Order Info" section (created in `20260409100000_work_order_daa_setup`); `orderNo = 20` places it after the shared Job fields. Adjust against the actual sibling `orderNo`s shipped by that migration as needed.
+- **No `subModel = 'ProjectJob'` DAA** — structural guarantee the Parent Job picker never appears on a ProjectJob form, and belt-and-braces with the `assertValidParentJob` validator in Step 4.
+
+---
+
+## Step 3: TypeScript Types
+
+No new shared type file. The Prisma client picks up `parentJobId` and the two relations (`ParentJob` / `ChildJobs`) automatically after `pnpm run prisma:generate`. The `IJob` interface in `apps/api/src/types/Job.types.ts` already mirrors the Prisma shape; add `parentJobId: string | null` there to keep the model-layer interface in sync. No frontend types file changes — the GraphQL codegen step (`pnpm run codegen`) will regenerate the consumer types after the schema in Step 5 is in place.
+
+---
+
+## Step 4: Extend `Job` Model — Parent Validation
+
+**File:** `apps/api/src/models/Job.ts`
+
+Two invariants enforced at the model layer (so every write path is covered — resolver, upsert, DAA form save):
+
+1. **Parent must be a `ProjectJob`-classified Job.** Looking up the parent's classification follows the same `jobTypeId → PropertyValue.jobClassification` lookup pattern already in `customEditItem` at lines 1375-1399.
+2. **A Job cannot be its own parent.** Trivial id check.
+
+### 4a. Add `parentJobId` to `modelFields`
+
+```typescript
+// In the modelFields array on JobModel:
+{ name: "parentJobId", type: "string", options: { canEdit: true, isFilterable: true } }
+```
+
+`isFilterable: true` is what lets the TableFeed / `getList` paths accept `where: { parentJobId: "..." }` filters from the frontend `JobList` mount (Step 6).
+
+### 4b. Shared validation helper
+
+```typescript
+// Top of Job.ts (or alongside assertJobNotInInternalProject):
+async function assertValidParentJob(
+    candidateParentJobId: string | null | undefined,
+    childJobId: string | null | undefined
+) {
+    if (!candidateParentJobId) return; // null parent is always valid (clears link)
+
+    if (childJobId && candidateParentJobId === childJobId) {
+        throw new BadRequestError("A Job cannot be its own parent.");
+    }
+
+    const parent = await prisma.job.findUnique({
+        where: { id: candidateParentJobId },
+        select: { jobTypeId: true, isDeleted: true }
+    });
+    if (!parent || parent.isDeleted) {
+        throw new BadRequestError("Parent Job not found.");
+    }
+
+    const parentClassification = parent.jobTypeId
+        ? (
+              await prisma.propertyValue.findUnique({
+                  where: { id: parent.jobTypeId },
+                  select: { jobClassification: true }
+              })
+          )?.jobClassification ?? "ProjectJob"
+        : "ProjectJob";
+
+    if (parentClassification !== "ProjectJob") {
+        throw new BadRequestError(
+            "A Work Order's parent must be a Project Job. Nesting Work Orders under Work Orders is not supported."
+        );
+    }
+}
+```
+
+### 4c. Call the validator from `customCreateItem` / `customEditItem`
+
+```typescript
+// In customCreateItem, before super.customCreateItem:
+await assertValidParentJob(data.parentJobId, null);
+
+// In customEditItem, alongside the existing classification check at lines 1375-1399:
+if ("parentJobId" in data) {
+    await assertValidParentJob(data.parentJobId, id);
+}
+```
+
+`"parentJobId" in data` distinguishes "omitted" (no-op) from "explicitly null" (clear the link). An explicit `null` parent is valid and clears the FK — needed for the "Out of Scope: Bulk-reparent UI" exit hatch where the user reparents one-at-a-time via the WO edit form.
+
+---
+
+## Step 5: Extend Job GraphQL — `parentJob` field + inputs
+
+**File:** `apps/api/src/graphql/models/Job.ts`
+
+### 5a. Extend the `Job` type
+
+Add `parentJobId` and `parentJob` to the existing `Job` type block (lines 26-130+):
+
+```graphql
+type Job {
+    # ...existing fields
+    parentJobId: String
+    parentJob: Job
+}
+```
+
+No `childWorkOrders` field needed on the GraphQL `Job` type — the frontend lists children via the existing TableFeed-backed `JobList` component with a `parentJobId` filter (Step 6). Adding a per-Job field resolver here would duplicate the same permission-scoped read path that TableFeed already enforces, with weaker authorization semantics (per CLAUDE.md: prefer TableFeed over custom list resolvers).
+
+### 5b. Field-level resolver for `parentJob`
+
+```typescript
+parentJob: (parent) =>
+    parent.parentJobId
+        ? prisma.job.findUnique({ where: { id: parent.parentJobId } })
+        : null
+```
+
+Lives alongside the existing `project`, `jobType`, `jobStatus`, `Company` field resolvers in `apps/api/src/graphql/models/Job.ts`.
+
+### 5c. Extend `CreateJob` and `EditJob` inputs
+
+```graphql
+input CreateJob {
+    # ...existing fields
+    parentJobId: String
+}
+
+input EditJob {
+    # ...existing fields
+    parentJobId: String
+}
+```
+
+- `CreateJob.parentJobId` — set when the "+ New work order" CTA on a Project Job's "Work Orders" tab opens the WO create flyout pre-wired with the parent's id (Step 6c).
+- `EditJob.parentJobId` — allows reparenting (or clearing the link with explicit `null`) via the standard WO edit form. The model-layer validator (Step 4b) gates both paths.
+
+No new mutations. Both existing `createJob` / `editJob` mutations gain the optional input field; the resolver bodies are unchanged — `restData` flows through to `customCreateItem` / `customEditItem` which run the validator in Step 4c.
+
+---
+
+## Step 6: Frontend Desktop — Job Detail "Work Orders" Tab + Create Button
+
+### 6a. Extend `JobList` to accept a parent-Job filter
+
+**File:** `apps/frontend/src/components/SharedListViews/JobList.tsx`
+
+The existing `JobList` already accepts `queryVariableDefaultFilters` (line 205) — that's the prop that injects a server-side filter into the underlying `tableData` query. Three small adjustments:
+
+1. **Add `parentJobId` to `IJobListProps`** (optional). When supplied, JobList renders only WOs whose `parentJobId` equals the supplied id.
+2. **Merge `parentJobId` into `queryVariableDefaultFilters`** at line 205:
+   ```typescript
+   queryVariableDefaultFilters={{
+       jobClassification: subModel,
+       ...(parentJobId ? { parentJobId } : {})
+   }}
+   ```
+3. **Thread `parentJobId` into `createButtonClick`** so the WO create flyout pre-wires the parent:
+   ```typescript
+   createButtonClick={(callback) =>
+       openFlyout(
+           <JobAddEditForm
+               formType={"CREATE" as GqlDataModelFormType}
+               subModel={subModel}
+               parentJobId={parentJobId}                // NEW
+               onCanceled={closeFlyout}
+               onSaved={() => { closeFlyout(); callback(); }}
+           />,
+           { overflowOverride: true, size: subModel === "WorkOrder" ? "full" : undefined }
+       )
+   }
+   ```
+
+### 6b. Pass `parentJobId` through `JobAddEditForm` → `JobDataModelForm`
+
+**File:** `apps/frontend/src/components/Forms/JobAddEditForm/JobDataModelForm.tsx`
+
+The component already accepts a `projectId` prop and pre-wires the new Job with that project (line 69-104, with `resolvedProjectId` at line 104, applied at line 293). Mirror the same pattern for `parentJobId`:
+
+1. **Add `parentJobId?: string`** to `IJobDataModelFormProps` (line 62-71 region).
+2. **Resolve and apply** alongside `resolvedProjectId`:
+   ```typescript
+   const resolvedParentJobId = parentJobId ?? job?.parentJobId;
+   // ...in the upsert variables:
+   parentJobId: resolvedParentJobId
+   ```
+3. **Wire it through `JobAddEditForm`** (the wrapper at `apps/frontend/src/components/Forms/JobAddEditForm/index.ts` and its sibling default export) by adding the same optional prop and threading it down.
+
+### 6c. Add the "Work Orders" tab on the Project Job detail page
+
+**File:** `apps/frontend/src/components/DetailsPage/JobDetailsPage/index.tsx`
+
+Inside the non-training Job branch (the second `setTabs` at lines 150+), add a new tab object. Place it after "Planning & Tracking" and before "Materials" so it sits alongside the other operational tabs:
+
+```tsx
+{
+    label: "Work Orders",
+    component: (
+        <JobList
+            subModel="WorkOrder"
+            statusPropertyName="workOrderStatus"
+            tableName={`Work Orders - ${data?.job?.fullJobNumber ?? ""}`}
+            label="Work Orders"
+            createButtonText="+ New Work Order"
+            searchPlaceholder="Search WO #, Name, Status"
+            detailsRoute="/work-orders"
+            breadcrumbs={[
+                { name: "Home", onClick: () => router.push("/") },
+                {
+                    name: `${data?.job?.fullJobNumber} - ${data?.job?.name}`,
+                    onClick: () => router.push(`/jobs/${router.query.id}?tab=overview`)
+                },
+                { name: "Work Orders", onClick: () => {} }
+            ]}
+            sessionFilterName={`jobWorkOrders-${router.query.id}`}
+            parentJobId={router.query.id as string}     // NEW — gates the list and the create button
+        />
+    ),
+    param: "work-orders",
+    permission:
+        // Hide on WO-classified parents (V1: WOs do not nest under WOs).
+        data?.job?.jobClassification === "ProjectJob" &&
+        hasPermissions({ job: { view: true } }, permissions)
+}
+```
+
+Extend the existing `JobRateTypeQuery` at line 38-55 to also fetch `jobClassification` so the permission gate above resolves correctly:
+
+```graphql
+query JobRateTypeQuery($id: ID!) {
+    job(id: $id) {
+        id
+        jobClassification        # NEW
+        # ...existing fields
+    }
+}
+```
+
+### 6d. No new "+ New work order" component
+
+The button is supplied by `JobList`'s existing `createButtonClick` flow (the same flow that powers the global "+ Create Work Order" button on `/work-orders`). All it needs is the parent's id threaded through — Step 6a covers that.
+
+---
+
+## Step 7: Frontend Mobile — Job Detail "Work Orders" Tab
+
+### 7a. Mobile Job tabs
+
+**File:** `apps/mobile/src/components/JobViews/SimplifiedJobTasks.tsx` (tabs array at lines 83-200+)
+
+Append a new tab object after the existing operational tabs:
+
+```tsx
+{
+    id: "job-work-orders",
+    label: "Work Orders",
+    headerClassName: (isActive: boolean) => (isActive ? activeTabClass : ""),
+    content: (
+        <MobileJobChildWorkOrders jobId={String(router.query.id ?? "")} />
+    ),
+    permission:
+        selectedJob?.jobClassification === "ProjectJob" &&
+        hasPermissions({ job: { view: true } }, permissions)
+}
+```
+
+Make sure the `selectedJob` shape carrying `jobClassification` is part of whatever query the page already runs (the mobile counterpart of the desktop `JobRateTypeQuery`); add the field if it's missing.
+
+### 7b. `MobileJobChildWorkOrders` — list component
+
+**Create file:** `apps/mobile/src/components/JobViews/MobileJobChildWorkOrders.tsx`
+
+A thin wrapper around the mobile WO list pattern (the one used by `apps/mobile/src/pages/work-orders/index.tsx` or equivalent). It fetches `useGetTableDataRecordSetQuery` with `GqlTableDataName.Job`, `where: { jobClassification: "WorkOrder", parentJobId: jobId }`, and renders each row as a compact card linking to `/work-orders/[childId]`.
+
+```tsx
+interface IMobileJobChildWorkOrdersProps {
+    jobId: string;
+    className?: string;
+}
+
+const MobileJobChildWorkOrders: FC<IMobileJobChildWorkOrdersProps> = ({ jobId, className = "" }) => {
+    const { data, loading, refetch } = useGetTableDataRecordSetQuery({
+        variables: {
+            modelName: GqlTableDataName.Job,
+            options: {
+                where: { jobClassification: "WorkOrder", parentJobId: jobId, isArchived: false },
+                columns: ["full-job-number", "name", "work-order-status", "completion-date"],
+                orderBy: { column: "fullJobNumber", direction: "desc" }
+            }
+        }
+    });
+
+    const rows = (data?.tableData?.recordSet as Array<Record<string, any>>) ?? [];
+
+    return (
+        <div className={new ClassNames("p-3 space-y-2").add(className).list()}>
+            <div className="flex items-center justify-between">
+                <h3 className="text-sm font-semibold">Work Orders ({rows.length})</h3>
+                <Button size="sm" onClick={() => openCreateFlyout(jobId, refetch)}>
+                    <IconPlus className="w-4 h-4" />
+                    New
+                </Button>
+            </div>
+            {loading && <Loader />}
+            {!loading && rows.length === 0 && (
+                <p className="text-sm text-gray-500">No Work Orders yet.</p>
+            )}
+            {rows.map((row) => (
+                <Link key={row.id} href={`/work-orders/${row.id}`}>
+                    {/* compact row: WO# - name, status chip, completion date */}
+                </Link>
+            ))}
+        </div>
+    );
+};
+```
+
+The "+ New" button opens the existing `MobileWODataModelForm` flyout with `parentJobId` pre-wired (Step 7c).
+
+### 7c. Pass `parentJobId` through `MobileWODataModelForm`
+
+**File:** `apps/mobile/src/components/WorkOrders/MobileWODataModelForm.tsx`
+
+Mirror Step 6b: add an optional `parentJobId` prop, thread it into the upsert payload as `parentJobId: resolvedParentJobId`.
+
+---
+
+## Step 8: WO Detail Header — "Part of: &lt;parent Job&gt;" Chip
+
+### 8a. Desktop
+
+**File:** `apps/frontend/src/pages/work-orders/[id]/index.tsx` (header block at lines 104-189)
+
+Extend the existing header query that powers `headerData?.job` so it returns `parentJob { id name fullJobNumber }`:
+
+```graphql
+query WoHeader($id: ID!) {
+    job(id: $id) {
+        id
+        fullJobNumber
+        name
+        jobType
+        # ...existing fields
+        parentJob {
+            id
+            fullJobNumber
+            name
+        }
+    }
+}
+```
+
+Then prepend a chip to the existing `badges` array on `DetailsPageHeading` (lines 106-111), or render it in `actionArea` as a separate link — chip approach matches the spec mockup wording ("Part of: …"):
+
+```tsx
+badges={[
+    ...(headerData?.job?.parentJob
+        ? [{
+              label: `Part of: ${headerData.job.parentJob.fullJobNumber} - ${headerData.job.parentJob.name}`,
+              colour: "info",
+              onClick: () => router.push(`/jobs/${headerData.job.parentJob.id}?tab=overview`)
+          }]
+        : []),
+    { label: headerData?.job?.jobType, colour: "gray" }
+]}
+```
+
+(If the `DetailsPageHeading` badge object doesn't support `onClick`, swap to a small `Button`-rendered chip in `actionArea` — same content, same target route.)
+
+### 8b. Mobile
+
+**File:** `apps/mobile/src/components/WorkOrders/WODetail.tsx` (header at lines 26-78)
+
+Extend `IWOHeaderRecord` (lines 26-30) to include `parentJob?: { id: string; fullJobNumber: string; name: string }`, then extend `GET_WO_HEADER` to fetch the same shape. Render the chip below the title block on the WO detail page header (small, info-colored, tappable to navigate to the parent Job).
+
+```tsx
+{wo.parentJob && (
+    <button
+        onClick={() => router.push(`/jobs/${wo.parentJob.id}`)}
+        className={new ClassNames(
+            "inline-flex items-center gap-1 px-2 py-1 rounded-full",
+            "bg-info-light text-on-info-light border border-info text-xs font-semibold"
+        ).list()}
+    >
+        Part of: {wo.parentJob.fullJobNumber} - {wo.parentJob.name}
+    </button>
+)}
+```
+
+---
+
+## Step 9: Reparenting Edge Cases
+
+The "Out of Scope" list says no bulk-reparent UI in V1 — but the standard WO edit form **does** allow reparenting one-at-a-time via the `parentJobId` field on `EditJob`. This is fully handled by the DAA from Step 2.5 — no additional UI work in this step:
+
+- **Set / change parent** — the `wo-parent-job` DAA renders on the WO Edit / Settings form via the standard DataModelForm engine's `'object'` (relationship) renderer. Selecting a different parent sends the new id through `EditJob.parentJobId`; the validator in Step 4b gates classification + self-parenting on submit.
+- **Clear parent** — the standard relationship control supports clearing the value; the form sends `null`. The model layer accepts explicit `null` because of the `"parentJobId" in data` distinction in Step 4c.
+
+The pre-wired form (created via the "+ New work order" CTA on a Project Job's Work Orders tab — Step 6a) opens the same field with the parent's id already selected. The user can change or clear it before saving if needed.
+
+---
+
+## Verification Checklist
+
+- [ ] `Job.parentJobId` added as a nullable `VARCHAR(21)` self-FK with `ON DELETE SET NULL ON UPDATE CASCADE`
+- [ ] Named relation `JobChildJobs` declared on both sides (`ParentJob` forward, `ChildJobs` inverse)
+- [ ] Composite index `Job_parentJob_idx` on `(parentJobId, isDeleted)` is in place
+- [ ] Migration is purely additive — no backfill, no data transformation
+- [ ] DAA seeded in the same migration: `slug = 'wo-parent-job'`, `subModel = 'WorkOrder'`, `defaultAttribute = 'wo-parent-job'`, `defaultAttributeLabel = 'Parent Job'`, `defaultAttributeType = 'object'`, `referenceColumn = 'parentJobId'`, attached to the existing "Work Order Info" `DocumentSection`
+- [ ] **No DAA created for** `subModel = 'ProjectJob'` — structural guarantee the Parent Job picker never appears on a ProjectJob form
+- [ ] `DocumentModelFormElements` rows wire the `wo-parent-job` DAA to the WorkOrder CREATE, EDIT, and SETTINGS `DocumentModelForm` rows (all with `isDeleted = FALSE`)
+- [ ] **No `customFormControl` entry is added** for `wo-parent-job` — it's a basic relationship (`'object'` type) and is rendered by the standard DataModelForm engine. `customFormControl` is reserved for complex relationships or unique interfaces only.
+- [ ] `Job.modelFields` declares `parentJobId` with `canEdit: true, isFilterable: true`
+- [ ] `assertValidParentJob` rejects `parentJobId === id` (no self-parenting)
+- [ ] `assertValidParentJob` rejects a parent Job whose `jobClassification !== "ProjectJob"` (no WO-under-WO in V1)
+- [ ] `assertValidParentJob` accepts explicit `null` (clearing the link)
+- [ ] `customCreateItem` calls `assertValidParentJob(data.parentJobId, null)` before persisting
+- [ ] `customEditItem` calls `assertValidParentJob` only when `"parentJobId" in data` (omission is a no-op; explicit null clears)
+- [ ] `Job` GraphQL type exposes `parentJobId: String` and `parentJob: Job`
+- [ ] `parentJob` field resolver returns `null` when `parentJobId` is null; otherwise a `Job` lookup
+- [ ] `CreateJob` and `EditJob` inputs accept optional `parentJobId: String`
+- [ ] **No `childWorkOrders` field is added to `Job`** — children are listed via the existing TableFeed-backed `JobList` (CLAUDE.md: prefer TableFeed over custom list resolvers)
+- [ ] Archiving / deleting a parent Job sets every child WO's `parentJobId` to `NULL` via the FK's `ON DELETE SET NULL`; child rows survive
+- [ ] `JobList` accepts an optional `parentJobId` prop that merges into `queryVariableDefaultFilters`
+- [ ] `JobList`'s `createButtonClick` threads `parentJobId` into the `JobAddEditForm` flyout
+- [ ] `JobDataModelForm` accepts an optional `parentJobId` prop and applies it in the upsert variables alongside `projectId`
+- [ ] Project Job detail page (desktop) shows a "Work Orders" tab listing child WOs with `parentJobId === job.id`
+- [ ] The "Work Orders" tab is hidden when the parent Job's classification is `WorkOrder` (V1: WOs don't nest under WOs)
+- [ ] `JobRateTypeQuery` on the Job detail page fetches `jobClassification` so the tab permission gate resolves
+- [ ] "+ New Work Order" button on the Work Orders tab opens the `JobAddEditForm` flyout pre-wired with `parentJobId`
+- [ ] On save of the new WO, the parent's "Work Orders" tab refetches and shows the new row
+- [ ] Mobile Job detail (`SimplifiedJobTasks`) appends a "Work Orders" tab gated to ProjectJob classification
+- [ ] Mobile `MobileJobChildWorkOrders` uses `useGetTableDataRecordSetQuery` with `where: { jobClassification: "WorkOrder", parentJobId }`
+- [ ] Mobile "+ New" on the tab opens `MobileWODataModelForm` with `parentJobId` pre-wired
+- [ ] Desktop WO detail header (`/work-orders/[id]/index.tsx`) renders "Part of: &lt;parent&gt;" chip when `parentJob` is set; chip navigates to the parent Job
+- [ ] Mobile WO detail header (`WODetail.tsx`) renders the same chip; tap navigates to the parent Job
+- [ ] WO header GraphQL queries (desktop + mobile) include `parentJob { id fullJobNumber name }`
+- [ ] WO Edit / Settings form exposes the `wo-parent-job` DAA-driven relationship picker for changing / clearing `parentJobId` (rendered by the standard DataModelForm engine — no `customFormControl` slot)
+- [ ] Existing Jobs with `parentJobId = NULL` (the migration default) behave identically to before — no regressions on standalone WOs or standalone Project Jobs
+
+---
+
+## Files Summary
+
+| Action | File | What to do |
+|--------|------|------------|
+| MODIFY | `apps/api/prisma/schema.prisma` | Add `parentJobId` + `ParentJob` (`JobChildJobs` forward) + `ChildJobs` (inverse) on Job; add `Job_parentJob_idx` composite index |
+| CREATE | `apps/api/prisma/migrations/[timestamp]_wo_23_job_parent_hierarchy/migration.sql` | **Single migration file** doing all of: `ALTER TABLE Job ADD COLUMN parentJobId` + `Job_parentJob_idx (parentJobId, isDeleted)` + FK `Job_parentJobId_fkey ON DELETE SET NULL ON UPDATE CASCADE`; seeds the `wo-parent-job` DAA (`subModel = 'WorkOrder'`, attached to the "Work Order Info" `DocumentSection`); inserts three `DocumentModelFormElements` wiring the DAA to the WorkOrder CREATE / EDIT / SETTINGS forms. No backfill on existing rows. |
+| MODIFY | `apps/api/src/types/Job.types.ts` | Add `parentJobId: string | null` to the `IJob` interface |
+| MODIFY | `apps/api/src/models/Job.ts` | Add `parentJobId` to `modelFields`; add `assertValidParentJob` helper (classification + self-parenting); call it from `customCreateItem` and `customEditItem` (with `"parentJobId" in data` check to distinguish omitted from explicit-null) |
+| MODIFY | `apps/api/src/graphql/models/Job.ts` | Add `parentJobId: String` and `parentJob: Job` to the `Job` type; add field-level resolver for `parentJob`; extend `CreateJob` and `EditJob` inputs with `parentJobId: String` |
+| MODIFY | `apps/frontend/src/components/SharedListViews/JobList.tsx` | Add optional `parentJobId` prop; merge into `queryVariableDefaultFilters`; thread into `createButtonClick` → `JobAddEditForm` |
+| MODIFY | `apps/frontend/src/components/Forms/JobAddEditForm/JobDataModelForm.tsx` | Add optional `parentJobId` prop alongside `projectId`; resolve via `resolvedParentJobId = parentJobId ?? job?.parentJobId`; apply in upsert variables. **No `customFormControl` entry needed** — the `wo-parent-job` DAA from Step 2.5 is a basic `'object'` relationship and renders via the standard DataModelForm engine. |
+| MODIFY | `apps/frontend/src/components/Forms/JobAddEditForm/index.ts` (wrapper) | Thread `parentJobId` prop through from `JobAddEditForm` to `JobDataModelForm` |
+| MODIFY | `apps/frontend/src/components/DetailsPage/JobDetailsPage/index.tsx` | Extend `JobRateTypeQuery` with `jobClassification`; add "Work Orders" tab to the non-training Job branch (mounts `JobList` with `parentJobId={router.query.id}`); gate visibility to `jobClassification === "ProjectJob"` |
+| MODIFY | `apps/frontend/src/pages/work-orders/[id]/index.tsx` | Extend header GraphQL fragment with `parentJob { id fullJobNumber name }`; render "Part of: &lt;parent&gt;" chip on `DetailsPageHeading` (badges array or `actionArea`); on click, route to the parent Job detail page |
+| MODIFY | `apps/mobile/src/components/JobViews/SimplifiedJobTasks.tsx` | Append "Work Orders" tab gated to `jobClassification === "ProjectJob"`; renders `<MobileJobChildWorkOrders jobId={...} />` |
+| CREATE | `apps/mobile/src/components/JobViews/MobileJobChildWorkOrders.tsx` | TableFeed-backed list (`useGetTableDataRecordSetQuery`, modelName: `Job`, `where: { jobClassification: "WorkOrder", parentJobId }`); compact cards link to `/work-orders/[childId]`; "+ New" opens `MobileWODataModelForm` with `parentJobId` pre-wired |
+| MODIFY | `apps/mobile/src/components/WorkOrders/MobileWODataModelForm.tsx` | Add optional `parentJobId` prop; apply in upsert payload |
+| MODIFY | `apps/mobile/src/components/WorkOrders/WODetail.tsx` | Extend `IWOHeaderRecord` + `GET_WO_HEADER` with `parentJob { id fullJobNumber name }`; render "Part of: &lt;parent&gt;" chip below the WO title; tap navigates to parent Job |
+</script>
+
+<script src="plan-renderer.js"></script>
+<script>renderPlan();</script>
+</body>
+</html>

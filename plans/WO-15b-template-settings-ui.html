@@ -1,0 +1,1301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WO-15b: Work Order Templates · Settings UI — Implementation Plan</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+.in-iframe .top-nav { display: none !important; }
+.top-nav { position: sticky; top: 0; z-index: 100; background: #0f172a; border-bottom: 1px solid #1e293b; padding: 0 24px; display: flex; align-items: center; gap: 0; }
+.top-nav a { display: inline-flex; align-items: center; padding: 12px 18px; font-size: 13px; font-weight: 600; color: #94a3b8; text-decoration: none; border-bottom: 2px solid transparent; transition: all 0.15s; white-space: nowrap; }
+.top-nav a:hover { color: #f8fafc; background: #1e293b; }
+.top-nav .nav-logo { font-size: 11px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: #475569; padding-right: 18px; margin-right: 4px; border-right: 1px solid #1e293b; }
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Inter', -apple-system, sans-serif; background: #f8fafc; color: #0f172a; }
+.plan-wrap { max-width: 880px; margin: 0 auto; padding: 40px 24px 80px; }
+h1 { font-size: 24px; font-weight: 800; margin: 0 0 16px; }
+h2 { font-size: 18px; font-weight: 700; margin: 28px 0 12px; padding-bottom: 8px; border-bottom: 2px solid #e2e8f0; }
+h3 { font-size: 15px; font-weight: 700; margin: 20px 0 8px; padding-top: 10px; border-top: 1px solid #f1f5f9; }
+h4 { font-size: 14px; font-weight: 700; margin: 14px 0 6px; }
+p { font-size: 14px; color: #334155; line-height: 1.7; margin: 6px 0; }
+ul, ol { padding-left: 20px; margin: 8px 0; }
+li { font-size: 14px; color: #334155; line-height: 1.7; margin: 3px 0; }
+strong { color: #0f172a; }
+code { font-family: 'SF Mono', monospace; background: #f1f5f9; padding: 1px 6px; border-radius: 4px; font-size: 12px; color: #7c3aed; }
+pre { background: #0f172a; color: #f8fafc; border-radius: 8px; padding: 16px; overflow-x: auto; font-size: 13px; line-height: 1.6; margin: 12px 0; font-family: 'SF Mono', monospace; }
+pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
+hr { border: none; border-top: 1px solid #e2e8f0; margin: 24px 0; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 12px 0; }
+th { text-align: left; padding: 8px 12px; background: #f1f5f9; border-bottom: 2px solid #e2e8f0; font-weight: 600; }
+td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
+.callout { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 14px 18px; margin: 14px 0; font-size: 13px; color: #1e40af; }
+.callout strong { color: #1e3a8a; }
+    </style>
+</head>
+<body>
+
+<script>if(self!==top)document.documentElement.classList.add("in-iframe")</script>
+<nav class="top-nav">
+    <span class="nav-logo">Appello SDLC</span>
+    <a href="../index.html">Roadmap</a>
+    <a href="../release-1.33-timeline.html">Release 1.33</a>
+    <a href="../release-1.34-timeline.html">Release 1.34</a>
+    <a href="../master-spec-reconciliation.html">Spec Reconciliation</a>
+    <a href="../cross-release-continuity-audit.html">Continuity Audit</a>
+    <a href="ui-interface-library.html">UI Library</a>
+</nav>
+<div class="plan-wrap" id="rendered"></div>
+
+<script type="text/plain" id="plan-md">
+# WO-15b: Work Order Templates · Settings UI — Implementation Plan
+
+## Overview
+
+Admin desktop UI for managing the templates introduced by WO-15a. Two surfaces: a **templates list** that lands inside Property Settings → Work Orders as a new "Templates" sub-tab, and a **per-template detail page** at `/settings/work-orders/templates/[id]` with six child collection editors. Permission gate is `InstanceSetting.edit` per CLAUDE.md helper.
+
+WO-15a already added every GraphQL query / mutation this UI needs. **One backend addition lives in this spec:** a `WorkOrderTemplateCounts` aggregate field on `WorkOrderTemplate` for the list page's content pills (so we don't N+1 child fetches per row).
+
+**Estimated effort:** 4-5 days (matches spec)
+**Risk:** Medium — touches Property Settings shell (used across the platform), adds an `extraTabs` prop to the generic `DataModelSettingsTabs` (small surface, every existing call site unaffected), forks WO-14's checklist editor for template-mode (PR #7155 is still OPEN — sequencing matters).
+**Spec:** `tm-work-orders-uis/wo-15b-template-settings-ui.html`
+**Requires:** WO-15a (schema + GraphQL surface, all CRUD already shipped), WO-14 / PR #7155 (`WorkOrderChecklistSection` source we partially reuse — must be merged before the checklist tab can be built, or the checklist tab ships with a forked component)
+**Enables:** WO-15c (admins must be able to build templates worth applying)
+
+---
+
+## Decided — design calls that fall out of the codebase audit
+
+**Templates is a new tab inside the existing Work Orders settings tab strip — inserted between "Manage Forms" and "Custom Properties".** Property Settings (`apps/frontend/src/components/Settings/PropertySettings.tsx`) renders `<DataModelSettingsTabs referenceModel="Job" subModel="WorkOrder" />` for the Work Orders top-level tab. `DataModelSettingsTabs` (`apps/frontend/src/components/Settings/PropertySettingTabs/DataModelSettingsTabs.tsx`) is the generic tabbed shell that surfaces Detail View Layout, Settings View Layout, Manage Forms, Custom Properties, Default Properties, and Default Folder Structure. We extend it with an optional `extraTabs?: Array<{ tab: ITabGroupData; insertAfter: string }>` prop so the Work Orders mount can splice in a "Templates" tab `insertAfter: "manageForms"`. Generic, doesn't duplicate the tab definitions, and other DataModel surfaces inherit the hook if they grow their own surface-specific tabs later. **No nested-wrapper component needed — `DataModelSettingsTabs` stays the source of truth.**
+
+**Edit / create opens a full-size vertical flyout — the `EquipmentCategoryAddEditForm` pattern is the Settings full-edit convention.** Every full-detail Settings entity uses a **full-size vertical flyout** with a 12-col grid inside: basic fields stacked in a left `col-span-3` panel, complex / tabbed interfaces in a right `col-span-9` panel, and `<SaveCancelButtons>` at the bottom. `apps/frontend/src/components/Forms/EquipmentCategory/index.tsx` is the canonical model — Card-wrapped, left panel for FormStacks (name, description, prefixCUID, account, meter type, can-be-attachment, inspection frequency), right panel for a `TabGroup` with 4+ tabs (Edit Layout, Form Visibility, Edit Rates, Maintenance Thresholds). The detail view IS the edit form — clicking a row in the list opens the flyout pre-loaded with the template; clicking the "+ New Template" button opens an empty version. Match the existing `openFlyout(<EquipmentCategoryAddEditForm .../>)` call site for the exact size + orientation options. **No separate Pages Router route, no separate detail-view component.** This corrects the earlier misread of Settings conventions.
+
+**Checklist editor — fork the outer wrapper, reuse the inner row.** WO-14's `<WorkOrderChecklistSection>` (PR #7155) is hardcoded to `jobId` in its queries and mutations (`GET_WO_CHECKLIST_ITEMS`, `CREATE_WO_CHECKLIST_ITEM`, `UPSERT_WO_CHECKLIST_ITEMS` — all take `jobId: ID!`). It cannot be mounted as-is for templates. The **`<ChecklistItemRow>` and `<SortableChecklistItem>` sub-components, however, are GraphQL-agnostic** — they take callbacks (`onTick`, `onArchive`, `onLabelChange`, `onDescriptionChange`, `onPhotoRequiredChange`) and no GraphQL refs. So we **fork the outer `<WorkOrderChecklistSection>` into `<WorkOrderTemplateChecklistSection>`** with template-targeted GraphQL operations (which WO-15a already provides) and **reuse `<ChecklistItemRow>` + `<SortableChecklistItem>` directly**. This avoids waiting on a refactor of PR #7155 and keeps the row UI identical between Settings (job-side) and Settings (template-side). Optional follow-up: refactor toward a shared `<ChecklistEditor>` inner component once both surfaces have shipped; not in this spec's scope.
+
+**No existing pickers for TradeLevel / EquipmentCategory / FormWrapper / DAA — we build them with `CustomCombobox`.** The audit confirmed `CustomCombobox` (from `@useanzen/ui`) is the standard searchable picker. It's already used for Material (`packages/ui/.../MaterialItemEditor.tsx:272-294`) and Equipment (`packages/ui/.../EquipmentItemEditor.tsx:307-331`) via the `useSearchCore` flag (Solr-backed). For models that aren't Solr-indexed (TradeLevel, EquipmentCategory, FormWrapper, DAA), we pass a custom `query` prop with a `tableData` query (per CLAUDE.md "TableFeed Queries (Preferred for Data Fetching)") so permission scoping is enforced. Each picker is a small wrapper component built once and reused across the relevant editor tab + the apply UI (WO-15c).
+
+**One backend addition: `WorkOrderTemplateCounts`.** The list page's content pills (e.g. "12 checks · 2 forms · 3 mat · 2 plans") need per-row counts. Resolving them via the existing child resolvers means N+1 fetches per list row. Add a `counts` field on `WorkOrderTemplate` that returns a small aggregate type. Spec called this out under §5.1; we ship it as part of WO-15b, not as a tail end of WO-15a, because it's UI-driven.
+
+---
+
+## Step 1: Backend Additions — Counts Aggregate, Upsert Mutation, Delete Mutation
+
+**File:** `apps/api/src/graphql/models/WorkOrderTemplate.ts` (the file added by WO-15a Step 6)
+
+Three backend additions live in this spec, all landing as a small WO-15a addendum in WO-15b's PR:
+
+1. **`WorkOrderTemplate.counts` aggregate** — for the list page's content pills (no N+1 fan-out per row).
+2. **`upsertWorkOrderTemplate` mutation** — the single endpoint the AddEdit flyout form (Step 4) calls on Save. Accepts the full template payload + every child collection's survivor list + every child collection's archive list, performs create/edit/archive across all of them in one go.
+3. **`deleteWorkOrderTemplate` mutation** — the entry point for `ListTableViews`'s built-in delete-with-impact-count flow (Step 3c).
+
+### 1.1 — `counts` aggregate
+
+Adds a `counts: WorkOrderTemplateCounts!` resolver field that aggregates each child collection's active-row count in one query, so the list page renders `N items · M forms · …` per row without N+1 fan-out.
+
+### 1.1a. New GraphQL type + resolver
+
+```graphql
+type WorkOrderTemplateCounts {
+    checklistItems: Int!
+    materialItems:  Int!
+    laborPlans:     Int!
+    equipmentPlans: Int!
+    formWrappers:   Int!
+    fieldDefaults:  Int!
+}
+
+extend type WorkOrderTemplate {
+    counts: WorkOrderTemplateCounts!
+}
+```
+
+The field resolver on `WorkOrderTemplate.counts` runs six `count()` queries against the child models in parallel. Each filters on `workOrderTemplateId = parent.id`, `isDeleted: false`, `isArchived: false`. No new mutation, no list query change — the existing `workOrderTemplates(options)` query picks `counts` up via the field resolver.
+
+```typescript
+// Inside the resolvers object exported from apps/api/src/graphql/models/WorkOrderTemplate.ts:
+WorkOrderTemplate: {
+    counts: async (parent) => {
+        const where = {
+            workOrderTemplateId: parent.id,
+            isDeleted: false,
+            isArchived: false
+        };
+        const [
+            checklistItems,
+            materialItems,
+            laborPlans,
+            equipmentPlans,
+            formWrappers,
+            fieldDefaults
+        ] = await Promise.all([
+            prisma.workOrderTemplateChecklistItem.count({ where }),
+            prisma.workOrderTemplateMaterialItem.count({ where }),
+            prisma.workOrderTemplateLaborPlan.count({ where }),
+            prisma.workOrderTemplateEquipmentPlan.count({ where }),
+            prisma.workOrderTemplateFormWrapper.count({ where }),
+            prisma.workOrderTemplateFieldDefault.count({ where })
+        ]);
+        return { checklistItems, materialItems, laborPlans, equipmentPlans, formWrappers, fieldDefaults };
+    }
+}
+```
+
+`prisma.xxx.count()` is fine here — it's a pure aggregate, no row writes, no audit, no permission-scoping concern (the parent template was already permission-checked by the `workOrderTemplates` / `workOrderTemplate` resolver that returned it). Per CLAUDE.md the "no raw prisma" rule applies to **list / read / write of records**, not aggregate counts.
+
+### 1.1b. TypeScript type
+
+Add to `apps/api/src/types/WorkOrderTemplate.types.ts` (the single-file home from WO-15a Step 4):
+
+```typescript
+export interface IWorkOrderTemplateCounts {
+    checklistItems: number;
+    materialItems: number;
+    laborPlans: number;
+    equipmentPlans: number;
+    formWrappers: number;
+    fieldDefaults: number;
+}
+```
+
+### 1.1c. No counts-side mutation, no schema, no migration
+
+Schema unchanged. Migration unchanged. This is a read-only computed field.
+
+---
+
+### 1.2 — `upsertWorkOrderTemplate` mutation — single endpoint, full payload
+
+The detail flyout form (Step 4) calls **one** mutation on Save: `upsertWorkOrderTemplate`. It takes the template header + every child collection's full survivor list (rows with id-or-null) + every child collection's archive list (ids to soft-delete). The resolver branches create-vs-edit on whether the `templateId` is present, then runs all the child writes in parallel per the WO-15a §8c BaseModel-method pattern. **Atomic from the user's perspective** — either the entire upsert succeeds or none of it does (compensating soft-delete on the parent template if the resolver throws partway, per WO-15a §8e).
+
+Mirrors the existing `useUpsertEquipmentCategoryMutation` pattern (`apps/frontend/src/components/Forms/EquipmentCategory/index.tsx:177-186` — `upsertData({ variables: { category, equipmentSections, sectionsToDelete, sectionAttributesToDelete, publiclyVisibleFormIds } })`).
+
+#### 1.2a GraphQL types
+
+```graphql
+input UpsertWorkOrderTemplateInput {
+    """ Null = create; set = edit. """
+    id: String
+
+    # Header fields
+    name: String!
+    description: String
+    estimatedDuration: Int
+    isActive: Boolean
+
+    # Survivors per child collection. Each row's id is null for create, set for edit.
+    # Anything in the existing collection NOT covered by an `archiveIds` entry that ALSO
+    # isn't in the survivor list will be ignored (no orphan writes — see 1.2b).
+    checklistItems:  [UpsertWorkOrderTemplateChecklistItemInput!]
+    materialItems:   [UpsertWorkOrderTemplateMaterialItemInput!]
+    laborPlans:      [UpsertWorkOrderTemplateLaborPlanInput!]
+    equipmentPlans:  [UpsertWorkOrderTemplateEquipmentPlanInput!]
+    formWrappers:    [UpsertWorkOrderTemplateFormWrapperInput!]
+    fieldDefaults:   [UpsertWorkOrderTemplateFieldDefaultInput!]
+
+    # Archives — ids the user removed during this session.
+    archivedChecklistItemIds:  [String!]
+    archivedMaterialItemIds:   [String!]
+    archivedLaborPlanIds:      [String!]
+    archivedEquipmentPlanIds:  [String!]
+    archivedFormWrapperIds:    [String!]
+    archivedFieldDefaultIds:   [String!]
+}
+
+input UpsertWorkOrderTemplateChecklistItemInput {
+    id: String                  # null = create
+    label: String!
+    description: String
+    orderNo: Int
+    photoRequired: Boolean
+}
+
+# ...analogous Upsert inputs for the other five collections. Mirrors the
+# per-collection Create/Edit inputs from WO-15a Step 6c, merged into a single
+# upsert shape per row.
+
+extend type Mutation {
+    upsertWorkOrderTemplate(data: UpsertWorkOrderTemplateInput!): WorkOrderTemplate!
+}
+```
+
+The mutation **always returns the fully-resolved template** (with `counts` and the six child collection arrays) so Apollo updates the flyout's local cache without a refetch. The list-page query also picks up the change because `workOrderTemplates(options)` and `workOrderTemplate(id)` share Apollo cache normalization on the `WorkOrderTemplate` type.
+
+#### 1.2b Resolver
+
+Per CLAUDE.md "GraphQL Resolvers Must Stay Thin" — body is a one-liner delegating to a new `upsertItem` method on the `WorkOrderTemplate` model:
+
+```typescript
+// apps/api/src/graphql/models/WorkOrderTemplate.ts
+upsertWorkOrderTemplate: (_, args, context) =>
+    new WorkOrderTemplateModel().upsertItem(args.data, context.userId())
+```
+
+The model method does the orchestration:
+
+```typescript
+// apps/api/src/models/WorkOrderTemplate.ts
+public async upsertItem(
+    data: IUpsertWorkOrderTemplateInput,
+    currentUserId: string
+): Promise<FullModel<IWorkOrderTemplate>> {
+    // 1. Create or edit the parent
+    const { id, checklistItems, materialItems, laborPlans, equipmentPlans,
+            formWrappers, fieldDefaults, archivedChecklistItemIds,
+            archivedMaterialItemIds, archivedLaborPlanIds, archivedEquipmentPlanIds,
+            archivedFormWrapperIds, archivedFieldDefaultIds, ...header } = data;
+
+    const template = id
+        ? await this.editItem(id, header, currentUserId)
+        : await this.createItem(header, currentUserId);
+
+    try {
+        // 2. Six survivor passes, each in Promise.all per WO-15a §8c.
+        //    Each editor's "upsert one row" goes through the per-row model's
+        //    createItem (when row.id is null) or editItem (when row.id is set) —
+        //    so audits, permission checks, customCreateItem hooks all run.
+        await Promise.all([
+            ...checklistItemModel_upsertAll(template.id, checklistItems, currentUserId),
+            ...materialItemModel_upsertAll(template.id, materialItems, currentUserId),
+            ...laborPlanModel_upsertAll(template.id, laborPlans, currentUserId),
+            ...equipmentPlanModel_upsertAll(template.id, equipmentPlans, currentUserId),
+            ...formWrapperModel_upsertAll(template.id, formWrappers, currentUserId),
+            ...fieldDefaultModel_upsertAll(template.id, fieldDefaults, currentUserId)
+        ]);
+
+        // 3. Six archive passes in Promise.all — archived ids get soft-deleted.
+        //    Routes through BaseModel.deleteItem so audits + cascade hooks fire.
+        await Promise.all([
+            ...archivedChecklistItemIds.map((i) => new WorkOrderTemplateChecklistItemModel().deleteItem(i, currentUserId)),
+            ...archivedMaterialItemIds.map((i) => new WorkOrderTemplateMaterialItemModel().deleteItem(i, currentUserId)),
+            ...archivedLaborPlanIds.map((i) => new WorkOrderTemplateLaborPlanModel().deleteItem(i, currentUserId)),
+            ...archivedEquipmentPlanIds.map((i) => new WorkOrderTemplateEquipmentPlanModel().deleteItem(i, currentUserId)),
+            ...archivedFormWrapperIds.map((i) => new WorkOrderTemplateFormWrapperModel().deleteItem(i, currentUserId)),
+            ...archivedFieldDefaultIds.map((i) => new WorkOrderTemplateFieldDefaultModel().deleteItem(i, currentUserId))
+        ]);
+    } catch (err) {
+        // Compensating delete — same pattern as WO-15a §8e. If this was a create,
+        // the just-created template is rolled back. If this was an edit, the
+        // parent stays but the half-applied children are flagged for review.
+        if (!id) {
+            await this.deleteItem(template.id, currentUserId);
+        }
+        throw err;
+    }
+
+    return template;
+}
+
+// Each `xxxModel_upsertAll` is a small helper that maps the survivor array to
+// per-row createItem (id null) or editItem (id set) calls — all going through
+// BaseModel methods so the no-raw-prisma rule from CLAUDE.md is preserved.
+function checklistItemModel_upsertAll(
+    workOrderTemplateId: string,
+    rows: IUpsertWorkOrderTemplateChecklistItemInput[],
+    currentUserId: string
+): Array<Promise<unknown>> {
+    const model = new WorkOrderTemplateChecklistItemModel();
+    return (rows ?? []).map((row) =>
+        row.id
+            ? model.editItem(row.id, { /* row fields minus id */ }, currentUserId)
+            : model.createItem({ workOrderTemplateId, /* row fields minus id */ }, currentUserId)
+    );
+}
+```
+
+#### 1.2c Why one big mutation, not per-collection saveRefs
+
+- **Atomic from the user's perspective.** One Save click either fully succeeds or fully fails. No "header saved but materials failed; reopen the form" half-state.
+- **One round-trip.** The flyout has six child collections; six independent mutations is six API calls; the upsert is one.
+- **Matches the precedent.** `useUpsertEquipmentCategoryMutation` is exactly this shape for EquipmentCategory.
+- **Cache normalization is cleaner.** The mutation returns the fully-resolved `WorkOrderTemplate`, so Apollo updates the list page cache automatically without a refetch.
+
+---
+
+### 1.3 — `deleteWorkOrderTemplate` mutation
+
+Required by `ListTableViews`'s built-in delete-with-impact-count flow (Step 3c). One-line resolver:
+
+```typescript
+// apps/api/src/graphql/models/WorkOrderTemplate.ts
+deleteWorkOrderTemplate: (_, args, context) =>
+    new WorkOrderTemplateModel().deleteItem(args.id, context.userId())
+```
+
+`BaseModel.deleteItem` sets `isDeleted = true` and cascades soft-deletes through the model's `deleteChildren` hook. `WorkOrderTemplateModel.deleteChildren` needs an override that soft-deletes every `WorkOrderTemplate*` child collection — confirm at implementation whether `BaseModel` does this generically already; if not, add a small override. `Job.appliedWorkOrderTemplateId` SetNulls on referencing Jobs per WO-15a Step 2a.
+
+---
+
+## Step 2: Insert "Templates" Tab Between Manage Forms and Custom Properties
+
+**Files:**
+- `apps/frontend/src/components/Settings/PropertySettingTabs/DataModelSettingsTabs.tsx` — add `extraTabs` prop + insertion logic
+- `apps/frontend/src/components/Settings/PropertySettings.tsx` — Work Orders tab mount passes the new `extraTabs` arg
+
+### 2a. Extend `DataModelSettingsTabs` with optional `extraTabs`
+
+`DataModelSettingsTabs` is generic and used by multiple top-level settings (Job, Project, Company, RFI, etc.) — we can't hardcode Templates inside it. The smallest generic enhancement: an `extraTabs?` prop that lets the caller splice extra tabs at named positions.
+
+```typescript
+// In DataModelSettingsTabs.tsx props interface (lines 13-20):
+interface IUserSettingsTabsProps {
+    className?: string | ClassNames;
+    allowEdit?: boolean;
+    referenceModel: GqlTableDataName;
+    supportedTypes?: GqlDataModelFormType[];
+    subModel?: string;
+    propertyNameFilter?: Array<string>;
+    extraTabs?: Array<{
+        /** The id of an existing tab. The extra tab is inserted immediately after it. */
+        insertAfter: string;
+        /** Standard ITabGroupData shape — id, label, content, permission, className. */
+        tab: ITabGroupData;
+    }>;
+}
+```
+
+In the component body, build the base `groups` array as today, then run a single splice pass over `extraTabs` (ordered, idempotent):
+
+```typescript
+const groups = [
+    { id: "detailViewLayout", label: "Detail View Layout", ... },
+    { id: "settingsViewLayout", label: "Settings View Layout", ... },
+    { id: "manageForms", label: "Manage Forms", ... },
+    { id: "documentAttributes", label: "Custom Properties", ... },
+    { id: "propertyValues", label: "Default Properties", ... },
+    // ...optional default-folder-structure
+];
+
+for (const extra of extraTabs ?? []) {
+    const idx = groups.findIndex((g) => g.id === extra.insertAfter);
+    if (idx >= 0) groups.splice(idx + 1, 0, extra.tab);
+    else groups.push(extra.tab);     // fallback: append if anchor not found
+}
+```
+
+No behavior change when `extraTabs` is omitted — every existing call to `DataModelSettingsTabs` is unaffected.
+
+### 2b. Pass the Templates tab in from the Work Orders mount
+
+**File:** `apps/frontend/src/components/Settings/PropertySettings.tsx` (Work Orders tab content)
+
+```tsx
+import { WorkOrderTemplatesListTab } from "~root/components/Settings/PropertySettingTabs/WorkOrderTemplatesListTab";
+
+// ...inside the tabOptions array, replace the Work Orders tab content prop with:
+content: (
+    <DataModelSettingsTabs
+        referenceModel="Job"
+        subModel="WorkOrder"
+        allowEdit={hasPermissions({ PropertyValue: { edit: true } }, permissions)}
+        extraTabs={[
+            {
+                insertAfter: "manageForms",
+                tab: {
+                    id: "workOrderTemplates",
+                    label: "Templates",
+                    content: <WorkOrderTemplatesListTab allowEdit={hasPermissions({ InstanceSetting: { edit: true } }, permissions)} />,
+                    permission: hasPermissions({ InstanceSetting: { edit: true } }, permissions),
+                    className: "p-5"
+                }
+            }
+        ]}
+    />
+)
+```
+
+`InstanceSetting` (singular) is the permission slug per the `SettingsPanel.tsx` precedent. The tab is **permission-gated**, so it's hidden entirely from non-admins (not just disabled).
+
+---
+
+## Step 3: Templates List Tab — `WorkOrderTemplatesListTab.tsx`
+
+**File:** `apps/frontend/src/components/Settings/PropertySettingTabs/WorkOrderTemplatesListTab.tsx` (NEW)
+
+The tab content. Renders `<ListTableViews>` (the existing app-wide list shell at `apps/frontend/src/components/ListTableViews/ListTableViews.tsx`) over the `workOrderTemplates` query, with create / edit / archive flowing through a flyout that mounts `<WorkOrderTemplateAddEditForm>` (Step 4).
+
+### 3a. GraphQL — list query
+
+Standard `workOrderTemplates(options)` from WO-15a Step 6b. Each row pulls `counts` (Step 1) for the content pills.
+
+```graphql
+query GetWorkOrderTemplates($options: GetListOptions) {
+    workOrderTemplates(options: $options) {
+        data {
+            ... on WorkOrderTemplate {
+                id
+                name
+                description
+                estimatedDuration
+                isActive
+                lastUsedAt
+                isArchived
+                counts {
+                    checklistItems
+                    materialItems
+                    laborPlans
+                    equipmentPlans
+                    formWrappers
+                    fieldDefaults
+                }
+            }
+        }
+        total
+    }
+}
+```
+
+### 3b. Columns
+
+```tsx
+const columns: ICustomTableColumn<GqlWorkOrderTemplate>[] = [
+    {
+        id: "name",
+        label: "Name",
+        formatCellData: (row) => (
+            <div>
+                <strong>{row.name}</strong>
+                {row.description && <p className="text-xs text-gray-500">{stripHtml(row.description)}</p>}
+            </div>
+        )
+    },
+    {
+        id: "content",
+        label: "Content",
+        formatCellData: (row) => (
+            <div className="flex flex-wrap gap-1">
+                <CountPill count={row.counts.checklistItems} label="checks" />
+                <CountPill count={row.counts.formWrappers}  label={row.counts.formWrappers === 1 ? "form" : "forms"} />
+                <CountPill count={row.counts.materialItems} label="mat" />
+                <CountPill count={row.counts.laborPlans + row.counts.equipmentPlans} label="plans" />
+            </div>
+        )
+    },
+    {
+        id: "estimatedDuration",
+        label: "Est. duration",
+        formatCellData: (row) => formatHoursFromSeconds(row.estimatedDuration)
+    },
+    {
+        id: "isActive",
+        label: "Active",
+        formatCellData: (row) => row.isActive ? <IconCheck /> : "—"
+    },
+    {
+        id: "lastUsedAt",
+        label: "Last used",
+        formatCellData: (row) => row.lastUsedAt ? formatDate(row.lastUsedAt) : "—"
+    }
+];
+```
+
+`<CountPill>` is a tiny local helper (~10 lines) using `bg-info-light` / `bg-gray-100` per CLAUDE.md semantic-colour guideline.
+
+### 3c. `ListTableViews` mount — edit / create through the flyout
+
+Pattern mirrors the existing `Locations.tsx:127-290` consumer of `ListTableViews`, but every create / edit entry opens `<WorkOrderTemplateAddEditForm>` in a flyout instead of routing.
+
+```tsx
+const { openFlyout, closeFlyout } = useFlyout();
+
+return (
+    <ListTableViews
+        recordSetName={GqlTableDataName.WorkOrderTemplate}        // see §3d
+        columns={columns}
+        defaultOrderBy={{ column: "name", direction: "asc" }}
+        createButtonText={allowEdit ? "+ New Template" : undefined}
+        createButtonClick={
+            allowEdit
+                ? (callback) =>
+                      openFlyout(
+                          <WorkOrderTemplateAddEditForm
+                              onSaved={() => {
+                                  closeFlyout();
+                                  callback();        // refetches the list
+                              }}
+                          />,
+                          { size: "xl", vertical: true }
+                      )
+                : undefined
+        }
+        editButtonClick={(templateId, callback) =>
+            openFlyout(
+                <WorkOrderTemplateAddEditForm
+                    templateId={templateId}
+                    onSaved={() => {
+                        closeFlyout();
+                        callback();
+                    }}
+                />,
+                { size: "xl", vertical: true }
+            )
+        }
+        headerActions={{
+            archive: (ids, cb) =>
+                Promise.all(ids.map((id) => archiveWorkOrderTemplate({ variables: { id } }))).then(cb),
+            restore: (ids, cb) =>
+                Promise.all(ids.map((id) => restoreWorkOrderTemplate({ variables: { id } }))).then(cb),
+            delete: (ids, cb) =>
+                Promise.all(ids.map((id) => deleteWorkOrderTemplate({ variables: { id } }))).then(cb)
+        }}
+
+        // ─── ListTableViews-native delete-with-impact-count flow ─────────
+        // The delete entry-point is rendered because `headerActions.delete` is wired above.
+        // These two props feed the confirmation modal's count + label.
+        getDeleteCount={({ variables: { ids } }) =>
+            getAppliedWorkOrderCount({
+                variables: {
+                    name: GqlTableDataName.Job,
+                    options: {
+                        where: {
+                            filter: [{
+                                fieldName: "appliedWorkOrderTemplateId",
+                                fieldOperation: "in",
+                                value: ids.join(",")
+                            }]
+                        }
+                    },
+                    columns: ["id"]
+                }
+            })
+        }
+        getDeleteCountResultLabel="work orders"
+    />
+);
+```
+
+**The flyout opens at full size, vertical** — exactly the way `EquipmentCategoryAddEditForm` is opened today. Match the existing `openFlyout(<EquipmentCategoryAddEditForm .../>)` call site for the precise option object (size + vertical / orientation flags). The 12-col grid inside `<WorkOrderTemplateAddEditForm>` (Step 4) only renders properly at that scale — `{ size: "xl", vertical: true }` in the snippet above is a placeholder; copy whatever EquipmentCategory uses verbatim.
+
+**`ListTableViews` handles the delete-with-impact-count confirmation natively.** The delete entry-point is rendered whenever `headerActions.delete` is wired; the confirmation modal copy is fed by `getDeleteCount` + `getDeleteCountResultLabel` (`packages/ui/src/types/ListTable.types.ts:189-199`). The component calls our `getDeleteCount` with the selected ids, reads the count from the result, and opens its built-in confirmation modal showing "N {getDeleteCountResultLabel} are linked to this — delete anyway?" before firing our `headerActions.delete`. **No custom impact-modal component needed.** `getAppliedWorkOrderCount` is a lazy wrapper around `useGetTableDataRecordSetQuery` against the Job feed — same data source we use elsewhere, permission-scoped per CLAUDE.md "TableFeed Queries (Preferred for Data Fetching)". `columns: ["id"]` keeps the payload to just the count.
+
+**Archive and restore fire immediately** with no confirmation step — the existing Settings convention is that only delete has an impact modal. Archive is reversible (Show Archived toggle + restore action). The WO-15b spec mockup 4 sketched an archive impact modal but the codebase convention is delete-only — we follow the codebase.
+
+**Required backend addendum: `deleteWorkOrderTemplate` mutation.** WO-15a's plan exposes `archive` / `restore` but not `delete`. Add a one-line resolver in `apps/api/src/graphql/models/WorkOrderTemplate.ts` (the file from WO-15a Step 6): `deleteWorkOrderTemplate: (_, args, context) => new WorkOrderTemplateModel().deleteItem(args.id, context.userId())` + a matching `deleteWorkOrderTemplate(id: ID!): WorkOrderTemplate` mutation in the typedef. `BaseModel.deleteItem` sets `isDeleted = true` and cascades soft-deletes through the model's `deleteChildren` hook (confirm at implementation; if not, add a `deleteChildren` override that soft-deletes every `WorkOrderTemplate*` child collection). `Job.appliedWorkOrderTemplateId` SetNulls on referencing Jobs per WO-15a Step 2a. This is a small WO-15a addendum that lands as part of WO-15b's PR.
+
+### 3d. Either consume `tableData` or use a direct query
+
+Two options for the list data source:
+
+- **Preferred:** Register `WorkOrderTemplate` with the `tableData` system (per WO-15a Step 10's verification item) and consume via `<ListTableViews recordSetName={GqlTableDataName.WorkOrderTemplate}>` — permission-scoped automatically per CLAUDE.md "TableFeed Queries (Preferred for Data Fetching)".
+- **Fallback:** If `ListTableViews` supports a direct query prop (most settings list pages can pass `query` + custom rows), use `useGetWorkOrderTemplatesQuery` directly. Confirm during implementation by reading `ListTableViews.tsx` props.
+
+Either way the columns + actions wiring is the same.
+
+### 3e. Show-archived toggle is built-in
+
+`ListTableViews` renders the archived-filter toggle and manages the `isArchived` filter on the query automatically — no extra wiring on this side.
+
+---
+
+## Step 4: `WorkOrderTemplateAddEditForm` — The Flyout Form (Detail + Edit in One)
+
+**File:** `apps/frontend/src/components/Forms/WorkOrderTemplateAddEditForm/index.tsx` (NEW)
+
+The whole "detail view" is this flyout form. Layout mirrors `apps/frontend/src/components/Forms/EquipmentCategory/index.tsx` exactly — Card-wrapped 12-col grid: left `col-span-3` panel of basic FormStacks, right `col-span-9` `TabGroup` of complex editors, `<SaveCancelButtons>` at the bottom.
+
+### 4a. Props + state
+
+```typescript
+interface IWorkOrderTemplateAddEditFormProps {
+    /** Undefined = create mode; defined = edit mode (loads via useGetWorkOrderTemplateQuery). */
+    templateId?: string;
+    onSaved?: () => void;
+    onCancel?: () => void;
+}
+```
+
+`useForm` manages the left-panel buffered state (name, description, estimatedDuration, isActive). On create, all fields default to empty / sensible defaults; on edit, hydrated from `useGetWorkOrderTemplateQuery({ variables: { id: templateId } })` once data arrives.
+
+```typescript
+const {
+    formValues,
+    setFormValues,
+    formErrors,
+    validateForm,
+    dirtyFormValues
+} = useForm(
+    {
+        name: template?.name ?? "",
+        description: template?.description ?? "",
+        estimatedDuration: template?.estimatedDuration ?? null,
+        isActive: template?.isActive ?? true
+    },
+    {
+        name: { required: true, label: "Template Name" }
+    }
+);
+```
+
+### 4b. Save shape — controlled state lifted to the form, ONE upsert mutation on Save
+
+Per Step 1.2 the form fires a **single** `upsertWorkOrderTemplate` mutation with all six child collection survivor lists + archive lists in one payload. This matches the `useUpsertEquipmentCategoryMutation` precedent and gives us atomic save behavior.
+
+To build that payload, **all child state lives in the parent form** as controlled state — no `saveRef.current()` flush pattern, no per-tab buffered state hidden behind a ref. Each editor (Checklist, Material, Labor, Equipment, Forms, Field Defaults) is a **controlled component** that takes:
+
+- `items: TRow[]` — current survivor rows
+- `onItemsChange: (items: TRow[]) => void` — fires on add / edit / reorder
+- `archivedIds: string[]` — ids the user removed in this session
+- `onArchivedIdsChange: (ids: string[]) => void` — fires on row delete
+
+…and renders the per-row UI. Editor internals (drag-reorder, dual-mode toggles, etc.) are still encapsulated; only the **state** is lifted.
+
+The form holds six pairs of state + one `useForm` for the header:
+
+```typescript
+// Header — buffered with useForm validation
+const { formValues, setFormValues, formErrors, validateForm } = useForm(
+    {
+        name: template?.name ?? "",
+        description: template?.description ?? "",
+        estimatedDuration: template?.estimatedDuration ?? null,
+        isActive: template?.isActive ?? true
+    },
+    { name: { required: true, label: "Template Name" } }
+);
+
+// Each child collection: items + archive list
+const [checklistItems, setChecklistItems] = useState<IChecklistDraft[]>(template?.ChecklistItems ?? []);
+const [archivedChecklistIds, setArchivedChecklistIds] = useState<string[]>([]);
+
+const [materialItems, setMaterialItems] = useState<IMaterialDraft[]>(template?.MaterialItems ?? []);
+const [archivedMaterialIds, setArchivedMaterialIds] = useState<string[]>([]);
+
+const [laborPlans, setLaborPlans] = useState<ILaborDraft[]>(template?.LaborPlans ?? []);
+const [archivedLaborPlanIds, setArchivedLaborPlanIds] = useState<string[]>([]);
+
+const [equipmentPlans, setEquipmentPlans] = useState<IEquipmentDraft[]>(template?.EquipmentPlans ?? []);
+const [archivedEquipmentPlanIds, setArchivedEquipmentPlanIds] = useState<string[]>([]);
+
+const [formWrappers, setFormWrappers] = useState<IFormWrapperDraft[]>(template?.FormWrappers ?? []);
+const [archivedFormWrapperIds, setArchivedFormWrapperIds] = useState<string[]>([]);
+
+const [fieldDefaults, setFieldDefaults] = useState<IFieldDefaultDraft[]>(template?.FieldDefaults ?? []);
+const [archivedFieldDefaultIds, setArchivedFieldDefaultIds] = useState<string[]>([]);
+```
+
+When the existing-template GraphQL load resolves, each `useEffect` syncs the matching state from `template.<Collection>`. After that, the editors are the only mutators.
+
+**Row ids:** rows loaded from the server keep their server id. Rows added in this session get a local placeholder id (`temp~<nanoid>`) so React keys are stable; the upsert mapper strips it (`row.id?.startsWith("temp~") ? null : row.id`) before sending.
+
+**Why lift state up:** EquipmentCategory's onSubmit at lines 103-218 reads all the buffered state directly from React state (`attListValues`, `selectedFormWrappers`, `toDeleteSections`, `toDeleteFields`) to build the upsert variables. Templates do the exact same thing — only difference is six collections instead of two-ish.
+
+### 4c. Create mode — all tabs are fully usable from the start
+
+**No save-and-reopen gate.** Admins fill out everything (header + checklist + LEM defaults + forms + field defaults) in one sitting and click Save once. The single `upsertWorkOrderTemplate` mutation (Step 1.2) handles create-vs-edit branching server-side, so the form code is the same in both modes:
+
+- In create mode, every row the user adds is in state with a `temp~<nanoid>` placeholder id. On Save, the upsert payload sends those rows with `id: null` and the server creates them against the just-created `workOrderTemplateId` — all in one transaction.
+- In edit mode, rows loaded from the server keep their server id. Rows added in this session get `temp~<nanoid>` placeholders (same shape). On Save, the upsert payload includes survivors with the appropriate id + archive lists.
+
+**No per-tab flush plumbing**, no `saveRef`, no banner gate. The Save click → one mutation call → done.
+
+**Description-side TipTap inline assets** are the only minor wrinkle. `AdvancedTipTapEditor` accepts `referenceModel: "WorkOrderTemplate"` + `referenceId: templateId` for the asset-attachment path. In create mode, `referenceId` is undefined until the upsert returns — assets uploaded inline before Save can't attach properly. Two options:
+
+- **A (recommended):** disable inline asset uploads on description in create mode; show a small "Save the template to attach inline images / files" hint inside the TipTap toolbar area. The user can still type rich text; only inline media is gated.
+- **B:** allow the upload, buffer the asset locally, attach after the upsert returns the id. Requires `AdvancedTipTapEditor` to support a deferred attach mode — unclear if it does. Out of scope to validate; default to A.
+
+The same `AdvancedTipTapEditor` usage on Checklist row descriptions and rich-text Field Defaults has the same trade-off; same recommendation applies.
+
+### 4d. Layout shell
+
+```tsx
+return (
+    <div className={new ClassNames("py-6 pt-0 rounded-md").add(className).list()}>
+        <Card transparent padding="none" className="!border-0 !shadow-none">
+            <div className="grid grid-cols-12 gap-6 px-4 py-5 mb-20 shadow">
+
+                {/* ─── LEFT — basic header fields ─── */}
+                <div className="flex flex-col col-span-3 gap-y-3">
+                    <FormStack>
+                        <FormControl
+                            label="Template Name"
+                            name="name"
+                            value={formValues.name}
+                            onChange={(e) => setFormValues({ ...formValues, name: e.target.value })}
+                            error={formErrors.name}
+                            isRequired
+                        />
+                    </FormStack>
+                    <FormStack>
+                        <FormLabel>Description</FormLabel>
+                        <AdvancedTipTapEditor
+                            value={formValues.description ?? ""}
+                            handleChange={(html) => setFormValues({ ...formValues, description: html })}
+                            referenceModel="WorkOrderTemplate"
+                            referenceId={templateId ?? ""}      // empty in create mode; assets attach after first save
+                        />
+                    </FormStack>
+                    <FormStack>
+                        <FormControl
+                            label="Estimated Duration"
+                            name="estimatedDuration"
+                            type="numeric"
+                            value={formValues.estimatedDuration ?? ""}
+                            onChange={(v) => setFormValues({ ...formValues, estimatedDuration: Number(v) })}
+                            description="Total expected hours — broken down by labor plans on the right."
+                            trailingText="hrs"
+                        />
+                    </FormStack>
+                    <FormStack>
+                        <FormLabel>Active</FormLabel>
+                        <div className="flex items-center justify-between py-3">
+                            <p className="text-sm text-gray-700">
+                                Active templates appear in the WO apply picker.
+                            </p>
+                            <Toggle
+                                color="success"
+                                enabled={formValues.isActive}
+                                onChange={() => setFormValues({ ...formValues, isActive: !formValues.isActive })}
+                            />
+                        </div>
+                    </FormStack>
+                    {template?.lastUsedAt && (
+                        <p className="text-xs text-gray-500">
+                            Last used {formatDate(template.lastUsedAt)}
+                        </p>
+                    )}
+                </div>
+
+                {/* ─── RIGHT — child collection tabs (4 tabs total) ─── */}
+                {/* Every tab is fully usable in create and edit modes.
+                    State is owned by the parent form; editors are controlled. */}
+                <TabGroup
+                    classNames="col-span-9"
+                    groups={[
+                        {
+                            id: "checklist",
+                            label: `Checklist (${checklistItems.length})`,
+                            content: (
+                                <WorkOrderTemplateChecklistSection
+                                    items={checklistItems}
+                                    onItemsChange={setChecklistItems}
+                                    archivedIds={archivedChecklistIds}
+                                    onArchivedIdsChange={setArchivedChecklistIds}
+                                />
+                            ),
+                            permission: true
+                        },
+                        {
+                            id: "lemDefaults",
+                            // LEM = Labour / Equipment / Material — industry-standard grouping.
+                            label: `LEM Defaults (${laborPlans.length + equipmentPlans.length + materialItems.length})`,
+                            content: (
+                                <WorkOrderTemplateLEMDefaultsTab
+                                    laborPlans={laborPlans}
+                                    onLaborPlansChange={setLaborPlans}
+                                    archivedLaborPlanIds={archivedLaborPlanIds}
+                                    onArchivedLaborPlanIdsChange={setArchivedLaborPlanIds}
+                                    equipmentPlans={equipmentPlans}
+                                    onEquipmentPlansChange={setEquipmentPlans}
+                                    archivedEquipmentPlanIds={archivedEquipmentPlanIds}
+                                    onArchivedEquipmentPlanIdsChange={setArchivedEquipmentPlanIds}
+                                    materialItems={materialItems}
+                                    onMaterialItemsChange={setMaterialItems}
+                                    archivedMaterialIds={archivedMaterialIds}
+                                    onArchivedMaterialIdsChange={setArchivedMaterialIds}
+                                />
+                            ),
+                            permission: true
+                        },
+                        {
+                            id: "forms",
+                            label: `Forms (${formWrappers.length})`,
+                            content: (
+                                <WorkOrderTemplateFormsEditor
+                                    items={formWrappers}
+                                    onItemsChange={setFormWrappers}
+                                    archivedIds={archivedFormWrapperIds}
+                                    onArchivedIdsChange={setArchivedFormWrapperIds}
+                                />
+                            ),
+                            permission: true
+                        },
+                        {
+                            id: "fieldDefaults",
+                            label: `Field Defaults (${fieldDefaults.length})`,
+                            content: (
+                                <WorkOrderTemplateFieldDefaultsEditor
+                                    items={fieldDefaults}
+                                    onItemsChange={setFieldDefaults}
+                                    archivedIds={archivedFieldDefaultIds}
+                                    onArchivedIdsChange={setArchivedFieldDefaultIds}
+                                />
+                            ),
+                            permission: true
+                        }
+                    ]}
+                />
+            </div>
+        </Card>
+
+        <SaveCancelButtons
+            onSave={onSubmit}
+            disable={isSubmitting}
+            disabledMessage="Saving..."
+            onCancel={() => {
+                onCancel?.();
+                closeFlyout();
+            }}
+        />
+    </div>
+);
+```
+
+(The earlier draft mentioned a `<SaveFirstBanner>` for create-mode gating; that's removed since the upsert mutation handles create-vs-edit transparently.)
+
+### 4e. `onSubmit` — single `upsertWorkOrderTemplate` call
+
+```typescript
+const onSubmit = async () => {
+    const errs = validateForm();
+    if (errs && Object.keys(errs).length > 0) return;
+
+    setIsSubmitting(true);
+
+    // Strip temp ids — server treats null id as "create this row".
+    const stripTempId = <T extends { id?: string }>(row: T): T =>
+        row.id?.startsWith("temp~") ? { ...row, id: null } : row;
+
+    try {
+        const result = await upsertWorkOrderTemplate({
+            variables: {
+                data: {
+                    // null id in create mode → server creates the template
+                    id: templateId ?? null,
+                    name: formValues.name,
+                    description: formValues.description,
+                    estimatedDuration: formValues.estimatedDuration,
+                    isActive: formValues.isActive,
+
+                    checklistItems: checklistItems.map(stripTempId),
+                    materialItems:  materialItems.map(stripTempId),
+                    laborPlans:     laborPlans.map(stripTempId),
+                    equipmentPlans: equipmentPlans.map(stripTempId),
+                    formWrappers:   formWrappers.map(stripTempId),
+                    fieldDefaults:  fieldDefaults.map(stripTempId),
+
+                    archivedChecklistItemIds:  archivedChecklistIds,
+                    archivedMaterialItemIds:   archivedMaterialIds,
+                    archivedLaborPlanIds:      archivedLaborPlanIds,
+                    archivedEquipmentPlanIds:  archivedEquipmentPlanIds,
+                    archivedFormWrapperIds:    archivedFormWrapperIds,
+                    archivedFieldDefaultIds:   archivedFieldDefaultIds
+                }
+            }
+        });
+
+        notify.success(`Template ${templateId ? "saved" : "created"}.`);
+        onSaved?.();
+    } catch (err) {
+        notify.error(`Failed to save template: ${(err as Error).message}`);
+    } finally {
+        setIsSubmitting(false);
+    }
+};
+```
+
+**One round-trip.** Header create-or-edit + every child collection survivor + every archive list, all in one mutation. The resolver (Step 1.2b) handles fan-out via `Promise.all` of BaseModel methods server-side. On the wire it's a single GraphQL request. The flyout closes when the success notification fires; the list page's Apollo cache updates automatically because the mutation returns the fully-resolved `WorkOrderTemplate`.
+
+---
+
+## Step 5: Checklist Editor — Fork the Outer, Reuse the Inner Row
+
+**Files:**
+- `apps/frontend/src/components/WorkOrder/Checklist/WorkOrderTemplateChecklistSection.tsx` (NEW)
+- Existing `apps/frontend/src/components/WorkOrder/Checklist/ChecklistItemRow.tsx` from PR #7155 — **reused as-is**
+- Existing `apps/frontend/src/components/WorkOrder/Checklist/SortableChecklistItem.tsx` from PR #7155 — **reused as-is**
+
+Per the Decided callout: `<WorkOrderChecklistSection>` is `jobId`-hardcoded in queries / mutations and can't be mounted for templates without parameterization. The row + drag wrapper are GraphQL-agnostic (they take callbacks) and reuse directly.
+
+### 5a. Fork the outer wrapper
+
+Copy `WorkOrderChecklistSection.tsx` to `WorkOrderTemplateChecklistSection.tsx`. Replace these:
+
+- Prop `jobId: string` → `templateId: string`
+- Query `GET_WO_CHECKLIST_ITEMS(jobId)` → calls into `workOrderTemplate(id)` to read `ChecklistItems` (already in WO-15a's GraphQL surface), OR a dedicated `workOrderTemplateChecklistItems(workOrderTemplateId)` query if cleaner (WO-15a allows either; adding the dedicated query is a small line in WO-15a Step 6c if not already there)
+- `createWorkOrderChecklistItem({ jobId, ... })` → `createWorkOrderTemplateChecklistItem({ workOrderTemplateId, ... })`
+- `editWorkOrderChecklistItem` → `editWorkOrderTemplateChecklistItem` (both take just `id` for the row, no parent FK)
+- `archiveWorkOrderChecklistItem` → `archiveWorkOrderTemplateChecklistItem`
+- `UPSERT_WO_CHECKLIST_ITEMS({ jobId, items, archiveIds })` — not needed in template mode (templates are settings-mode only, see 6b)
+- `setWorkOrderChecklistItemDone` mutation — **removed entirely** in template mode (templates have no `isDone`, `completedByUserId`, `completedAt`)
+- `reorderWorkOrderChecklistItems` → `reorderWorkOrderTemplateChecklistItems` (from WO-15a Step 6c)
+
+### 5b. Strip the modes that don't apply
+
+The original component has four modes: `settings`, `overview`, `form`, `form-readonly`. For templates, **only one mode is meaningful — settings.** Templates aren't filled out (no completion tracking), so there's no overview/form/form-readonly equivalent. Hardcode `mode = "settings"` inside `<WorkOrderTemplateChecklistSection>` and remove the prop. Also drop:
+
+- `draftItems` / `onDraftItemsChange` (the form-mode buffer — not needed; template edits are direct mutations)
+- `canTick` / `onTick` props on `<ChecklistItemRow>` — pass `canTick={false}` (or hide the tick UI entirely via a new `hideTickUI` prop on `<ChecklistItemRow>` if needed; tracked as a small WO-14 follow-up)
+
+### 5c. Rich descriptions + photoRequired toggle unchanged
+
+`<ChecklistItemRow>` renders the TipTap description editor + photoRequired toggle the same way regardless of parent type — the callbacks bubble up to whichever mutation the wrapper chose.
+
+### 5d. Controlled-component contract — props the editor takes from the form
+
+Per Step 4b the form lifts all child state into itself. `<WorkOrderTemplateChecklistSection>` is a **controlled component**:
+
+```typescript
+interface IWorkOrderTemplateChecklistSectionProps {
+    items: IChecklistDraft[];
+    onItemsChange: (items: IChecklistDraft[]) => void;
+    archivedIds: string[];
+    onArchivedIdsChange: (ids: string[]) => void;
+}
+```
+
+The component:
+- Renders the row list from `items`
+- Mutates state through the two `on*Change` callbacks — adds (with `temp~<nanoid>` ids), edits, drag-reorders all go through `onItemsChange(newArray)`; deletes call `onArchivedIdsChange([...archivedIds, removedId])` and `onItemsChange(items.filter(...))`
+- Holds NO server-side state, fires NO GraphQL mutations — the parent's `upsertWorkOrderTemplate` does that on Save
+
+No `saveRef`, no internal buffer. The parent reads the state directly when building the upsert payload (§4e).
+
+### 5e. Why not refactor `<WorkOrderChecklistSection>` to take `parentType: "job" | "template"`
+
+Cleaner long-term, but:
+
+- PR #7155 is still OPEN and we'd be merging a refactor on top of an unmerged feature
+- The job-mode component has additional concerns (completion tracking, draft buffer for form mode) that don't belong in a template-mode call path
+- Forking now + extracting a shared `<ChecklistEditor>` core in a 1.34 cleanup PR is the smaller, safer sequence
+
+Tracked as a follow-up. If WO-14 merges before WO-15b implementation starts AND the implementer has appetite to refactor instead of fork, they can — but the plan as-written assumes fork.
+
+---
+
+## Step 6: Pickers — Build Once, Reuse Across Editors + WO-15c
+
+**File:** `apps/frontend/src/components/Settings/PropertySettingTabs/WorkOrderTemplates/pickers/` (NEW directory)
+
+The audit confirmed: existing CustomCombobox usages cover Material + Equipment via `useSearchCore` (Solr). The four other models WO-15b needs to pick — **TradeLevel, EquipmentCategory, FormWrapper, DocumentAttributeAssignment** — have no existing picker component. Build one wrapper each, all small (≤50 lines), all backed by the standard `tableData` query per CLAUDE.md "TableFeed Queries (Preferred for Data Fetching)" so permission scoping is enforced.
+
+```tsx
+// pickers/TradeLevelPicker.tsx (illustrative; same shape for the other three)
+import { FC } from "react";
+import { CustomCombobox } from "@useanzen/ui";
+import { useGetTableDataRecordSetQuery, GqlTableDataName } from "~root/graphql/queries/__generated__/tableData.query";
+
+interface ITradeLevelPickerProps {
+    value: string | null;
+    onChange: (id: string, label: string) => void;
+    disabled?: boolean;
+    error?: string;
+    placeholder?: string;
+}
+
+const TradeLevelPicker: FC<ITradeLevelPickerProps> = ({ value, onChange, disabled, error, placeholder = "Select a trade level..." }) => {
+    return (
+        <CustomCombobox
+            name="tradeLevel"
+            fieldNames={["name"]}
+            queryResultLabel="TradeLevel"
+            value={value ?? ""}
+            placeholder={placeholder}
+            disabled={disabled}
+            error={error}
+            hideLabel
+            portId="dialog-portal"
+            // Custom query because TradeLevel isn't Solr-backed.
+            query={/* gql query against tableData with name: GqlTableDataName.TradeLevel */}
+            onOptionSelect={(selected) => onChange(selected.id, selected.value)}
+        />
+    );
+};
+
+export { TradeLevelPicker };
+```
+
+Each picker is a small wrapper with a fixed prop contract (`value`, `onChange`, `disabled`, `error`, `placeholder`). Mirrors are:
+
+- `EquipmentCategoryPicker.tsx` (queries `GqlTableDataName.EquipmentCategory`)
+- `FormWrapperPicker.tsx` (queries `GqlTableDataName.FormWrapper`)
+- `DocumentAttributeAssignmentPicker.tsx` (queries `GqlTableDataName.DocumentAttributeAssignment` — confirm the enum value exists; if not, add to the `tableData` registry as a small WO-15b sub-task. Picker label shows the DAA's `defaultAttributeLabel` + a tag for `defaultAttributeType` so admins know if they're picking a rich-text field vs plain.)
+- `MaterialPicker.tsx` — **does not need to be built fresh**; can reuse the existing `CustomCombobox` pattern from `MaterialItemEditor.tsx` (Solr-backed). Wrap into a small local helper for prop-contract symmetry with the other four.
+
+WO-15c also consumes these (Material picker, FormWrapper picker, etc.) on the apply UI's prompts. Build them in WO-15b; both surfaces import the same modules.
+
+---
+
+## Step 7: Three Child Editor Tabs — LEM Defaults, Forms, Field Defaults
+
+Checklist is covered in Step 5. The remaining three tabs share the same **controlled-component** contract: each editor takes `items + onItemsChange + archivedIds + onArchivedIdsChange` from the parent form and renders the row list. No internal state, no `saveRef`, no GraphQL — the parent's single `upsertWorkOrderTemplate` (Step 1.2) writes everything in one shot.
+
+Each editor is a list of rows with an "+ Add row" button at the bottom. Pattern is uniform — only the per-row shape varies. All editors live under:
+
+`apps/frontend/src/components/Forms/WorkOrderTemplateAddEditForm/editors/`
+
+### 7a. `WorkOrderTemplateLEMDefaultsTab.tsx` — composite Labour / Equipment / Material tab
+
+LEM (**L**abour / **E**quipment / **M**aterial) is the industry-standard grouping for "default crew + kit + parts" planning. Combining the three editors into one tab matches how dispatchers think at apply time — they look at the WO's full default complement in one glance rather than tab-hopping. The underlying three editors stay separate components; this tab is a pure layout component that forwards each editor's controlled-state props.
+
+```tsx
+interface IWorkOrderTemplateLEMDefaultsTabProps {
+    laborPlans: ILaborDraft[];
+    onLaborPlansChange: (rows: ILaborDraft[]) => void;
+    archivedLaborPlanIds: string[];
+    onArchivedLaborPlanIdsChange: (ids: string[]) => void;
+
+    equipmentPlans: IEquipmentDraft[];
+    onEquipmentPlansChange: (rows: IEquipmentDraft[]) => void;
+    archivedEquipmentPlanIds: string[];
+    onArchivedEquipmentPlanIdsChange: (ids: string[]) => void;
+
+    materialItems: IMaterialDraft[];
+    onMaterialItemsChange: (rows: IMaterialDraft[]) => void;
+    archivedMaterialIds: string[];
+    onArchivedMaterialIdsChange: (ids: string[]) => void;
+}
+
+const WorkOrderTemplateLEMDefaultsTab: FC<IWorkOrderTemplateLEMDefaultsTabProps> = (props) => (
+    <div className="flex flex-col gap-6 p-4">
+        <section>
+            <h3 className="text-sm font-bold mb-2">Labour</h3>
+            <p className="text-xs text-gray-500 mb-3">
+                Trade-level plans are advisory only — they surface as planning guidance on the WO create form
+                and as the Planned Crew sidebar on the post-save Schedule tab. Free-form plans pre-fill
+                a <code>WorkOrderLaborItem</code> on apply.
+            </p>
+            <WorkOrderTemplateLaborPlanEditor
+                items={props.laborPlans}
+                onItemsChange={props.onLaborPlansChange}
+                archivedIds={props.archivedLaborPlanIds}
+                onArchivedIdsChange={props.onArchivedLaborPlanIdsChange}
+            />
+        </section>
+
+        <section>
+            <h3 className="text-sm font-bold mb-2">Equipment</h3>
+            <p className="text-xs text-gray-500 mb-3">
+                Category plans drive the apply UI's "select specific equipment" prompts and result in
+                <code>EquipmentAssignment</code> rows on save. Free-form plans pre-fill a
+                <code>WorkOrderEquipmentItem</code>.
+            </p>
+            <WorkOrderTemplateEquipmentPlanEditor
+                items={props.equipmentPlans}
+                onItemsChange={props.onEquipmentPlansChange}
+                archivedIds={props.archivedEquipmentPlanIds}
+                onArchivedIdsChange={props.onArchivedEquipmentPlanIdsChange}
+            />
+        </section>
+
+        <section>
+            <h3 className="text-sm font-bold mb-2">Material</h3>
+            <p className="text-xs text-gray-500 mb-3">
+                Material rows pick a generic Material (specific variant + price set at runtime).
+                Free-form rows pre-fill a description-only <code>WorkOrderMaterialItem</code>.
+            </p>
+            <WorkOrderTemplateMaterialEditor
+                items={props.materialItems}
+                onItemsChange={props.onMaterialItemsChange}
+                archivedIds={props.archivedMaterialIds}
+                onArchivedIdsChange={props.onArchivedMaterialIdsChange}
+            />
+        </section>
+    </div>
+);
+```
+
+**Tab label count is the sum** — `laborPlans.length + equipmentPlans.length + materialItems.length` — read from the parent form's controlled state directly so the count stays live as the admin adds / removes rows. The three section headings inside the tab carry no per-section counts.
+
+**Save plumbing is unchanged across the form** — the parent form owns all nine pieces of LEM state and bundles them into the single `upsertWorkOrderTemplate` call alongside the other three child collections. This tab is purely a layout wrapper.
+
+### 7b. `WorkOrderTemplateMaterialEditor.tsx`
+
+Each row: dual-mode toggle (Material picker vs free-form description) + quantity + drag handle + delete.
+
+```tsx
+<RowList
+    items={template.MaterialItems}
+    onAdd={() => createWorkOrderTemplateMaterialItem({ variables: { data: { workOrderTemplateId: templateId } } })}
+    onReorder={(orderedIds) => reorderWorkOrderTemplateMaterialItems({ variables: { workOrderTemplateId: templateId, orderedIds } })}
+    renderRow={(item) => (
+        <MaterialRowEditor
+            item={item}
+            onMaterialChange={(materialId) => editWorkOrderTemplateMaterialItem({ variables: { id: item.id, data: { materialId, description: null } } })}
+            onDescriptionChange={(description) => editWorkOrderTemplateMaterialItem({ variables: { id: item.id, data: { description, materialId: null } } })}
+            onQuantityChange={(quantity) => editWorkOrderTemplateMaterialItem({ variables: { id: item.id, data: { quantity } } })}
+            onArchive={() => archiveWorkOrderTemplateMaterialItem({ variables: { id: item.id } })}
+        />
+    )}
+/>
+```
+
+`<MaterialRowEditor>` toggles between `<MaterialPicker>` (with `useSearchCore`) and a `<FormControl type="text">` for the free-form description. The mode-toggle clears the inverse field (i.e. switching from Material → free-form sets `materialId = null` and prompts for description; switching back sets `description = null`).
+
+### 7c. `WorkOrderTemplateLaborPlanEditor.tsx`
+
+Dual-mode rows (TradeLevel picker ↔ free-form description) + qty + planned hours.
+
+```tsx
+<RowList
+    items={template.LaborPlans}
+    onAdd={() => createWorkOrderTemplateLaborPlan({ variables: { data: { workOrderTemplateId: templateId, qtyOfWorkers: 1, plannedSeconds: 0 } } })}
+    onReorder={(orderedIds) => reorderWorkOrderTemplateLaborPlans({ variables: { workOrderTemplateId: templateId, orderedIds } })}
+    renderRow={(plan) => (
+        <LaborPlanRowEditor
+            plan={plan}
+            onTradeLevelChange={(tradeLevelId) => editWorkOrderTemplateLaborPlan({ variables: { id: plan.id, data: { tradeLevelId, description: null } } })}
+            onDescriptionChange={(description) => editWorkOrderTemplateLaborPlan({ variables: { id: plan.id, data: { description, tradeLevelId: null } } })}
+            onQtyChange={(qtyOfWorkers) => editWorkOrderTemplateLaborPlan({ variables: { id: plan.id, data: { qtyOfWorkers } } })}
+            onPlannedHoursChange={(hours) => editWorkOrderTemplateLaborPlan({ variables: { id: plan.id, data: { plannedSeconds: hours * 3600 } } })}
+            onArchive={() => archiveWorkOrderTemplateLaborPlan({ variables: { id: plan.id } })}
+        />
+    )}
+/>
+```
+
+Planned hours is shown as hours-with-decimal in the UI; the mutation sends seconds (matches the model field). A `<NumericInput>` with `trailingText="hrs"` + `decimalPlaces={2}` per CLAUDE.md form-control table.
+
+Mode toggle is a `<Toggle>` (Trade Level | Free-form) per CLAUDE.md "ALWAYS use icons / form controls from `@useanzen/ui`". When the user toggles to free-form, the row UI swaps the `<TradeLevelPicker>` for a `<FormControl type="text">`. The "both null" validator on the backend (WO-15a Step 5c) catches the edge case where a user toggles mid-edit and saves an empty row.
+
+### 7d. `WorkOrderTemplateEquipmentPlanEditor.tsx`
+
+Mirror of 8c with `<EquipmentCategoryPicker>` in place of `<TradeLevelPicker>` and identical qty + planned hours columns. Mutations: `createWorkOrderTemplateEquipmentPlan`, `editWorkOrderTemplateEquipmentPlan`, `archiveWorkOrderTemplateEquipmentPlan`, `reorderWorkOrderTemplateEquipmentPlans`.
+
+### 7e. `WorkOrderTemplateFormsEditor.tsx`
+
+Reorderable list of FormWrapper picks. Each row is just a `<FormWrapperPicker>` + drag handle + delete. No quantity, no description, no inputs beyond the picker itself.
+
+```tsx
+<RowList
+    items={template.FormWrappers}
+    onAdd={() => /* opens a flyout-like inline picker; on select, fires createWorkOrderTemplateFormWrapper({ workOrderTemplateId, formWrapperId }) */}
+    onReorder={(orderedIds) => reorderWorkOrderTemplateFormWrappers({ variables: { workOrderTemplateId: templateId, orderedIds } })}
+    renderRow={(row) => (
+        <div className="flex items-center gap-2 plan-row">
+            <DragHandle />
+            <FormWrapperPicker value={row.formWrapperId} onChange={(id) => editWorkOrderTemplateFormWrapper({ variables: { id: row.id, data: { formWrapperId: id } } })} />
+            <Button noStyles icon onClick={() => archiveWorkOrderTemplateFormWrapper({ variables: { id: row.id } })}><IconX /></Button>
+        </div>
+    )}
+/>
+```
+
+The `@@unique([workOrderTemplateId, formWrapperId, isDeleted])` constraint in WO-15a Step 1f means a template can't reference the same FormWrapper twice. UI surfaces the constraint by filtering already-picked FormWrappers out of the picker's options dropdown — a small client-side filter.
+
+### 7f. `WorkOrderTemplateFieldDefaultsEditor.tsx`
+
+Each row: `<DocumentAttributeAssignmentPicker>` + a value editor that **adapts to the picked DAA's `defaultAttributeType`**.
+
+- `defaultAttributeType === "wysiwyg"` (or whatever rich-text variant the enum carries — confirm during implementation) → `<AdvancedTipTapEditor>` with `referenceModel: "WorkOrderTemplateFieldDefault"`, `referenceId: row.id`.
+- Plain text / number / select / etc. → `<FormControl>` of the matching type. The DAA picker exposes the picked DAA's full row (with `defaultAttributeType`) so the editor can branch on it.
+
+```tsx
+<RowList
+    items={template.FieldDefaults}
+    onAdd={() => /* picker-first flow: pick DAA, then row is inserted with that daaId */}
+    renderRow={(row) => (
+        <div className="flex items-start gap-2 plan-row">
+            <DocumentAttributeAssignmentPicker value={row.documentAttributeAssignmentId} disabled  /* DAA is fixed once picked */ />
+            <AdaptiveFieldDefaultValueEditor
+                daa={row.DocumentAttributeAssignment}
+                value={row.value}
+                onChange={(value) => editWorkOrderTemplateFieldDefault({ variables: { id: row.id, data: { value } } })}
+            />
+            <Button noStyles icon onClick={() => archiveWorkOrderTemplateFieldDefault({ variables: { id: row.id } })}><IconX /></Button>
+        </div>
+    )}
+/>
+```
+
+`<AdaptiveFieldDefaultValueEditor>` is the type-branching component (≈30 lines). Server-side sanitization runs in the model's `customCreateItem` / `customEditItem` per WO-15a Step 5c — UI doesn't need to pre-sanitize.
+
+The `@@unique([workOrderTemplateId, documentAttributeAssignmentId, isDeleted])` constraint in WO-15a Step 1g means a template can't have two defaults for the same DAA. UI surfaces this the same way as Forms (filter already-picked DAAs out of the picker's options).
+
+---
+
+## Step 8: Delete Confirmation — Use `ListTableViews`'s Native Flow
+
+**No new component.** `ListTableViews` already renders a confirm-delete-with-impact-count modal when `canBeDeleted` + `getDeleteCount` + `getDeleteCountResultLabel` are passed — see Step 3c for the wiring. The interface is defined at `packages/ui/src/types/ListTable.types.ts:189-199`:
+
+```typescript
+/** Function to get the related delete count */
+getDeleteCount?: (variables: { variables: { ids: string[] } }) => Promise<any>;
+/** What is the label the delete count result lives under */
+getDeleteCountResultLabel?: string;
+```
+
+Per CLAUDE.md "TableFeed Queries (Preferred for Data Fetching)" the count query goes through the Job feed (`GqlTableDataName.Job`) so it inherits Job-level permission scoping for free. The user only sees Jobs they have read access to in the count — same semantic as everywhere else in the codebase.
+
+### 8a. Cascade reminder
+
+When the user confirms a delete, `BaseModel.deleteItem` sets `isDeleted = true` on the template row. The cascade to children (`WorkOrderTemplateChecklistItem`, `WorkOrderTemplateMaterialItem`, `WorkOrderTemplateLaborPlan`, `WorkOrderTemplateEquipmentPlan`, `WorkOrderTemplateFormWrapper`, `WorkOrderTemplateFieldDefault`) runs via the model's `deleteChildren` hook — soft-delete, not Prisma `onDelete: Cascade` (which only fires on hard deletes). `Job.appliedWorkOrderTemplateId` SetNulls on referencing Jobs per WO-15a Step 2a. Implementation note: confirm `WorkOrderTemplateModel` overrides `deleteChildren` to soft-delete every child collection; if not, add the override as part of the WO-15a addendum.
+
+### 8b. Why no archive impact modal
+
+The WO-15b spec mockup 4 sketched an archive confirmation modal showing applied-WO count. The codebase convention for Settings entities is **delete-only impact** — archive fires immediately. Following the convention: archive's reversibility (Show Archived + restore) makes the confirmation redundant; the impact-aware confirm is reserved for the non-recoverable delete path. If product wants the archive modal back, it would require building a custom component (the `ListTableViews` props don't expose an archive-side equivalent).
+
+---
+
+## Verification Checklist
+
+- [ ] **`InstanceSetting.edit` gates the entire Templates surface** — `hasPermissions({ InstanceSetting: { edit: true } }, permissions)` per `SettingsPanel.tsx` precedent. Tab is hidden (not just disabled) for non-admins.
+- [ ] Backend addition: `type WorkOrderTemplateCounts` + `extend type WorkOrderTemplate { counts: WorkOrderTemplateCounts! }` in `apps/api/src/graphql/models/WorkOrderTemplate.ts`. Resolver runs six `prisma.xxx.count()` in `Promise.all`; no row writes; no `tableData` registration needed.
+- [ ] `IWorkOrderTemplateCounts` interface added to `apps/api/src/types/WorkOrderTemplate.types.ts` (single types file from WO-15a Step 4).
+- [ ] **`DataModelSettingsTabs` extended with optional `extraTabs?: Array<{ insertAfter: string; tab: ITabGroupData }>` prop.** A single splice pass over `extraTabs` inserts each entry after the matching `id`. No behavior change when omitted; all existing call sites unaffected.
+- [ ] **`PropertySettings.tsx` Work Orders tab** passes `extraTabs={[{ insertAfter: "manageForms", tab: { id: "workOrderTemplates", label: "Templates", content: <WorkOrderTemplatesListTab .../>, ... } }]}` so Templates appears **between Manage Forms and Custom Properties** as shown in the screenshot. No nested-wrapper component.
+- [ ] **Templates list page** uses `<ListTableViews>` from `apps/frontend/src/components/ListTableViews/`. Columns: Name (no link — click opens flyout via `editButtonClick`), Content (4 count pills), Est. duration, Active, Last used.
+- [ ] List query is the standard `workOrderTemplates(options: GetListOptions)` from WO-15a Step 6b — **no custom list query signature**. Preferred path: register `WorkOrderTemplate` with the `tableData` system (per WO-15a Step 10) and consume via `recordSetName={GqlTableDataName.WorkOrderTemplate}` for permission-scoped auto-paging.
+- [ ] List row pulls `counts { checklistItems materialItems laborPlans equipmentPlans formWrappers fieldDefaults }` in a single round-trip — no per-row N+1.
+- [ ] **"+ New Template" opens `<WorkOrderTemplateAddEditForm>` in a full-size vertical flyout in create mode (`templateId` undefined) — does NOT pre-create a row.** Empty record stays buffered in `useForm` until the user clicks Save. Match the size + orientation flags used by the existing `openFlyout(<EquipmentCategoryAddEditForm .../>)` call site.
+- [ ] **Edit row opens the same `<WorkOrderTemplateAddEditForm>` in the same full-size vertical flyout, passed `templateId={row.id}`.** The detail view IS the edit form per `EquipmentCategoryAddEditForm` convention.
+- [ ] Show-archived toggle + `isArchived` filter is handled natively by `ListTableViews` — no manual wiring on the tab side.
+- [ ] **`headerActions` on the list table wires `archive`, `restore`, AND `delete`.** All three fire their mutations directly — no custom confirmation wrappers. Archive / restore are immediate (Settings convention); the delete entry-point appears because `headerActions.delete` is present, and goes through `ListTableViews`'s built-in confirm-with-impact-count flow fed by the `getDeleteCount` + `getDeleteCountResultLabel` props.
+- [ ] **`getDeleteCount` is a lazy-query wrapper around `useGetTableDataRecordSetQuery`** against the Job feed (`GqlTableDataName.Job`) filtered to `appliedWorkOrderTemplateId in ids`. `getDeleteCountResultLabel="work orders"`. **No new GraphQL count resolver, no custom modal component** — `ListTableViews` renders its built-in modal natively (`packages/ui/src/types/ListTable.types.ts:189-199`).
+- [ ] **`deleteWorkOrderTemplate(id: ID!): WorkOrderTemplate` mutation added to `apps/api/src/graphql/models/WorkOrderTemplate.ts`** as a WO-15a addendum landing in WO-15b's PR. One-line resolver delegating to `new WorkOrderTemplateModel().deleteItem(args.id, context.userId())`.
+- [ ] **`WorkOrderTemplateModel.deleteChildren` (BaseModel hook) soft-deletes every `WorkOrderTemplate*` child collection** (Checklist, Material, Labor, Equipment, FormWrapper, FieldDefault) so a template delete cascades cleanly. Confirm during implementation whether `BaseModel.deleteItem`'s default cascade already covers the children or whether an explicit override is needed; if needed, add it as part of the addendum.
+- [ ] **`<WorkOrderTemplateAddEditForm>` layout matches `EquipmentCategoryAddEditForm`** (`apps/frontend/src/components/Forms/EquipmentCategory/index.tsx`): outer `<div className="py-6 pt-0 rounded-md">`, Card-wrapped, `grid grid-cols-12 gap-6 px-4 py-5 mb-20 shadow`. Left `col-span-3` of FormStacks for name/description/estimatedDuration/isActive. Right `col-span-9` `TabGroup` with 6 child editor tabs. `<SaveCancelButtons>` at the bottom.
+- [ ] Left-panel fields are buffered in `useForm` (matches EquipmentCategory pattern). `name` is required; `validateForm` runs on Save.
+- [ ] Description uses `AdvancedTipTapEditor` from `@useanzen/ui` (via `apps/frontend/src/components/WYSIWYG/AdvancedTipTapWrapper.tsx`), `referenceModel: "WorkOrderTemplate"`, `referenceId: templateId ?? ""` (empty in create mode is fine — inline assets attach after first save).
+- [ ] **In create mode (no `templateId`), every right-panel tab shows a "Save the template first to add …" banner.** Mirrors EquipmentCategory's Maintenance Thresholds gate. After first save, `templateId` is populated and the tabs activate.
+- [ ] **The right `col-span-9` panel renders a `TabGroup` with FOUR tabs** (down from six in the earlier draft): Checklist, LEM Defaults, Forms, Field Defaults. LEM Defaults is a composite tab that stacks Labour / Equipment / Material editors as vertical sections so each gets the full width of `col-span-9`. The LEM tab label count is the live sum `laborPlans.length + equipmentPlans.length + materialItems.length` from the parent form's state.
+- [ ] **All child state lives in the parent form** as `useState` (six pairs of `items` + `archivedIds`, one per collection). Editors are **controlled components** with `items + onItemsChange + archivedIds + onArchivedIdsChange` props — no `saveRef`, no internal buffer, no GraphQL fires from the editors.
+- [ ] **`<SaveCancelButtons>` `onSave` handler fires ONE `upsertWorkOrderTemplate` mutation** (Step 1.2) with all six survivor lists + all six archive lists + the header fields. Temp ids (`temp~<nanoid>`) get stripped to `null` so the server treats them as creates. `Cancel` closes the flyout — controlled state is discarded.
+- [ ] **Both create and edit modes are fully usable from the start.** No save-and-reopen gate, no `<SaveFirstBanner>` placeholder. Admins fill checklist + LEM + forms + field defaults in one sitting and click Save once.
+- [ ] **Checklist tab** mounts `<WorkOrderTemplateChecklistSection items={checklistItems} onItemsChange={setChecklistItems} archivedIds={archivedChecklistIds} onArchivedIdsChange={setArchivedChecklistIds} />` — a **fork** of WO-14's `<WorkOrderChecklistSection>` from PR #7155. Reuses `<ChecklistItemRow>` and `<SortableChecklistItem>` directly (they're GraphQL-agnostic). Drops the `mode`, `draftItems`, `onDraftItemsChange`, `setWorkOrderChecklistItemDone` flow (templates have no completion tracking). Rewires to the controlled-component contract per §5d — no internal GraphQL mutations.
+- [ ] All four pickers (`TradeLevelPicker`, `EquipmentCategoryPicker`, `FormWrapperPicker`, `DocumentAttributeAssignmentPicker`) are built on `CustomCombobox` from `@useanzen/ui`. Each backed by the standard `tableData` query (per CLAUDE.md "TableFeed Queries (Preferred for Data Fetching)") with the appropriate `GqlTableDataName` enum value. Custom prop contract: `{ value, onChange, disabled, error, placeholder }`.
+- [ ] `MaterialPicker` reuses the existing `<CustomCombobox useSearchCore wildCard ...>` pattern from `MaterialItemEditor.tsx:272-294`. Wrapped into the same prop contract as the four new pickers for consistency.
+- [ ] **DAA picker** label shows `defaultAttributeLabel` + a tag for `defaultAttributeType` (e.g. "Description ▾ RICH-TEXT" / "PO Number ▾ PLAIN") so admins see what kind of value editor they'll get.
+- [ ] Materials editor row: dual-mode toggle. Material mode uses `MaterialPicker`; Free-form mode uses `<FormControl type="text">`. Switching modes clears the inverse field via the mutation (`materialId: null` / `description: null`).
+- [ ] Labor plan editor: dual-mode (TradeLevel ↔ free-form). `qtyOfWorkers` + `plannedSeconds` shared across modes. UI displays hours; mutation sends seconds. `<NumericInput>` with `trailingText="hrs"` + `decimalPlaces={2}` per CLAUDE.md component guide.
+- [ ] Equipment plan editor: dual-mode (EquipmentCategory ↔ free-form). Same shape as labor.
+- [ ] Forms editor: reorderable list of `FormWrapperPicker` rows. Already-picked FormWrappers filtered out of picker options (matches the `@@unique` constraint in WO-15a Step 1f).
+- [ ] Field defaults editor: each row's value editor branches on the picked DAA's `defaultAttributeType` — `AdvancedTipTapEditor` for rich-text, `<FormControl>` of the matching type otherwise. Already-picked DAAs filtered out of picker options (matches `@@unique` from WO-15a Step 1g).
+- [ ] **Every interactive element uses `@useanzen/ui` components** (no raw `<input>`, `<select>`, `<textarea>`, `<button>`) per CLAUDE.md UI guide. Toggles use `Toggle`; numeric inputs use `NumericInput`; rich text uses `AdvancedTipTapEditor`; selects use `SelectDropdown` or `CustomCombobox`.
+- [ ] **All write operations go through the WO-15a mutation surface** — `create / edit / archive / reorderWorkOrderTemplate{ChecklistItem|MaterialItem|LaborPlan|EquipmentPlan|FormWrapper|FieldDefault}` plus the top-level `create / edit / archive / restoreWorkOrderTemplate`. **No new mutations beyond the `counts` resolver field.**
+- [ ] The Templates tab is hidden entirely (not just disabled) for users without `InstanceSetting.edit`.
+- [ ] Restoring an archived template returns it to the active list; subsequent applies bump `lastUsedAt` normally (Job-side path, no UI change needed here).
+- [ ] No mobile editing — the detail page route + the Templates tab are desktop-only in V1. If reached from mobile, redirect to `/settings` or show "Templates are managed from desktop" empty state.
+
+---
+
+## Files Summary
+
+| Action | File | What to do |
+|--------|------|------------|
+| MODIFY | `apps/api/src/graphql/models/WorkOrderTemplate.ts` | Three additions (all WO-15a addendum, all land in WO-15b's PR): (1) `type WorkOrderTemplateCounts { ... }` + `extend type WorkOrderTemplate { counts: WorkOrderTemplateCounts! }` resolver. (2) `upsertWorkOrderTemplate(data: UpsertWorkOrderTemplateInput!): WorkOrderTemplate!` mutation + the six `UpsertWorkOrderTemplate*Input` types per §1.2a — single endpoint the AddEdit form calls on Save. (3) `deleteWorkOrderTemplate(id: ID!): WorkOrderTemplate` mutation for the ListTableViews delete flow (§3c). |
+| MODIFY | `apps/api/src/models/WorkOrderTemplate.ts` | Add `upsertItem(data, currentUserId)` method per §1.2b — orchestrates create/edit on the parent + Promise.all of per-row BaseModel `createItem` / `editItem` calls for survivors + Promise.all of `deleteItem` calls for archived ids. Compensating delete on the parent template if any child write throws (WO-15a §8e pattern). If `BaseModel.deleteItem` doesn't soft-cascade to children by default, also override `deleteChildren` to soft-delete every `WorkOrderTemplate*` child collection. |
+| MODIFY | `apps/api/src/types/WorkOrderTemplate.types.ts` | Add `IWorkOrderTemplateCounts` interface to the single-file types module from WO-15a |
+| MODIFY | `apps/frontend/src/components/Settings/PropertySettingTabs/DataModelSettingsTabs.tsx` | Add optional `extraTabs?: Array<{ insertAfter: string; tab: ITabGroupData }>` prop with a splice-after pass. No behavior change when omitted; every existing call site unaffected |
+| MODIFY | `apps/frontend/src/components/Settings/PropertySettings.tsx` | Work Orders tab content passes `extraTabs=[{ insertAfter: "manageForms", tab: { id: "workOrderTemplates", label: "Templates", content: <WorkOrderTemplatesListTab .../>, permission: hasPermissions({ InstanceSetting: { edit: true } }, permissions), className: "p-5" } }]` |
+| CREATE | `apps/frontend/src/components/Settings/PropertySettingTabs/WorkOrderTemplatesListTab.tsx` | Tab content: `<ListTableViews>` over the templates query. `editButtonClick` + `createButtonClick` open `<WorkOrderTemplateAddEditForm>` in a flyout (mirrors how `EquipmentCategoryAddEditForm` is opened today) |
+| CREATE | `apps/frontend/src/components/Forms/WorkOrderTemplateAddEditForm/index.tsx` | **Flyout-mounted detail + edit form.** 12-col grid: left `col-span-3` of header FormStacks, right `col-span-9` `TabGroup` of 4 child editor tabs (Checklist, LEM Defaults, Forms, Field Defaults), `<SaveCancelButtons>` at the bottom. Layout matches `EquipmentCategoryAddEditForm`. Owns all child state (six `items` + six `archivedIds`); `onSubmit` fires a single `upsertWorkOrderTemplate` mutation with the full payload. |
+| — | (no new modal file) | `ListTableViews` renders the confirm-delete-with-impact-count modal natively via the `canBeDeleted` + `getDeleteCount` + `getDeleteCountResultLabel` props (§3c). The count comes from a lazy `useGetTableDataRecordSetQuery` against `GqlTableDataName.Job`, permission-scoped per CLAUDE.md. Archive / restore fire without confirmation per the existing Settings convention. |
+| CREATE | `apps/frontend/src/components/Forms/WorkOrderTemplateAddEditForm/pickers/TradeLevelPicker.tsx` | `CustomCombobox` wrapper, `tableData`-backed, prop contract `{ value, onChange, disabled, error, placeholder }` |
+| CREATE | `apps/frontend/src/components/Forms/WorkOrderTemplateAddEditForm/pickers/EquipmentCategoryPicker.tsx` | Same shape, `tableData`-backed |
+| CREATE | `apps/frontend/src/components/Forms/WorkOrderTemplateAddEditForm/pickers/FormWrapperPicker.tsx` | Same shape, `tableData`-backed |
+| CREATE | `apps/frontend/src/components/Forms/WorkOrderTemplateAddEditForm/pickers/DocumentAttributeAssignmentPicker.tsx` | Same shape, `tableData`-backed; label shows `defaultAttributeLabel` + `defaultAttributeType` tag |
+| CREATE | `apps/frontend/src/components/Forms/WorkOrderTemplateAddEditForm/pickers/MaterialPicker.tsx` | Wrapper around the existing `<CustomCombobox useSearchCore>` pattern for prop-contract symmetry with the other four pickers |
+| CREATE | `apps/frontend/src/components/WorkOrder/Checklist/WorkOrderTemplateChecklistSection.tsx` | **Fork** of WO-14 PR #7155's `<WorkOrderChecklistSection>` — drops mode prop + completion-tracking UI + every internal GraphQL mutation. Reuses `<ChecklistItemRow>` and `<SortableChecklistItem>` directly. **Controlled component** taking `items + onItemsChange + archivedIds + onArchivedIdsChange` props per Step 5d. |
+| CREATE | `apps/frontend/src/components/Forms/WorkOrderTemplateAddEditForm/editors/WorkOrderTemplateLEMDefaultsTab.tsx` | **Composite layout tab** that stacks `<WorkOrderTemplateLaborPlanEditor>`, `<WorkOrderTemplateEquipmentPlanEditor>`, `<WorkOrderTemplateMaterialEditor>` as three vertical sections inside the right `col-span-9` panel. Pure layout — forwards each editor's controlled-state props from the parent form. |
+| CREATE | `apps/frontend/src/components/Forms/WorkOrderTemplateAddEditForm/editors/WorkOrderTemplateMaterialEditor.tsx` | Controlled-component row list; dual-mode rows (`MaterialPicker` ↔ free-form description); drag-reorder. Mounted **inside** the LEM Defaults tab. |
+| CREATE | `apps/frontend/src/components/Forms/WorkOrderTemplateAddEditForm/editors/WorkOrderTemplateLaborPlanEditor.tsx` | Controlled-component row list; dual-mode (TradeLevel ↔ free-form) + qty + planned hours; hours-to-seconds conversion happens in the parent form's onSubmit before sending. Mounted **inside** the LEM Defaults tab. |
+| CREATE | `apps/frontend/src/components/Forms/WorkOrderTemplateAddEditForm/editors/WorkOrderTemplateEquipmentPlanEditor.tsx` | Mirror of labor editor with `EquipmentCategoryPicker`. Mounted **inside** the LEM Defaults tab. |
+| CREATE | `apps/frontend/src/components/Forms/WorkOrderTemplateAddEditForm/editors/WorkOrderTemplateFormsEditor.tsx` | Controlled-component row list of `FormWrapperPicker` picks; reorderable; filters already-picked FormWrappers out of options per the `@@unique` constraint. |
+| CREATE | `apps/frontend/src/components/Forms/WorkOrderTemplateAddEditForm/editors/WorkOrderTemplateFieldDefaultsEditor.tsx` | Controlled-component row list. `DocumentAttributeAssignmentPicker` per row + `AdaptiveFieldDefaultValueEditor` that branches on `defaultAttributeType` (TipTap for rich-text, `<FormControl>` of the matching type otherwise). |
+| CREATE | `apps/frontend/src/components/Forms/WorkOrderTemplateAddEditForm/editors/AdaptiveFieldDefaultValueEditor.tsx` | ~30-line type-dispatch component for field-default values |
+| CREATE | `apps/frontend/src/components/Forms/WorkOrderTemplateAddEditForm/editors/RowList.tsx` | Shared row-list scaffold for the editor tabs — drag-reorder, "+ Add row" button, archive callback, buffered-state management. Single source-of-truth for the dual-mode row shape used by Materials / Labor / Equipment / Forms / Field Defaults |
+</script>
+
+<script src="plan-renderer.js"></script>
+<script>renderPlan();</script>
+</body>
+</html>

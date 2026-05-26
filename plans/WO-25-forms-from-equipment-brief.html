@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Forms from Equipment — Options Brief</title>
+<style>
+* { box-sizing: border-box; }
+body { font-family: -apple-system, "Segoe UI", sans-serif; max-width: 820px; margin: 40px auto; padding: 0 24px 60px; color: #0f172a; line-height: 1.6; }
+h1 { font-size: 24px; margin: 0 0 8px; }
+h2 { font-size: 18px; margin: 28px 0 10px; padding-bottom: 6px; border-bottom: 2px solid #e2e8f0; }
+h3 { font-size: 15px; margin: 18px 0 6px; }
+p, li { font-size: 14px; color: #334155; }
+ul, ol { padding-left: 22px; }
+code { font-family: "SF Mono", Menlo, monospace; background: #f1f5f9; padding: 1px 6px; border-radius: 4px; font-size: 12.5px; color: #7c3aed; }
+hr { border: none; border-top: 1px solid #e2e8f0; margin: 24px 0; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 12px 0; }
+th { text-align: left; padding: 8px 12px; background: #f1f5f9; border-bottom: 2px solid #e2e8f0; font-weight: 600; }
+td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
+.note { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 12px 16px; margin: 14px 0; font-size: 13px; color: #1e40af; }
+.warn { background: #fef3c7; border: 1px solid #fcd34d; color: #92400e; border-radius: 8px; padding: 12px 16px; margin: 14px 0; font-size: 13px; }
+.cols { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin: 10px 0; }
+.pros, .cons { padding: 12px 14px; border-radius: 8px; }
+.pros { background: #f0fdf4; border: 1px solid #bbf7d0; }
+.cons { background: #fef2f2; border: 1px solid #fecaca; }
+.pros h4 { color: #166534; margin: 0 0 6px; font-size: 13px; }
+.cons h4 { color: #991b1b; margin: 0 0 6px; font-size: 13px; }
+.pros li, .cons li { font-size: 13px; }
+.subtitle { color: #64748b; font-size: 13px; margin: 0 0 18px; }
+</style>
+</head>
+<body>
+
+<h1>Forms from Equipment — Options Brief</h1>
+<p class="subtitle">Inspection forms launched directly from a piece of equipment on mobile. Decision needed on how the equipment ↔ submission link is recorded.</p>
+
+<h2>Context</h2>
+<p>Field users want to open a piece of equipment on mobile, tap <strong>Start Inspection</strong>, and fill out a form that's automatically tied to that equipment — without first navigating to a Job. Today, a <code>Feedback</code> (form submission) requires a <code>Job</code>, and the only way a submission gets linked to a specific piece of equipment is via the user's answer to an Equipment-typed question on the form.</p>
+<p>From Ian (2026-05-14): <em>"the ability to pull up a piece of Equipment and start an inspection form against it is going to be key… ideally the forms are filtered to only those that should be available for equipment… if they are in that specific equipment it would already know that."</em></p>
+
+<hr>
+
+<h2>Shared piece — form-library filter</h2>
+<p>Both options below need the same eligibility rule for "which forms can be launched from this equipment":</p>
+<p>A <code>SafetyForm</code> is eligible from equipment <em>E</em> (category <em>C</em>) if it has at least one Equipment-type question where <strong>either</strong> the question has zero <code>_EquipmentCategoriesQuestions</code> rows (open to any category), <strong>or</strong> it has a row for <em>C</em>.</p>
+
+<hr>
+
+<h2>Option 1 — Reuse the existing Equipment-question relationship</h2>
+<p>When the user starts an inspection from equipment <em>E</em>, the form's Equipment question answer is pre-seeded with <em>E</em>. The association lives where it already lives today — on the <code>Answer</code> row. No new columns.</p>
+<div class="cols">
+<div class="pros">
+<h4>Pros</h4>
+<ul>
+<li><strong>Zero schema change.</strong></li>
+<li><strong>One source of truth</strong> — no risk of equipment-on-feedback and equipment-on-answer disagreeing.</li>
+<li>Existing "forms on this equipment" queries / reports keep working unchanged.</li>
+<li>Clean filter rule — forms without an Equipment question simply aren't eligible.</li>
+</ul>
+</div>
+<div class="cons">
+<h4>Cons</h4>
+<ul>
+<li><strong>Every eligible form must have an Equipment question.</strong> If a form author forgets to add one, the form is silently invisible from the equipment surface.</li>
+<li>Forms with multiple Equipment questions — we have to pick one to pre-seed.</li>
+<li>The "started from equipment X" intent is encoded as an editable answer unless we lock it.</li>
+<li>Doesn't help with the optional "drop the Job requirement" follow-on.</li>
+</ul>
+</div>
+</div>
+
+<hr>
+
+<h2>Option 2 — Add <code>Feedback.equipmentId</code> (system-set only)</h2>
+<p>Add an optional <code>equipmentId</code> column on <code>Feedback</code>, populated <strong>only</strong> when the form is launched from the equipment surface. Never user-editable; not surfaced in the form builder or form UI. It records <em>where the submission was initiated from</em>.</p>
+<p>"Forms on this equipment" list query becomes a union: rows where <code>Feedback.equipmentId = E</code> OR an answer on the feedback references <em>E</em> via the Equipment question.</p>
+<div class="cols">
+<div class="pros">
+<h4>Pros</h4>
+<ul>
+<li><strong>Form library doesn't have to be equipment-aware.</strong> Any inspection form can be launched from equipment — no requirement to include an Equipment question.</li>
+<li>Clean separation between <em>user intent</em> (Equipment question answer) and <em>system context</em> (where it was initiated). Both can coexist and even disagree without ambiguity.</li>
+<li>Unlocks the optional follow-on: making <code>Feedback.jobId</code> nullable.</li>
+<li>Indexable on a single column — cheaper "all submissions for this equipment" queries than joining through <code>Answer</code> → <code>Question</code>.</li>
+</ul>
+</div>
+<div class="cons">
+<h4>Cons</h4>
+<ul>
+<li><strong>Schema change + migration</strong> on the (large) <code>Feedback</code> table. Additive nullable column, but still a review item.</li>
+<li><strong>Two places to look</strong> for the equipment link — reports / list queries must union both, or pick one canonical source. Risk of drift if not centralized.</li>
+<li>Form-library filter rule on the equipment surface is still the same as Option 1 unless we relax it.</li>
+<li>Need a decision on whether the link survives equipment archival / reassignment.</li>
+</ul>
+</div>
+</div>
+
+<h3>Filter twist for Option 2 — explicit "equipment form" classification</h3>
+<p>Because Option 2 doesn't require the form to have an Equipment question, the shared eligibility rule no longer protects us from launching an unrelated form (e.g. a daily timesheet form) against a piece of equipment. Two ways to keep the launch list focused:</p>
+<ul>
+<li><strong>Keep the shared rule</strong> — only forms with a matching Equipment question are launchable, even though <code>Feedback.equipmentId</code> would work for any form. Safer; mirrors Option 1 behaviour for the filter.</li>
+<li><strong>Add an explicit classification</strong> — e.g. a new <code>SafetyForm.formType</code> enum or boolean (<code>EQUIPMENT_INSPECTION</code> / <code>isEquipmentForm</code>) maintained by the form author. Lets us launch forms with no Equipment question at all, but makes form authors responsible for tagging. Could also drive other surface filters down the road (job-form pickers, library views).</li>
+</ul>
+<p>A hybrid is possible — show forms matching <strong>either</strong> the shared eligibility rule <strong>or</strong> the explicit tag — but probably overkill until we see how form authors actually use it.</p>
+
+<h3>Optional follow-on for Option 2 — drop the Job requirement</h3>
+<p>If we go with Option 2, <code>Feedback.equipmentId</code> gives us a non-Job anchor for a submission. We could then make <code>Feedback.jobId</code> nullable so a true "equipment-only" inspection has no Job at all.</p>
+<div class="warn">
+<strong>Much larger change than Option 2 alone.</strong> <code>Feedback.jobId</code> being NOT NULL is assumed by every downstream consumer — feedback lists, job detail, project rollups, exports, notifications, the <code>idx_Feedback_ViewIndex</code> composite, and the auto-clone / replacement workflow. Recommend treating this as a separate phase after Option 2 ships, not bundled.
+</div>
+<p><strong>Lighter alternative within Option 2:</strong> auto-create / reuse a per-tenant "Equipment Inspections" Job (Ian's "01-001 Mkwa Equipment Inspections" pattern) so <code>Feedback.jobId</code> stays NOT NULL and downstream code is unchanged. Cost is a synthetic Job that some queries / UIs may need to know to filter or label specially.</p>
+
+<hr>
+
+<h2>Comparison at a glance</h2>
+<table>
+<thead><tr><th>Dimension</th><th>Option 1</th><th>Option 2</th></tr></thead>
+<tbody>
+<tr><td>Schema change</td><td>None</td><td>1 column + 1 index on <code>Feedback</code></td></tr>
+<tr><td>Requires form to have Equipment question</td><td>Yes (silent fail otherwise)</td><td>No</td></tr>
+<tr><td>"Forms on this equipment" query</td><td>Unchanged</td><td>New union clause</td></tr>
+<tr><td>Records equipment context when form has no Equipment question</td><td>No (eligibility blocks it)</td><td>Yes</td></tr>
+<tr><td>Unlocks dropping <code>Feedback.jobId</code></td><td>No</td><td>Yes (but big follow-on)</td></tr>
+<tr><td>Rough effort (this piece only)</td><td>0.5–1 day</td><td>1–2 days</td></tr>
+</tbody>
+</table>
+
+<hr>
+
+<h2>Recommendation</h2>
+<p><strong>Option 2, without the drop-Job follow-on for now.</strong> The decoupling between user intent and system context is the right shape long-term and costs one additive nullable column. It also lets us launch inspection forms from equipment even when the form author forgot the Equipment question — the more forgiving failure mode for field users.</p>
+<p>Column + index can land in 1.33; the Job-nullability conversation can continue separately.</p>
+
+<h2>Open questions</h2>
+<ol>
+<li><strong>Form-library eligibility rule</strong> — does the shared filter (Equipment question with no <code>_EquipmentCategoriesQuestions</code> rows OR a matching category row) match expected behaviour, or do we want a separate <code>SafetyForm.isEquipmentForm</code> flag for explicit opt-in?</li>
+<li><strong>Option 1 vs Option 2</strong> — does the decoupling argument for Option 2 outweigh the extra column / migration?</li>
+<li><strong>If Option 2:</strong> do we pre-seed the form's Equipment question answer with the launch equipment (so it and <code>Feedback.equipmentId</code> agree), and do we lock that answer from edit?</li>
+<li><strong>Drop the Job requirement</strong> — appetite to revisit <code>Feedback.jobId</code> nullability in 1.34, or commit to the synthetic "Equipment Inspections" Job pattern?</li>
+<li><strong>Equipment archival</strong> — should <code>Feedback.equipmentId</code> survive equipment archival / category reassignment? (Default: yes.)</li>
+</ol>
+
+</body>
+</html>

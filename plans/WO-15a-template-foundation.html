@@ -1,0 +1,1244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WO-15a: Work Order Templates · Schema &amp; Load Engine — Implementation Plan</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+.in-iframe .top-nav { display: none !important; }
+.top-nav { position: sticky; top: 0; z-index: 100; background: #0f172a; border-bottom: 1px solid #1e293b; padding: 0 24px; display: flex; align-items: center; gap: 0; }
+.top-nav a { display: inline-flex; align-items: center; padding: 12px 18px; font-size: 13px; font-weight: 600; color: #94a3b8; text-decoration: none; border-bottom: 2px solid transparent; transition: all 0.15s; white-space: nowrap; }
+.top-nav a:hover { color: #f8fafc; background: #1e293b; }
+.top-nav .nav-logo { font-size: 11px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: #475569; padding-right: 18px; margin-right: 4px; border-right: 1px solid #1e293b; }
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Inter', -apple-system, sans-serif; background: #f8fafc; color: #0f172a; }
+.plan-wrap { max-width: 880px; margin: 0 auto; padding: 40px 24px 80px; }
+h1 { font-size: 24px; font-weight: 800; margin: 0 0 16px; }
+h2 { font-size: 18px; font-weight: 700; margin: 28px 0 12px; padding-bottom: 8px; border-bottom: 2px solid #e2e8f0; }
+h3 { font-size: 15px; font-weight: 700; margin: 20px 0 8px; padding-top: 10px; border-top: 1px solid #f1f5f9; }
+h4 { font-size: 14px; font-weight: 700; margin: 14px 0 6px; }
+p { font-size: 14px; color: #334155; line-height: 1.7; margin: 6px 0; }
+ul, ol { padding-left: 20px; margin: 8px 0; }
+li { font-size: 14px; color: #334155; line-height: 1.7; margin: 3px 0; }
+strong { color: #0f172a; }
+code { font-family: 'SF Mono', monospace; background: #f1f5f9; padding: 1px 6px; border-radius: 4px; font-size: 12px; color: #7c3aed; }
+pre { background: #0f172a; color: #f8fafc; border-radius: 8px; padding: 16px; overflow-x: auto; font-size: 13px; line-height: 1.6; margin: 12px 0; font-family: 'SF Mono', monospace; }
+pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
+hr { border: none; border-top: 1px solid #e2e8f0; margin: 24px 0; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 12px 0; }
+th { text-align: left; padding: 8px 12px; background: #f1f5f9; border-bottom: 2px solid #e2e8f0; font-weight: 600; }
+td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
+.callout { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 14px 18px; margin: 14px 0; font-size: 13px; color: #1e40af; }
+.callout strong { color: #1e3a8a; }
+    </style>
+</head>
+<body>
+
+<script>if(self!==top)document.documentElement.classList.add("in-iframe")</script>
+<nav class="top-nav">
+    <span class="nav-logo">Appello SDLC</span>
+    <a href="../index.html">Roadmap</a>
+    <a href="../release-1.33-timeline.html">Release 1.33</a>
+    <a href="../release-1.34-timeline.html">Release 1.34</a>
+    <a href="../master-spec-reconciliation.html">Spec Reconciliation</a>
+    <a href="../cross-release-continuity-audit.html">Continuity Audit</a>
+    <a href="ui-interface-library.html">UI Library</a>
+</nav>
+<div class="plan-wrap" id="rendered"></div>
+
+<script type="text/plain" id="plan-md">
+# WO-15a: Work Order Templates · Schema &amp; Load Engine — Implementation Plan
+
+## Overview
+
+Backend foundation for Work Order Templates: seven new Prisma models that capture template content (top-level template + six child collections — checklist, materials, labor plans, equipment plans, forms, field defaults), an audit FK on `Job`, the `previewWorkOrderTemplate` snapshot resolver, and a `createJob` extension that applies a template's content to a brand-new Job in a single transaction. **No UI in this spec** — settings UI lives in WO-15b, apply UI in WO-15c.
+
+The big alignment point is **WO-14** (PR #7155 — `task/Q21030-11700/work-order-checklist`, target `Release-v1.33.0`, still OPEN). `WorkOrderChecklistItem` (added by 7155) is the model the template mirrors. We match its shape exactly: same column names + types, same `description` `@db.Text`, same `photoRequired Boolean @default(false)`, same sanitization story (the `description` field uses `type: "wysiwyg"` in `modelFields`, which the BaseModel framework sanitizes via its built-in WYSIWYG handling — **no custom sanitize helper exists** to "reuse" per se; we follow the same `type: "wysiwyg"` declaration). Frontend-side reuse is bigger: WO-15b's checklist tab will mount the existing `<WorkOrderChecklistSection>` from `apps/frontend/src/components/WorkOrder/Checklist/WorkOrderChecklistSection.tsx` in a new "template" mode — that piece is in the WO-15b plan, but this spec is what makes it possible by keeping the mirror schema aligned.
+
+**Estimated effort:** 5-6 days (matches spec estimate)
+**Risk:** High — seven new tables in one migration, transactional createJob extension, audit FK touches every WO going forward. Most of the surface is additive (no existing rows mutated), but the `createJob` extension is the load-bearing piece every WO-15c apply will route through.
+**Spec:** `tm-work-orders-uis/wo-15a-template-foundation.html`
+**Requires:** WO-1 (job classification, already merged), **WO-13** (`JobSafetyFormWrapper` join — already in QA, ships before WO-15a lands), **WO-14** (`WorkOrderChecklistItem` from PR #7155 — must merge to Release-v1.33.0 before this plan can be implemented)
+**Soft-requires:** **WO-16** (Schedule tab + EquipmentAssignment surface) — recommended to ship before/with WO-15c so the post-save consumer of structured plans exists. Not a hard requirement for 15a itself.
+**Enables:** WO-15b (settings UI), WO-15c (apply UI + Planned Crew advisory), WO-16 (Schedule tab consumes `appliedWorkOrderTemplate.laborPlans`)
+
+---
+
+## Decided — alignment with adjacent in-flight work
+
+**Mirror `WorkOrderChecklistItem` exactly.** PR #7155 added `WorkOrderChecklistItem` with `label String @db.VarChar(500)`, `description String? @db.Text`, `orderNo Int @default(0)`, `photoRequired Boolean @default(false)`, plus completion fields (`isDone`, `completedByUserId`, `completedAt`) that the **template mirror does NOT carry** — templates describe pre-completion work; "doneness" is per-Job, not per-template. The mirror's columns are: `label`, `description` (rich-text), `orderNo`, `photoRequired`. On apply, these four copy through to a new `WorkOrderChecklistItem` row on the new Job with `isDone = false`, `completedByUserId = null`, `completedAt = null`, `createdByUserId = currentUserId`. **No `AssetReference` rows are pre-created** — assets attach at tick time per WO-14.
+
+**WYSIWYG sanitization rides on the BaseModel `type: "wysiwyg"` field declaration.** PR #7155's `WorkOrderChecklistItem.description` uses `type: "wysiwyg"` in its `modelFields`; no separate sanitize helper is invoked. WO-15a's `WorkOrderTemplateChecklistItem.description` and the rich-text-targeted `WorkOrderTemplateFieldDefault.value` (when target DAA's `defaultAttributeType` is the rich-text variant) declare the same `type: "wysiwyg"` and rely on the framework. Spec calls this "reuse WO-14 sanitization config" — the reuse is the framework path, not a function call.
+
+**`JobSafetyFormWrapper` is the existing WO-13 join.** Schema at `schema.prisma:2366-2386`. Required on create: `id`, `jobId`, `formWrapperId`. Optional: `userId`, the four date columns, `isArchived`. WO-15a's apply path creates one row per `formWrapperId` in the template, leaves `userId` and dates null (those get filled on form fill-out per WO-13).
+
+**`EquipmentAssignment` is the existing WO-16 surface.** Schema at `schema.prisma:1946-1974`. Required on create: `id`, `equipmentId`. WO-15a's apply path creates one row per user-selected equipment per structured equipment plan with `checkoutJobId = newJobId` and dates / operator / notes from the apply UI's prompt; un-resolved plans (user skipped the prompt) create no row — the plan stays as advisory metadata accessed via the template snapshot from `Job.appliedWorkOrderTemplate.equipmentPlans`.
+
+**`DocumentAttributeAssignment` is keyed by `defaultAttributeType` for rich-text detection.** Schema at `schema.prisma:3572-3624`. `defaultAttributeType` is a `DocumentAttributeType?` enum with `string` as default; templates' field-default `value` is sanitized via `type: "wysiwyg"` only when the target DAA's `defaultAttributeType` resolves to a rich-text variant. Detection happens in the model's `customCreateItem` / `customEditItem` via a join to `DocumentAttributeAssignment`.
+
+**`WO-11`'s polymorphic worked-on reference is out-of-scope for templates in V1.** Templates do not carry a default `workedOnReferenceModel` / `workedOnReferenceId`. The Equipment-as-Subject linkage on a created WO is set in the regular create form, not from the template. Spec explicitly defers a "default subject" to post-1.33.
+
+**`createJob` extends via the same destructure-with-rest pattern already in use.** `JobModel.createItem` at `apps/api/src/models/Job.ts:1005-1177` already destructures `jobSiteSupervisorIds` and the `workedOnReference*` pair out of `data` and processes them after `super.createItem` returns. WO-15a adds `workOrderTemplateApplication` to the same destructure — no new model method, no `customCreateItem` rewrite. **Atomicity** is achieved via a `prisma.$transaction(async (tx) => { ... })` wrapper around the entire application section (Step 9). Open question for implementation: whether `super.createItem` can accept a `tx` client so the Job itself rolls back on a failed child write — see Step 9d. Current pattern (folder creation in the post-create callback) is sequential, not transactional; WO-15a's tighter atomicity requirement is the first piece of `createJob` work that genuinely needs `$transaction`.
+
+**Untyped templates.** Per spec §4.1: any active template can apply to any WO regardless of `jobType`. No compatibility validation at apply time. Keeps the apply UI's picker simple.
+
+**Snapshot semantics — no live-link.** Once a Job is created with a template, subsequent edits to the template do NOT propagate. `Job.appliedWorkOrderTemplateId` is purely an audit pointer. SetNull on template archive.
+
+---
+
+## Step 1: Prisma Schema — Seven New Models
+
+**File:** `apps/api/prisma/schema.prisma`
+
+Each model follows the standard house convention: `id String @id @db.VarChar(21)`, soft-delete + archive flags, timestamps, ON DELETE CASCADE to the parent template. No new id strategies, no new enums, no schema view changes.
+
+### 1a. `WorkOrderTemplate` — top-level
+
+```prisma
+model WorkOrderTemplate {
+    id          String   @id @db.VarChar(21)
+    isDeleted   Boolean  @default(false)
+    isArchived  Boolean  @default(false)
+    createdAt   DateTime @default(now())
+    updatedAt   DateTime @default(now()) @updatedAt
+
+    name              String   @db.VarChar(200)
+    description       String?  @db.Text
+    estimatedDuration Int?
+    isActive          Boolean  @default(true)
+    lastUsedAt        DateTime?
+
+    ChecklistItems  WorkOrderTemplateChecklistItem[]
+    MaterialItems   WorkOrderTemplateMaterialItem[]
+    LaborPlans      WorkOrderTemplateLaborPlan[]
+    EquipmentPlans  WorkOrderTemplateEquipmentPlan[]
+    FormWrappers    WorkOrderTemplateFormWrapper[]
+    FieldDefaults   WorkOrderTemplateFieldDefault[]
+
+    AppliedToJobs   Job[]    @relation("JobAppliedTemplate")
+
+    @@index([isDeleted, isArchived, isActive], map: "WOTemplate_active_idx")
+    @@index([lastUsedAt], map: "WOTemplate_lastUsed_idx")
+}
+```
+
+### 1b. `WorkOrderTemplateChecklistItem` — mirror of `WorkOrderChecklistItem` (from PR #7155)
+
+Identical column shape to PR #7155's runtime model, minus the completion fields (`isDone`, `completedByUserId`, `completedAt`, `createdByUserId`) which don't apply to a template. Same `@db.Text` description, same `photoRequired Boolean @default(false)`.
+
+```prisma
+model WorkOrderTemplateChecklistItem {
+    id          String   @id @db.VarChar(21)
+    isDeleted   Boolean  @default(false)
+    isArchived  Boolean  @default(false)
+    createdAt   DateTime @default(now())
+    updatedAt   DateTime @default(now()) @updatedAt
+
+    workOrderTemplateId String            @db.VarChar(21)
+    WorkOrderTemplate   WorkOrderTemplate @relation(
+        fields: [workOrderTemplateId], references: [id], onDelete: Cascade)
+
+    label         String  @db.VarChar(500)
+    description   String? @db.Text
+    orderNo       Int     @default(0)
+    photoRequired Boolean @default(false)
+
+    @@index([workOrderTemplateId, isDeleted, orderNo], map: "WOTplChk_template_order_idx")
+}
+```
+
+### 1c. `WorkOrderTemplateMaterialItem` — generic Material reference, variant deferred to runtime
+
+Templates point at `Material` (the generic group, e.g. "Pipe Insulation Fitting"). The runtime variant (`materialAttributePriceId`) and price are filled in at apply time or later. Description-only rows are permitted (no FK).
+
+```prisma
+model WorkOrderTemplateMaterialItem {
+    id          String   @id @db.VarChar(21)
+    isDeleted   Boolean  @default(false)
+    isArchived  Boolean  @default(false)
+    createdAt   DateTime @default(now())
+    updatedAt   DateTime @default(now()) @updatedAt
+
+    workOrderTemplateId String            @db.VarChar(21)
+    WorkOrderTemplate   WorkOrderTemplate @relation(
+        fields: [workOrderTemplateId], references: [id], onDelete: Cascade)
+
+    materialId  String?    @db.VarChar(21)
+    Material    Material?  @relation(fields: [materialId], references: [id], onDelete: SetNull)
+
+    description String?  @db.VarChar(500)
+    quantity    Decimal? @db.Decimal(10, 2)
+    orderNo     Int      @default(0)
+
+    @@index([workOrderTemplateId, isDeleted, orderNo], map: "WOTplMat_template_order_idx")
+    @@index([materialId], map: "WOTplMat_material_idx")
+}
+```
+
+### 1d. `WorkOrderTemplateLaborPlan` — dual-mode (structured advisory OR free-form pre-fill)
+
+```prisma
+model WorkOrderTemplateLaborPlan {
+    id          String   @id @db.VarChar(21)
+    isDeleted   Boolean  @default(false)
+    isArchived  Boolean  @default(false)
+    createdAt   DateTime @default(now())
+    updatedAt   DateTime @default(now()) @updatedAt
+
+    workOrderTemplateId String            @db.VarChar(21)
+    WorkOrderTemplate   WorkOrderTemplate @relation(
+        fields: [workOrderTemplateId], references: [id], onDelete: Cascade)
+
+    tradeLevelId String?     @db.VarChar(21)
+    TradeLevel   TradeLevel? @relation(fields: [tradeLevelId], references: [id], onDelete: SetNull)
+
+    qtyOfWorkers   Int      @default(1)
+    plannedSeconds Int      @default(0)
+    description    String?  @db.VarChar(500)
+    orderNo        Int      @default(0)
+
+    @@index([workOrderTemplateId, isDeleted, orderNo], map: "WOTplLab_template_order_idx")
+    @@index([tradeLevelId], map: "WOTplLab_tradeLevel_idx")
+}
+```
+
+### 1e. `WorkOrderTemplateEquipmentPlan` — dual-mode (mirrors labor)
+
+```prisma
+model WorkOrderTemplateEquipmentPlan {
+    id          String   @id @db.VarChar(21)
+    isDeleted   Boolean  @default(false)
+    isArchived  Boolean  @default(false)
+    createdAt   DateTime @default(now())
+    updatedAt   DateTime @default(now()) @updatedAt
+
+    workOrderTemplateId String            @db.VarChar(21)
+    WorkOrderTemplate   WorkOrderTemplate @relation(
+        fields: [workOrderTemplateId], references: [id], onDelete: Cascade)
+
+    equipmentCategoryId String?            @db.VarChar(21)
+    EquipmentCategory   EquipmentCategory? @relation(
+        fields: [equipmentCategoryId], references: [id], onDelete: SetNull)
+
+    quantity       Int      @default(1)
+    plannedSeconds Int      @default(0)
+    description    String?  @db.VarChar(500)
+    orderNo        Int      @default(0)
+
+    @@index([workOrderTemplateId, isDeleted, orderNo], map: "WOTplEq_template_order_idx")
+    @@index([equipmentCategoryId], map: "WOTplEq_category_idx")
+}
+```
+
+### 1f. `WorkOrderTemplateFormWrapper` — join to existing `FormWrapper`
+
+```prisma
+model WorkOrderTemplateFormWrapper {
+    id          String   @id @db.VarChar(21)
+    isDeleted   Boolean  @default(false)
+    isArchived  Boolean  @default(false)
+    createdAt   DateTime @default(now())
+    updatedAt   DateTime @default(now()) @updatedAt
+
+    workOrderTemplateId String            @db.VarChar(21)
+    WorkOrderTemplate   WorkOrderTemplate @relation(
+        fields: [workOrderTemplateId], references: [id], onDelete: Cascade)
+
+    formWrapperId String      @db.VarChar(21)
+    FormWrapper   FormWrapper @relation(fields: [formWrapperId], references: [id], onDelete: Cascade)
+
+    orderNo Int @default(0)
+
+    @@unique([workOrderTemplateId, formWrapperId, isDeleted], map: "WOTplForm_template_form_uq")
+    @@index([workOrderTemplateId, isDeleted, orderNo], map: "WOTplForm_template_order_idx")
+    @@index([formWrapperId], map: "WOTplForm_form_idx")
+}
+```
+
+### 1g. `WorkOrderTemplateFieldDefault` — per-DAA default value
+
+```prisma
+model WorkOrderTemplateFieldDefault {
+    id          String   @id @db.VarChar(21)
+    isDeleted   Boolean  @default(false)
+    isArchived  Boolean  @default(false)
+    createdAt   DateTime @default(now())
+    updatedAt   DateTime @default(now()) @updatedAt
+
+    workOrderTemplateId String            @db.VarChar(21)
+    WorkOrderTemplate   WorkOrderTemplate @relation(
+        fields: [workOrderTemplateId], references: [id], onDelete: Cascade)
+
+    documentAttributeAssignmentId String                       @db.VarChar(21)
+    DocumentAttributeAssignment   DocumentAttributeAssignment  @relation(
+        fields: [documentAttributeAssignmentId], references: [id], onDelete: Cascade)
+
+    value String? @db.Text
+
+    @@unique([workOrderTemplateId, documentAttributeAssignmentId, isDeleted], map: "WOTplFD_template_daa_uq")
+    @@index([workOrderTemplateId, isDeleted], map: "WOTplFD_template_idx")
+    @@index([documentAttributeAssignmentId], map: "WOTplFD_daa_idx")
+}
+```
+
+---
+
+## Step 2: Prisma Schema — Inverse Relations + Job Audit FK
+
+**File:** `apps/api/prisma/schema.prisma`
+
+### 2a. `Job` audit FK (lines 1154-1250)
+
+```prisma
+model Job {
+    // ...existing fields
+    appliedWorkOrderTemplateId String?            @db.VarChar(21)
+    AppliedWorkOrderTemplate   WorkOrderTemplate? @relation("JobAppliedTemplate",
+        fields: [appliedWorkOrderTemplateId], references: [id], onDelete: SetNull)
+
+    @@index([appliedWorkOrderTemplateId], map: "Job_appliedWOTemplate_idx")
+}
+```
+
+`SetNull` on archive: per Pending Business Decision #1, archiving the template clears `Job.appliedWorkOrderTemplateId` but leaves all snapshotted content on the Job intact.
+
+### 2b. Inverse-relation arrays (one line each)
+
+```prisma
+// FormWrapper (lines 2315-2342) — add:
+WorkOrderTemplateFormWrappers WorkOrderTemplateFormWrapper[]
+
+// Material (lines 2830-2857) — add:
+WorkOrderTemplateMaterialItems WorkOrderTemplateMaterialItem[]
+
+// TradeLevel (lines 249-280) — add:
+WorkOrderTemplateLaborPlans WorkOrderTemplateLaborPlan[]
+
+// EquipmentCategory (lines 2109-2136) — add:
+WorkOrderTemplateEquipmentPlans WorkOrderTemplateEquipmentPlan[]
+
+// DocumentAttributeAssignment (lines 3572-3624) — add:
+WorkOrderTemplateFieldDefaults WorkOrderTemplateFieldDefault[]
+```
+
+Each is one line — the FK definitions live on the child models. Prisma needs the inverse so the schema graph is closed.
+
+---
+
+## Step 3: Migration — Seven Tables + Job FK in One File
+
+**Create file:** `apps/api/prisma/migrations/[timestamp]_wo_15a_work_order_templates/migration.sql`
+
+Seven `CREATE TABLE` statements + Job ALTER + composite indexes. No backfill (templates are new and empty; existing Jobs have `appliedWorkOrderTemplateId = NULL` which is the "no template" state). No schema view rebuild. No DAA seeding.
+
+```sql
+-- =============================================================
+-- WO-15a: Work Order Templates — foundation tables
+-- =============================================================
+
+CREATE TABLE `WorkOrderTemplate` (
+    `id`                String         CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+    `isDeleted`         TINYINT(1)     NOT NULL DEFAULT 0,
+    `isArchived`        TINYINT(1)     NOT NULL DEFAULT 0,
+    `createdAt`         DATETIME(3)    NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `updatedAt`         DATETIME(3)    NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+    `name`              VARCHAR(200)   NOT NULL,
+    `description`       TEXT           NULL,
+    `estimatedDuration` INT            NULL,
+    `isActive`          TINYINT(1)     NOT NULL DEFAULT 1,
+    `lastUsedAt`        DATETIME(3)    NULL,
+    PRIMARY KEY (`id`),
+    INDEX `WOTemplate_active_idx`   (`isDeleted`, `isArchived`, `isActive`),
+    INDEX `WOTemplate_lastUsed_idx` (`lastUsedAt`)
+);
+
+-- ChecklistItem, MaterialItem, LaborPlan, EquipmentPlan, FormWrapper, FieldDefault
+-- all follow the same shape: id VARCHAR(21), soft-delete flags, timestamps, FK to
+-- WorkOrderTemplate ON DELETE CASCADE, content columns per §1b-1g, indexes per §1.
+-- (Full SQL omitted here for brevity — the generator will produce it from the
+-- Prisma diff; review per the CLAUDE.md SQL safety rules: no DROP PRIMARY KEY,
+-- no schema-qualified table references, file ends with newline.)
+
+-- Job audit FK
+ALTER TABLE `Job`
+    ADD COLUMN `appliedWorkOrderTemplateId` VARCHAR(21) NULL,
+    ADD INDEX `Job_appliedWOTemplate_idx` (`appliedWorkOrderTemplateId`),
+    ADD CONSTRAINT `Job_appliedWOTemplate_fkey`
+        FOREIGN KEY (`appliedWorkOrderTemplateId`)
+        REFERENCES `WorkOrderTemplate`(`id`)
+        ON DELETE SET NULL ON UPDATE CASCADE;
+```
+
+Per CLAUDE.md: no DROP PRIMARY KEY, no `USE [database]`, no `[schema].[table]`, file ends with newline.
+
+---
+
+## Step 4: TypeScript Types — One File for All Seven Interfaces
+
+**File:** `apps/api/src/types/WorkOrderTemplate.types.ts` (NEW) — **single file** housing every `IWorkOrderTemplate*` interface. The seven shapes are tightly coupled (the children only exist in the context of a `WorkOrderTemplate`), so one file is the right granularity. No per-child types files.
+
+Match the Prisma column shapes.
+
+```typescript
+export interface IWorkOrderTemplate {
+    name: string;
+    description?: string;
+    estimatedDuration?: number;
+    isActive: boolean;
+    lastUsedAt?: Date;
+}
+
+export interface IWorkOrderTemplateChecklistItem {
+    workOrderTemplateId: string;
+    label: string;
+    description?: string;
+    orderNo: number;
+    photoRequired: boolean;
+}
+
+export interface IWorkOrderTemplateMaterialItem {
+    workOrderTemplateId: string;
+    materialId?: string;
+    description?: string;
+    quantity?: number;
+    orderNo: number;
+}
+
+export interface IWorkOrderTemplateLaborPlan {
+    workOrderTemplateId: string;
+    tradeLevelId?: string;
+    qtyOfWorkers: number;
+    plannedSeconds: number;
+    description?: string;
+    orderNo: number;
+}
+
+export interface IWorkOrderTemplateEquipmentPlan {
+    workOrderTemplateId: string;
+    equipmentCategoryId?: string;
+    quantity: number;
+    plannedSeconds: number;
+    description?: string;
+    orderNo: number;
+}
+
+export interface IWorkOrderTemplateFormWrapper {
+    workOrderTemplateId: string;
+    formWrapperId: string;
+    orderNo: number;
+}
+
+export interface IWorkOrderTemplateFieldDefault {
+    workOrderTemplateId: string;
+    documentAttributeAssignmentId: string;
+    value?: string;
+}
+```
+
+All seven interfaces export from this one file; the barrel at `apps/api/src/types/index.ts` re-exports them per existing conventions. The model files in Step 5 each import the relevant interface from this single source — no per-model `*.types.ts` siblings.
+
+---
+
+## Step 5: API Models — Seven New BaseModel Subclasses
+
+**Files:** one TypeScript file per model under `apps/api/src/models/`.
+
+Each is a thin `BaseModel<IXxx>` subclass with `modelFields` and any minimal validators. The `WorkOrderTemplate` model gets a small helper for the `lastUsedAt` bump that the apply path calls; everything else is vanilla BaseModel.
+
+### 5a. `WorkOrderTemplate.ts`
+
+```typescript
+class WorkOrderTemplate extends BaseAuditableModel<IWorkOrderTemplate> {
+    public name = "WorkOrderTemplate";
+    name_plural = "WorkOrderTemplates";
+    protected prisma = prisma.workOrderTemplate;
+
+    protected modelFields: IField<IWorkOrderTemplate>[] = [
+        { name: "name", type: "string", options: { isRequiredOnCreate: true, isSortable: true, isFilterable: true, maxLength: 200 } },
+        { name: "description", type: "wysiwyg", options: { maxLength: 5000 } },
+        { name: "estimatedDuration", type: "int" },
+        { name: "isActive", type: "boolean", options: { isFilterable: true } },
+        { name: "lastUsedAt", type: "date" }
+    ];
+
+    public async bumpLastUsedAt(id: string, currentUserId: string): Promise<void> {
+        // Routes through BaseModel.editItem so audits / hooks / soft-delete
+        // filtering all run — never raw prisma. The lastUsedAt field is in
+        // modelFields above so the BaseModel write-path picks it up cleanly.
+        await this.editItem(id, { lastUsedAt: new Date() }, currentUserId);
+    }
+}
+```
+
+`bumpLastUsedAt` is called from the Job apply path in §8c.
+
+### 5b. `WorkOrderTemplateChecklistItem.ts`
+
+`modelFields` mirror PR #7155's `WorkOrderChecklistItem` modelFields shape — the `description` field uses `type: "wysiwyg"` so the BaseModel framework's WYSIWYG sanitization handles HTML the same way the runtime model does.
+
+```typescript
+class WorkOrderTemplateChecklistItem extends BaseAuditableModel<IWorkOrderTemplateChecklistItem> {
+    public name = "WorkOrderTemplateChecklistItem";
+    name_plural = "WorkOrderTemplateChecklistItems";
+    protected prisma = prisma.workOrderTemplateChecklistItem;
+
+    protected modelFields: IField<IWorkOrderTemplateChecklistItem>[] = [
+        { name: "workOrderTemplateId", type: "string", options: { isRequiredOnCreate: true, isFilterable: true } },
+        { name: "label", type: "string", options: { isRequiredOnCreate: true, maxLength: 500 } },
+        { name: "description", type: "wysiwyg" },
+        { name: "orderNo", type: "int", options: { isSortable: true } },
+        { name: "photoRequired", type: "boolean" }
+    ];
+}
+```
+
+### 5c-5g. Child models
+
+`WorkOrderTemplateMaterialItem.ts`, `WorkOrderTemplateLaborPlan.ts`, `WorkOrderTemplateEquipmentPlan.ts`, `WorkOrderTemplateFormWrapper.ts`, `WorkOrderTemplateFieldDefault.ts` follow the same vanilla BaseModel shape — `modelFields` matching the columns in §1. **Two validators worth calling out**:
+
+**`WorkOrderTemplateLaborPlan` + `WorkOrderTemplateEquipmentPlan` reject "both null"** (per AC #10):
+
+```typescript
+public async customCreateItem(data: Partial<IWorkOrderTemplateLaborPlan>, currentUserId: string) {
+    if (!data.tradeLevelId && !data.description) {
+        throw new BadRequestError("A labor plan must specify a trade level or a description.");
+    }
+    return super.customCreateItem(data, currentUserId);
+}
+public async customEditItem(id: string, data: Partial<IWorkOrderTemplateLaborPlan>, currentUserId: string) {
+    if ("tradeLevelId" in data || "description" in data) {
+        // re-fetch current to compute the merged shape, then assert
+        const current = await prisma.workOrderTemplateLaborPlan.findUnique({ where: { id } });
+        const merged = { ...current, ...data };
+        if (!merged.tradeLevelId && !merged.description) {
+            throw new BadRequestError("A labor plan must specify a trade level or a description.");
+        }
+    }
+    return super.customEditItem(id, data, currentUserId);
+}
+```
+
+Same shape on `WorkOrderTemplateEquipmentPlan` with `equipmentCategoryId` in place of `tradeLevelId`.
+
+**`WorkOrderTemplateFieldDefault` sanitizes `value` only when the target DAA is rich-text** — read `defaultAttributeType` on the assignment to decide whether to route through the WYSIWYG sanitization helper or trust the value as-is. Implementation detail: do this in `customCreateItem` / `customEditItem`, not via a static `type: "wysiwyg"` declaration on `modelFields` (because the decision is dynamic per-target-DAA).
+
+```typescript
+private RICH_TEXT_TYPES: DocumentAttributeType[] = ["wysiwyg"]; // confirm enum value(s) at implementation
+private async sanitizeIfRichText(daaId: string, value?: string): Promise<string | undefined> {
+    if (!value) return value;
+    const daa = await prisma.documentAttributeAssignment.findUnique({
+        where: { id: daaId },
+        select: { defaultAttributeType: true }
+    });
+    if (daa && this.RICH_TEXT_TYPES.includes(daa.defaultAttributeType)) {
+        // Same path the BaseModel framework uses for type: "wysiwyg" fields.
+        // Confirm the helper name during implementation; for now, route through
+        // the framework's WYSIWYG sanitizer.
+        return sanitizeWysiwyg(value);
+    }
+    return value;
+}
+```
+
+---
+
+## Step 6: GraphQL Types — Type, Input, and Snapshot Shapes
+
+**File:** `apps/api/src/graphql/models/WorkOrderTemplate.ts` (NEW; top-level type + queries + mutations + preview resolver).
+
+Plus six sibling files for the child collections (`apps/api/src/graphql/models/WorkOrderTemplate{ChecklistItem,MaterialItem,LaborPlan,EquipmentPlan,FormWrapper,FieldDefault}.ts`) — each follows the existing house pattern of `Resolvers + Query + Mutation + typeDef` exports.
+
+### 6a. Top-level type
+
+```graphql
+type WorkOrderTemplate {
+    id: String!
+    name: String!
+    description: String
+    estimatedDuration: Int
+    isActive: Boolean!
+    lastUsedAt: Date
+    isArchived: Boolean!
+    isDeleted: Boolean!
+    createdAt: Date!
+    updatedAt: Date!
+
+    ChecklistItems: [WorkOrderTemplateChecklistItem!]!
+    MaterialItems:  [WorkOrderTemplateMaterialItem!]!
+    LaborPlans:     [WorkOrderTemplateLaborPlan!]!
+    EquipmentPlans: [WorkOrderTemplateEquipmentPlan!]!
+    FormWrappers:   [WorkOrderTemplateFormWrapper!]!
+    FieldDefaults:  [WorkOrderTemplateFieldDefault!]!
+}
+
+extend type Job {
+    appliedWorkOrderTemplateId: String
+    AppliedWorkOrderTemplate: WorkOrderTemplate
+}
+```
+
+Per CLAUDE.md GraphQL naming: PascalCase for relationship fields (`AppliedWorkOrderTemplate`, `ChecklistItems`), camelCase for scalars (`appliedWorkOrderTemplateId`, `estimatedDuration`).
+
+### 6b. Queries — list / item / counts
+
+```graphql
+extend type Query {
+    # Standard BaseModel getList pattern (per CLAUDE.md):
+    workOrderTemplates(options: GetListOptions): GetListResult
+    workOrderTemplate(id: String!): WorkOrderTemplate
+    previewWorkOrderTemplate(templateId: String!): WorkOrderTemplate!
+}
+```
+
+`previewWorkOrderTemplate` returns the same `WorkOrderTemplate` type — children are eagerly resolved by the field resolvers, no separate `Snapshot` GraphQL type is needed (the spec called for one, but reusing `WorkOrderTemplate` with its child resolvers means the apply UI consumes the same Apollo-cached object the settings UI does). The "snapshot" semantic is enforced server-side by NOT updating the source rows after this read; it's not a different shape.
+
+`workOrderTemplates` follows the **standard `getList(options, userId)` pattern** per CLAUDE.md "Always Use BaseModel Methods" — no custom list signature, filtering via `where` on the frontend.
+
+### 6c. CRUD mutations — top-level + children
+
+Pattern is uniform per BaseModel conventions:
+
+```graphql
+extend type Mutation {
+    createWorkOrderTemplate(data: CreateWorkOrderTemplate!): WorkOrderTemplate!
+    editWorkOrderTemplate(id: ID!, data: EditWorkOrderTemplate!): WorkOrderTemplate!
+    archiveWorkOrderTemplate(id: ID!): WorkOrderTemplate!
+    restoreWorkOrderTemplate(id: ID!): WorkOrderTemplate!
+
+    createWorkOrderTemplateChecklistItem(data: CreateWorkOrderTemplateChecklistItem!): WorkOrderTemplateChecklistItem!
+    editWorkOrderTemplateChecklistItem(id: ID!, data: EditWorkOrderTemplateChecklistItem!): WorkOrderTemplateChecklistItem!
+    archiveWorkOrderTemplateChecklistItem(id: ID!): WorkOrderTemplateChecklistItem!
+    reorderWorkOrderTemplateChecklistItems(workOrderTemplateId: String!, orderedIds: [String!]!): [WorkOrderTemplateChecklistItem!]!
+
+    # ...same shape for MaterialItem, LaborPlan, EquipmentPlan, FormWrapper, FieldDefault.
+}
+
+input CreateWorkOrderTemplate {
+    name: String!
+    description: String
+    estimatedDuration: Int
+    isActive: Boolean
+}
+input EditWorkOrderTemplate {
+    name: String
+    description: String
+    estimatedDuration: Int
+    isActive: Boolean
+}
+
+input CreateWorkOrderTemplateChecklistItem {
+    workOrderTemplateId: String!
+    label: String!
+    description: String
+    orderNo: Int
+    photoRequired: Boolean
+}
+input EditWorkOrderTemplateChecklistItem {
+    label: String
+    description: String
+    orderNo: Int
+    photoRequired: Boolean
+}
+
+# ...analogous Create/Edit inputs for the other five child models.
+```
+
+### 6d. Resolver bodies — thin delegation
+
+Per CLAUDE.md "GraphQL Resolvers Must Stay Thin": every mutation body is a one-liner that delegates to the model.
+
+```typescript
+createWorkOrderTemplate: (_, args, context) =>
+    new WorkOrderTemplateModel().createItem(args.data, context.userId()),
+editWorkOrderTemplate: (_, args, context) =>
+    new WorkOrderTemplateModel().editItem(args.id, args.data, context.userId()),
+archiveWorkOrderTemplate: (_, args, context) =>
+    new WorkOrderTemplateModel().deleteItem(args.id, context.userId()),
+// ...etc.
+workOrderTemplates: (_, args, context) =>
+    new WorkOrderTemplateModel().getList(args.options, context.userId()),
+workOrderTemplate: (_, args, context) =>
+    new WorkOrderTemplateModel().getItem(args.id, context.userId()),
+previewWorkOrderTemplate: (_, args, context) =>
+    new WorkOrderTemplateModel().getItem(args.templateId, context.userId()),
+```
+
+`reorderWorkOrderTemplateChecklistItems` (and its five siblings) delegates to a small `reorder(orderedIds, currentUserId)` model method that updates `orderNo` on each row in a single `$transaction`.
+
+### 6e. Permission gating
+
+Per spec §5.5: template CRUD and child-CRUD check `InstanceSetting___edit`; `previewWorkOrderTemplate` checks the standard `workOrder.create` (any user who can create a WO can preview a template). The standard permission check happens in `BaseModel.createItem` / `editItem` etc. via `modelFields` and the `Action___edit` slug convention — confirm during implementation that `WorkOrderTemplate` and child models are registered with the right `Action___edit` shape, or override via the BaseModel permission-resolution hook if the slug pattern doesn't match.
+
+`InstanceSetting___edit` already gates several adjacent settings surfaces — reuse the existing helper.
+
+### 6f. Schema registration
+
+Per CLAUDE.md "Registering New GraphQL Files (CRITICAL)" — `apps/api/src/graphql/schema.ts` gets seven new imports + their `Resolvers` / `Query` / `Mutation` / `typeDef` slots, plus the `extend type Job` typeDef contribution. Index re-exports in `apps/api/src/graphql/models/index.ts` follow the same pattern.
+
+---
+
+## Step 7: GraphQL — Apply Payload Input Types (Co-Located With Their Models)
+
+**Each input type lives in the GraphQL file for the model it describes.** Only the bare hook into `CreateJob` lives in `apps/api/src/graphql/models/Job.ts` — the actual shapes stay where their content lives so `Job.ts` doesn't accumulate template-specific muck.
+
+### 7a. `WorkOrderTemplate.ts` — top-level apply payload
+
+**File:** `apps/api/src/graphql/models/WorkOrderTemplate.ts` (the file created in Step 6a)
+
+```graphql
+input WorkOrderTemplateApplicationInput {
+    templateId: String!
+
+    # The user's edited snapshot — what they kept / added / removed in the apply UI.
+    # Mirrors the WorkOrderTemplate's child collections but with drift allowed.
+    checklistItems:      [WorkOrderTemplateChecklistDraftInput!]
+    materialItems:       [WorkOrderTemplateMaterialDraftInput!]
+    formWrapperIds:      [String!]
+    equipmentSelections: [WorkOrderTemplateEquipmentSelectionInput!]
+    fieldDefaults:       [WorkOrderTemplateFieldDefaultDraftInput!]
+    # Free-form labor / equipment lines the user kept from the template's
+    # unstructured plans; structured plans are advisory and not materialized.
+    laborItems:          [WorkOrderTemplateLaborDraftInput!]
+    equipmentItems:      [WorkOrderTemplateEquipmentDraftInput!]
+}
+```
+
+Why here: the application payload is a `WorkOrderTemplate`-domain concept (the template being applied), not a Job-domain one. `formWrapperIds` is a primitive list, so it doesn't need its own input type and lives inline.
+
+### 7b. `WorkOrderTemplateChecklistItem.ts` — checklist draft
+
+**File:** `apps/api/src/graphql/models/WorkOrderTemplateChecklistItem.ts`
+
+```graphql
+input WorkOrderTemplateChecklistDraftInput {
+    label: String!
+    description: String
+    orderNo: Int
+    photoRequired: Boolean
+}
+```
+
+### 7c. `WorkOrderTemplateMaterialItem.ts` — material draft
+
+**File:** `apps/api/src/graphql/models/WorkOrderTemplateMaterialItem.ts`
+
+```graphql
+input WorkOrderTemplateMaterialDraftInput {
+    materialId: String                # nullable for free-form rows
+    description: String
+    quantity: Float
+    orderNo: Int
+}
+```
+
+### 7d. `WorkOrderTemplateLaborPlan.ts` — labor draft
+
+**File:** `apps/api/src/graphql/models/WorkOrderTemplateLaborPlan.ts`
+
+```graphql
+input WorkOrderTemplateLaborDraftInput {
+    qtyOfWorkers: Int
+    submittedDuration: Int            # seconds; copied from plannedSeconds on the template plan
+    description: String
+    orderNo: Int
+}
+```
+
+### 7e. `WorkOrderTemplateEquipmentPlan.ts` — equipment draft + selection
+
+**File:** `apps/api/src/graphql/models/WorkOrderTemplateEquipmentPlan.ts`
+
+Both the unstructured free-form equipment draft and the structured equipment-selection-per-plan live here — they're both equipment-plan-shaped concepts.
+
+```graphql
+input WorkOrderTemplateEquipmentDraftInput {
+    quantity: Float
+    description: String
+    orderNo: Int
+}
+
+input WorkOrderTemplateEquipmentSelectionInput {
+    equipmentPlanId: String!
+    equipmentIds:    [String!]!
+    # Optional fields the apply UI's EquipmentAssignment form may have filled:
+    operatorId:       String
+    checkoutDateTime: Date
+    checkinDateTime:  Date
+    checkoutNotes:    String
+}
+```
+
+### 7f. `WorkOrderTemplateFieldDefault.ts` — field-default draft
+
+**File:** `apps/api/src/graphql/models/WorkOrderTemplateFieldDefault.ts`
+
+```graphql
+input WorkOrderTemplateFieldDefaultDraftInput {
+    documentAttributeAssignmentId: String!
+    value: String
+}
+```
+
+### 7g. `Job.ts` — the one-line hook into `CreateJob`
+
+**File:** `apps/api/src/graphql/models/Job.ts`
+
+The only template-related addition to `Job.ts` is the `CreateJob` extension itself — the actual input type it references is imported via Apollo's schema merging from the file in §7a.
+
+```graphql
+extend input CreateJob {
+    workOrderTemplateApplication: WorkOrderTemplateApplicationInput
+}
+```
+
+That's it for `Job.ts`. No `WorkOrderTemplate*` input definitions land here.
+
+### 7h. Why these specific draft shapes
+
+Per WO-15c spec §5.1, the apply UI builds the payload from form state — the user may have removed template-seeded rows, added new ones, or edited the values. The draft inputs accept whatever the form state holds; the resolver in Step 8 creates one Job-side child row per draft. **No `id` fields on the drafts** because we're always creating fresh rows on a brand-new Job.
+
+---
+
+## Step 8: Job Model — Extend `createItem` for Template Application
+
+**File:** `apps/api/src/models/Job.ts` (existing `createItem` at lines 1005-1177)
+
+### 8a. End-to-end flow — what "apply" actually means
+
+The backend in this step does **not** read the template's child rows during create. The "applying" happens on the frontend; the backend's job is to persist whatever the user submitted.
+
+```
+1. Frontend (WO-15c apply UI)
+   • User clicks "Apply template" on the WO create form
+   • Frontend calls previewWorkOrderTemplate(templateId) → fetches the template
+     and its six child collections (read-only, no DB writes)
+   • Frontend hydrates the WO create form draft state from the snapshot:
+       - field defaults pre-fill the form fields
+       - forms summary panel shows attached FormWrappers
+       - checklist rows pre-populate inline (editable)
+       - material rows pre-populate inline (editable)
+       - free-form labor / equipment rows pre-populate inline (editable)
+       - structured labor plans render as advisory callout (read-only on create)
+       - structured equipment plans render as "pick specific equipment" prompts
+   • User edits anything they want — adds rows, removes rows, changes values
+
+2. Frontend submits createJob with the application payload
+   • workOrderTemplateApplication.{checklistItems, materialItems, …} carries
+     EXACTLY what the user wants saved — not the template's content
+   • Anything the user removed is absent; anything they added is included
+   • Structured labor plans are NOT in the payload (advisory metadata only;
+     accessed at render time via Job.AppliedWorkOrderTemplate.LaborPlans)
+
+3. Backend (this step) — JobModel.createItem
+   • super.createItem writes the Job row (with appliedWorkOrderTemplateId)
+   • applyWorkOrderTemplate (§8c) takes the user-submitted drafts and writes
+     them as child rows on the new Job in a $transaction:
+       - WorkOrderChecklistItem rows from application.checklistItems
+       - WorkOrderMaterialItem rows from application.materialItems
+       - JobSafetyFormWrapper rows from application.formWrapperIds
+       - EquipmentAssignment rows from application.equipmentSelections
+       - WorkOrderLaborItem rows from application.laborItems (free-form only)
+       - WorkOrderEquipmentItem rows from application.equipmentItems (free-form only)
+       - DocumentAttributeValue rows from application.fieldDefaults
+   • The only template rows the backend touches: a single read to validate the
+     template exists + is active, and a single update to bump lastUsedAt.
+```
+
+**Why this matters:** if the user clicks Apply, then removes a checklist item, then clicks Save, the removed item never reaches the backend and never lands on the Job. The template stays unchanged. Snapshot semantics from WO-15a become trivially true because the WO's child rows are populated from the **frontend's final state**, not from a server-side copy of the template — so subsequent template edits can't propagate (there's no link).
+
+### 8b. **Extend** the existing `createItem` — do NOT replace it
+
+The existing method already handles job numbering, project validation, geofence checks, `jobSiteSupervisorIds`, `workedOnReferenceModel`/`workedOnReferenceId`, and default folder creation. The template-application work slots in via the same destructure-with-rest pattern (line 1094):
+
+```typescript
+public async createItem(
+    data: Partial<
+        FullModel<
+            IJob & {
+                jobSiteSupervisorIds: string[];
+                workedOnReferenceModel: string;
+                workedOnReferenceId: string;
+                workOrderTemplateApplication?: IWorkOrderTemplateApplicationInput;   // + NEW
+            }
+        >
+    >,
+    currentUserId: string,
+    skipAfterCreate?: boolean,
+    callback?: (data: FullModel<IJob>) => void
+): Promise<FullModel<IJob>> {
+    // ...all existing validation + numbering + standalone-job logic (lines 1019-1092) stays as-is...
+
+    // Extend the existing destructure at line 1094 to also pull the application payload:
+    const {
+        jobSiteSupervisorIds,
+        workedOnReferenceModel,
+        workedOnReferenceId,
+        workOrderTemplateApplication,                                                // + NEW
+        ...rest
+    } = copiedData;
+
+    // + NEW — when applying a template, set the audit FK on the Job itself so it
+    //         lands in the same row write super.createItem performs.
+    if (workOrderTemplateApplication?.templateId) {
+        rest.appliedWorkOrderTemplateId = workOrderTemplateApplication.templateId;
+    }
+
+    // ...existing super.createItem(rest, currentUserId, skipAfterCreate, async (job) => { folder creation }) call stays as-is (lines 1097-1156)...
+
+    // Existing supervisor connect + worked-on sync at lines 1157-1175 stays as-is.
+
+    // + NEW — fire the application AFTER all existing post-create work so
+    //         supervisors and worked-on rows are in place if the application
+    //         needs them. On failure, the Job is soft-deleted as a
+    //         compensating action (no DB-level transaction — see §8e).
+    if (workOrderTemplateApplication?.templateId) {
+        await this.applyWorkOrderTemplate(
+            created.id,
+            workOrderTemplateApplication,
+            currentUserId
+        );
+    }
+
+    return created;
+}
+```
+
+The structure deliberately mirrors the existing supervisor + worked-on extensions on this method.
+
+### 8c. `applyWorkOrderTemplate` — the new private method
+
+The function name is "apply" for symmetry with the spec's terminology, but per §8a what it actually does is **persist the user-submitted application drafts as child rows on the new Job**. It does not read the template's child collections; the frontend already did that via `previewWorkOrderTemplate` and the user has already edited the result.
+
+**Every child write goes through its model's `createItem` method**, not raw Prisma — per CLAUDE.md "Always Use BaseModel Methods — Never Raw Prisma in Resolvers." That gives us audit logging, permission checks, soft-delete filtering, and any `customCreateItem` hooks the runtime models have (e.g. WO-14's checklist model may grow side effects later that we'd silently skip if we wrote raw Prisma here).
+
+```typescript
+private async applyWorkOrderTemplate(
+    jobId: string,
+    application: IWorkOrderTemplateApplicationInput,
+    currentUserId: string
+): Promise<void> {
+    // Validate the template is active and not archived. Spec is explicit:
+    // templates are untyped — no jobType compatibility check.
+    // (BaseModel.getItem would also work here, but a thin select keeps this read cheap.)
+    const template = await prisma.workOrderTemplate.findUnique({
+        where: { id: application.templateId },
+        select: { id: true, isArchived: true, isDeleted: true, isActive: true }
+    });
+    if (!template || template.isDeleted || template.isArchived || !template.isActive) {
+        throw new BadRequestError("Selected template is not available for apply.");
+    }
+
+    // Each collection's rows are independent of each other, so within a
+    // collection we Promise.all the writes. Between collections we await
+    // sequentially so a partial failure surfaces with a clear "which step
+    // failed" message and the compensating delete (§8e) catches cleanly.
+    // The lastUsedAt bump runs LAST so the template isn't marked-as-used
+    // if any child write threw.
+
+    // 1. Checklist — route through the WO-14 model added by PR #7155 so its
+    //    audit / hooks run.
+    const checklistModel = new WorkOrderChecklistItemModel();
+    await Promise.all(
+        (application.checklistItems ?? []).map((item) =>
+            checklistModel.createItem(
+                {
+                    jobId,
+                    label: item.label,
+                    description: item.description ?? undefined,
+                    orderNo: item.orderNo ?? 0,
+                    photoRequired: item.photoRequired ?? false
+                    // isDone / completedByUserId / completedAt default per PR #7155 schema;
+                    // createdByUserId is set by BaseAuditableModel from currentUserId
+                },
+                currentUserId
+            )
+        )
+    );
+
+    // 2. Materials — both structured (materialId set) and free-form (description-only)
+    const materialModel = new WorkOrderMaterialItemModel();
+    await Promise.all(
+        (application.materialItems ?? []).map((item) =>
+            materialModel.createItem(
+                {
+                    jobId,
+                    materialId: item.materialId ?? undefined,
+                    description: item.description ?? undefined,
+                    quantity: item.quantity ?? undefined,
+                    orderNo: item.orderNo ?? 0
+                    // materialAttributePriceId stays NULL — variant chosen at runtime
+                    // unitPrice stays NULL — pricing happens at runtime
+                },
+                currentUserId
+            )
+        )
+    );
+
+    // 3. Forms — one JobSafetyFormWrapper per formWrapperId
+    const formWrapperModel = new JobSafetyFormWrapperModel();
+    await Promise.all(
+        (application.formWrapperIds ?? []).map((formWrapperId) =>
+            formWrapperModel.createItem(
+                {
+                    jobId,
+                    formWrapperId
+                    // userId, jobSafetyFormDate left undefined — populated at fill-out per WO-13
+                },
+                currentUserId
+            )
+        )
+    );
+
+    // 4. Equipment assignments — only for plans the user resolved with specific equipment.
+    //    Flatten the (selection × equipmentIds) into a single parallel batch.
+    const equipmentAssignmentModel = new EquipmentAssignmentModel();
+    const assignmentWrites = (application.equipmentSelections ?? []).flatMap((sel) =>
+        sel.equipmentIds.map((equipmentId) =>
+            equipmentAssignmentModel.createItem(
+                {
+                    equipmentId,
+                    checkoutJobId: jobId,
+                    userId: sel.operatorId ?? undefined,
+                    checkoutDateTime: sel.checkoutDateTime ?? undefined,
+                    checkinDateTime: sel.checkinDateTime ?? undefined,
+                    checkoutNotes: sel.checkoutNotes ?? undefined
+                },
+                currentUserId
+            )
+        )
+    );
+    await Promise.all(assignmentWrites);
+
+    // 5. Unstructured labor — WorkOrderLaborItem rows
+    const laborItemModel = new WorkOrderLaborItemModel();
+    await Promise.all(
+        (application.laborItems ?? []).map((item) =>
+            laborItemModel.createItem(
+                {
+                    jobId,
+                    qtyOfWorkers: item.qtyOfWorkers ?? 1,
+                    submittedDuration: item.submittedDuration ?? 0,
+                    description: item.description ?? undefined,
+                    orderNo: item.orderNo ?? 0
+                    // rate stays NULL — filled at runtime
+                },
+                currentUserId
+            )
+        )
+    );
+
+    // 6. Unstructured equipment — WorkOrderEquipmentItem rows
+    const equipmentItemModel = new WorkOrderEquipmentItemModel();
+    await Promise.all(
+        (application.equipmentItems ?? []).map((item) =>
+            equipmentItemModel.createItem(
+                {
+                    jobId,
+                    quantity: item.quantity ?? undefined,
+                    description: item.description ?? undefined,
+                    orderNo: item.orderNo ?? 0
+                    // unitRate stays NULL; plannedSeconds intentionally not copied
+                    // (no time column on this model)
+                },
+                currentUserId
+            )
+        )
+    );
+
+    // 7. Field defaults — DocumentAttributeValue rows for accepted defaults
+    const docAttrValueModel = new DocumentAttributeValueModel();
+    await Promise.all(
+        (application.fieldDefaults ?? []).map((fd) =>
+            docAttrValueModel.createItem(
+                {
+                    referenceId: jobId,
+                    documentAttributeAssignmentId: fd.documentAttributeAssignmentId,
+                    value: fd.value ?? undefined
+                },
+                currentUserId
+            )
+        )
+    );
+
+    // 8. Bump lastUsedAt — last, so the template isn't marked used if any
+    //    earlier collection threw. Goes through the model helper so any
+    //    future audit on the bump itself is captured.
+    await new WorkOrderTemplateModel().bumpLastUsedAt(application.templateId, currentUserId);
+}
+```
+
+**Why parallel within a collection but sequential between collections.** Every row in a single collection is independent — checklist row N doesn't depend on checklist row M, materials don't depend on each other, etc. `Promise.all` collapses N round-trips per collection to roughly one round-trip, which matters when a template has 18 checklist items + 5 materials + 3 labor lines + 2 equipment selections. Between collections we stay sequential because (a) error messages point at the collection that failed, making the compensating-delete catch (§8e) actionable, and (b) Prisma's connection pool is bounded — letting every collection's promises race could spike connection use briefly for a marginal speed gain on apply paths that are already milliseconds.
+
+**Promise.all + BaseModel is safe.** Each `model.createItem(data, currentUserId)` call is stateless w.r.t. the model instance — the data is per-call, audit context is per-call. Prisma's pool handles concurrent queries fine. The shared model instance per collection is fine because BaseModel methods don't write to instance fields between calls.
+
+**Confirm model class names at implementation time.** The codebase is **inconsistent on naming** — some classes carry the `Model` suffix (e.g. `WorkOrderTemplateModel`, `FolderModel`), others are bare (e.g. `EquipmentAssignment` not `EquipmentAssignmentModel`, `AnswerClass` not `AnswerClassModel`). The `new XxxModel()` calls in the code block above are illustrative — at implementation, grep `apps/api/src/models/` for the actual exported class name of each model and use that. If any of these models don't exist yet as a BaseModel subclass, the implementer adds a bare BaseModel subclass before wiring this method up — same pattern as the seven new template models.
+
+**`bumpLastUsedAt` signature simplifies.** Now that the apply path no longer uses `$transaction`, the helper drops its optional `tx` parameter:
+
+```typescript
+public async bumpLastUsedAt(id: string, currentUserId: string): Promise<void> {
+    await this.editItem(id, { lastUsedAt: new Date() }, currentUserId);
+}
+```
+
+Routing through `editItem` instead of a raw `prisma.workOrderTemplate.update` for the same audit / hooks consistency reason. `editItem` is a BaseModel method; the `lastUsedAt` field is registered in `modelFields` (Step 5a) so the update flows through normally.
+
+### 8d. Why a private model method, not a separate resolver
+
+Per CLAUDE.md "GraphQL Resolvers Must Stay Thin" — the apply logic is non-trivial multi-step business logic, so it lives in the model. The resolver for `createJob` continues to be a one-liner.
+
+### 8e. Atomicity — compensating soft-delete, not a DB transaction
+
+Spec AC #6 says "failure of any step rolls everything back." A naive read of that says wrap the whole apply in `prisma.$transaction(async (tx) => ...)`. We don't, for one reason: **`BaseModel.createItem` and friends use the module-level `prisma` client**, so they can't be threaded into an outer `tx` without a framework-level refactor (passing `tx` through every `BaseModel.createItem`, `editItem`, etc.). That refactor is out of scope for WO-15a.
+
+Routing every child write through model methods (§8c) is the right call — we don't want to silently skip audits, permissions, soft-delete filtering, or `customCreateItem` hooks just to gain DB-level atomicity. So the apply runs as a **sequence of independent model writes**, and we satisfy the spec's "rolls everything back" with a **compensating soft-delete** on the Job in the catch path:
+
+```typescript
+try {
+    await this.applyWorkOrderTemplate(created.id, workOrderTemplateApplication, currentUserId);
+} catch (err) {
+    // Compensating delete — the application failed partway through, so the
+    // Job (and any child rows already written through their model methods)
+    // get soft-deleted. The user sees the same outcome as a DB-level rollback:
+    // no half-applied WO. The audit log captures the soft-delete distinctly
+    // from a true rollback, which is actually desirable for forensics.
+    await this.deleteItem(created.id, currentUserId);
+    throw err;
+}
+```
+
+`this.deleteItem` (BaseModel) cascades the soft-delete to children via the existing soft-delete propagation (or via the `archiveChildren` hook if needed — confirm at implementation; the existing Job model has an `archiveChildren` override in the same file). The error is re-thrown so the GraphQL response surfaces the failure to the caller.
+
+**Trade-offs vs a true DB transaction:**
+- Audit-log captures `Job.created → Job.soft-deleted` rather than vanishing entirely — better forensics, slightly noisier history.
+- Any soft-deleted children created before the failure remain queryable with `isDeleted: true` filters — same as any other compensating operation in the codebase.
+- A crash between the create and the catch could leave a Job with `isDeleted = false` but no template content. Acceptable risk: failures inside the apply path are caught by `try/catch`; a Node process crash is rare and recovery is the same as any unsaved partial state in the system.
+
+**Out-of-scope alternative (track separately):** a `BaseModel`-level `withTransaction(tx, async (m) => …)` helper that lets every model method accept a `tx`. Would give true DB atomicity here and elsewhere (folder creation, supervisor connect, etc. — none of which are atomic today either). Worth raising during data-model review with Chris, but not part of WO-15a.
+
+---
+
+## Step 9: Form-Render — Template Tier in Default-Value Resolution
+
+**Files:** the existing form-render code path that resolves DAA `defaultValue` for a Job.
+
+Per spec §4.2: render-time tier order is **instance > template > DAA default**. Today the resolver returns `DocumentAttributeAssignment.overrideDefaultValue ?? defaultValue` when no `DocumentAttributeValue` exists. The change is to consult `WorkOrderTemplateFieldDefault.value` between those two tiers when the Job has an `appliedWorkOrderTemplateId`.
+
+```typescript
+// Inside the existing form-render value resolver (path to confirm at implementation):
+const instanceValue = await prisma.documentAttributeValue.findUnique({
+    where: { referenceId_documentAttributeAssignmentId: { referenceId: jobId, documentAttributeAssignmentId: daa.id } }
+});
+if (instanceValue?.value !== undefined && instanceValue?.value !== null) return instanceValue.value;
+
+const job = await prisma.job.findUnique({
+    where: { id: jobId },
+    select: { appliedWorkOrderTemplateId: true }
+});
+if (job?.appliedWorkOrderTemplateId) {
+    const templateDefault = await prisma.workOrderTemplateFieldDefault.findFirst({
+        where: {
+            workOrderTemplateId: job.appliedWorkOrderTemplateId,
+            documentAttributeAssignmentId: daa.id,
+            isDeleted: false,
+            isArchived: false
+        }
+    });
+    if (templateDefault?.value !== undefined && templateDefault?.value !== null) {
+        return templateDefault.value;
+    }
+}
+
+return daa.overrideDefaultValue ?? daa.defaultValue ?? null;
+```
+
+This change is the only existing-code modification that touches a render-time path. Identify the resolver file during implementation (likely a per-section query or a form-builder loader). Add unit coverage: instance-set wins; instance-null + template-set wins; both null → DAA default.
+
+---
+
+## Step 10: TableFeed Registration (Settings List Support)
+
+WO-15b will list templates via the standard `tableData` / `useGetTableDataRecordSetQuery` per CLAUDE.md "TableFeed Queries (Preferred for Data Fetching)". To enable that, register `WorkOrderTemplate` with the existing `GqlTableDataName` enum and add the standard slug-case column configuration:
+
+- `name` — sortable, searchable
+- `description` — searchable
+- `estimated-duration` — sortable
+- `is-active` — filterable
+- `last-used-at` — sortable
+
+This lets WO-15b consume the same enforced-scope feed as every other settings list. Add to whatever file maintains the `tableData` registrations.
+
+---
+
+## Verification Checklist
+
+- [ ] **All seven Prisma models in `schema.prisma`** match §1a-1g exactly — same column types, same indexes, same `onDelete` modes
+- [ ] **`WorkOrderTemplateChecklistItem` schema mirrors PR #7155's `WorkOrderChecklistItem`** column-for-column on `label`, `description` (`@db.Text`), `orderNo`, `photoRequired` — minus completion fields (`isDone`, `completedByUserId`, `completedAt`, `createdByUserId`) which are runtime-only
+- [ ] **`Job.appliedWorkOrderTemplateId`** added with `SetNull` on template archive; composite index `Job_appliedWOTemplate_idx`
+- [ ] Inverse-relation arrays added to `FormWrapper`, `Material`, `TradeLevel`, `EquipmentCategory`, `DocumentAttributeAssignment`
+- [ ] **Single migration file** does all seven `CREATE TABLE`s + `Job` ALTER; no DROP PRIMARY KEY; no schema references; file ends with newline
+- [ ] No backfill — existing rows are untouched; `Job.appliedWorkOrderTemplateId = NULL` is the "no template" sentinel
+- [ ] Seven new BaseModel subclasses in `apps/api/src/models/` follow the conventional shape; `WorkOrderTemplate` has the `bumpLastUsedAt(id, tx?)` helper
+- [ ] **`description` and rich-text `value` use `type: "wysiwyg"`** in `modelFields` (the same path PR #7155's `WorkOrderChecklistItem.description` uses) — same WYSIWYG sanitization runs on both models
+- [ ] `WorkOrderTemplateLaborPlan` + `WorkOrderTemplateEquipmentPlan` `customCreateItem` / `customEditItem` reject "both `tradeLevelId` (or `equipmentCategoryId`) and `description` null" with a `BadRequestError`
+- [ ] `WorkOrderTemplateFieldDefault.value` sanitization is dynamic — sanitizes only when the target DAA's `defaultAttributeType` is rich-text (read the assignment row in the model hook)
+- [ ] GraphQL types use PascalCase relationship fields per CLAUDE.md (`AppliedWorkOrderTemplate`, `ChecklistItems`, `Materials`, …)
+- [ ] **`previewWorkOrderTemplate` returns the existing `WorkOrderTemplate` GraphQL type** — no separate `Snapshot` shape; snapshot semantics enforced server-side by not mutating template rows on read
+- [ ] CRUD mutations exist for every child model: `create`, `edit`, `archive`, `reorder` (`reorder` only where `orderNo` exists)
+- [ ] **`workOrderTemplates` uses the standard `getList(options, userId)` signature** per CLAUDE.md — no custom list query shape
+- [ ] All resolvers delegate to the model via one-liners; no business logic in resolver bodies
+- [ ] All seven new GraphQL resolver files registered in `apps/api/src/graphql/schema.ts` (Resolvers, Query, Mutation, typeDef per CLAUDE.md "Registering New GraphQL Files")
+- [ ] Template CRUD checks `InstanceSetting___edit`; `previewWorkOrderTemplate` checks `workOrder.create` (or equivalent); `createJob` apply piggybacks on the existing `workOrder.create` check — no new permission slug added
+- [ ] `CreateJob` input gains optional `workOrderTemplateApplication: WorkOrderTemplateApplicationInput`; six "Draft" input types defined per §7a
+- [ ] **`JobModel.createItem` is extended in place** at line 1094 — destructure adds `workOrderTemplateApplication`; existing supervisor + worked-on logic stays untouched
+- [ ] **`applyWorkOrderTemplate` writes every child row via the corresponding model's `createItem` method** (per CLAUDE.md "Always Use BaseModel Methods") — `WorkOrderChecklistItemModel`, `WorkOrderMaterialItemModel`, `JobSafetyFormWrapperModel`, `EquipmentAssignmentModel`, `WorkOrderLaborItemModel`, `WorkOrderEquipmentItemModel`, `DocumentAttributeValueModel`. **No raw `prisma.xxx.create(...)` calls in the apply path.** This preserves audit logging, permission checks, soft-delete filtering, and any `customCreateItem` hooks.
+- [ ] No `prisma.$transaction` wraps the apply path. On failure, the Job is soft-deleted via `this.deleteItem(created.id, currentUserId)` as a compensating action and the error re-thrown (§8e).
+- [ ] **Backend writes child rows from the user-submitted `application` drafts, not from template rows.** The backend's only template reads are (1) the existence/active check and (2) the `lastUsedAt` bump. Frontend (WO-15c) is responsible for hydrating + presenting + capturing edits; backend just persists the submitted payload.
+- [ ] Apply path creates: `WorkOrderChecklistItem` rows (one per draft), `WorkOrderMaterialItem` rows (structured + free-form, `materialAttributePriceId` + `unitPrice` NULL), `JobSafetyFormWrapper` rows (one per `formWrapperId`), `EquipmentAssignment` rows (one per `equipmentIds` entry per selection), `WorkOrderLaborItem` rows (free-form only), `WorkOrderEquipmentItem` rows (free-form only), `DocumentAttributeValue` rows (one per accepted field default)
+- [ ] **Structured labor plans are NOT materialized into `WorkOrderLaborItem` / `TimeSheetRecord`** — they remain advisory metadata on the template, accessed via `Job.AppliedWorkOrderTemplate.LaborPlans` on the post-save Schedule tab (WO-16 / WO-15c)
+- [ ] **Structured equipment plans are NOT materialized into `WorkOrderEquipmentItem`** — they drive the apply UI's "select specific equipment" prompts and result in `EquipmentAssignment` rows on save
+- [ ] `WorkOrderTemplate.lastUsedAt` is bumped via `WorkOrderTemplateModel.bumpLastUsedAt(templateId, currentUserId)`, which routes through `this.editItem` — not a raw `prisma.workOrderTemplate.update`
+- [ ] Form-render value resolution honours **instance > template > DAA default** order per Step 9
+- [ ] `Job.appliedWorkOrderTemplateId` is set at row-create time (via `rest.appliedWorkOrderTemplateId = application.templateId` before `super.createItem`) — not patched in afterward
+- [ ] Archiving a template SetNulls `Job.appliedWorkOrderTemplateId` on referencing Jobs without altering any other Job content
+- [ ] Archiving a referenced `Material` / `TradeLevel` / `EquipmentCategory` / `FormWrapper` SetNulls the template child row's FK; the template itself remains valid; preview surfaces the broken row for the apply UI to warn about
+- [ ] Once a WO is created, subsequent edits to its source template do NOT propagate — snapshot semantics enforced because the apply writes runtime rows, not pointers
+- [ ] **Reuse of WO-14 checklist editor on the WO-15b template detail page is unblocked** — the template's `WorkOrderTemplateChecklistItem` shape matches the runtime model closely enough that `<WorkOrderChecklistSection>` (`apps/frontend/src/components/WorkOrder/Checklist/WorkOrderChecklistSection.tsx`) can be reused with `jobId` swapped for `workOrderTemplateId` and the appropriate mode prop. (Actual reuse work belongs in WO-15b; this plan just ensures the schemas don't drift.)
+- [ ] `WorkOrderTemplate` registered with `tableData` / `GqlTableDataName` for WO-15b's settings list per Step 10
+
+---
+
+## Files Summary
+
+| Action | File | What to do |
+|--------|------|------------|
+| MODIFY | `apps/api/prisma/schema.prisma` | Add seven new models (§1a-1g); add `appliedWorkOrderTemplateId` + relation to `Job`; add inverse-relation arrays to `FormWrapper`, `Material`, `TradeLevel`, `EquipmentCategory`, `DocumentAttributeAssignment` |
+| CREATE | `apps/api/prisma/migrations/[timestamp]_wo_15a_work_order_templates/migration.sql` | Seven `CREATE TABLE` statements + `Job` ALTER; composite indexes; no backfill; no DROP PRIMARY KEY; no schema references; ends with newline |
+| CREATE | `apps/api/src/types/WorkOrderTemplate.types.ts` | **Single file** housing all seven `IWorkOrderTemplate*` interfaces (top-level + six children). No per-child types files. |
+| CREATE | `apps/api/src/models/WorkOrderTemplate.ts` | BaseModel subclass; `modelFields`; `bumpLastUsedAt(id, tx?)` helper |
+| CREATE | `apps/api/src/models/WorkOrderTemplateChecklistItem.ts` | BaseModel subclass; `description` uses `type: "wysiwyg"` to match PR #7155's `WorkOrderChecklistItem` |
+| CREATE | `apps/api/src/models/WorkOrderTemplateMaterialItem.ts` | BaseModel subclass; vanilla |
+| CREATE | `apps/api/src/models/WorkOrderTemplateLaborPlan.ts` | BaseModel subclass; `customCreateItem` / `customEditItem` reject "both `tradeLevelId` and `description` null" |
+| CREATE | `apps/api/src/models/WorkOrderTemplateEquipmentPlan.ts` | BaseModel subclass; same "both null" validator with `equipmentCategoryId` |
+| CREATE | `apps/api/src/models/WorkOrderTemplateFormWrapper.ts` | BaseModel subclass; vanilla |
+| CREATE | `apps/api/src/models/WorkOrderTemplateFieldDefault.ts` | BaseModel subclass; `customCreateItem` / `customEditItem` sanitize `value` only when target DAA's `defaultAttributeType` is rich-text |
+| CREATE | `apps/api/src/graphql/models/WorkOrderTemplate.ts` | Type + queries (incl. `previewWorkOrderTemplate`) + CRUD mutations + `extend type Job` + **`WorkOrderTemplateApplicationInput`** (the top-level apply payload — §7a) |
+| CREATE | `apps/api/src/graphql/models/WorkOrderTemplateChecklistItem.ts` | Type + CRUD mutations + reorder + **`WorkOrderTemplateChecklistDraftInput`** (§7b) |
+| CREATE | `apps/api/src/graphql/models/WorkOrderTemplateMaterialItem.ts` | Same pattern + **`WorkOrderTemplateMaterialDraftInput`** (§7c) |
+| CREATE | `apps/api/src/graphql/models/WorkOrderTemplateLaborPlan.ts` | Same pattern + **`WorkOrderTemplateLaborDraftInput`** (§7d) |
+| CREATE | `apps/api/src/graphql/models/WorkOrderTemplateEquipmentPlan.ts` | Same pattern + **`WorkOrderTemplateEquipmentDraftInput`** + **`WorkOrderTemplateEquipmentSelectionInput`** (§7e) |
+| CREATE | `apps/api/src/graphql/models/WorkOrderTemplateFormWrapper.ts` | Same pattern — no draft input (`formWrapperIds: [String!]` lives inline on the parent application payload) |
+| CREATE | `apps/api/src/graphql/models/WorkOrderTemplateFieldDefault.ts` | Same pattern + **`WorkOrderTemplateFieldDefaultDraftInput`** (§7f) |
+| MODIFY | `apps/api/src/graphql/schema.ts` | Register seven new resolvers (Resolvers, Query, Mutation, typeDef per CLAUDE.md "Registering New GraphQL Files") |
+| MODIFY | `apps/api/src/graphql/models/Job.ts` | **One-line addition only:** `extend input CreateJob { workOrderTemplateApplication: WorkOrderTemplateApplicationInput }`. No `WorkOrderTemplate*` input definitions live here (§7g). |
+| MODIFY | `apps/api/src/models/Job.ts` | **Extend** existing `createItem` at line 1094: destructure `workOrderTemplateApplication`, set `rest.appliedWorkOrderTemplateId` before `super.createItem`, call new `applyWorkOrderTemplate` private method (§8c) inside try/catch with compensating Job soft-delete on failure (Option A — Step 8e). `applyWorkOrderTemplate` persists the **user-submitted drafts** (frontend has already hydrated + edited per §8a) — it does not read template child rows. |
+| MODIFY | Form-render value-resolution code path | Insert template tier between DAA default and instance value when `Job.appliedWorkOrderTemplateId` is set (Step 9) |
+| MODIFY | TableFeed registration file | Register `WorkOrderTemplate` with `GqlTableDataName` + slug-case column config for WO-15b's settings list (Step 10) |
+| MODIFY | `apps/api/src/graphql/models/index.ts` | Re-export the seven new resolver modules |
+</script>
+
+<script src="plan-renderer.js"></script>
+<script>renderPlan();</script>
+</body>
+</html>

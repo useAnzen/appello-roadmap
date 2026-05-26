@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WO-25: Forms from Equipment — Options Brief</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+.in-iframe .top-nav { display: none !important; }
+.top-nav { position: sticky; top: 0; z-index: 100; background: #0f172a; border-bottom: 1px solid #1e293b; padding: 0 24px; display: flex; align-items: center; gap: 0; }
+.top-nav a { display: inline-flex; align-items: center; padding: 12px 18px; font-size: 13px; font-weight: 600; color: #94a3b8; text-decoration: none; border-bottom: 2px solid transparent; transition: all 0.15s; white-space: nowrap; }
+.top-nav a:hover { color: #f8fafc; background: #1e293b; }
+.top-nav .nav-logo { font-size: 11px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: #475569; padding-right: 18px; margin-right: 4px; border-right: 1px solid #1e293b; }
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Inter', -apple-system, sans-serif; background: #f8fafc; color: #0f172a; }
+.plan-wrap { max-width: 880px; margin: 0 auto; padding: 40px 24px 80px; }
+h1 { font-size: 24px; font-weight: 800; margin: 0 0 16px; }
+h2 { font-size: 18px; font-weight: 700; margin: 28px 0 12px; padding-bottom: 8px; border-bottom: 2px solid #e2e8f0; }
+h3 { font-size: 15px; font-weight: 700; margin: 20px 0 8px; padding-top: 10px; border-top: 1px solid #f1f5f9; }
+h4 { font-size: 14px; font-weight: 700; margin: 14px 0 6px; }
+p { font-size: 14px; color: #334155; line-height: 1.7; margin: 6px 0; }
+ul, ol { padding-left: 20px; margin: 8px 0; }
+li { font-size: 14px; color: #334155; line-height: 1.7; margin: 3px 0; }
+strong { color: #0f172a; }
+code { font-family: 'SF Mono', monospace; background: #f1f5f9; padding: 1px 6px; border-radius: 4px; font-size: 12px; color: #7c3aed; }
+pre { background: #0f172a; color: #f8fafc; border-radius: 8px; padding: 16px; overflow-x: auto; font-size: 13px; line-height: 1.6; margin: 12px 0; font-family: 'SF Mono', monospace; }
+pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
+hr { border: none; border-top: 1px solid #e2e8f0; margin: 24px 0; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 12px 0; }
+th { text-align: left; padding: 8px 12px; background: #f1f5f9; border-bottom: 2px solid #e2e8f0; font-weight: 600; }
+td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
+.callout { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 14px 18px; margin: 14px 0; font-size: 13px; color: #1e40af; }
+.callout strong { color: #1e3a8a; }
+.callout-warn { background: #fef3c7; border-color: #fcd34d; color: #92400e; }
+.callout-warn strong { color: #78350f; }
+.pros-cons { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 12px 0; }
+.pros, .cons { padding: 12px 16px; border-radius: 8px; }
+.pros { background: #f0fdf4; border: 1px solid #bbf7d0; }
+.cons { background: #fef2f2; border: 1px solid #fecaca; }
+.pros h4 { color: #166534; margin-top: 0; }
+.cons h4 { color: #991b1b; margin-top: 0; }
+.pros li, .cons li { font-size: 13px; }
+    </style>
+</head>
+<body>
+
+<script>if(self!==top)document.documentElement.classList.add("in-iframe")</script>
+<nav class="top-nav">
+    <span class="nav-logo">Appello SDLC</span>
+    <a href="../index.html">Roadmap</a>
+    <a href="../release-1.33-timeline.html">Release 1.33</a>
+    <a href="../release-1.34-timeline.html">Release 1.34</a>
+    <a href="../master-spec-reconciliation.html">Spec Reconciliation</a>
+    <a href="../cross-release-continuity-audit.html">Continuity Audit</a>
+    <a href="ui-interface-library.html">UI Library</a>
+</nav>
+<div class="plan-wrap" id="rendered"></div>
+
+<script type="text/plain" id="plan-md">
+# WO-25: Forms from Equipment — Options Brief
+
+## Context
+
+Field users want to open a piece of equipment on mobile, tap **Start Inspection**, and fill out a form that is automatically associated with that equipment — without first navigating to a Job. Today, `Feedback` (form submission) must belong to a `Job`, and the only way a submission is associated with a specific piece of equipment is via an answer to an Equipment-typed `Question` (`typeId = AZSTw8ja4OkvPfKjPkhko`) on the form.
+
+From the Slack thread with Ian (2026-05-14):
+- "the ability to pull up a piece of Equipment and start an inspection form against it is going to be key"
+- "ideally the forms are filtered to only those that should be available for equipment"
+- "if they are in that specific equipment it would already know that"
+
+This brief outlines two options for **how the equipment ↔ form association is recorded**, plus an optional follow-on for dropping the Job requirement. Form-library filtering on the equipment surface is shared by both options.
+
+**Out of scope for this brief:** the mobile equipment-detail UI placement of the **Start Inspection** button, the auto-assigned Job pattern Ian floated ("01-001 Mkwa Equipment Inspections"), and any backfill of historical submissions. Those land in the follow-up implementation plan once an option is picked.
+
+---
+
+## Shared piece — form-library filter on the equipment surface
+
+Regardless of which option below is chosen, the **Start Inspection** button on equipment detail needs to surface a filtered list of `SafetyForm`s that are "appropriate for this equipment." Filter definition:
+
+A `SafetyForm` is eligible from equipment `E` (category `C`) if it has at least one `Question` where:
+- `typeId = AZSTw8ja4OkvPfKjPkhko` (Equipment question type), AND
+- either the question has **zero** `_EquipmentCategoriesQuestions` rows (open to any equipment category), OR it has a row for `C`.
+
+This is the same eligibility check both options use; they differ only in **where the resulting equipment ↔ feedback link is stored**.
+
+---
+
+## Option 1 — Reuse the existing Equipment-question relationship
+
+When the user starts an inspection from equipment `E`, the form is pre-populated such that the form's Equipment question answer is `E`. The association lives where it already lives today: on the `Answer` row for the Equipment question. No new columns.
+
+**Mechanics**
+- Tap **Start Inspection** on equipment detail → form library filtered as above → pick form → create `Feedback` (still needs a `Job`, see Option 2 follow-on) → pre-seed the Equipment question's `Answer` with `E`, optionally locked from edit.
+- "Forms on this equipment" lists already work — they read from the existing equipment-answer join.
+
+<div class="pros-cons">
+<div class="pros">
+<h4>Pros</h4>
+<ul>
+<li><strong>Zero schema change.</strong> Reuses the existing `Answer` → `Equipment` relationship.</li>
+<li><strong>One source of truth.</strong> No risk of equipment-on-feedback and equipment-on-answer disagreeing.</li>
+<li>Existing "forms on this equipment" queries / reports keep working unchanged.</li>
+<li>Forms without an Equipment question type are simply not eligible — clean filter rule, no edge cases.</li>
+</ul>
+</div>
+<div class="cons">
+<h4>Cons</h4>
+<ul>
+<li><strong>Every eligible form must have an Equipment question.</strong> Form authors who forget to add one make their form invisible from the equipment surface — and the error is silent.</li>
+<li>If the form has **multiple** Equipment questions, we have to pick one to pre-seed (probably the first, but it's a UX call).</li>
+<li>Coupling: the "started from equipment X" intent is encoded as an answer the user could (in theory) change mid-form unless we lock it. Locking is doable but adds a flag.</li>
+<li>Doesn't help with the "drop the Job requirement" follow-on — still needs a Job because Feedback still needs one.</li>
+</ul>
+</div>
+</div>
+
+---
+
+## Option 2 — Add `Feedback.equipmentId` (system-set only)
+
+Add an optional `equipmentId String? @db.VarChar(21)` column on `Feedback`, populated **only** when the form is started from the equipment surface. It is never user-editable — the form builder doesn't surface it, the mobile form UI doesn't surface it. It is metadata recording *where the submission was initiated from*.
+
+**Mechanics**
+- Tap **Start Inspection** on equipment detail → form library filtered as above → pick form → create `Feedback` with `equipmentId = E.id`.
+- "Forms on this equipment" list query becomes a union: `WHERE equipmentId = E OR (an answer on this Feedback references equipment E via the Equipment question)`. New filter clause needed on existing equipment-detail form lists.
+- Equipment questions on the form remain user-editable separately; `Feedback.equipmentId` is the "started from here" record.
+
+<div class="pros-cons">
+<div class="pros">
+<h4>Pros</h4>
+<ul>
+<li><strong>Form library doesn't have to be equipment-aware.</strong> Any inspection form can be launched from equipment — no requirement to include an Equipment question.</li>
+<li>Clean separation between *user intent* (Equipment question answer) and *system context* (where the submission was initiated). Both can be true and disagree without ambiguity.</li>
+<li>Unlocks the optional follow-on: drop the `Feedback.jobId` NOT NULL requirement (see below).</li>
+<li>Indexable on a single column — cheaper "all submissions for this equipment" queries than joining through `Answer` → `Question`.</li>
+</ul>
+</div>
+<div class="cons">
+<h4>Cons</h4>
+<ul>
+<li><strong>Schema change + migration.</strong> New nullable column on `Feedback` (large table) + new index. Additive and non-blocking, but still a Chris-review item.</li>
+<li><strong>Two places to look.</strong> Reports / "forms on this equipment" queries must union `Feedback.equipmentId` and `Answer`-via-Equipment-question, or pick one canonical source. Risk of drift if not centralized.</li>
+<li>Form-library filter rule on the equipment surface is still the same as Option 1 (eligibility still keys off Equipment-question presence / category match) — unless we relax it, in which case forms with no equipment relationship at all become launchable from equipment, which may or may not be desirable.</li>
+<li>If the equipment is later archived / reassigned, we need to decide whether the historical `Feedback.equipmentId` link persists. (Probably yes, but it's a new decision.)</li>
+</ul>
+</div>
+</div>
+
+---
+
+## Optional follow-on for Option 2 — drop the Job requirement
+
+If we go with Option 2, `Feedback.equipmentId` gives us a non-Job anchor for a submission. We could then make `Feedback.jobId` nullable so a true "equipment-only" inspection has no Job at all — matching Ian's preferred field flow ("they will probably never even go into the Job after the initial setup").
+
+<div class="callout callout-warn">
+<strong>This is a much larger change than Option 2 alone.</strong> `Feedback.jobId` being NOT NULL is assumed by every downstream consumer — feedback lists, job detail pages, project rollups, exports, notifications, the `idx_Feedback_ViewIndex` composite index, and the auto-clone / replacement workflow. Each of these needs a "what if there's no Job" answer. Recommend treating this as a separate phase after Option 2 ships and stabilizes — not bundled.
+</div>
+
+**Alternative within Option 2 that avoids the lift:** auto-create / reuse a per-tenant "Equipment Inspections" Job (Ian's "01-001 Mkwa Equipment Inspections" pattern) so `Feedback.jobId` stays NOT NULL and downstream code is unchanged. Lighter to ship; the cost is a synthetic Job that some queries / UIs will need to know to filter or label specially.
+
+---
+
+## Comparison at a glance
+
+<table>
+<thead><tr><th>Dimension</th><th>Option 1 (reuse Equipment question)</th><th>Option 2 (new `Feedback.equipmentId`)</th></tr></thead>
+<tbody>
+<tr><td>Schema change</td><td>None</td><td>1 column + 1 index on `Feedback`</td></tr>
+<tr><td>Requires form to have Equipment question</td><td>Yes (silent fail otherwise)</td><td>No</td></tr>
+<tr><td>"Forms on this equipment" query</td><td>Unchanged</td><td>New union clause</td></tr>
+<tr><td>Can a form be launched from equipment without ever recording equipment context</td><td>No (eligibility blocks it)</td><td>Possible — system-set `equipmentId` covers it</td></tr>
+<tr><td>Unlocks dropping `Feedback.jobId`</td><td>No</td><td>Yes (but big follow-on)</td></tr>
+<tr><td>Estimated effort (this piece only)</td><td>0.5–1 day</td><td>1–2 days</td></tr>
+</tbody>
+</table>
+
+---
+
+## Recommendation
+
+**Option 2, without the drop-Job follow-on for now.** The decoupling between "user intent" (Equipment-question answer) and "system context" (started-from-equipment) is the right shape long-term, and it costs one additive nullable column. It also lets us launch inspection forms from equipment even when the form author forgot the Equipment question — the more forgiving failure mode for field users.
+
+If we want to ship the equipment-launch flow inside 1.33 and the Job-drop work is a heavier 1.34 item, Option 2 is the natural staging point: column + index land in 1.33, the Job-nullability conversation continues separately.
+
+---
+
+## Open questions for Chris / Corey
+
+1. **Form-library eligibility rule** — does the shared filter (Equipment question with no `_EquipmentCategoriesQuestions` rows OR a matching category row) match expected behavior, or do we want a separate `SafetyForm.isEquipmentForm` flag for explicit opt-in?
+2. **Option 1 vs Option 2** — does the decoupling argument for Option 2 outweigh the extra column / migration?
+3. **If Option 2:** do we pre-seed the form's Equipment question answer with the launch equipment (so the answer and `Feedback.equipmentId` agree), and do we lock that answer from edit?
+4. **Drop the Job requirement** — appetite to revisit `Feedback.jobId` nullability in 1.34, or commit to the synthetic "Equipment Inspections" Job pattern Ian floated?
+5. **Equipment archival** — should `Feedback.equipmentId` survive equipment archival / category reassignment? (Default: yes, historical link preserved.)
+
+</script>
+
+<script src="plan-renderer.js"></script>
+<script>renderPlan();</script>
+</body>
+</html>

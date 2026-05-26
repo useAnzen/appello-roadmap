@@ -1,0 +1,1115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WO-22: Mobile Photo Question — Polish — Implementation Plan</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+.in-iframe .top-nav { display: none !important; }
+.top-nav { position: sticky; top: 0; z-index: 100; background: #0f172a; border-bottom: 1px solid #1e293b; padding: 0 24px; display: flex; align-items: center; gap: 0; }
+.top-nav a { display: inline-flex; align-items: center; padding: 12px 18px; font-size: 13px; font-weight: 600; color: #94a3b8; text-decoration: none; border-bottom: 2px solid transparent; transition: all 0.15s; white-space: nowrap; }
+.top-nav a:hover { color: #f8fafc; background: #1e293b; }
+.top-nav .nav-logo { font-size: 11px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: #475569; padding-right: 18px; margin-right: 4px; border-right: 1px solid #1e293b; }
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Inter', -apple-system, sans-serif; background: #f8fafc; color: #0f172a; }
+.plan-wrap { max-width: 880px; margin: 0 auto; padding: 40px 24px 80px; }
+h1 { font-size: 24px; font-weight: 800; margin: 0 0 16px; }
+h2 { font-size: 18px; font-weight: 700; margin: 28px 0 12px; padding-bottom: 8px; border-bottom: 2px solid #e2e8f0; }
+h3 { font-size: 15px; font-weight: 700; margin: 20px 0 8px; padding-top: 10px; border-top: 1px solid #f1f5f9; }
+h4 { font-size: 14px; font-weight: 700; margin: 14px 0 6px; }
+p { font-size: 14px; color: #334155; line-height: 1.7; margin: 6px 0; }
+ul, ol { padding-left: 20px; margin: 8px 0; }
+li { font-size: 14px; color: #334155; line-height: 1.7; margin: 3px 0; }
+strong { color: #0f172a; }
+code { font-family: 'SF Mono', monospace; background: #f1f5f9; padding: 1px 6px; border-radius: 4px; font-size: 12px; color: #7c3aed; }
+pre { background: #0f172a; color: #f8fafc; border-radius: 8px; padding: 16px; overflow-x: auto; font-size: 13px; line-height: 1.6; margin: 12px 0; font-family: 'SF Mono', monospace; }
+pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
+hr { border: none; border-top: 1px solid #e2e8f0; margin: 24px 0; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 12px 0; }
+th { text-align: left; padding: 8px 12px; background: #f1f5f9; border-bottom: 2px solid #e2e8f0; font-weight: 600; }
+td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
+.check-item { display: flex; gap: 8px; align-items: flex-start; padding: 5px 0; }
+.check-box { width: 16px; height: 16px; border: 2px solid #cbd5e1; border-radius: 3px; flex-shrink: 0; margin-top: 2px; }
+.callout { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 14px 18px; margin: 14px 0; font-size: 13px; color: #1e40af; }
+.callout strong { color: #1e3a8a; }
+    </style>
+</head>
+<body>
+
+<script>if(self!==top)document.documentElement.classList.add("in-iframe")</script>
+<nav class="top-nav">
+    <span class="nav-logo">Appello SDLC</span>
+    <a href="../index.html">Roadmap</a>
+    <a href="../release-1.33-timeline.html">Release 1.33</a>
+    <a href="../release-1.34-timeline.html">Release 1.34</a>
+    <a href="../master-spec-reconciliation.html">Spec Reconciliation</a>
+    <a href="../cross-release-continuity-audit.html">Continuity Audit</a>
+    <a href="ui-interface-library.html">UI Library</a>
+</nav>
+<div class="plan-wrap" id="rendered"></div>
+
+<script type="text/plain" id="plan-md">
+# WO-22: Mobile Photo Question — Polish — Implementation Plan
+
+## Overview
+
+Bring the PHOTO question type up to the polish bar the rest of the platform has reached: 2-column thumbnails (was 4-column), captions on each photo, min/max enforcement, swipe / large-X delete with confirm, action-sheet camera/gallery picker, EXIF / GPS capture, and a per-question config card in the desktop form builder. Universal Asset additions — `caption`, `gpsLatitude`, `gpsLongitude`, `capturedAt` — pay for themselves immediately (photo answers) and become free leverage everywhere Assets are surfaced (equipment files, drawings, signature stamps, etc.).
+
+**The polish lands on the existing `AssetViewer` components — `apps/frontend/src/components/AssetViewer/AssetViewer.tsx` and `apps/mobile/src/components/AssetsViewer/AssetViewer.tsx` (the latter is the path the user pointed at; note the plural directory).** Both already cover 9-11 polymorphic `ReferenceTable` options including `Answer`, both already handle confirm-before-delete, both already mount `<FileUpload>` with their app's local `useCreateAssetMutation` / `useEditAssetMutation` / `useGetAssetLazyQuery` / `useGetUploadUrlQuery`. The mobile viewer is already 2-col on small screens (line 784: `grid-cols-2 md:grid-cols-3`) and already passes `imageCompression={true}` to `<FileUpload>`. What's missing is the photo-specific polish — captions, min/max counter, action-sheet add CTA, GPS badge, EXIF capture toggle. We add those as new props on the existing components rather than building a parallel component.
+
+**`PhotoQuestionType` becomes a thin wrapper** that mounts the mobile `<AssetViewer />` with `referenceTable="Answer"`, `referenceId={answer.id}`, `type="image"`, and the photo-config props forwarded from `Question.config`. No new shared component in `packages/ui`. No graphql-binding injection.
+
+**Per-question config rides on the existing `Question.config` JSON field** (the established convention used by Conditional, Multiselect, Equipment, and Person question types — see `Question.ts:95-101` and the consumers in `apps/frontend/src/components/Forms/QuestionnaireForm/QuestionTypes/`). **No new columns on `Question`** — deliberate divergence from the spec's "5 new SafetyFormQuestion columns" sketch in favor of the convention every other configurable question type already uses. Spec author flagged this section as an "implementation-plan call" so the choice belongs here, not in the spec.
+
+Server-side compression / 30-day original retention is layered onto the existing `AssetSize` pipeline (`AssetSizeDetails` in `apps/api/src/types/Asset.types.ts`, resize via `EdgeFunction.assetResize`) plus a new daily cron in the `maintenanceReminderJob.ts` style. PDF export keeps the EXIF strip default the spec calls out.
+
+**Estimated effort:** 2-3 days — back down from the 3-4 day generic-component estimate now that we're enhancing two existing components in place instead of extracting a third
+**Risk:** Medium — touches Asset model (used by every upload path), introduces a cron, modifies two viewers that are mounted across most upload surfaces in both apps, adds a form-builder config card. Because the viewers are already on most surfaces, the polish appears for free on existing flows the moment a surface opts in to the new props.
+**Spec:** `tm-work-orders-uis/wo-22-photo-question-polish.html`
+**Requires:** existing forms infra (`Question`, `Answer`, `Asset`, `AssetReference`, `AssetSize`, `FileUpload`, both `AssetViewer`s, `QuestionFormDetails` workflow, `QuestionnaireAddEditForm` builder) — all already shipped
+**Enables:** WOX-19 voice-to-report can hang off the polished capture surface; future photo annotation; surfaces already on `AssetViewer` can opt in to the polish one prop at a time
+
+---
+
+## Decided — config in `Question.config` JSON, Asset additions are universal columns
+
+**Enhance the existing `AssetViewer` components in place — do not build a new shared component.** Both apps already have a polymorphic `AssetViewer` (`apps/frontend/.../AssetViewer/AssetViewer.tsx` and `apps/mobile/.../AssetsViewer/AssetViewer.tsx`) wired to 9-11 reference tables including `Answer`. Mobile is already 2-col, already does confirm-before-delete, already passes `imageCompression={true}` to `<FileUpload>`. The polish (captions on thumbs, min/max counter, action-sheet add CTA, GPS badge, EXIF capture/strip) lands as new optional props on both viewers. **`PhotoQuestionType` retires its inline `FileUpload` + `ImageList` plumbing and instead mounts `<AssetViewer referenceTable="Answer" referenceId={answer.id} type="image" {...photoConfig} />`.** Other surfaces already using either viewer get the polish automatically the moment they pass the new props; surfaces still on raw `FileUpload` migrate by swapping to their app's local `AssetViewer`. Each app's viewer keeps its own GraphQL hooks from the local `generated` module — no `packages/ui` lift, no binding injection.
+
+**Photo-question settings live in `Question.config` (JSON), NOT new columns on `Question`.** The model already has `config String? @db.Text` (`schema.prisma:1310`) with a `maxLength: 500` validator (`Question.ts:95-101`). It is the established home for per-question-type configuration — Conditional stores `{ continueLabel, skipLabel, continueAllow, skipAllow }`, Multiselect stores `{ multiselectLogic }`, Equipment stores `{ equipmentHasOther }`, Person stores `{ personHasOther }`. Photo joins the same pattern with `{ photoMin, photoMax, captionMode, allowGalleryImport, storeExif }` — ~150 chars of JSON, well under the 500 cap. **Zero schema change on `Question`. No migration. No downstream type churn.** Spec called the column placement an "implementation-plan call"; this is that call.
+
+**Asset additions are universal columns, not JSON.** `caption`, `gpsLatitude`, `gpsLongitude`, `capturedAt` apply to every Asset (equipment files, drawings, signature stamps, photos in any context), not just photo-question answers — exactly as the spec's Decided callout states. Direct columns let us index GPS and filter / sort by `capturedAt` cheaply, and they're not behind a question-type gate. A single `Asset` migration adds the four columns + one composite index on GPS.
+
+**`PhotoQuestionType` already exists in `packages/ui/src/components/SafetyFormQuestions/PhotoQuestionType.tsx`** — the spec's "extract from QAForm.tsx inline switch" line was based on a stale snapshot. The component is mounted from `packages/ui/src/components/SafetyFormWorkflow/QuestionFormDetails.tsx:613` for both `PHOTO` and `FILE` types. This plan **enhances the existing component in `packages/ui` rather than creating a parallel mobile-only file** — the renderer is already shared, so the polish carries to every consumer (mobile QA, preview, any future surface).
+
+**Caption-mode const lives in `packages/shared-utils`.** Cross-app source-of-truth for `OFF | OPTIONAL | REQUIRED` so the mobile renderer, form-builder config card, server validator, and TS types all read the same literal. Same pattern as `AssetSizeNames` in `apps/api/src/types/Asset.types.ts` but exported from `shared-utils` because it's consumed in both `apps/api` and the frontend / mobile apps.
+
+**Server-side compression layers onto the existing `AssetSize` pipeline.** `Asset.resizeImages()` (`apps/api/src/models/Asset.ts:1356-1418`) already creates named sizes via `EdgeFunction.assetResize` driven by `AssetSizeDetails`. We add **no new resize step at upload time** — the existing `default` (750w jpg) is already well under 2MB for any field-captured photo. The "compress to 2MB" requirement becomes a **purge of the `original` `AssetSize` row + S3 object** 30 days after upload, leaving `default` / `default_webp` as the served sizes. Implemented as a new `assetOriginalPurgeJob.ts` in the `apps/api/src/helpers/` directory, started in `application.ts` next to `startMaintenanceReminderJob`.
+
+**No new GraphQL mutations.** `createAsset` / `editAsset` (`apps/api/src/graphql/models/Assets.ts:120-121`) already exist and accept arbitrary asset fields through the standard BaseModel path — the four new columns become accepted inputs as soon as `modelFields` and the GraphQL `Asset` type pick them up. `upsertManyAnswers` (`apps/api/src/graphql/models/Answer.ts:79`) is where photoMin server-side enforcement lands as a single validator call before delegating to the model.
+
+**No frontend `Question` schema changes.** The form builder already passes `config` as a freeform object through `setFormValues(...formValues, config: { ... })` and the editor reads it back via `formValues.config?.xxx` (see `MultiselectQuestionType.tsx:58`). The new `PhotoQuestionType.tsx` config card slots into the same pattern with zero plumbing.
+
+---
+
+## Step 1: Caption-Mode Const + Photo Config Shape
+
+**File:** `packages/shared-utils/src/types/PhotoConfig.ts` (NEW)
+
+Single source-of-truth for the photo-config keys + caption-mode literal. Imported by both `AssetViewer`s (desktop + mobile) as a prop bag, by `PhotoQuestionType` to parse `Question.config`, by the form-builder config card, and by the API validator.
+
+```typescript
+export const CaptionModes = ["OFF", "OPTIONAL", "REQUIRED"] as const;
+export type CaptionMode = (typeof CaptionModes)[number];
+
+export const PHOTO_MAX_CEILING = 25;          // hard ceiling enforced in builder + API
+export const PHOTO_DEFAULT_MAX = 10;
+
+/**
+ * Optional photo-specific behaviour for <AssetViewer />. Every field is optional
+ * with sensible defaults; a viewer not opting in keeps today's behaviour.
+ */
+export interface IPhotoConfig {
+    photoMin?: number;
+    photoMax?: number;
+    captionMode?: CaptionMode;
+    allowGalleryImport?: boolean;
+    storeExif?: boolean;
+}
+
+/**
+ * The SafetyForm PHOTO question stores config of the same shape on Question.config.
+ * Alias rather than a divergent type so the wrapper passes config through unchanged.
+ */
+export type IPhotoQuestionConfig = IPhotoConfig;
+```
+
+Export from `packages/shared-utils/src/types/index.ts` (or wherever the package barrel lives — match neighbours).
+
+Why one file: keeps the const list, the type, and the ceiling/default in lockstep so a future bump (e.g. ceiling to 50) is one edit. Aliasing `IPhotoQuestionConfig` to `IPhotoConfig` means a future hypothetical "questions need a setting other AssetViewer consumers don't" only has to break the alias once.
+
+---
+
+## Step 2: Prisma Schema — Asset Additions Only
+
+**File:** `apps/api/prisma/schema.prisma` (Asset model at lines 1048-1110)
+
+Four new nullable columns on `Asset` + one composite index. No changes to `Question`, `Answer`, `AssetReference`, `AssetSize`.
+
+```prisma
+model Asset {
+    // ...existing fields (lines 1049-1102)
+
+    caption       String?   @db.VarChar(500)
+    gpsLatitude   Decimal?  @db.Decimal(10, 7)
+    gpsLongitude  Decimal?  @db.Decimal(10, 7)
+    capturedAt    DateTime?
+
+    // ...existing indexes (lines 1104-1109)
+    @@index([gpsLatitude, gpsLongitude], map: "Asset_gps_idx")
+}
+```
+
+Why `VarChar(500)` for caption: matches `Question.description`-style caps and is plenty for a one-line "north wall · cracked grout" caption. Why `Decimal(10, 7)` for GPS: 7 decimal places resolves to ~1cm, the standard for geo-coordinate storage; 10 total digits covers the full ±180.0000000 range.
+
+Why nullable on all four: existing Assets have no captions and no GPS history; null is the natural "unset" sentinel. No backfill needed.
+
+**`originalPurgedAt` column for the cron** — added as part of the same Asset block. Stores when the cron last removed the `original*` AssetSize rows for this asset; lets the cron skip already-processed assets cheaply and gives audit visibility into the purge.
+
+```prisma
+originalPurgedAt DateTime?
+```
+
+---
+
+## Step 3: Migration — Single File
+
+**Create file:** `apps/api/prisma/migrations/[timestamp]_wo_22_asset_caption_exif_columns/migration.sql`
+
+Pure additive. No backfill, no FK changes, no `Question` touch, no DAA, no view changes.
+
+```sql
+-- =============================================================
+-- WO-22: Universal Asset additions — caption + EXIF metadata
+-- New columns apply to every Asset (photos, files, equipment
+-- attachments, signature stamps, etc.). Photo-question-specific
+-- config is stored in Question.config JSON — no Question schema
+-- change in this migration.
+-- =============================================================
+
+ALTER TABLE `Asset`
+    ADD COLUMN `caption`           VARCHAR(500)   NULL,
+    ADD COLUMN `gpsLatitude`       DECIMAL(10, 7) NULL,
+    ADD COLUMN `gpsLongitude`      DECIMAL(10, 7) NULL,
+    ADD COLUMN `capturedAt`        DATETIME(3)    NULL,
+    ADD COLUMN `originalPurgedAt`  DATETIME(3)    NULL,
+    ADD INDEX  `Asset_gps_idx` (`gpsLatitude`, `gpsLongitude`);
+```
+
+Per CLAUDE.md SQL rules: no DROP PRIMARY KEY, no schema references, file ends with newline.
+
+---
+
+## Step 4: TypeScript Types
+
+**File:** `apps/api/src/types/Asset.types.ts` (IAsset at lines 57-76)
+
+Add the four new optional fields to `IAsset`:
+
+```typescript
+export interface IAsset {
+    // ...existing fields (lines 58-75)
+    caption?: string;
+    gpsLatitude?: number;
+    gpsLongitude?: number;
+    capturedAt?: Date;
+    originalPurgedAt?: Date;
+}
+```
+
+No new file for the photo config — that lives in `shared-utils` (Step 1) so it can be imported on either side of the API boundary.
+
+---
+
+## Step 5: Extend `Asset` Model — Field Registration
+
+**File:** `apps/api/src/models/Asset.ts` (modelFields at lines 69-151)
+
+Append the four new fields to `modelFields`. No `customCreateItem` / `customEditItem` override needed — `BaseModel` handles the passthrough.
+
+```typescript
+{
+    name: "caption",
+    type: "string",
+    options: {
+        isRequiredOnCreate: false,
+        maxLength: 500
+    }
+},
+{
+    name: "gpsLatitude",
+    type: "float"
+},
+{
+    name: "gpsLongitude",
+    type: "float"
+},
+{
+    name: "capturedAt",
+    type: "date"
+},
+{
+    name: "originalPurgedAt",
+    type: "date"
+}
+```
+
+Why no `customEditItem` validator on the asset side: caption length is enforced by `maxLength`; GPS values can be any number (lat range -90..90 / long -180..180 is enforced by the DECIMAL precision and a clamp helper in the upload mutation, not the model — keeps the model agnostic to "is this a sensible GPS reading" debates); `capturedAt` can be any date because offline-queued uploads legitimately carry a `capturedAt` weeks earlier than `createdAt`; `originalPurgedAt` is system-set only.
+
+---
+
+## Step 6: Extend `Asset` GraphQL — Type + Inputs
+
+**File:** `apps/api/src/graphql/models/Assets.ts` (type at lines 17-133)
+
+### 6a. Extend the `Asset` type
+
+```graphql
+type Asset {
+    # ...existing fields
+    caption: String
+    gpsLatitude: Float
+    gpsLongitude: Float
+    capturedAt: DateTime
+    originalPurgedAt: DateTime
+}
+```
+
+### 6b. Extend `CreateAsset` and `EditAsset` inputs
+
+Both accept the same four (without `originalPurgedAt` — system-managed, not client-set).
+
+```graphql
+input CreateAsset {
+    # ...existing inputs
+    caption: String
+    gpsLatitude: Float
+    gpsLongitude: Float
+    capturedAt: DateTime
+}
+
+input EditAsset {
+    # ...existing inputs
+    caption: String
+    gpsLatitude: Float
+    gpsLongitude: Float
+    capturedAt: DateTime
+}
+```
+
+### 6c. No new mutations
+
+The existing `createAsset` / `editAsset` mutations pick up the new fields transparently — resolvers forward `args.data` to the model and `modelFields` (Step 5) gates which keys persist.
+
+---
+
+## Step 7: Photo-Answer Validation in `upsertManyAnswers`
+
+**File:** `apps/api/src/graphql/models/Answer.ts` (resolver at lines 173-200, mutation at line 79)
+
+Photo-question constraints (`photoMin`, `photoMax`, `captionMode = REQUIRED`) are enforced at the **answer-save boundary**, not the asset-upload boundary. Reason: an Asset is the universal building block; the per-question rules are not the Asset's concern. Validation lives where the question + answers come together — the upsertManyAnswers path that mobile submits on form completion.
+
+### 7a. Resolver-side guard
+
+Add a private validator (e.g. `apps/api/src/models/Answer.ts` — `assertPhotoQuestionAnswerValid`) called from `Answer.upsertItem` / `Answer.upsertManyItems` for each row whose related `Question.type.name === "PHOTO"`.
+
+```typescript
+private async assertPhotoQuestionAnswerValid(
+    questionId: string,
+    answerAssetIds: string[],
+    currentUserId: string
+): Promise<void> {
+    const question = await prisma.question.findUnique({
+        where: { id: questionId },
+        select: { config: true, type: { select: { name: true } } }
+    });
+    if (question?.type.name !== "PHOTO") return;
+
+    const config: IPhotoQuestionConfig = question.config
+        ? JSON.parse(question.config)
+        : {};
+    const min = config.photoMin ?? 0;
+    const max = config.photoMax ?? PHOTO_DEFAULT_MAX;
+
+    if (answerAssetIds.length < min) {
+        throw new BadRequestError(
+            `Photo question requires at least ${min} photo${min === 1 ? "" : "s"} — received ${answerAssetIds.length}.`,
+            { questionId }
+        );
+    }
+    if (answerAssetIds.length > max) {
+        throw new BadRequestError(
+            `Photo question accepts at most ${max} photo${max === 1 ? "" : "s"} — received ${answerAssetIds.length}.`,
+            { questionId }
+        );
+    }
+    if (config.captionMode === "REQUIRED" && answerAssetIds.length > 0) {
+        const missingCaption = await prisma.asset.count({
+            where: {
+                id: { in: answerAssetIds },
+                OR: [{ caption: null }, { caption: "" }]
+            }
+        });
+        if (missingCaption > 0) {
+            throw new BadRequestError(
+                `Photo question requires a caption on every photo (${missingCaption} missing).`,
+                { questionId }
+            );
+        }
+    }
+}
+```
+
+### 7b. Wire it into upsertManyAnswers
+
+`upsertManyAnswers` resolver delegates to `new Answer().upsertManyItems(args.data, context.userId())` — the per-row validator runs inside that path before the answer write.
+
+Why server-side enforcement matters: the mobile renderer enforces the rules at the UX layer (Add CTA disabled at max, save blocked below min) but a defensive server gate prevents bad data via direct API calls, queue replays, or future surfaces.
+
+### 7c. Error payload identifies the question
+
+`BadRequestError`'s second arg is the structured payload (existing house pattern — e.g. `BadRequestError("message", { questionId })`). The frontend uses `error.extensions.questionId` to jump to / highlight the offending question. Mirror the shape mobile expects when it surfaces the inline error ("Question 4 needs 2 more photos").
+
+---
+
+## Step 8: Enhance Mobile `AssetsViewer` with Photo Polish Props
+
+**File:** `apps/mobile/src/components/AssetsViewer/AssetViewer.tsx` (existing, 954 lines)
+
+Add optional photo-polish props to the existing component. Every new prop is optional with safe defaults so existing mounts (mobile expense, notes, certifications, etc.) keep today's behaviour until they opt in.
+
+### 8a. Extend the props interface
+
+Add five fields from `IPhotoConfig` plus a small handful of UX flags. Spread the shared type into the existing `AssetViewerProps`:
+
+```typescript
+import { IPhotoConfig, PHOTO_DEFAULT_MAX } from "@useanzen/shared-utils";
+
+interface AssetViewerProps extends IPhotoConfig {
+    // ...existing props (lines 72-203)
+
+    /** Show "M of N minimum" badge above the grid. Auto-shown when photoMin > 0. */
+    showMinCounter?: boolean;
+    /** Camera-only mode skips the action sheet on Add. Default: derived from allowGalleryImport. */
+    cameraOnly?: boolean;
+}
+```
+
+Why bolt onto `AssetViewerProps` rather than a wrapping `<PhotoSection>`: every consumer of `AssetViewer` already controls the `maxUploadFiles` / `type="image"` props. The new fields fit the same shape.
+
+### 8b. Apply `photoMax` to FileUpload's `maxUploadFiles`
+
+Today: `maxUploadFiles = 8` default (line 225) → passed straight to `<FileUpload>` (line 934). Update so an explicit `photoMax` wins:
+
+```typescript
+const effectiveMax = photoMax ?? maxUploadFiles ?? PHOTO_DEFAULT_MAX;
+// later passed to <FileUpload maxUploadFiles={effectiveMax} />
+```
+
+When `assets.length >= effectiveMax`, disable the upload trigger and the `<FileUpload>` itself (the component already exposes a disabled / blocked state via `setIsUploadDisabled` at line 267).
+
+### 8c. Min-counter badge
+
+Above the grid (above the `{assets && assets.length > 0 ? (...)}` block at line 742), render the badge when `photoMin > 0` or `showMinCounter === true`:
+
+```tsx
+{(showMinCounter ?? (photoMin ?? 0) > 0) && (
+    <div className={new ClassNames("px-3 py-2 text-xs font-semibold")
+        .if(assets.length < (photoMin ?? 0), "text-on-warning-light bg-warning-light")
+        .if(assets.length >= (photoMin ?? 0) && assets.length < effectiveMax, "text-on-success-light bg-success-light")
+        .if(assets.length >= effectiveMax, "text-on-info-light bg-info-light")
+        .list()}>
+        {assets.length} of {photoMin ?? 0} minimum
+    </div>
+)}
+```
+
+Use semantic colour classes per the CLAUDE.md "Colors" guideline (no `bg-amber-50` / `bg-green-100`).
+
+### 8d. Caption strip + editor on each thumbnail
+
+Pass `captionMode` and `updateAsset` into `<FileAsset>` (the per-tile component at `apps/mobile/.../AssetsViewer/FileAsset.tsx`). The tile renders an overlay caption strip across the bottom of the image (when `type === "image"` and `captionMode !== "OFF"`).
+
+Tap the caption strip → opens an inline editor in a flyout (`useFlyout` is already imported at line 31). The editor uses `<FormControl type="text" maxLength={500}>` from the app's local `_FormControls`. On save, fire `updateAsset({ id, caption })` (the existing `useEditAssetMutation` import at line 31 already supplies it). Tap-out reverts.
+
+When `captionMode === "REQUIRED"`, the viewer exposes a new `isValid()` method on its forwardRef:
+
+```typescript
+useImperativeHandle(ref, () => ({
+    // ...existing methods (addFile, performUpload, browseFiles, removeFiles, clearAssets)
+    isValid(): boolean {
+        if (captionMode !== "REQUIRED") return true;
+        return assets.every((a) => /* hydrated asset has non-empty caption */);
+    }
+}));
+```
+
+Parents (`PhotoQuestionType` and any other surface) call `viewerRef.current?.isValid()` from their own submit gates.
+
+### 8e. GPS badge on each thumbnail
+
+When `storeExif === true` and the hydrated Asset has non-null `gpsLatitude` / `gpsLongitude`, render a small pin badge in the top-left of the tile (`<FileAsset>` again). Tooltip shows the lat/long.
+
+### 8f. Action sheet on Add (camera vs gallery)
+
+The existing `<FileUpload>` opens the device's default picker. Wrap the Add trigger in an action sheet (existing `Dropdown` / bottom-sheet primitive in `@useanzen/ui`) when `allowGalleryImport !== false` AND `cameraOnly !== true`:
+
+- "Camera" → `uploaderRef.current?.browseFiles({ capture: "environment" })` (FileUpload already supports forwarding `capture`)
+- "Choose from Gallery" → `uploaderRef.current?.browseFiles()`
+- "Cancel"
+
+When `allowGalleryImport === false` OR `cameraOnly === true`, skip the sheet and call the camera-capture path directly. Pass `portalId="dialog-portal"` per CLAUDE.md.
+
+### 8g. EXIF parse / strip on upload
+
+In the `onComplete` handler at line 899 (where the uploaded asset arrives), if `storeExif === true`, parse EXIF from the uploaded file (`exifr` or the equivalent already vendored — confirm during implementation, fall back to `exif-js`) and call `updateAsset({ id: asset.id, gpsLatitude, gpsLongitude, capturedAt })` to persist. If `storeExif === false`, no-op — never persist EXIF.
+
+Why client-side: EXIF parsing in the EdgeFunction resize step would require a server change; doing it client-side is contained to this viewer and keeps GPS strictly opt-in.
+
+### 8h. Backwards compatibility
+
+Default behaviour with **none of the new props passed** is **identical to today's**: same grid, same FileUpload, same delete confirm, same connect/disconnect path. Existing mounts (across the 9 mobile reference tables in `assetMutationControl.ts`) are unaffected.
+
+---
+
+## Step 9: Mirror Photo Polish on Desktop `AssetViewer`
+
+**File:** `apps/frontend/src/components/AssetViewer/AssetViewer.tsx` (existing, 575 lines)
+
+Same prop additions, same caption / GPS / min-counter / action-sheet / EXIF behaviour. Desktop differences:
+
+- The grid is the gallery `version` (line 60). Min-counter renders above the grid in both `"table"` and `"gallery"` views. Captions and GPS badges only render in `"gallery"` view (table view has its own File / Last Modified / Size columns — caption column can be a follow-up).
+- Action sheet is unnecessary on a desktop file picker — when `cameraOnly` is set, force the upload widget to its camera-input variant; otherwise just open the default picker. **If the desktop usage is admin-only and never needs camera-only, skip 8f on this side and call it a follow-up.**
+- EXIF parsing is identical (browser-side `exifr`); GPS badges render identically.
+- The desktop `FileAsset` (`apps/frontend/.../AssetViewer/FileAsset.tsx`, 106 lines) gets the same caption strip + editor + GPS badge as the mobile version.
+
+Both viewers consume the same `IPhotoConfig` from `shared-utils`, so the prop shape is identical across desktop and mobile. The two `AssetViewer` files stay independent (each app's `useCreateAssetMutation` / `useEditAssetMutation` / `useGetAssetLazyQuery` / `useGetUploadUrlQuery` keep being imported from the local `~root/graphql/generated`) but they ship the same UX.
+
+---
+
+## Step 10: Refactor `PhotoQuestionType` to Mount `<AssetViewer />`
+
+**File:** `packages/ui/src/components/SafetyFormQuestions/PhotoQuestionType.tsx` (existing, 229 lines)
+
+Today the component uses `<FileUpload>` + `<ImageList>` directly. After this step, it mounts the **mobile** `AssetsViewer` (via a prop-injected component, since `packages/ui` can't import `apps/mobile`) and forwards photo-config props from `Question.config`. The bridging works because the existing `PhotoQuestionType` is **already mounted from `QuestionFormDetails.tsx:613` in the mobile workflow**, so the mobile app sits between the two and can inject the right viewer.
+
+### 10a. Inject `AssetViewer` as a prop
+
+Add a required prop:
+
+```typescript
+interface IPhotoQuestionType {
+    // ...existing props
+    /** Injected by the mobile app — the local AssetsViewer wired to mobile's generated GraphQL hooks. */
+    AssetViewer: React.ForwardRefExoticComponent<any>;
+}
+```
+
+The mobile QA renderer (`apps/mobile/.../Forms/SafetyFormQuestionAndAnswers/QAForm.tsx` or `QuestionFormDetails`) passes `AssetViewer={MobileAssetViewer}` when mounting `PhotoQuestionType`. This keeps `packages/ui` agnostic of which app it's running in — same trick `PhotoQuestionType` already uses for `createAsset` / `updateAsset` / `getAsset` / `useGetUploadUrlQuery` (lines 29-32).
+
+### 10b. Component body shrinks to a thin wrapper
+
+```tsx
+import { FC, useRef } from "react";
+import { Asset, Question } from "../../types";
+import { Markdown } from "../Markdown";
+import { Button } from "../Button";
+import { Loader } from "../Loader";
+import QuestionNameAndDescription from "../SafetyFormWorkflow/QuestionNameAndDescription";
+import { IPhotoQuestionConfig } from "@useanzen/shared-utils";
+
+interface IPhotoQuestionType {
+    question: Question;
+    formValues: any;
+    handleNextQuestion: () => void;
+    setFormValues: (assets: Asset[]) => void;
+    addAsset: React.Dispatch<React.SetStateAction<Record<string, unknown>>>;
+    isSaving: boolean;
+    canSkip: boolean;
+    quesPosition: number;
+    AssetViewer: React.ForwardRefExoticComponent<any>;
+    mode?: "photo" | "file";
+    onUploadingChange?: (isUploading: boolean) => void;
+}
+
+const PhotoQuestionType: FC<IPhotoQuestionType> = ({
+    question,
+    formValues,
+    setFormValues,
+    addAsset,
+    handleNextQuestion,
+    isSaving,
+    canSkip,
+    quesPosition,
+    AssetViewer,
+    mode = "photo",
+    onUploadingChange
+}) => {
+    const viewerRef = useRef<any>(null);
+    const photoConfig: IPhotoQuestionConfig = question.config
+        ? JSON.parse(question.config)
+        : {};
+    const initial = (formValues[question.id] ?? []) as Asset[];
+
+    const handleAllSettled = (assetIds: string[]) => {
+        const next = assetIds.map((id) => ({ id })) as Asset[];
+        setFormValues(next);
+        addAsset((q) => ({ ...q, [question.id]: next }));
+    };
+
+    return (
+        <QuestionNameAndDescription
+            quesPosition={quesPosition}
+            title={question.name}
+            description={
+                <>
+                    <Markdown content={question.description || ""} />
+                    <AssetViewer
+                        ref={viewerRef}
+                        type={mode === "file" ? "document" : "image"}
+                        referenceTable="Answer"
+                        referenceId={question.id}
+                        initialAssets={initial.map((a) => ({ assetId: String(a.id) }))}
+                        {...photoConfig}
+                        onAllSettled={handleAllSettled}
+                        onUploadingChange={onUploadingChange}
+                    />
+                </>
+            }
+        >
+            <div className="w-full space-y-2">
+                {!canSkip && (
+                    <p className="pt-2 pb-1 text-sm text-danger">
+                        <span className="font-semibold">Mandatory Question</span> | Please answer to continue.
+                    </p>
+                )}
+                <Button
+                    disabled={
+                        isSaving ||
+                        (!canSkip && initial.length === 0) ||
+                        viewerRef.current?.isValid() === false
+                    }
+                    fullWidth
+                    className="py-4 text-center bg-green-500"
+                    onClick={handleNextQuestion}
+                    size="xl"
+                >
+                    {isSaving ? <Loader message="Saving..." /> : "Confirm"}
+                </Button>
+            </div>
+        </QuestionNameAndDescription>
+    );
+};
+
+export default PhotoQuestionType;
+export { PhotoQuestionType };
+```
+
+### 10c. Mount-point update in the mobile workflow
+
+**File:** `packages/ui/src/components/SafetyFormWorkflow/QuestionFormDetails.tsx` (PHOTO branch at lines 610-638)
+
+Today's mount passes `createAsset`, `updateAsset`, `getAsset`, `useGetUploadUrlQuery` etc. straight from the workflow's prop bag. After this refactor, those are no longer needed on `PhotoQuestionType` — instead, the mount needs the `AssetViewer` prop:
+
+```tsx
+case "FILE":
+case "PHOTO":
+    return (
+        <PhotoQuestionType
+            AssetViewer={AssetViewer}     // NEW — injected by the mobile workflow
+            quesPosition={quesPosition}
+            handleNextQuestion={handleNextQuestion}
+            question={question}
+            formValues={formValues}
+            setFormValues={(assets) => {
+                addAnsweredQuestion(question.id);
+                setFormValues((fv) => ({ ...fv, [question.id]: assets }));
+            }}
+            addAsset={addAsset}
+            isSaving={isSaving}
+            canSkip={canSkip}
+            onUploadingChange={onUploadingChange}
+            {...(question.type.name === "FILE" && { mode: "file" })}
+        />
+    );
+```
+
+`QuestionFormDetails`'s own props gain `AssetViewer` as an injected dependency (the workflow already takes `createAsset` / `updateAsset` / etc. — same pattern).
+
+### 10d. Mobile workflow injection point
+
+**File:** `apps/mobile/src/components/Forms/SafetyFormQuestionAndAnswers/QAFormWrapper.tsx` (or wherever `QuestionFormDetails` is mounted in the mobile app)
+
+Add the import and prop:
+
+```tsx
+import { AssetViewer } from "~root/components/AssetsViewer/AssetViewer";
+// ...
+<QuestionFormDetails AssetViewer={AssetViewer} {...otherProps} />
+```
+
+### 10e. What goes away
+
+- `<FileUpload>` + `<ImageList>` direct usage inside `PhotoQuestionType`
+- The hardcoded `maxUploadFiles={8}` on line 153
+- The `disableConfirm` / `disableAssetBtn` local state machinery (the viewer's `isValid()` + `onUploadingChange` replace it)
+- The `assetRef` to `<FileUpload>` (the viewer's forwardRef takes over)
+- The custom photo / file mode switch render logic (lines 87-132) — `AssetViewer.type` does that
+
+After the refactor `PhotoQuestionType.tsx` drops from ~229 lines to ~80.
+
+---
+
+## Step 11: Desktop Form-Builder Config Card
+
+**File:** `apps/frontend/src/components/Forms/QuestionnaireForm/QuestionTypes/PhotoQuestionType.tsx` (NEW)
+
+Sibling to `AcknowledgementQuestionType.tsx`, `MultiselectQuestionType.tsx`, etc. Same forwardRef + useImperativeHandle pattern.
+
+```tsx
+import { forwardRef, useImperativeHandle, useState } from "react";
+import { Card, Toggle } from "@useanzen/ui";
+import { FormControl } from "~root/components/Forms/_FormControls";
+import {
+    CaptionModes,
+    PHOTO_DEFAULT_MAX,
+    PHOTO_MAX_CEILING,
+    type IPhotoQuestionConfig
+} from "@useanzen/shared-utils";
+
+interface IPhotoQuestionTypeProps {
+    formValues: Record<string, any>;
+    setIsDirtied: (value: boolean) => void;
+}
+
+const PhotoQuestionType = forwardRef<any, IPhotoQuestionTypeProps>(
+    ({ formValues, setIsDirtied }, ref) => {
+        const initial: IPhotoQuestionConfig = formValues.config ?? {};
+
+        const [photoMin, setPhotoMin] = useState<number>(initial.photoMin ?? 0);
+        const [photoMax, setPhotoMax] = useState<number>(
+            initial.photoMax ?? PHOTO_DEFAULT_MAX
+        );
+        const [captionMode, setCaptionMode] = useState(initial.captionMode ?? "OFF");
+        const [allowGalleryImport, setAllowGalleryImport] = useState(
+            initial.allowGalleryImport ?? true
+        );
+        const [storeExif, setStoreExif] = useState(initial.storeExif ?? false);
+
+        useImperativeHandle(ref, () => ({
+            getConfig(): IPhotoQuestionConfig {
+                return {
+                    photoMin,
+                    photoMax,
+                    captionMode,
+                    allowGalleryImport,
+                    storeExif
+                };
+            },
+            isValid(): boolean {
+                if (photoMax > PHOTO_MAX_CEILING) return false;
+                if (photoMin < 0 || photoMax < 1) return false;
+                if (photoMin > photoMax) return false;
+                return true;
+            }
+        }));
+
+        return (
+            <Card roundness="lg" className="mt-5">
+                <h3 className="pb-4 text-sm">Photo Question Configuration</h3>
+
+                <FormControl
+                    name="photoMin"
+                    label="Minimum Photos"
+                    type="number"
+                    value={photoMin}
+                    onChange={(e) => {
+                        setPhotoMin(Number(e.target.value));
+                        setIsDirtied(true);
+                    }}
+                />
+
+                <FormControl
+                    name="photoMax"
+                    label={`Maximum Photos (max ${PHOTO_MAX_CEILING})`}
+                    type="number"
+                    value={photoMax}
+                    error={
+                        photoMax > PHOTO_MAX_CEILING
+                            ? `Cannot exceed ${PHOTO_MAX_CEILING}`
+                            : undefined
+                    }
+                    onChange={(e) => {
+                        setPhotoMax(Number(e.target.value));
+                        setIsDirtied(true);
+                    }}
+                />
+
+                <FormControl
+                    name="captionMode"
+                    label="Caption Mode"
+                    type="select"
+                    value={captionMode}
+                    options={CaptionModes.map((m) => ({ label: m, value: m }))}
+                    onChange={(selected) => {
+                        setCaptionMode(selected.value as typeof captionMode);
+                        setIsDirtied(true);
+                    }}
+                />
+
+                <div className="flex items-center justify-between mt-4">
+                    <p className="text-sm">Allow Gallery Import</p>
+                    <Toggle
+                        enabled={allowGalleryImport}
+                        color="success"
+                        onChange={() => {
+                            setAllowGalleryImport(!allowGalleryImport);
+                            setIsDirtied(true);
+                        }}
+                    />
+                </div>
+
+                <div className="flex items-center justify-between mt-3">
+                    <p className="text-sm">Store EXIF / GPS</p>
+                    <Toggle
+                        enabled={storeExif}
+                        color="success"
+                        onChange={() => {
+                            setStoreExif(!storeExif);
+                            setIsDirtied(true);
+                        }}
+                    />
+                </div>
+
+                <div className="mt-3 text-xs text-gray-500">
+                    Server compression is always on; originals are retained 30 days then purged.
+                </div>
+            </Card>
+        );
+    }
+);
+
+export default PhotoQuestionType;
+export { PhotoQuestionType };
+```
+
+Export from `apps/frontend/src/components/Forms/QuestionnaireForm/QuestionTypes/index.ts`.
+
+---
+
+## Step 12: Mount the Config Card in `QuestionnaireAddEditForm`
+
+**File:** `apps/frontend/src/components/Forms/QuestionnaireForm/QuestionnaireAddEditForm.tsx`
+
+### 12a. Import + ref
+
+At line 14 (next to the existing AcknowledgementQuestionType import) add:
+
+```typescript
+import PhotoQuestionType from "./QuestionTypes/PhotoQuestionType";
+```
+
+In the component body alongside `multiselectQuestionRef` / `booleanQuestionRef` / `ackQuestionRef`:
+
+```typescript
+const photoQuestionRef = useRef<any>(null);
+```
+
+### 12b. Render conditional
+
+Inside the same render block where Acknowledgement is mounted (lines 1103-1111), add:
+
+```tsx
+{type === "Photo" && (
+    <PhotoQuestionType
+        ref={photoQuestionRef}
+        formValues={formValues}
+        setIsDirtied={setQuestionChoiceDirtied}
+    />
+)}
+```
+
+`type === "Photo"` matches the existing string discriminator used by sibling types (e.g. `type === "Equipment"`, `type === "Person"`).
+
+### 12c. Merge config into the submission payload
+
+The existing useEffect at lines 226-280 already cleans up `dirtyFormValues.config` per question type. Extend the Equipment / Person branch pattern:
+
+```typescript
+if (type === "Photo") {
+    const photoConfig = photoQuestionRef.current?.getConfig();
+    if (photoConfig) {
+        // Compare against the existing config to set isDirty correctly
+        const existing = generateConfigByQuestionType(safetyFormQuestion) ?? {};
+        const isUnchanged =
+            (existing.photoMin ?? 0) === photoConfig.photoMin &&
+            (existing.photoMax ?? PHOTO_DEFAULT_MAX) === photoConfig.photoMax &&
+            (existing.captionMode ?? "OFF") === photoConfig.captionMode &&
+            (existing.allowGalleryImport ?? true) === photoConfig.allowGalleryImport &&
+            (existing.storeExif ?? false) === photoConfig.storeExif;
+
+        if (isUnchanged) {
+            delete dirtyFormValues.config;
+        } else {
+            dirtyFormValues.config = photoConfig;
+        }
+    }
+}
+```
+
+The mutation already serializes `config` to a JSON string (existing pattern — see `MultiselectQuestionType` flow through the same form). No mutation signature changes.
+
+### 12d. Validation gate on save
+
+Where the form's submit / next button checks `multiselectQuestionRef.current?.areChoicesValid()` etc., add a parallel check:
+
+```typescript
+if (type === "Photo" && !photoQuestionRef.current?.isValid()) {
+    // surface inline errors / disable save
+    return;
+}
+```
+
+### 12e. Type-select handler
+
+`handleTypeChange` (lines 311-325) doesn't need a Photo-specific branch — it already clears `choices` / `validAnswers` for the new type. The new `photoQuestionRef` initializes via its own `formValues.config` parse on render and so works in both create-new and edit-existing modes.
+
+---
+
+## Step 13: Form Review (Desktop) — Render Caption + GPS
+
+**File:** `packages/ui/src/components/SafetyFormPDF/components/PDFAnswers.tsx` (PHOTO branch at lines 64-83)
+
+The PDF export currently grids out the thumbnails by orientation. Two additions:
+
+### 13a. Render the caption beneath each thumbnail
+
+Read `t.caption` on the rendered Asset; render as a one-line `<Text>` (PDF primitive used elsewhere in this file) beneath the image with truncation.
+
+### 13b. Render a GPS badge when present
+
+Read `t.gpsLatitude` / `t.gpsLongitude` on the rendered Asset; render a small "📍 lat, lng" badge in the top-left of the image when both fields are non-null. The capture-time badge ("captured 09:00") reads `t.capturedAt ?? t.createdAt`.
+
+### 13c. Strip EXIF + GPS from the customer-facing PDF render
+
+When the PDF is in customer-facing mode (existing `excludedQuestionIds` / mode flag — confirm the existing prop), **do not** render the GPS badge and **do not** include `capturedAt`. The fields stay on the Asset (still useful for internal review); the renderer just omits them.
+
+For the embedded image bytes themselves, the existing pipeline pulls from an `AssetSize` whose `r: "exif"` parameter preserves EXIF. Customer-facing exports should pull from a non-`original*` size — `default` (line 43 of `AssetSizeDetails`) already strips EXIF because the EdgeFunction's default resize does not preserve EXIF unless `r: "exif"` is explicitly passed. Confirm in the `PDFImage` consumer that the `imageSrc` resolves to `default`-or-larger when a non-`original*` size exists; if it doesn't today, swap the lookup to prefer `default` for customer-facing mode.
+
+---
+
+## Step 14: Daily Cron — Purge Originals After 30 Days
+
+**File:** `apps/api/src/helpers/assetOriginalPurgeJob.ts` (NEW)
+
+Mirror the `maintenanceReminderJob.ts` pattern (`apps/api/src/helpers/maintenanceReminderJob.ts`):
+
+```typescript
+import prisma from "../models/_prismaClient";
+import { S3Client, DeleteObjectCommand } from "@aws-sdk/client-s3";
+import { AssetSizeNames } from "../types/Asset.types";
+
+const HOUR_MS = 60 * 60 * 1000;
+const RETENTION_DAYS = 30;
+
+async function runOnce(): Promise<void> {
+    const cutoff = new Date(Date.now() - RETENTION_DAYS * 24 * HOUR_MS);
+
+    const candidates = await prisma.asset.findMany({
+        where: {
+            createdAt: { lt: cutoff },
+            originalPurgedAt: null,
+            AssetSizes: { some: { sizeName: { startsWith: "original" } } }
+        },
+        select: { id: true },
+        take: 200  // batched to avoid runaway memory on first activation
+    });
+
+    for (const { id } of candidates) {
+        await purgeOriginalsForAsset(id);
+    }
+}
+
+async function purgeOriginalsForAsset(assetId: string): Promise<void> {
+    const originalSizes = await prisma.assetSize.findMany({
+        where: {
+            assetId,
+            sizeName: { startsWith: "original" }
+        }
+    });
+
+    const s3 = new S3Client({/* same config as Asset.ts:42-48 */});
+
+    for (const size of originalSizes) {
+        try {
+            await s3.send(new DeleteObjectCommand({
+                Bucket: size.bucket,
+                Key: size.key
+            }));
+        } catch (err) {
+            console.error(`Failed to delete S3 object for AssetSize ${size.id}`, err);
+            // continue — soft-delete the row even if S3 delete fails; nightly retry
+        }
+        await prisma.assetSize.update({
+            where: { id: size.id },
+            data: { isDeleted: true }
+        });
+    }
+
+    // Repoint Asset.url to the largest remaining size (default > thumbnail).
+    const remaining = await prisma.assetSize.findFirst({
+        where: { assetId, isDeleted: false },
+        orderBy: { width: "desc" }
+    });
+
+    await prisma.asset.update({
+        where: { id: assetId },
+        data: {
+            originalPurgedAt: new Date(),
+            url: remaining?.url ?? undefined
+        }
+    });
+}
+
+export function startAssetOriginalPurgeJob(): void {
+    const tick = () => {
+        runOnce().catch((err) => console.error("[assetOriginalPurgeJob]", err));
+    };
+    tick();
+    setInterval(tick, 24 * HOUR_MS);
+}
+```
+
+**Wire it up in `apps/api/src/application.ts`** next to the existing `startMaintenanceReminderJob(rootUser.id)` call (line 601):
+
+```typescript
+import { startAssetOriginalPurgeJob } from "./helpers/assetOriginalPurgeJob";
+
+// in bootstrap, near line 601:
+startAssetOriginalPurgeJob();
+```
+
+Why batched (`take: 200`): first activation will scan every Asset older than 30 days. Capping at 200 per tick keeps the job's S3 / DB load predictable; the daily cadence chews through any backlog inside a few days.
+
+Why `originalPurgedAt` instead of just relying on `AssetSize.isDeleted`: the column is on the cheap-to-query side (Asset) and lets the cron's `where` clause short-circuit without joining AssetSize. Also gives an audit trail on the Asset itself.
+
+Why update `Asset.url`: existing consumers read `Asset.url` as the canonical pointer; after purge it must point at a still-existing size.
+
+---
+
+## Step 15: Asset Upload Path — Persist EXIF + Captions
+
+**Files:** both `AssetViewer`s' `onComplete` handlers (mobile line 899, desktop equivalent in `AssetViewer.tsx`).
+
+After the existing S3 PUT + `createAsset` round-trip completes, the viewer parses EXIF client-side (Step 8g) and fires `updateAsset({ id, gpsLatitude, gpsLongitude, capturedAt })` when `storeExif === true`. Captions written via the caption editor (Step 8d) take the same `updateAsset` path — `EditAsset` accepts `caption` per Step 6b.
+
+No new resolver — the existing `createAsset` / `editAsset` mutations carry the new payload once `modelFields` (Step 5) and the GraphQL inputs (Step 6) accept the new fields.
+
+---
+
+## Adoption Roadmap — Surfaces That Get the Polish (Now or Later)
+
+`AssetViewer` already covers 9 mobile reference tables and 11 desktop reference tables. Each surface below splits into one of three migration states once WO-22 lands:
+
+- **A — Already on AssetViewer.** Pass the new photo-config props (`photoMin`, `photoMax`, `captionMode`, `allowGalleryImport`, `storeExif`) when you want the polish; otherwise no change. One-line opt-in.
+- **B — On raw `FileUpload` + `ImageList`.** Swap to the app's local `AssetViewer` and pass the photo-config props. Single-file PR per surface.
+- **C — Custom asset path.** Audit and either bring on to `AssetViewer` or leave alone. Per-surface judgement call.
+
+| Surface | File | Reference | State | Notes |
+|---------|------|-----------|-------|-------|
+| Safety form PHOTO question (this PR) | `packages/ui/.../SafetyFormQuestions/PhotoQuestionType.tsx` | `Answer` | B → A | Refactored in Step 10 to mount the mobile `AssetViewer`. Reference implementation. |
+| Equipment photos (desktop) | `apps/frontend/.../Forms/EquipmentAddEditForm/EquipmentImageAttributeInput.tsx` | `Equipment` | TBD | Confirm whether already on `AssetViewer` or on raw `FileUpload`. `captionMode: "OPTIONAL"` for "nameplate" / "serial label" |
+| Expense receipts (desktop) | `apps/frontend/.../Forms/ExpenseAddEditForm/ExpenseAddEditForm.tsx` | `Expense` | TBD | `photoMax: 5`, `storeExif: true` for audit trail |
+| Expense receipts (mobile) | `apps/mobile/.../Forms/ExpenseAddEditForm/ExpenseAddEditForm.tsx` | `Expense` | TBD | Same config as desktop — submit-from-the-field UX |
+| Note attachments (desktop) | `apps/frontend/.../Forms/NoteAddEditForm.tsx/NoteAddEditForm.tsx` | `Note` | TBD | Mixed photo + file — `type="document"` keeps current shape |
+| Note attachments (mobile) | `apps/mobile/.../Forms/NoteAddEditForm/NoteAddEditForm.tsx` | `Note` | TBD | Same |
+| Comment attachments (desktop) | `apps/frontend/.../Forms/CommentAddEditForm/CommentAddEditForm.tsx` | `Note` | TBD | Comments attach via Note today |
+| Certification scans (desktop) | `apps/frontend/.../Forms/UserCertificationAddEditForm/UserCertificationAddEditForm.tsx` | `UserCertification` | TBD | Front + back fields — two `<AssetViewer photoMax={1}>` instances |
+| Certification scans (mobile) | `apps/mobile/.../Forms/CertificationAddForm/CertificationUploadView.tsx` | `UserCertification` | TBD | Same |
+| User avatar (desktop) | `apps/frontend/.../Forms/UploadAvatar/UploadAvatarForm.tsx` | `User` | C | Single-image, special path — skip unless explicit need |
+| User avatar (mobile) | `apps/mobile/.../Forms/UploadAvatar/UploadAvatarForm.tsx` | `User` | C | Same |
+| Onboarding headshot | `apps/frontend/.../Forms/OnBoarding/UploadHeadshot.tsx` | `User` | C | Same shape as avatar |
+| Resolution photos | `apps/frontend/.../Forms/FeedbackResolveForm/FeedbackResolveForm.tsx` | `Resolution` | TBD | Multi-photo with optional captions |
+| RFI drawing references (desktop) | `apps/frontend/.../Forms/RequestForInformationAddEditForm/RequestForInformationAddEditForm.tsx` | `RequestForInformation` | TBD | `RequestForInformation` is in the desktop `ReferenceTable` enum but not mobile — confirm during migration |
+| RFI drawing references (mobile) | `apps/mobile/.../RFI/AssociateDrawingReferenceModal.tsx` | `RequestForInformation` | TBD | Mobile `assetMutationControl` would need `RequestForInformation` added |
+| Project attachments | `apps/frontend/.../Forms/ProjectAddForm/ProjectAddForm.tsx` | `Project` | TBD | Mixed photo + file |
+| Material product images | `apps/frontend/.../Forms/MaterialPriceSheet/MaterialPriceSheetForm.tsx` | `Material` | TBD | `photoMax: 4` |
+| Business settings assets | `apps/frontend/.../Forms/BusinessSettingsForm/BusinessSettingsForm.tsx` | `Instance` | C | Single-asset slots (icons, splash) — skip unless explicit need |
+| Policy documents | `apps/frontend/.../Forms/PolicyDocumentAddEditForm/PolicyDocumentAddEditForm.tsx` | `PolicyDocument` | C | PDF / docs, not images — out of scope for photo polish |
+| Question assets (form builder) | `apps/frontend/.../Forms/QuestionnaireForm/QuestionnaireAddEditForm.tsx` | `Question` | TBD | Reference images on the question itself, not on answers |
+
+**Migration order suggestion** (cheapest → most-visible): expense receipts (mobile/desktop) → certifications → equipment photos → notes / comments → resolution / RFI / project / material. Audit each surface's current state before opening the PR — "TBD" rows might already be on `AssetViewer` and just need the new props.
+
+---
+
+## Verification Checklist
+
+- [ ] **No new shared component in `packages/ui` for the gallery.** Polish lands on the existing `apps/frontend/src/components/AssetViewer/AssetViewer.tsx` and `apps/mobile/src/components/AssetsViewer/AssetViewer.tsx` in place
+- [ ] Both `AssetViewer`s accept the new photo-config props (`photoMin`, `photoMax`, `captionMode`, `allowGalleryImport`, `storeExif`, `showMinCounter`, `cameraOnly`) and default to **today's behaviour** when none are passed (no regression on existing mounts)
+- [ ] `AssetViewerProps` extends `IPhotoConfig` from `@useanzen/shared-utils` — same prop shape on both apps
+- [ ] Both viewers expose `isValid()` on their forwardRef so parents can block their own submit when `captionMode === "REQUIRED"` and a caption is missing
+- [ ] **`PhotoQuestionType` is a thin wrapper (~80 lines, down from 229)** that mounts the mobile `AssetViewer` via injected `AssetViewer` prop and forwards `Question.config` as photo-config props
+- [ ] `QuestionFormDetails.tsx` PHOTO branch (line 610-638) passes `AssetViewer={AssetViewer}` through to `PhotoQuestionType`
+- [ ] Mobile QA mount (`apps/mobile/.../QAFormWrapper.tsx` or equivalent) imports the local `AssetViewer` and passes it into `QuestionFormDetails`
+- [ ] **Photo config in `Question.config` JSON, NOT new columns on `Question`** — schema.prisma `model Question` is unchanged in this work
+- [ ] `packages/shared-utils/src/types/PhotoConfig.ts` exports `CaptionModes`, `CaptionMode`, `PHOTO_MAX_CEILING`, `PHOTO_DEFAULT_MAX`, `IPhotoConfig`, and the `IPhotoQuestionConfig` alias
+- [ ] Both `AssetViewer`s, `PhotoQuestionType` (wrapper), the desktop form-builder config card, and the API validator (`Answer.ts:assertPhotoQuestionAnswerValid`) **all import from the same `shared-utils` source-of-truth** — no duplicated string literals
+- [ ] `Asset` model gains five nullable columns: `caption`, `gpsLatitude`, `gpsLongitude`, `capturedAt`, `originalPurgedAt`
+- [ ] Composite index `Asset_gps_idx` on `(gpsLatitude, gpsLongitude)`
+- [ ] Single migration file does **only** the Asset adds — no Question touch, no view rebuild, no FK changes
+- [ ] `IAsset` interface in `apps/api/src/types/Asset.types.ts` includes the five new optional fields
+- [ ] `Asset.modelFields` registers all five new fields; `caption` has `maxLength: 500`
+- [ ] GraphQL `Asset` type exposes `caption`, `gpsLatitude`, `gpsLongitude`, `capturedAt`, `originalPurgedAt`
+- [ ] GraphQL `CreateAsset` + `EditAsset` accept `caption`, `gpsLatitude`, `gpsLongitude`, `capturedAt` (NOT `originalPurgedAt` — system-set)
+- [ ] **No new mutations** — existing `createAsset`, `editAsset`, `upsertManyAnswers` carry the new payload
+- [ ] `Answer` model gains `assertPhotoQuestionAnswerValid` private helper; called from `upsertManyItems`
+- [ ] Server rejects `upsertManyAnswers` when a PHOTO answer has fewer than `photoMin` photos; error payload includes `questionId`
+- [ ] Server rejects `upsertManyAnswers` when a PHOTO answer exceeds `photoMax` photos
+- [ ] Server rejects `upsertManyAnswers` when `captionMode === "REQUIRED"` and any attached Asset has null / empty caption
+- [ ] Validator reads `Question.config` JSON; defaults `photoMax = PHOTO_DEFAULT_MAX` when the field is absent (legacy questions)
+- [ ] Mobile `AssetViewer` already renders a 2-col grid on small screens (line 784) — each tile gains optional GPS pin badge (when `storeExif && asset.gpsLatitude`) and editable caption strip (when `captionMode !== "OFF"`)
+- [ ] Mobile `AssetViewer` keeps its existing confirm-before-delete (`useConfirm` + `ConfirmDeleteModal` — already wired)
+- [ ] Mobile `AssetViewer` renders the "M of N minimum" badge above the grid when `photoMin > 0` or `showMinCounter === true`; colour transitions per Step 8c
+- [ ] Mobile `AssetViewer`'s Add CTA presents action sheet (Camera / Gallery / Cancel) when `allowGalleryImport !== false` AND `cameraOnly !== true`; tap-to-camera when either gates it off
+- [ ] Mobile `AssetViewer`'s upload is disabled + `effectiveMax` enforced when `assets.length >= effectiveMax` (derived from `photoMax ?? maxUploadFiles ?? PHOTO_DEFAULT_MAX`)
+- [ ] Mobile `AssetViewer.isValid()` returns false when `captionMode === "REQUIRED"` and any photo's caption is empty
+- [ ] When `storeExif === true`, mobile `AssetViewer` parses EXIF client-side in the `onComplete` handler (line 899) and calls `updateAsset({ id, gpsLatitude, gpsLongitude, capturedAt })`; when false, no EXIF fields are ever persisted
+- [ ] Desktop `AssetViewer` mirrors the same prop set and same caption / GPS / min-counter / EXIF behaviour; `cameraOnly` may be a no-op on desktop in V1
+- [ ] `apps/frontend/.../QuestionTypes/PhotoQuestionType.tsx` exists with the forwardRef + `useImperativeHandle({ getConfig, isValid })` pattern
+- [ ] `QuestionnaireAddEditForm.tsx` mounts `<PhotoQuestionType>` when `type === "Photo"`, refs it, merges `getConfig()` into `dirtyFormValues.config` only when changed
+- [ ] `photoMax > PHOTO_MAX_CEILING` blocks save (form-builder `isValid()` returns false)
+- [ ] `photoMin > photoMax` blocks save
+- [ ] `photoMin < 0` blocks save
+- [ ] `PDFAnswers.tsx` PHOTO branch renders `caption` beneath each thumbnail, GPS pin top-left when both lat/long present
+- [ ] **Customer-facing PDF export strips GPS pin + capturedAt regardless of `storeExif`** — non-`original*` AssetSize is used for the embedded image bytes
+- [ ] `apps/api/src/helpers/assetOriginalPurgeJob.ts` exports `startAssetOriginalPurgeJob` following the `maintenanceReminderJob` pattern
+- [ ] Cron is started in `apps/api/src/application.ts` next to `startMaintenanceReminderJob(rootUser.id)` (around line 601)
+- [ ] Cron purges S3 objects for `AssetSize` rows whose `sizeName` starts with `"original"` when `Asset.createdAt < now() - 30 days` AND `originalPurgedAt IS NULL`
+- [ ] Cron sets `Asset.originalPurgedAt = now()` and repoints `Asset.url` to the largest remaining `AssetSize`
+- [ ] Cron is batched (`take: 200` per tick) so first activation doesn't tip over the S3 / DB rate
+- [ ] Cron survives partial S3 failures — DB row gets soft-deleted regardless, next tick retries the S3 delete
+- [ ] Existing Assets (no caption / GPS / capturedAt) render identically to pre-WO-22 — no regression on equipment files, drawings, signature stamps, expense receipts
+- [ ] Existing PHOTO questions with `Question.config = NULL` continue to render with sensible defaults (`photoMax = 10`, `photoMin = 0`, `captionMode = "OFF"`, `allowGalleryImport = true`, `storeExif = false`)
+
+---
+
+## Files Summary
+
+| Action | File | What to do |
+|--------|------|------------|
+| CREATE | `packages/shared-utils/src/types/PhotoConfig.ts` | Export `CaptionModes`, `CaptionMode`, `PHOTO_MAX_CEILING = 25`, `PHOTO_DEFAULT_MAX = 10`, `IPhotoConfig`, and `IPhotoQuestionConfig` (alias of `IPhotoConfig`). Add to package barrel. |
+| MODIFY | `apps/api/prisma/schema.prisma` | Add five nullable columns + `Asset_gps_idx` to `model Asset` (lines 1048-1110). **No changes to `Question`.** |
+| CREATE | `apps/api/prisma/migrations/[timestamp]_wo_22_asset_caption_exif_columns/migration.sql` | Single `ALTER TABLE Asset` adding `caption`, `gpsLatitude`, `gpsLongitude`, `capturedAt`, `originalPurgedAt` + GPS composite index. No backfill, no Question changes. |
+| MODIFY | `apps/api/src/types/Asset.types.ts` | Extend `IAsset` with five optional fields |
+| MODIFY | `apps/api/src/models/Asset.ts` | Register five new fields in `modelFields` (lines 69-151). `caption` gets `maxLength: 500`. No customCreate / customEdit overrides — BaseModel handles passthrough |
+| MODIFY | `apps/api/src/graphql/models/Assets.ts` | Add `caption`, `gpsLatitude`, `gpsLongitude`, `capturedAt`, `originalPurgedAt` to `type Asset`. Add `caption`, `gpsLatitude`, `gpsLongitude`, `capturedAt` to `CreateAsset` + `EditAsset` inputs (not `originalPurgedAt` — system-set) |
+| MODIFY | `apps/api/src/models/Answer.ts` | Add `assertPhotoQuestionAnswerValid` private helper; call from `upsertManyItems` for each row whose `Question.type.name === "PHOTO"`. Reads `Question.config` JSON, enforces `photoMin` / `photoMax` / `captionMode === "REQUIRED"`. Errors include `{ questionId }` payload. |
+| MODIFY | `apps/mobile/src/components/AssetsViewer/AssetViewer.tsx` | Extend `AssetViewerProps` with `IPhotoConfig` fields + `showMinCounter` + `cameraOnly`. Add min-counter badge above grid, caption strip + editor + GPS badge per tile (push into `FileAsset` props), action-sheet wrapper on Add CTA, EXIF parse in `onComplete` handler (line 899), `isValid()` on the forwardRef. Compute `effectiveMax = photoMax ?? maxUploadFiles ?? PHOTO_DEFAULT_MAX` and pass to `<FileUpload maxUploadFiles>`. **No behaviour change when none of the new props are passed.** |
+| MODIFY | `apps/mobile/src/components/AssetsViewer/FileAsset.tsx` | Accept new props for caption strip + editor + GPS badge. Forward `updateAsset` calls when caption is saved. |
+| MODIFY | `apps/frontend/src/components/AssetViewer/AssetViewer.tsx` | Same prop additions as mobile. Min-counter badge in both `version="gallery"` and `version="table"`. Caption + GPS badges in gallery view only (table view = follow-up). EXIF parsing identical. `cameraOnly` is a no-op for V1 unless an explicit desktop need surfaces. |
+| MODIFY | `apps/frontend/src/components/AssetViewer/FileAsset.tsx` | Match the mobile FileAsset prop additions (caption strip + GPS badge) |
+| MODIFY | `packages/ui/src/components/SafetyFormQuestions/PhotoQuestionType.tsx` | **Refactor from 229 lines to ~80.** Drop inline `<FileUpload>` + `<ImageList>`. Add `AssetViewer` as a required injected prop. Mount `<AssetViewer ref={viewerRef} type={mode === "file" ? "document" : "image"} referenceTable="Answer" referenceId={question.id} initialAssets={...} {...photoConfig} onAllSettled={handleAllSettled} onUploadingChange={onUploadingChange} />`. Confirm button reads `viewerRef.current?.isValid()`. Parse `Question.config` JSON for the photo-config spread. |
+| MODIFY | `packages/ui/src/components/SafetyFormWorkflow/QuestionFormDetails.tsx` | PHOTO branch (lines 610-638): drop the `createAsset` / `updateAsset` / `getAsset` / `useGetUploadUrlQuery` props to `PhotoQuestionType` (the AssetViewer carries those). Add `AssetViewer={AssetViewer}` to the mount; thread an `AssetViewer` prop into `QuestionFormDetails`'s own props. |
+| MODIFY | `apps/mobile/src/components/Forms/SafetyFormQuestionAndAnswers/QAFormWrapper.tsx` (or the local file that mounts `QuestionFormDetails`) | Import the local `AssetViewer` from `~root/components/AssetsViewer/AssetViewer` and pass `AssetViewer={AssetViewer}` into `QuestionFormDetails` |
+| CREATE | `apps/frontend/src/components/Forms/QuestionnaireForm/QuestionTypes/PhotoQuestionType.tsx` | New per-question-type config card. forwardRef + `useImperativeHandle({ getConfig, isValid })`. Imports shared-utils const. Fields: `photoMin`, `photoMax`, `captionMode` (`SelectDropdown`), `allowGalleryImport` (`Toggle`), `storeExif` (`Toggle`). Validates `photoMax <= PHOTO_MAX_CEILING`, `photoMin <= photoMax`, `photoMin >= 0`. |
+| MODIFY | `apps/frontend/src/components/Forms/QuestionnaireForm/QuestionTypes/index.ts` | Re-export `PhotoQuestionType` |
+| MODIFY | `apps/frontend/src/components/Forms/QuestionnaireForm/QuestionnaireAddEditForm.tsx` | Import + `useRef` for `photoQuestionRef`. Render `<PhotoQuestionType ref={photoQuestionRef} ...>` when `type === "Photo"` (alongside line 1103 Acknowledgement branch). Extend the line 226-280 useEffect to merge `photoQuestionRef.current.getConfig()` into `dirtyFormValues.config` when changed (mirror the Equipment / Person branch). Add `!photoQuestionRef.current.isValid()` to the existing save-gate set. |
+| MODIFY | `packages/ui/src/components/SafetyFormPDF/components/PDFAnswers.tsx` | PHOTO branch (lines 64-83): render `caption` beneath each thumb; render GPS pin badge when `gpsLatitude && gpsLongitude` present; render capture-time tooltip. Customer-facing mode strips GPS + capturedAt and embeds non-`original*` AssetSize bytes. |
+| CREATE | `apps/api/src/helpers/assetOriginalPurgeJob.ts` | Daily cron via `setInterval(_, 24h)`. Mirrors `maintenanceReminderJob.ts` pattern. Batched `take: 200`. Soft-deletes `AssetSize` rows whose `sizeName` starts with `"original"` on Assets older than 30 days with `originalPurgedAt IS NULL`. Deletes S3 objects via `@aws-sdk/client-s3`. Repoints `Asset.url` to the largest remaining size. Sets `Asset.originalPurgedAt`. |
+| MODIFY | `apps/api/src/application.ts` | Import + call `startAssetOriginalPurgeJob()` next to `startMaintenanceReminderJob(rootUser.id)` around line 601 |
+</script>
+
+<script src="plan-renderer.js"></script>
+<script>renderPlan();</script>
+</body>
+</html>

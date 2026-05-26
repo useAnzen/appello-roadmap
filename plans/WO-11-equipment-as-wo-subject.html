@@ -64,11 +64,17 @@ Introduce a first-class relationship between a Work Order (Job with `jobClassifi
 
 ---
 
-## Decided — One equipment per WO (V1 product), m2m at data layer
+## Decided — Polymorphic from day one, one entity per WO (V1 product), m2m at data layer
 
-**Naming note:** the spec calls this "subject equipment." Implementation uses the more generic `PerformedOn` / `ServiceHistory` naming so the data model and GraphQL surface don't have to be renamed when polymorphism arrives (Location, Vehicle, or other subject types). The UI keeps the customer-facing label `"Equipment Serviced"` per the spec mockups.
+**Polymorphic reference, not an Equipment FK.** The join row carries `workedOnReferenceModel` (e.g. `"Equipment"`) + `workedOnReferenceId` (the target row's id) instead of a hard `equipmentId` FK. **Deliberate divergence from house convention**: the ~20 existing polymorphic tables in `schema.prisma` (`Attributes`, `NoteReferences`, `Audit`, `AnswerModelMap`, `MaintenanceThreshold`, etc.) all use the bare `referenceModel @db.VarChar(50)` + `referenceId @db.VarChar(21)` pair. The WO-11 plan prefixes with `workedOn` for **clarity-at-a-glance** — the column names read the semantic relation in a single token, which matters more on `Job` (already a wide table with many other reference-like fields like `jobTypeId`, `jobLeadId`, `jobStatusId`) than it does on a narrow polymorphic join table like `Audit` or `Attributes`. The data shape and the no-FK trade-off are identical to those precedents; only the names differ.
 
-Per Chris's DB review (2026-05-08) and Emma's product call (2026-05-05): the relationship is **modeled as many-to-many** via a join table, but **capped at 1 non-deleted row per Job server-side** in V1. UI, GraphQL surface, and product behavior remain singular for V1. If product opens this up later, lifting the cap is a one-line change in the resolver/model — no table migration. The plural-shaped data model is the entire point: it lets us ship singular today without locking ourselves in.
+**Trade-off:** no FK enforcement on the join row. The downstream cost is that orphan join rows are possible if a referenced row is hard-deleted (an Equipment row removed from the DB will leave the `JobPerformedOn` row pointing at a non-existent id). Mitigations: (a) the application path soft-deletes Equipment via `BaseModel.deleteItem` (which sets `isDeleted = true` — verified at `_DbModelBase.ts` line ~2065), so the row stays around and the polymorphic resolver still finds it; (b) the field resolvers (Step 7b, Step 8b) treat "not found" as `null` rather than throwing, so the UI degrades gracefully; (c) a future cleanup job can sweep orphan join rows if needed. The win is target-agnosticism at the data layer — every existing polymorphic table in the schema lives with this same trade-off and it's been net-positive.
+
+**No `ServiceHistory` Prisma relation on Equipment.** Polymorphic references can't be declared as Prisma `@relation`s, so `Equipment.ServiceHistory` is a **field-level GraphQL resolver only** — it queries `JobPerformedOn` with `where: { workedOnReferenceModel: "Equipment", workedOnReferenceId: parent.id }`. Same pattern future `Location.ServiceHistory` / `Vehicle.ServiceHistory` resolvers will follow.
+
+**Cardinality.** Per Chris's DB review (2026-05-08) and Emma's product call (2026-05-05): the relationship is **modeled as many-to-many** via a join table, but **capped at 1 non-deleted row per Job server-side** in V1. UI, GraphQL surface, and product behavior remain singular for V1. If product opens this up later, lifting the cap is a one-line change in the resolver/model — no table migration. The plural-shaped data model is the entire point: it lets us ship singular today without locking ourselves in.
+
+**Naming.** The UI label stays `"Equipment Serviced"` per the spec mockups; the GraphQL convenience field stays `PerformedOnEquipment` for V1; the polymorphic data-layer columns are `workedOnReferenceModel` / `workedOnReferenceId`. When future subject types land, additional convenience GraphQL fields slot in (`PerformedOnLocation`, etc.) — none of the existing surfaces rename.
 
 ---
 
@@ -76,7 +82,7 @@ Per Chris's DB review (2026-05-08) and Emma's product call (2026-05-05): the rel
 
 **File:** `apps/api/prisma/schema.prisma`
 
-The join model mirrors the existing `WorkOrderEquipmentItem` pattern (line item join table) — same id format, same audit flags, same FK style, `onDelete: Cascade` on both sides.
+The join model is polymorphic on the worked-on side: `workedOnReferenceModel` + `workedOnReferenceId` instead of a hard FK to `Equipment`. The `workedOn` prefix is a deliberate divergence from the bare `referenceModel` / `referenceId` shape used by `Attributes`, `NoteReferences`, `Audit`, etc. — chosen for clarity-at-a-glance (see the Decided callout above). The column lengths match the house convention: `VARCHAR(50)` for the model name, `VARCHAR(21)` for the id. Job side stays a hard FK with `onDelete: Cascade` since `Job` is the only parent.
 
 ```prisma
 model JobPerformedOn {
@@ -88,23 +94,26 @@ model JobPerformedOn {
     jobId String @db.VarChar(21)
     Job   Job    @relation("JobPerformedOnRecords", fields: [jobId], references: [id], onDelete: Cascade)
 
-    equipmentId String    @db.VarChar(21)
-    Equipment   Equipment @relation("EquipmentServiceHistory", fields: [equipmentId], references: [id], onDelete: Cascade)
+    // Polymorphic pointer — no Prisma @relation, no FK constraint.
+    // V1: workedOnReferenceModel = "Equipment" only.
+    workedOnReferenceModel String @db.VarChar(50)
+    workedOnReferenceId    String @db.VarChar(21)
 
-    @@unique([jobId, equipmentId], map: "JobPerformedOn_jobId_equipmentId_key")
+    @@unique([jobId, workedOnReferenceModel, workedOnReferenceId], map: "JobPerformedOn_jobId_reference_key")
     @@index([jobId], map: "JobPerformedOn_jobId_idx")
-    @@index([equipmentId], map: "JobPerformedOn_equipmentId_idx")
+    @@index([workedOnReferenceModel, workedOnReferenceId], map: "JobPerformedOn_reference_idx")
 }
 ```
 
-Add inverse relations on existing models:
+Add the inverse relation on `Job` only — `Equipment` does **not** get a Prisma relation because the join's worked-on side is polymorphic (Prisma can't model polymorphic relations).
 
 ```prisma
 // On Job (alongside WorkOrderLaborItems / WorkOrderMaterialItems / WorkOrderEquipmentItems):
 PerformedOn JobPerformedOn[] @relation("JobPerformedOnRecords")
 
-// On Equipment (alongside Assignments / EquipmentTimeEntries):
-ServiceHistory JobPerformedOn[] @relation("EquipmentServiceHistory")
+// On Equipment — NO Prisma relation added. Service history is reached via the
+// `Equipment.ServiceHistory` field-level GraphQL resolver (Step 8), which
+// queries JobPerformedOn with workedOnReferenceModel = "Equipment".
 ```
 
 ---
@@ -120,15 +129,19 @@ CREATE TABLE `JobPerformedOn` (
     `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
     `updatedAt` DATETIME(3) NOT NULL,
     `jobId` VARCHAR(21) NOT NULL,
-    `equipmentId` VARCHAR(21) NOT NULL,
+    `workedOnReferenceModel` VARCHAR(50) NOT NULL,
+    `workedOnReferenceId` VARCHAR(21) NOT NULL,
     PRIMARY KEY (`id`),
-    UNIQUE INDEX `JobPerformedOn_jobId_equipmentId_key` (`jobId`, `equipmentId`),
+    UNIQUE INDEX `JobPerformedOn_jobId_reference_key`
+        (`jobId`, `workedOnReferenceModel`, `workedOnReferenceId`),
     INDEX `JobPerformedOn_jobId_idx` (`jobId`),
-    INDEX `JobPerformedOn_equipmentId_idx` (`equipmentId`),
+    INDEX `JobPerformedOn_reference_idx`
+        (`workedOnReferenceModel`, `workedOnReferenceId`),
     CONSTRAINT `JobPerformedOn_jobId_fkey` FOREIGN KEY (`jobId`)
-        REFERENCES `Job`(`id`) ON DELETE CASCADE ON UPDATE CASCADE,
-    CONSTRAINT `JobPerformedOn_equipmentId_fkey` FOREIGN KEY (`equipmentId`)
-        REFERENCES `Equipment`(`id`) ON DELETE CASCADE ON UPDATE CASCADE
+        REFERENCES `Job`(`id`) ON DELETE CASCADE ON UPDATE CASCADE
+    -- NO foreign key on workedOnReferenceId — polymorphic reference, target
+    -- table is not knowable at the schema layer. Orphan cleanup is an
+    -- application concern (see Step 1 Decided callout).
 );
 ```
 
@@ -173,9 +186,9 @@ INSERT INTO DocumentAttributeAssignment (
     @equipmentServicedDaaId, NOW(), NOW(),
     'Job', 'WorkOrder',
     @workOrderInfoSectionId, 25, @workOrderInfoSectionId, 25,
-    'performedOnEquipmentId', 'Equipment Serviced', 'objects',
+    'workedOnReferenceId', 'Equipment Serviced', 'objects',
     FALSE, FALSE,
-    'equipment-serviced', 'performedOnEquipmentId',
+    'equipment-serviced', 'workedOnReferenceId',
     FALSE, FALSE
 );
 ```
@@ -183,7 +196,7 @@ INSERT INTO DocumentAttributeAssignment (
 Key points:
 - `subModel = 'WorkOrder'` — backstop so this DAA can never leak onto a ProjectJob form even if the frontend `jobClassification` JSX gate is removed.
 - `orderNo: 25` — positions between Customer and Description (verify against the actual order numbers used by neighboring DAAs in the same section after the WO-3a migrations have shipped; adjust to land in the spec's mockup position).
-- `defaultAttribute = 'performedOnEquipmentId'` and `referenceColumn = 'performedOnEquipmentId'` — wire the DAA to the virtual write-through field handled in Step 6.
+- `defaultAttribute = 'workedOnReferenceId'` and `referenceColumn = 'workedOnReferenceId'` — points at the primary value column on `JobPerformedOn`. The companion `workedOnReferenceModel` column is **not** represented as a separate DAA; the `customFormControl["equipment-serviced"]` override (Step 11) is the only V1 entry point for this field and it sends both columns as a pair (`workedOnReferenceModel: "Equipment"` hardcoded). When polymorphism opens up at the UI level, the custom control becomes responsible for choosing both the model and the id — the DAA still doesn't need a migration.
 - `defaultAttributeType = 'objects'` — matches the plural-shaped data model (m:n join table with V1 backend cap of 1). The form engine's default for `'objects'` is an array editor, but the `customFormControl["equipment-serviced"]` override (Step 11) renders a single combobox for V1 — so the DAA shape stays consistent with the data layer regardless of the visual cardinality. When product lifts the cap to many subjects per WO, only the custom form control + GraphQL surface change; the DAA type does not need a migration.
 - `defaultAttributeIsDerived = FALSE` — the user edits this; it's not computed.
 - `defaultAttributeIsRequired = FALSE` — per spec, the field is optional.
@@ -246,11 +259,12 @@ The `equipment-serviced` DAA is intentionally only seeded for `subModel = 'WorkO
 ```typescript
 export interface IJobPerformedOn {
     jobId: string;
-    equipmentId: string;
+    workedOnReferenceModel: string;   // V1: "Equipment" only
+    workedOnReferenceId: string;
 }
 ```
 
-The model is purely a join — no scalar payload fields beyond the FKs.
+The model is purely a join — no scalar payload fields beyond the pointer columns. Keeping `workedOnReferenceModel` as `string` (not a union) leaves room for future subject types without re-narrowing the type whenever a new one lands.
 
 ---
 
@@ -258,7 +272,7 @@ The model is purely a join — no scalar payload fields beyond the FKs.
 
 **Create file:** `apps/api/src/models/JobPerformedOn.ts`
 
-Standard `BaseModel` pattern — mirrors `WorkOrderEquipmentItem.ts`. Both FK fields are required on create and immutable after.
+Standard `BaseModel` pattern. All three pointer fields are required on create and immutable after — re-pointing a join row is done by soft-delete + new insert, not by edit.
 
 ```typescript
 protected modelFields: IField<IJobPerformedOn>[] = [
@@ -268,7 +282,12 @@ protected modelFields: IField<IJobPerformedOn>[] = [
         options: { isRequiredOnCreate: true, isFilterable: true, canEdit: false }
     },
     {
-        name: "equipmentId",
+        name: "workedOnReferenceModel",
+        type: "string",
+        options: { isRequiredOnCreate: true, isFilterable: true, canEdit: false }
+    },
+    {
+        name: "workedOnReferenceId",
         type: "string",
         options: { isRequiredOnCreate: true, isFilterable: true, canEdit: false }
     }
@@ -285,20 +304,29 @@ The model is not a primary CRUD surface for the UI — frontend never calls `cre
 
 Type is exposed for completeness (lets other consumers introspect the join), but only `Query.jobPerformedOn` is exposed — no mutations. All writes go through the Job resolver.
 
-**Forward-compat note:** the model name is intentionally generic (no `Equipment` in the name). Today the join row carries an `equipmentId`. If the product later wants polymorphic "performed-on" targets (a Location, a Vehicle, a system), the table picks up `referenceModel` / `referenceId` columns alongside or replacing `equipmentId` — no rename. The Equipment-side accessor `Equipment.ServiceHistory` stays valid; future `Location.ServiceHistory` / `Vehicle.ServiceHistory` resolvers slot in next to it.
+The GraphQL type carries the raw polymorphic columns plus a V1 convenience field `Equipment` that returns the linked row only when `workedOnReferenceModel === "Equipment"`. Future subject types add sibling fields (`Location`, `Vehicle`) without breaking the V1 callers.
 
 ```graphql
 type JobPerformedOn {
     id: ID!
     jobId: String!
     Job: Job
-    equipmentId: String!
+    workedOnReferenceModel: String!
+    workedOnReferenceId: String!
+    # V1 convenience — resolves only when workedOnReferenceModel = "Equipment".
     Equipment: Equipment
     createdAt: DateTime
 }
 
 extend type Query {
-    jobPerformedOn(jobId: ID, equipmentId: ID): [JobPerformedOn]
+    # Both lookup paths supported. equipmentId is the V1 convenience filter and
+    # internally narrows to (workedOnReferenceModel: "Equipment", workedOnReferenceId: equipmentId).
+    jobPerformedOn(
+        jobId: ID
+        workedOnReferenceModel: String
+        workedOnReferenceId: ID
+        equipmentId: ID
+    ): [JobPerformedOn]
 }
 ```
 
@@ -309,20 +337,28 @@ Resolvers: {
     Job: (parent) =>
         prisma.job.findUnique({ where: { id: parent.jobId } }),
     Equipment: (parent) =>
-        prisma.equipment.findUnique({ where: { id: parent.equipmentId } })
+        parent.workedOnReferenceModel === "Equipment"
+            ? prisma.equipment.findUnique({ where: { id: parent.workedOnReferenceId } })
+            : null
 },
 Query: {
-    jobPerformedOn: (_, args, context) =>
-        new JobPerformedOnModel().getList(
+    jobPerformedOn: (_, args, context) => {
+        // Translate the V1 convenience filter into the polymorphic shape.
+        const workedOnReferenceModel =
+            args.workedOnReferenceModel ?? (args.equipmentId ? "Equipment" : undefined);
+        const workedOnReferenceId = args.workedOnReferenceId ?? args.equipmentId;
+        return new JobPerformedOnModel().getList(
             {
                 where: {
                     ...(args.jobId ? { jobId: args.jobId } : {}),
-                    ...(args.equipmentId ? { equipmentId: args.equipmentId } : {}),
+                    ...(workedOnReferenceModel ? { workedOnReferenceModel } : {}),
+                    ...(workedOnReferenceId ? { workedOnReferenceId } : {}),
                     isDeleted: false
                 }
             },
             context.userId()
-        ).then(r => r.list)
+        ).then(r => r.list);
+    }
 }
 ```
 
@@ -330,68 +366,197 @@ Register in `apps/api/src/graphql/schema.ts` (4 places: import + Resolvers sprea
 
 ---
 
-## Step 6: Extend Job — Write-Through performedOnEquipmentId
+## Step 6: Extend Job — Write-Through workedOnReferenceModel / workedOnReferenceId
 
 **File:** `apps/api/src/models/Job.ts`
 
-`performedOnEquipmentId` arrives on the `createJob` / `editJob` input but is not a column on the `Job` table — it's a write-through to the `JobPerformedOn` join table. Per the existing Job pattern (e.g. `jobSiteSupervisorIds` at `Job.ts:1352`, `primaryContactId` strip at `Job.ts:1458-1467`), there is **no `modelFields` entry**. Instead, the field is destructured and deleted from the data object inside `customCreateItem` / `customEditItem` before the base Prisma write, then handled separately afterward.
+The pair `workedOnReferenceModel` + `workedOnReferenceId` arrives on the `createJob` / `editJob` input but is not stored on the `Job` table — it's a write-through to the `JobPerformedOn` join table. Per the existing Job pattern (e.g. `jobSiteSupervisorIds` destructured-and-stripped in `Job.ts:createItem` around line 1064, and the `customEditItem` body around `Job.ts:1352-1399`), there is **no `modelFields` entry** for these virtual fields. Instead, both fields are destructured from the data object **before** the base write, then handled separately afterward.
 
 ### 6a. No modelFields entry needed
 
-Do **not** add `performedOnEquipmentId` to `modelFields`. BaseModel does not have an `isVirtual` option — the convention is to manually strip non-column fields inside the custom hooks.
+Do **not** add `workedOnReferenceModel` / `workedOnReferenceId` to `Job.modelFields`. BaseModel does not have an `isVirtual` option — the convention is to manually strip non-column fields inside the custom hooks.
 
-### 6b. Hook into customCreateItem / customEditItem
+### 6b. **Extend** the existing `Job.createItem` — do NOT replace it
 
-After the Job row is persisted, sync the `JobPerformedOn` row. The cap-of-1 is enforced by **soft-deleting all existing non-deleted rows for the job before inserting** — that way the resolver doesn't need to know what's already there.
+`JobModel.createItem` **already exists** at `Job.ts:979-1130` and does a lot of load-bearing work: project / standalone job-number generation, geofence validation (`checkInRadius >= 25`), the `forecastedEndDateIsManual` flag, the `assertNotInternalProject` check at the top, the `jobSiteSupervisorIds` destructure-and-write-through at lines 1064 + 1126-1128, and default folder creation via the `super.createItem` callback (lines 1066-1125). **None of this gets removed.** The WO-11 extension slots in alongside the existing `jobSiteSupervisorIds` pattern — same destructure, same post-`super.createItem` write-through.
+
+There is no `customCreateItem` method on `JobModel` — don't invent one. The override mechanism here is the existing `createItem` override that already calls `super.createItem(rest, ...)` at line 1066.
+
+**Shape of the change** — only the lines marked `// + NEW` are added; every other line in the method stays as-is:
 
 ```typescript
-protected async customCreateItem(data, currentUserId) {
-    const dataAny = data as any;
-    const performedOnEquipmentId = dataAny.performedOnEquipmentId as string | null | undefined;
-    delete dataAny.performedOnEquipmentId;
+public async createItem(
+    data: Partial<FullModel<IJob & {
+        jobSiteSupervisorIds: string[];
+        workedOnReferenceModel: string;       // + NEW
+        workedOnReferenceId: string;          // + NEW
+    }>>,
+    currentUserId: string,
+    skipAfterCreate?: boolean,
+    callback?: (data: FullModel<IJob>) => void
+): Promise<FullModel<IJob>> {
+    // ...all existing validation + numbering + standalone-job logic (lines 985-1062) stays as-is...
 
-    const job = await super.customCreateItem(data, currentUserId);
-    if (performedOnEquipmentId !== undefined) {
-        await this.syncPerformedOnEquipment(job.id, performedOnEquipmentId, currentUserId);
+    // Extend the existing destructure at line 1064 to also pull the new pair:
+    const {
+        jobSiteSupervisorIds,
+        workedOnReferenceModel,               // + NEW
+        workedOnReferenceId,                  // + NEW
+        ...rest
+    } = copiedData;
+
+    // ...existing super.createItem(rest, currentUserId, skipAfterCreate, async (job) => { folder creation }) call stays as-is (lines 1066-1125)...
+
+    // Existing supervisor connect at lines 1126-1128 stays as-is:
+    if (jobSiteSupervisorIds) {
+        await this.connectJobSiteSupervisors(created.id, jobSiteSupervisorIds, currentUserId);
+    }
+
+    // + NEW — fires only when at least one half of the pair was supplied on input.
+    if (workedOnReferenceModel !== undefined || workedOnReferenceId !== undefined) {
+        await this.assertValidWorkedOnReference(
+            created.id,
+            workedOnReferenceModel,
+            workedOnReferenceId,
+            rest.jobTypeId
+        );
+        await this.syncPerformedOn(
+            created.id,
+            workedOnReferenceModel ?? null,
+            workedOnReferenceId ?? null,
+            currentUserId
+        );
+    }
+
+    return created;
+}
+```
+
+The diff against the existing method is intentionally small: the signature's `data` shape gains two new optional keys, the destructure at line 1064 gains two names, and one new post-create block fires alongside the existing supervisor block. Every other line — folder creation, job-number generation, geofence check, forecasted-end-date handling, `assertNotInternalProject` — is untouched.
+
+### 6c. `customEditItem` — real signature has 8 parameters
+
+The actual `customEditItem` signature on `JobModel` (around `Job.ts:1352`) is:
+
+```typescript
+public async customEditItem(
+    id: string,
+    data: Partial<IJob & { jobSiteSupervisorIds: string[] }>,
+    enableDisconnect: boolean,
+    currentUserId: string,
+    instance: Instance,
+    documentData?: ...,
+    skipAfterEdit?: boolean,
+    callback?: ...
+): Promise<FullModel<IJob>>
+```
+
+Keep the full signature when extending it; do not collapse to 3 params. The write-through extension slots in next to the existing `jobSiteSupervisorIds` handling — destructure both keys out of `data` near the top, then defer the join-table sync to **after** the existing `customEditItem` body has run and the Job row is persisted.
+
+```typescript
+public async customEditItem(id, data, enableDisconnect, currentUserId, instance, documentData, skipAfterEdit, callback) {
+    const dataAny = data as any;
+    const hasKey = "workedOnReferenceModel" in dataAny || "workedOnReferenceId" in dataAny;
+    const { workedOnReferenceModel, workedOnReferenceId, ...rest } = dataAny;
+
+    // ...existing customEditItem body runs over `rest` (or `data` if it strips
+    // workedOnReferenceModel/workedOnReferenceId itself); the existing classification-change
+    // check at Job.ts:1375-1399 already inlines the propertyValue lookup the
+    // way 6d below mirrors.
+
+    const job = await super.customEditItem(
+        id, rest, enableDisconnect, currentUserId, instance, documentData, skipAfterEdit, callback
+    );
+
+    if (hasKey) {
+        await this.assertValidWorkedOnReference(id, workedOnReferenceModel, workedOnReferenceId, rest.jobTypeId);
+        await this.syncPerformedOn(id, workedOnReferenceModel ?? null, workedOnReferenceId ?? null, currentUserId);
     }
     return job;
 }
+```
 
-protected async customEditItem(id, data, currentUserId) {
-    const dataAny = data as any;
-    const hasPerformedOnKey = "performedOnEquipmentId" in dataAny;
-    const performedOnEquipmentId = dataAny.performedOnEquipmentId as string | null | undefined;
-    delete dataAny.performedOnEquipmentId;
+The "either key present in `data`" check distinguishes "fields absent from input → leave alone" from "fields present with null → clear it." This matches the GraphQL semantic where omitted input fields should be no-ops.
 
-    const job = await super.customEditItem(id, data, currentUserId);
-    if (hasPerformedOnKey) {
-        await this.syncPerformedOnEquipment(id, performedOnEquipmentId ?? null, currentUserId);
+### 6d. Validation helper — inline the `propertyValue` lookup
+
+`JobModel` does **not** expose a `getJobClassification(jobTypeId)` method. The existing precedent at `Job.ts:1385-1400` derives jobClassification by querying `prisma.propertyValue.findUnique({ where: { id: jobTypeId } })` and reading `.jobClassification`. Mirror that — do not invent a helper method that isn't there.
+
+```typescript
+private async assertValidWorkedOnReference(
+    jobId: string,
+    workedOnReferenceModel: string | null | undefined,
+    workedOnReferenceId: string | null | undefined,
+    jobTypeIdFromInput: string | null | undefined
+) {
+    // Half-set inputs (one null, one set) are treated as clear by syncPerformedOn,
+    // but we don't want them to ALSO pass through validation as "set" — so guard
+    // only when both are truthy.
+    if (!workedOnReferenceModel || !workedOnReferenceId) return;
+
+    // V1 allowlist — explicit product sign-off required to add subject types.
+    const ALLOWED_WORKED_ON_MODELS = ["Equipment"] as const;
+    if (!ALLOWED_WORKED_ON_MODELS.includes(workedOnReferenceModel as any)) {
+        throw new Error(
+            `workedOnReferenceModel "${workedOnReferenceModel}" is not supported on Job.workedOn. Allowed: ${ALLOWED_WORKED_ON_MODELS.join(", ")}.`
+        );
     }
-    return job;
-}
 
-private async syncPerformedOnEquipment(jobId: string, equipmentId: string | null, currentUserId: string) {
+    // Classification gate. Inline the propertyValue lookup (no helper method exists).
+    const effectiveJobTypeId =
+        jobTypeIdFromInput ??
+        (await prisma.job.findUnique({ where: { id: jobId }, select: { jobTypeId: true } }))?.jobTypeId;
+    if (!effectiveJobTypeId) {
+        throw new Error("Cannot set worked-on reference: Job has no jobType.");
+    }
+    const classification = (
+        await prisma.propertyValue.findUnique({
+            where: { id: effectiveJobTypeId },
+            select: { jobClassification: true }
+        })
+    )?.jobClassification;
+    if (classification !== "WorkOrder") {
+        throw new Error(
+            "Worked-on reference is only valid on Jobs with WorkOrder classification."
+        );
+    }
+}
+```
+
+### 6e. `syncPerformedOn` — soft-delete-then-insert
+
+```typescript
+private async syncPerformedOn(
+    jobId: string,
+    workedOnReferenceModel: string | null,
+    workedOnReferenceId: string | null,
+    currentUserId: string
+) {
     // V1 cap of 1: soft-delete any existing non-deleted rows, then insert.
     await prisma.jobPerformedOn.updateMany({
         where: { jobId, isDeleted: false },
         data: { isDeleted: true }
     });
-    if (equipmentId) {
+    // Both fields must be present together to insert. Half-set inputs are
+    // treated as clear (defensive — should never reach here from the
+    // customFormControl which writes the pair together, but a direct
+    // GraphQL mutation could).
+    if (workedOnReferenceModel && workedOnReferenceId) {
         await new JobPerformedOnModel().createItem(
-            { jobId, equipmentId },
+            { jobId, workedOnReferenceModel, workedOnReferenceId },
             currentUserId
         );
     }
 }
 ```
 
-The `"performedOnEquipmentId" in dataAny` check on edit distinguishes "field absent from input → leave alone" from "field present with null → clear it." This matches the GraphQL semantic where omitted input fields should be no-ops.
+### 6f. Wire `workedOnReferenceId` into `Job.upsert.nullableIdFields`
 
-### 6d. Wire performedOnEquipmentId into `Job.upsert`
+Verified: `Job.upsert()` exists at `Job.ts:2962`, with a `nullableIdFields` array at lines 2974-2981 currently containing `"projectId", "companyId", "locationId", "jobStatusId", "jobTypeId", "rateTypeId", "jobLeadId"`.
 
-`Job.upsert()` at `apps/api/src/models/Job.ts:2962` is what `DataModelForm` submissions route through (legacy `createJob` / `editJob` mutations also exist, but the form path goes through `upsert`). Two adjustments needed there:
+`Job.upsert()` at `apps/api/src/models/Job.ts:2962` is what `DataModelForm` submissions route through (legacy `createJob` / `editJob` mutations also exist, but the form path goes through `upsert`). One adjustment needed there:
 
-**Add `performedOnEquipmentId` to the empty-string-to-null normalization list** at `Job.ts:2974-2987`:
+**Add `workedOnReferenceId` to the empty-string-to-null normalization list** at `Job.ts:2974-2987` (the `Model` field doesn't need normalizing — the customFormControl hardcodes it to `"Equipment"` or omits both, never `""`):
 
 ```typescript
 const nullableIdFields = [
@@ -402,32 +567,19 @@ const nullableIdFields = [
     "jobTypeId",
     "rateTypeId",
     "jobLeadId",
-    "performedOnEquipmentId" // NEW — combobox clear sends "" instead of null
+    "workedOnReferenceId" // NEW — combobox clear sends "" instead of null
 ] as const;
 ```
 
-Without this, clearing the equipment combobox in the form sends `""`, which would either fail an FK lookup (if accidentally typed as `string` not `string | null`) or insert an invalid empty value into `JobPerformedOn`. The list converts `""` → `null` so the customCreateItem/customEditItem hook treats it as "clear the link."
+Without this, clearing the equipment combobox in the form sends `""`, which would slip past the truthy `if (workedOnReferenceModel && workedOnReferenceId)` guard in Step 6b in an unintended way. The list converts `""` → `null` so the syncPerformedOn helper treats it as "clear the link."
 
-**No other change to `upsert` is needed.** The field flows through as part of `...restData` to either `createItem` (which calls `customCreateItem`) or `customEditItem` directly, and the destructure-then-`delete` pattern from 6b removes it from the Prisma payload. The `upsert` callback that handles `documentData` (DocumentAttributeValues) is irrelevant here because `performedOnEquipmentId` is stored in `JobPerformedOn`, not as a DAV.
+**No other change to `upsert` is needed.** Both fields flow through as part of `...restData` to either `createItem` (the override from Step 6b) or `customEditItem` (the override from Step 6c), and the destructure-with-rest pattern in those overrides keeps them out of the Prisma payload. The `upsert` callback that handles `documentData` (DocumentAttributeValues) is irrelevant here because the worked-on pointer is stored in `JobPerformedOn`, not as a DAV.
 
 **Why delete-then-insert rather than upsert:** the V1 cap is "at most one non-deleted row." Sweeping the existing rows enforces the cap as a side effect of every write, even if a future bug somehow created multiple rows.
 
-### 6c. Validation
-
-If a non-WorkOrder classification job tries to set `performedOnEquipmentId`, throw a clear validation error. The frontend should not present the field for ProjectJobs (Step 9), but the API guards against direct mutation.
-
-```typescript
-if (performedOnEquipmentId) {
-    const classification = await this.getJobClassification(data.jobTypeId ?? existingJob.jobTypeId);
-    if (classification !== "WorkOrder") {
-        throw new Error("performedOnEquipmentId is only valid for jobs with WorkOrder classification");
-    }
-}
-```
-
 ---
 
-## Step 7: Extend Job GraphQL — performedOnEquipment field + input
+## Step 7: Extend Job GraphQL — Polymorphic pointer + V1 convenience fields
 
 **File:** `apps/api/src/graphql/models/Job.ts`
 
@@ -436,32 +588,49 @@ if (performedOnEquipmentId) {
 ```graphql
 type Job {
     # ...existing fields
-    performedOnEquipmentId: String
+    # Raw polymorphic pointer — primary surface.
+    workedOnReferenceModel: String
+    workedOnReferenceId: String
+    # V1 convenience — resolves only when workedOnReferenceModel = "Equipment".
     PerformedOnEquipment: Equipment
+    # Raw join rows; future-proof accessor for polymorphic consumers.
     PerformedOnRecords: [JobPerformedOn]
 }
 ```
 
-The **singular** `performedOnEquipmentId` / `PerformedOnEquipment` fields are what the UI consumes in V1. The raw join-row accessor `PerformedOnRecords` is kept available for future product changes (or admin debugging) — its name is target-agnostic, so it stays valid when polymorphism lands (the rows would simply carry `referenceModel` / `referenceId` instead of, or alongside, `equipmentId`).
+The polymorphic `workedOnReferenceModel` / `workedOnReferenceId` scalars are the primary surface. `PerformedOnEquipment` is a V1 convenience resolver that returns the linked Equipment object only when the pointer is to an Equipment — saves consumers a follow-up query. Future subject types add sibling fields (`PerformedOnLocation`, `PerformedOnVehicle`) without renaming any existing surface.
 
 ### 7b. Add field-level resolvers
 
 ```typescript
 // In Job Resolvers:
-performedOnEquipmentId: async (parent) => {
+workedOnReferenceModel: async (parent) => {
     const row = await prisma.jobPerformedOn.findFirst({
         where: { jobId: parent.id, isDeleted: false },
-        select: { equipmentId: true }
+        select: { workedOnReferenceModel: true }
     });
-    return row?.equipmentId ?? null;
+    return row?.workedOnReferenceModel ?? null;
+},
+workedOnReferenceId: async (parent) => {
+    const row = await prisma.jobPerformedOn.findFirst({
+        where: { jobId: parent.id, isDeleted: false },
+        select: { workedOnReferenceId: true }
+    });
+    return row?.workedOnReferenceId ?? null;
 },
 PerformedOnEquipment: async (parent) => {
     const row = await prisma.jobPerformedOn.findFirst({
-        where: { jobId: parent.id, isDeleted: false },
-        select: { equipmentId: true }
+        where: {
+            jobId: parent.id,
+            workedOnReferenceModel: "Equipment",
+            isDeleted: false
+        },
+        select: { workedOnReferenceId: true }
     });
     if (!row) return null;
-    return prisma.equipment.findUnique({ where: { id: row.equipmentId } });
+    // findUnique (not findFirst-with-deleted-filter) on purpose: if the target
+    // Equipment row was hard-deleted, return null gracefully rather than throw.
+    return prisma.equipment.findUnique({ where: { id: row.workedOnReferenceId } });
 },
 PerformedOnRecords: (parent) =>
     prisma.jobPerformedOn.findMany({
@@ -474,17 +643,20 @@ PerformedOnRecords: (parent) =>
 ```graphql
 input CreateJob {
     # ...existing fields
-    performedOnEquipmentId: String
+    workedOnReferenceModel: String   # V1: "Equipment" only (enforced server-side)
+    workedOnReferenceId: String
 }
 
 input EditJob {
     # ...existing fields
-    # null clears the link; a value replaces the single row.
-    performedOnEquipmentId: String
+    # Both fields null → clears the link. Both set → replaces the single row.
+    # Omitted → no-op. Half-set inputs are treated as clear (defensive).
+    workedOnReferenceModel: String
+    workedOnReferenceId: String
 }
 ```
 
-No new mutations. `createJob` and `editJob` carry the field through to `JobModel.customCreateItem` / `customEditItem` (Step 6).
+No new mutations. `createJob` and `editJob` carry the pair through to `JobModel.createItem` (the override added in Step 6b) and `JobModel.customEditItem` (extended in Step 6c).
 
 ---
 
@@ -505,12 +677,15 @@ type Equipment {
 
 ### 8b. Add field-level resolver
 
+`ServiceHistory` is a pure GraphQL field resolver — Equipment has no Prisma relation to `JobPerformedOn` (polymorphic side). The resolver queries the join table with the polymorphic filter.
+
 ```typescript
 // In Equipment Resolvers:
 ServiceHistory: async (parent, args) => {
     const joinRows = await prisma.jobPerformedOn.findMany({
         where: {
-            equipmentId: parent.id,
+            workedOnReferenceModel: "Equipment",
+            workedOnReferenceId: parent.id,
             isDeleted: false,
             Job: { isDeleted: false }
         },
@@ -531,35 +706,43 @@ ServiceHistory: async (parent, args) => {
 
 ---
 
-## Step 9: JobListFeed SQL View — Surface performedOnEquipmentId
+## Step 9: JobListFeed SQL View — Surface worked-on pointer
 
 **File:** `apps/api/prisma/views/JobListFeed.sql`
 
-The WO list page (and the Equipment detail Work Orders tab desktop view) both route through `JobListFeed`. Surface `performedOnEquipmentId` and the equipment name as derived columns so the Equipment Serviced column is sortable / filterable through the existing TableFeed plumbing.
+The WO list page (and the Equipment detail Work Orders tab desktop view) both route through `JobListFeed`. Surface the polymorphic pointer plus the resolved Equipment name as derived columns so the Equipment Serviced column is sortable / filterable through the existing TableFeed plumbing.
 
 ### 9a. Update the view
 
-Left-join `JobPerformedOn` and `Equipment`, project the two columns. The join is left so jobs without equipment serviced still appear.
+Three correlated subqueries — pointer model, pointer id, and the V1-specific Equipment name. The Equipment join is filtered by `workedOnReferenceModel = 'Equipment'` so it stays correct when other subject types land.
 
 ```sql
 -- In JobListFeed.sql, add to the SELECT list:
 ,
 (
-    SELECT jse.equipmentId
-    FROM JobPerformedOn jse
-    WHERE jse.jobId = Job.id AND jse.isDeleted = FALSE
+    SELECT jpo.workedOnReferenceModel
+    FROM JobPerformedOn jpo
+    WHERE jpo.jobId = Job.id AND jpo.isDeleted = FALSE
     LIMIT 1
-) AS performedOnEquipmentId,
+) AS workedOnReferenceModel,
+(
+    SELECT jpo.workedOnReferenceId
+    FROM JobPerformedOn jpo
+    WHERE jpo.jobId = Job.id AND jpo.isDeleted = FALSE
+    LIMIT 1
+) AS workedOnReferenceId,
 (
     SELECT e.name
-    FROM JobPerformedOn jse
-    LEFT JOIN Equipment e ON e.id = jse.equipmentId
-    WHERE jse.jobId = Job.id AND jse.isDeleted = FALSE
+    FROM JobPerformedOn jpo
+    LEFT JOIN Equipment e ON e.id = jpo.workedOnReferenceId
+    WHERE jpo.jobId = Job.id
+      AND jpo.workedOnReferenceModel = 'Equipment'
+      AND jpo.isDeleted = FALSE
     LIMIT 1
 ) AS performedOnEquipmentName
 ```
 
-The correlated subquery form keeps the V1 cap of 1 implicit. When the product cap is lifted, both subqueries need to change to `GROUP_CONCAT` or a separate flatten — but for V1 the singular case is the contract.
+The correlated subquery form keeps the V1 cap of 1 implicit. When the product cap is lifted, all three subqueries need to change to `GROUP_CONCAT` or a separate flatten — but for V1 the singular case is the contract. Future subject types each get their own resolved-name subquery (e.g. `performedOnLocationName` joining `Location` with `workedOnReferenceModel = 'Location'`).
 
 ### 9b. Apply view update
 
@@ -584,7 +767,9 @@ WorkOrder: {
         "equipment-serviced": {
             label: "Equipment Serviced",
             sourceColumn: "performedOnEquipmentName",
-            filterColumn: "performedOnEquipmentId",
+            // Filter by the polymorphic id directly; the column's
+            // semantic is "Equipment-only" so a downstream filter is fine.
+            filterColumn: "workedOnReferenceId",
             sortColumn: "performedOnEquipmentName",
             isFilterable: true,
             isSortable: true,
@@ -594,7 +779,9 @@ WorkOrder: {
 }
 ```
 
-The column is exposed by default but hidden from the initial list view — users can toggle it on via TableFeed column chooser. (Adjust the default-visible set if Product wants it on by default.)
+The column is exposed by default but hidden from the initial list view — users can toggle it on via TableFeed column chooser. (Adjust the default-visible set if Product wants it on by default.) When future subject types appear, sibling columns (`location-serviced`, `vehicle-serviced`) join this one; the polymorphic `workedOnReferenceModel` / `workedOnReferenceId` columns also become directly exposed via a generic `worked-on` column if it makes sense.
+
+**⚠ Verify during implementation:** TableFeed's `where`-filter semantics for a polymorphic pair are not 100% confirmed by static reading of `configureColumns.ts` — the filter path through `TableFeed/` resolvers needs a quick check that a `where` carrying both `workedOnReferenceModel: "Equipment"` and `workedOnReferenceId: equipmentId` actually narrows correctly (vs. only respecting the column's declared `filterColumn`). If TableFeed only filters by the declared `filterColumn` key, the WorkOrder block needs either (a) a second filterable column for `workedOnReferenceModel`, or (b) a single derived column on the view (e.g. `performedOnEquipmentId` projected only when `workedOnReferenceModel = 'Equipment'`) used as the filter target. Either fallback is small; flag this when the column lands in QA.
 
 ---
 
@@ -607,14 +794,21 @@ Add an `equipment-serviced` entry to the `customFormControl` map. Pattern matche
 ```typescript
 "equipment-serviced": (formData, setFormData) => {
     if (formData.jobClassification !== "WorkOrder") return null;
+    // V1: combobox only picks Equipment. workedOnReferenceModel is hardcoded
+    // on submit — the UI doesn't expose a model picker until polymorphism opens.
     return (
         <CustomCombobox
             label="Equipment Serviced"
-            value={formData.performedOnEquipmentId}
+            value={
+                formData.workedOnReferenceModel === "Equipment"
+                    ? formData.workedOnReferenceId
+                    : null
+            }
             valueLabel={formData.PerformedOnEquipment?.name}
             onChange={(option) => setFormData({
                 ...formData,
-                performedOnEquipmentId: option?.value ?? null,
+                workedOnReferenceModel: option ? "Equipment" : null,
+                workedOnReferenceId: option?.value ?? null,
                 PerformedOnEquipment: option ? { id: option.value, name: option.label } : null
             })}
             asyncSearch={equipmentQuery}
@@ -626,9 +820,11 @@ Add an `equipment-serviced` entry to the `customFormControl` map. Pattern matche
 }
 ```
 
+Clearing the combobox sets **both** `workedOnReferenceModel` and `workedOnReferenceId` to `null` — that pair is what `syncPerformedOn` in Step 6b interprets as "drop the link." Selecting an Equipment sets both fields together.
+
 Reuse the existing `equipmentQuery` helper / `GET_EQUIPMENT_WITH_RATES` query already used by `apps/frontend/src/components/WorkOrder/WOEquipmentEditor.tsx:40-67,167-175` — the same combobox source powers line-item-with picking and equipment-serviced picking; no second API endpoint needed.
 
-**Mobile** — same approach in `apps/mobile/src/components/WorkOrders/MobileWODataModelForm.tsx`. Add an `equipment-serviced` entry to its `customFormControl` map; reuse the mobile equipment combobox if one exists, or wrap the desktop `CustomCombobox` (it already has a mobile-friendly portal). Pass `portalId="dialog-portal"` so it renders above flyout layers.
+**Mobile** — same approach in `apps/mobile/src/components/WorkOrders/MobileWODataModelForm.tsx`. Add an `equipment-serviced` entry to its `customFormControl` map; reuse the mobile equipment combobox if one exists, or wrap the desktop `CustomCombobox` (it already has a mobile-friendly portal). Pass `portalId="dialog-portal"` so it renders above flyout layers. Same paired-field write on `onChange`.
 
 **DAA wiring** is handled entirely by the Step 2.5 migration — no per-form seed needed in the frontend code. The `customFormControl` entry simply renders the input UI when the form engine finds the DAA's `slug` while building the WorkOrder DocumentModelForm.
 
@@ -654,7 +850,7 @@ Reuse the existing `equipmentQuery` helper / `GET_EQUIPMENT_WITH_RATES` query al
 )}
 ```
 
-Use semantic colors (`bg-warning-light` / `text-on-warning-light` / `border-warning`) per the project CLAUDE.md — matches the spec mockup's amber chip. Add `PerformedOnEquipment { id name }` to the existing GraphQL fragment that powers the detail page so it's fetched in the same round trip.
+Use semantic colors (`bg-warning-light` / `text-on-warning-light` / `border-warning`) per the project CLAUDE.md — matches the spec mockup's amber chip. The chip continues to consume `PerformedOnEquipment { id name }` — the V1 convenience resolver from Step 7b. Add that fragment to the existing GraphQL query that powers the detail page so it's fetched in the same round trip. Future subject-type chips (`PerformedOnLocation`, etc.) follow the same shape.
 
 **Mobile** — same chip in `apps/mobile/src/components/WorkOrders/MobileWODetail.tsx` (or wherever the mobile WO detail header lives). Tap-through navigates to the mobile equipment detail page.
 
@@ -685,7 +881,12 @@ Use the existing `useGetTableDataRecordSetQuery` (TableFeed) hook so permissions
 const { data, loading } = useGetTableDataRecordSetQuery({
     variables: {
         name: GqlTableDataName.WorkOrder,
-        where: { performedOnEquipmentId: equipmentId },
+        // Polymorphic filter — pair the model and id so this query stays
+        // correct when other subject types start landing in JobPerformedOn.
+        where: {
+            workedOnReferenceModel: "Equipment",
+            workedOnReferenceId: equipmentId
+        },
         orderBy: { column: "createdAt", direction: "desc" },
         columns: ["full-job-number", "name", "job-type", "job-status", "lead", "scheduled-date", "completed-date"]
     }
@@ -717,48 +918,60 @@ Tap row → navigate to `/work-orders/[id]` on mobile.
 
 ## Verification Checklist
 
-- [ ] `JobPerformedOn` table created with correct indexes (unique on jobId+equipmentId, single-column on each FK) and FKs (CASCADE delete on both sides)
-- [ ] Job and Equipment Prisma relations added with named relation strings
+- [ ] `JobPerformedOn` table created with `workedOnReferenceModel` (VARCHAR(50)) + `workedOnReferenceId` (VARCHAR(21)) columns instead of an `equipmentId` FK
+- [ ] Unique index on `(jobId, workedOnReferenceModel, workedOnReferenceId)` (the V1 cap of 1 is enforced at the application layer; the unique index prevents duplicate pointers per-job)
+- [ ] Composite index on `(workedOnReferenceModel, workedOnReferenceId)` so the reverse lookup (e.g. `Equipment.ServiceHistory`) hits the index
+- [ ] Single-column index on `jobId`
+- [ ] FK on `jobId → Job.id` with `ON DELETE CASCADE ON UPDATE CASCADE`
+- [ ] **No FK** on `workedOnReferenceId` — polymorphic pointer, target table not knowable at the schema layer
+- [ ] Prisma `Job.PerformedOn` inverse relation added; **no** `Equipment.ServiceHistory` Prisma relation (polymorphic; resolver-only)
 - [ ] DAA seeded in same migration: `slug = 'equipment-serviced'`, `subModel = 'WorkOrder'`, attached to existing `Work Order Info` DocumentSection
-- [ ] DAA `defaultAttribute` and `referenceColumn` both equal `'performedOnEquipmentId'`
+- [ ] DAA `defaultAttribute` and `referenceColumn` both equal `'workedOnReferenceId'` (the primary value column on `JobPerformedOn`); `workedOnReferenceModel` is set by the customFormControl, not the form engine
 - [ ] **No DAA created for** `subModel = 'ProjectJob'` — structural guarantee the field never renders on ProjectJob forms
 - [ ] `DocumentModelFormElements` row created linking the DAA to the WorkOrder CREATE form (`isDeleted = FALSE`)
 - [ ] `DocumentModelFormElements` row created linking the DAA to the WorkOrder EDIT form (`isDeleted = FALSE`)
 - [ ] `DocumentModelFormElements` row created linking the DAA to the WorkOrder SETTINGS form with `isDeleted = TRUE` (turned off; admins don't see this as a configurable field)
-- [ ] No `performedOnEquipmentId` entry added to `Job.modelFields` (write-through is handled in customCreateItem/customEditItem, not declared as a column)
-- [ ] `Job.customCreateItem` strips `performedOnEquipmentId` from `data` before calling `super.customCreateItem`, then calls `syncPerformedOnEquipment`
-- [ ] `Job.customEditItem` distinguishes "absent" from "null" via `"performedOnEquipmentId" in data` so omission is a no-op
-- [ ] `Job.upsert` (the DataModelForm entry point) has `performedOnEquipmentId` added to its `nullableIdFields` array so combobox-clear (`""`) normalizes to `null`
+- [ ] No `workedOnReferenceModel` / `workedOnReferenceId` entries added to `Job.modelFields` (write-through is handled in the createItem/customEditItem overrides, not declared as columns)
+- [ ] `Job.createItem` is **extended in place** (NOT a new override and NOT a non-existent `customCreateItem`) — the existing method at `Job.ts:979-1130` keeps all of its current behavior (job numbering, geofence check, `assertNotInternalProject`, default folder creation in the `super.createItem` callback, `jobSiteSupervisorIds` write-through). The only additions are: two new optional keys on the data shape, two new names in the destructure at line 1064, and one new post-`super.createItem` block that mirrors the existing `jobSiteSupervisorIds` block.
+- [ ] The extension to `customEditItem` keeps all 8 parameters of its real signature at `Job.ts:~1352` (`id, data, enableDisconnect, currentUserId, instance, documentData?, skipAfterEdit?, callback?`) — does NOT collapse to a 3-param shape
+- [ ] `assertValidWorkedOnReference` inlines the `prisma.propertyValue.findUnique({ select: { jobClassification: true } })` lookup directly — no `getJobClassification` helper is invented (none exists on `JobModel`)
+- [ ] `Job.customEditItem` distinguishes "absent" from "null" via `"workedOnReferenceModel" in data || "workedOnReferenceId" in data` so omission is a no-op
+- [ ] `Job.upsert` (the DataModelForm entry point) has `workedOnReferenceId` added to its `nullableIdFields` array so combobox-clear (`""`) normalizes to `null`
+- [ ] `syncPerformedOn` treats half-set inputs (one of the pair null) as "clear" — both columns must be present together to insert
 - [ ] Clearing the Equipment Serviced combobox and saving the WO actually clears the link (the `JobPerformedOn` row is soft-deleted; the next render shows no chip and an empty combobox)
-- [ ] `JobPerformedOnModel` extends BaseModel and uses standard `createItem` / soft-delete via `BaseModel`
+- [ ] `JobPerformedOnModel` extends BaseModel; `modelFields` declares all three pointer columns as required-on-create, immutable
 - [ ] No mutations on `JobPerformedOn` exposed via GraphQL — only the read query
-- [ ] `jobPerformedOn` query filters by jobId and/or equipmentId and respects `isDeleted = false`
-- [ ] `Job.performedOnEquipmentId` field-level resolver returns the single non-deleted equipmentId or null
-- [ ] `Job.PerformedOnEquipment` resolver returns the linked Equipment object
-- [ ] `Job.PerformedOnRecords` resolver returns raw join rows (target-agnostic, forward-compat)
-- [ ] `Equipment.ServiceHistory` resolver returns Jobs in reverse-chronological order
-- [ ] `createJob` and `editJob` mutations accept `performedOnEquipmentId` input
-- [ ] On `createJob` with `performedOnEquipmentId`: one row inserted into `JobPerformedOn`
-- [ ] On `editJob` changing `performedOnEquipmentId`: old row soft-deleted, new row inserted
-- [ ] On `editJob` with `performedOnEquipmentId: null`: existing row soft-deleted, no new row
+- [ ] `jobPerformedOn` query accepts both the raw polymorphic args (`workedOnReferenceModel`, `workedOnReferenceId`) and the V1 convenience `equipmentId` arg (which narrows to `workedOnReferenceModel: "Equipment"`)
+- [ ] `Job.workedOnReferenceModel` / `Job.workedOnReferenceId` field-level resolvers return the single non-deleted pointer or null
+- [ ] `Job.PerformedOnEquipment` resolver returns the linked Equipment object **only** when `workedOnReferenceModel === "Equipment"`; null otherwise
+- [ ] `Job.PerformedOnEquipment` resolver uses `findUnique` (not `findFirst` with isDeleted) so an orphaned pointer at a hard-deleted Equipment degrades to `null` rather than throwing
+- [ ] `Job.PerformedOnRecords` resolver returns raw join rows (target-agnostic; future subject types consume this directly)
+- [ ] `Equipment.ServiceHistory` field-level resolver queries `JobPerformedOn` with `workedOnReferenceModel: "Equipment"` filter and returns Jobs in reverse-chronological order
+- [ ] `createJob` and `editJob` mutations accept `workedOnReferenceModel: String` and `workedOnReferenceId: String` inputs
+- [ ] On `createJob` with both pointer fields: one row inserted into `JobPerformedOn` carrying both
+- [ ] On `editJob` changing the pointer pair: old row soft-deleted, new row inserted
+- [ ] On `editJob` with the pair explicitly null: existing row soft-deleted, no new row
 - [ ] V1 cap enforced: any state that would leave more than one non-deleted row per job is impossible (delete-then-insert)
-- [ ] API rejects `performedOnEquipmentId` on jobs with classification != WorkOrder, with a clear error
-- [ ] `JobListFeed.sql` updated with `performedOnEquipmentId` and `performedOnEquipmentName` columns
+- [ ] API rejects worked-on inputs on jobs with classification != WorkOrder, with a clear error
+- [ ] API rejects `workedOnReferenceModel` values not in the V1 allowlist (`["Equipment"]`) with a clear error
+- [ ] `JobListFeed.sql` updated with `workedOnReferenceModel`, `workedOnReferenceId`, and `performedOnEquipmentName` columns; the Equipment-name subquery filters on `workedOnReferenceModel = 'Equipment'`
 - [ ] `pnpm run prisma:updateViews` applied (no migration file required for view changes)
-- [ ] TableFeed `WorkOrder` config exposes `equipment-serviced` column with sort + filter
+- [ ] TableFeed `WorkOrder` config exposes `equipment-serviced` column with sort + filter; `filterColumn` is `workedOnReferenceId` (semantic narrowing to Equipment is fine in V1)
 - [ ] WO list page can display, sort, and filter by Equipment Serviced via column chooser
 - [ ] WO create form (desktop): "Equipment Serviced" combobox appears in Details section, between Customer and Description
 - [ ] WO edit form (desktop): "Equipment Serviced" combobox prefilled with the currently serviced equipment
 - [ ] WO form (mobile): same combobox via `customFormControl` in `MobileWODataModelForm.tsx`
+- [ ] `customFormControl["equipment-serviced"]` writes **both** `workedOnReferenceModel: "Equipment"` and `workedOnReferenceId` on selection; both `null` on clear
 - [ ] Field hidden on ProjectJob form (classification gate in the render fn)
-- [ ] WO detail page (desktop): Equipment Serviced chip with link to `/equipment/[id]`
+- [ ] WO detail page (desktop): Equipment Serviced chip consumes `PerformedOnEquipment { id name }` (V1 convenience field), links to `/equipment/[id]`
 - [ ] WO detail page (mobile): Equipment Serviced chip with mobile equipment link
 - [ ] Equipment detail page (desktop): new "Work Orders" tab as the last tab
-- [ ] Work Orders tab uses `useGetTableDataRecordSetQuery` (not a custom resolver) for permission scoping
+- [ ] Work Orders tab uses `useGetTableDataRecordSetQuery` filtered by `workedOnReferenceModel: "Equipment", workedOnReferenceId: equipmentId` (not a custom resolver) for permission scoping
 - [ ] Empty state shown when an equipment has no Service History
 - [ ] Equipment detail page (mobile): same Work Orders tab in mobile list layout
 - [ ] Tapping a WO row navigates to the WO detail page on the respective platform
-- [ ] Hard-deleting an Equipment row cascades to soft+hard removal of `JobPerformedOn` rows; Job rows unaffected
+- [ ] Soft-deleting an Equipment row leaves `JobPerformedOn` pointers intact and the `PerformedOnEquipment` resolver still resolves (BaseModel soft-delete is the application norm)
+- [ ] Hard-deleting an Equipment row leaves orphan `JobPerformedOn` pointers; field resolvers return `null` gracefully (no throw). Orphan cleanup is an application-level concern, not a schema-level cascade.
 - [ ] Existing `WorkOrderEquipmentItem` line items continue to function unchanged
 - [ ] Existing `EquipmentTimeEntry` records continue to function unchanged
 - [ ] Frontend `customFormControl["equipment-serviced"]` renders only when `jobClassification === "WorkOrder"` (defensive — the DAA scoping already gates this server-side)
@@ -769,20 +982,20 @@ Tap row → navigate to `/work-orders/[id]` on mobile.
 
 | Action | File | What to do |
 |--------|------|------------|
-| MODIFY | `apps/api/prisma/schema.prisma` | Add `JobPerformedOn` model; inverse relations on `Job` (`PerformedOn`) + `Equipment` (`ServiceHistory`) |
-| CREATE | `apps/api/prisma/migrations/.../migration.sql` | CREATE TABLE `JobPerformedOn` + FKs + unique index + per-column indexes; INSERT DAA (`subModel = 'WorkOrder'`, attached to existing `Work Order Info` section); INSERT `DocumentModelFormElements` rows wiring the DAA to CREATE / EDIT / SETTINGS forms (SETTINGS row has `isDeleted = TRUE`) |
-| CREATE | `apps/api/src/types/JobPerformedOn.types.ts` | `IJobPerformedOn` interface |
-| CREATE | `apps/api/src/models/JobPerformedOn.ts` | BaseModel class with two required immutable FK fields |
-| CREATE | `apps/api/src/graphql/models/JobPerformedOn.ts` | Type + read query, no mutations |
+| MODIFY | `apps/api/prisma/schema.prisma` | Add `JobPerformedOn` model with polymorphic `workedOnReferenceModel` + `workedOnReferenceId` columns (no Prisma relation on the worked-on side); add `Job.PerformedOn` inverse relation only. **No** `Equipment.ServiceHistory` Prisma relation (resolver-only). |
+| CREATE | `apps/api/prisma/migrations/.../migration.sql` | CREATE TABLE `JobPerformedOn` with `jobId` FK (CASCADE), polymorphic `workedOnReferenceModel` / `workedOnReferenceId` columns (no FK), composite indexes on both `(jobId, ...)` unique and `(workedOnReferenceModel, workedOnReferenceId)`; INSERT DAA (`subModel = 'WorkOrder'`, `referenceColumn = 'workedOnReferenceId'`, attached to existing `Work Order Info` section); INSERT `DocumentModelFormElements` rows wiring the DAA to CREATE / EDIT / SETTINGS forms (SETTINGS row has `isDeleted = TRUE`) |
+| CREATE | `apps/api/src/types/JobPerformedOn.types.ts` | `IJobPerformedOn` interface with `jobId`, `workedOnReferenceModel`, `workedOnReferenceId` |
+| CREATE | `apps/api/src/models/JobPerformedOn.ts` | BaseModel class with three required-on-create, immutable pointer fields |
+| CREATE | `apps/api/src/graphql/models/JobPerformedOn.ts` | Type exposes raw polymorphic columns + V1 convenience `Equipment` resolver; read query accepts polymorphic args and the V1 `equipmentId` convenience filter; no mutations |
 | MODIFY | `apps/api/src/graphql/schema.ts` | Register `JobPerformedOn` resolver (4 places) |
 | MODIFY | `apps/api/src/graphql/models/index.ts` | Export `JobPerformedOn` resolver |
-| MODIFY | `apps/api/src/models/Job.ts` | (a) Add `"performedOnEquipmentId"` to the `nullableIdFields` array inside `upsert()` (line ~2974) so combobox clear normalizes `""` → `null`. (b) In `customCreateItem` / `customEditItem`, destructure `performedOnEquipmentId` and `delete` from data before `super` call; afterward sync the join table via `syncPerformedOnEquipment` helper; enforce V1 cap of 1 (soft-delete-then-insert); reject on non-WorkOrder classification. No `modelFields` entry. |
-| MODIFY | `apps/api/src/graphql/models/Job.ts` | Add `performedOnEquipmentId` / `PerformedOnEquipment` / `PerformedOnRecords` fields; add to `CreateJob` and `EditJob` inputs; field-level resolvers |
-| MODIFY | `apps/api/src/graphql/models/Equipment.ts` | Add `ServiceHistory` field + resolver |
-| MODIFY | `apps/api/prisma/views/JobListFeed.sql` | Add `performedOnEquipmentId` and `performedOnEquipmentName` derived columns via correlated subqueries |
-| MODIFY | `apps/api/src/graphql/models/TableFeed/configureColumns.ts` | Add `equipment-serviced` column to `WorkOrder` config (sortable, filterable) |
-| MODIFY | `apps/frontend/src/components/Forms/JobAddEditForm/JobDataModelForm.tsx` | Add `equipment-serviced` entry to `customFormControl` map; reuse `equipmentQuery` from `WOEquipmentEditor.tsx` |
-| MODIFY | `apps/mobile/src/components/WorkOrders/MobileWODataModelForm.tsx` | Add matching `equipment-serviced` entry to mobile `customFormControl` |
+| MODIFY | `apps/api/src/models/Job.ts` | (a) Add `"workedOnReferenceId"` to the `nullableIdFields` array inside `upsert()` (line ~2974) so combobox clear normalizes `""` → `null`. (b) **Extend the existing `createItem` at lines 979-1130** (do NOT add a parallel override and do NOT invent a non-existent `customCreateItem`). Add two new optional keys to the data shape; extend the destructure at line 1064 to also pull `workedOnReferenceModel` + `workedOnReferenceId`; add a new post-`super.createItem` block alongside the existing `jobSiteSupervisorIds` connect at lines 1126-1128. All existing behavior (job numbering, geofence check, default folder creation, supervisor write-through) stays untouched. (c) Extend the existing `customEditItem` at line ~1352 — keep all 8 parameters of its real signature (`id, data, enableDisconnect, currentUserId, instance, documentData?, skipAfterEdit?, callback?`). Both call paths: destructure the worked-on pair with rest spread, run `assertValidWorkedOnReference` (V1 allowlist + inlined `propertyValue.jobClassification` lookup — no `getJobClassification` helper exists), then `syncPerformedOn` (soft-delete-then-insert). No `modelFields` entries. |
+| MODIFY | `apps/api/src/graphql/models/Job.ts` | Add raw `workedOnReferenceModel` / `workedOnReferenceId` scalars + V1 convenience `PerformedOnEquipment` field + raw `PerformedOnRecords` accessor; add raw pair to `CreateJob` and `EditJob` inputs; field-level resolvers |
+| MODIFY | `apps/api/src/graphql/models/Equipment.ts` | Add `ServiceHistory` field-level resolver (queries `JobPerformedOn` with `workedOnReferenceModel: "Equipment"` filter — no Prisma relation traversal) |
+| MODIFY | `apps/api/prisma/views/JobListFeed.sql` | Add `workedOnReferenceModel`, `workedOnReferenceId`, and `performedOnEquipmentName` derived columns via correlated subqueries; the Equipment-name subquery filters on `workedOnReferenceModel = 'Equipment'` |
+| MODIFY | `apps/api/src/graphql/models/TableFeed/configureColumns.ts` | Add `equipment-serviced` column to `WorkOrder` config; `filterColumn: 'workedOnReferenceId'`, `sourceColumn/sortColumn: 'performedOnEquipmentName'` |
+| MODIFY | `apps/frontend/src/components/Forms/JobAddEditForm/JobDataModelForm.tsx` | Add `equipment-serviced` entry to `customFormControl` map; on selection write **both** `workedOnReferenceModel: "Equipment"` + `workedOnReferenceId`; on clear write both `null`; reuse `equipmentQuery` from `WOEquipmentEditor.tsx` |
+| MODIFY | `apps/mobile/src/components/WorkOrders/MobileWODataModelForm.tsx` | Add matching `equipment-serviced` entry to mobile `customFormControl` with the same paired-field write |
 | MODIFY | WO detail page (desktop) | Render Equipment Serviced chip with link; extend GraphQL fragment to fetch `PerformedOnEquipment { id name }` |
 | MODIFY | `apps/mobile/src/components/WorkOrders/MobileWODetail.tsx` | Render mobile Equipment Serviced chip |
 | MODIFY | `apps/frontend/src/pages/equipment/[id]/index.tsx` (EquipmentDetailsTabs) | Append `Work Orders` tab |

@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WO-24: Labor Rate Markup % — Implementation Plan</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+.in-iframe .top-nav { display: none !important; }
+.top-nav { position: sticky; top: 0; z-index: 100; background: #0f172a; border-bottom: 1px solid #1e293b; padding: 0 24px; display: flex; align-items: center; gap: 0; }
+.top-nav a { display: inline-flex; align-items: center; padding: 12px 18px; font-size: 13px; font-weight: 600; color: #94a3b8; text-decoration: none; border-bottom: 2px solid transparent; transition: all 0.15s; white-space: nowrap; }
+.top-nav a:hover { color: #f8fafc; background: #1e293b; }
+.top-nav .nav-logo { font-size: 11px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: #475569; padding-right: 18px; margin-right: 4px; border-right: 1px solid #1e293b; }
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Inter', -apple-system, sans-serif; background: #f8fafc; color: #0f172a; }
+.plan-wrap { max-width: 880px; margin: 0 auto; padding: 40px 24px 80px; }
+h1 { font-size: 24px; font-weight: 800; margin: 0 0 16px; }
+h2 { font-size: 18px; font-weight: 700; margin: 28px 0 12px; padding-bottom: 8px; border-bottom: 2px solid #e2e8f0; }
+h3 { font-size: 15px; font-weight: 700; margin: 20px 0 8px; padding-top: 10px; border-top: 1px solid #f1f5f9; }
+h4 { font-size: 14px; font-weight: 700; margin: 14px 0 6px; }
+p { font-size: 14px; color: #334155; line-height: 1.7; margin: 6px 0; }
+ul, ol { padding-left: 20px; margin: 8px 0; }
+li { font-size: 14px; color: #334155; line-height: 1.7; margin: 3px 0; }
+strong { color: #0f172a; }
+code { font-family: 'SF Mono', monospace; background: #f1f5f9; padding: 1px 6px; border-radius: 4px; font-size: 12px; color: #7c3aed; }
+pre { background: #0f172a; color: #f8fafc; border-radius: 8px; padding: 16px; overflow-x: auto; font-size: 13px; line-height: 1.6; margin: 12px 0; font-family: 'SF Mono', monospace; }
+pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
+hr { border: none; border-top: 1px solid #e2e8f0; margin: 24px 0; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 12px 0; }
+th { text-align: left; padding: 8px 12px; background: #f1f5f9; border-bottom: 2px solid #e2e8f0; font-weight: 600; }
+td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
+.check-item { display: flex; gap: 8px; align-items: flex-start; padding: 5px 0; }
+.check-box { width: 16px; height: 16px; border: 2px solid #cbd5e1; border-radius: 3px; flex-shrink: 0; margin-top: 2px; }
+.callout { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 14px 18px; margin: 14px 0; font-size: 13px; color: #1e40af; }
+.callout strong { color: #1e3a8a; }
+    </style>
+</head>
+<body>
+
+<script>if(self!==top)document.documentElement.classList.add("in-iframe")</script>
+<nav class="top-nav">
+    <span class="nav-logo">Appello SDLC</span>
+    <a href="../index.html">Roadmap</a>
+    <a href="../release-1.33-timeline.html">Release 1.33</a>
+    <a href="../release-1.34-timeline.html">Release 1.34</a>
+    <a href="../master-spec-reconciliation.html">Spec Reconciliation</a>
+    <a href="../cross-release-continuity-audit.html">Continuity Audit</a>
+    <a href="ui-interface-library.html">UI Library</a>
+</nav>
+<div class="plan-wrap" id="rendered"></div>
+
+<script type="text/plain" id="plan-md">
+# WO-24: Labor Rate Markup % — Implementation Plan
+
+## Overview
+
+Add a **Markup %** input row to the existing Billable Rates matrix (`apps/frontend/src/components/DetailsPage/EmployeeContract/Tabs/BillableRates.tsx`) that stays in two-way sync with the existing **Billable Rate** row. Admins can type either the fixed billable dollar rate **or** the markup percentage over cost — editing one auto-recomputes the other against the cost rate. `billableValue` is the only thing persisted; markup is a pure UI projection of `(billable - cost) / cost × 100`.
+
+**No schema changes. No migration. No API changes. No model changes.** The dollar value is the canonical 2-decimal-precision unit; markup is derived from it on load and on every dollar edit, so there's nothing to store and nothing to round-trip.
+
+Action item from the 2026-05-07 Kris × Corey × Emma demo call.
+
+**Estimated effort:** 2-4 hours
+**Risk:** Very low — frontend-only, no persisted state changes, no downstream behaviour changes, runtime resolution path unchanged
+**Spec:** `tm-work-orders-uis/wo-24-labor-rate-markup-percent.html`
+**Requires:** LEM-1 (in QA — `TradeLevelRate.billableValue`)
+**Enables:** Same UX pattern can be mirrored on equipment rates / materials if demand surfaces
+
+---
+
+## Decided — UI-only, billable $ is canonical, markup % is derived
+
+**Billable $ is the persisted, canonical value — markup % is purely a derived UI projection.** The dollar value is a fixed 2-decimal currency unit; the markup is whatever percentage that dollar value represents over the cost rate. Computed on load as `(billableValue - baseValue) / baseValue × 100`, recomputed on every dollar edit, and used (with `roundTo`) to recompute the dollar value on every markup edit. Nothing about markup is stored, sent to the API, or known to the model layer — the existing `billableValue` field on `TradeLevelRate` already covers it.
+
+**Two inputs, no mode toggle, no orphan state.** Both the Billable $ and Markup % cells are always editable. Typing in either one updates the other in form state. There is no "mode" to track, no field to clear on save, no per-row preference to remember.
+
+**`billableValue` remains the single source of truth.** Invoicing, timesheet pricing, `WorkOrderLaborItem` resolution, `JobSchedule` resolution, payroll exports — none of these change. They continue to read `billableValue`, which is whatever the admin last saved (typed directly or computed from markup). Markup never leaves the browser.
+
+**Empty markup means zero markup.** If an admin clears the markup % cell, it's treated as 0 — the dollar value snaps to equal the cost rate (`billableValue = baseValue`). This keeps the two cells coherent at all times and avoids a tri-state ("set / cleared / never had one"). Empty dollar value means no billable rate yet, and markup displays blank (you can't derive a markup from no dollars).
+
+**Cost-rate changes are out of band.** Cost rate is read-only in this matrix — it's loaded from the contract and not directly editable here. If a wage-region cost roll changes the cost upstream, the page reloads and both billable and markup re-render against the new cost. No mid-edit cost watcher needed.
+
+**No customFormControl entry.** This is not a DAA-driven form — the Billable Rates tab is a hand-built matrix editor (`BillableRates.tsx`), not a `DataModelForm`. The new Markup % row is plain JSX inside the existing matrix.
+
+**Margin % row stays unchanged.** Margin (`(billable - cost) / billable`) and markup (`(billable - cost) / cost`) are different lenses on the same relationship — both are useful to display. Markup is the *editable* input; Margin remains the read-only sanity check.
+
+---
+
+## Step 1: Frontend — `BillableRates.tsx` (single file)
+
+**File:** `apps/frontend/src/components/DetailsPage/EmployeeContract/Tabs/BillableRates.tsx`
+
+All changes are in this one file. Five small edits.
+
+### 1a. Add `roundTo` to the imports
+
+The existing import from `@useanzen/shared-utils` is at line 2. Add `roundTo`:
+
+```typescript
+import {
+    ClassNames,
+    formatValueAsCurrencyWithVariableDecimals,
+    roundTo
+} from "@useanzen/shared-utils";
+```
+
+Also add `NumericInput` to the `@useanzen/ui` import (already a multi-component import block at lines 3-14):
+
+```typescript
+import {
+    Button,
+    CurrencyInput,
+    ErrorPage,
+    Loader,
+    NumericInput,
+    TabGroup,
+    TextFromControl,
+    useNotification,
+    IconEdit,
+    IconSearch,
+    CustomCombobox
+} from "@useanzen/ui";
+```
+
+### 1b. Extend `IBillableRateFormValues` with `markupPercent`
+
+Lines 26-29 currently:
+
+```typescript
+interface IBillableRateFormValues {
+    billableValue: string;
+    baseValue: number;
+}
+```
+
+Add `markupPercent` — stored as a string (matches the existing pattern for editable numeric cells) so empty state is just `""`:
+
+```typescript
+interface IBillableRateFormValues {
+    billableValue: string;
+    baseValue: number;
+    markupPercent: string;
+}
+```
+
+### 1c. Hydrate `markupPercent` in `setInitialBillableRates`
+
+Lines 83-100 — extend the seed loop so each row's markup is derived from its billable/cost on load:
+
+```typescript
+const setInitialBillableRates = (contract: GqlEmployeeAgreementContract) => {
+    const values: Record<string, IBillableRateFormValues> = {};
+    for (const tradeLevelRate of contract.TradeLevelRates) {
+        const baseValue = tradeLevelRate.baseValue ?? 0;
+        const billableValue = tradeLevelRate.billableValue;
+        const markupPercent =
+            billableValue != null && baseValue > 0
+                ? String(roundTo(((billableValue - baseValue) / baseValue) * 100, 4))
+                : "";
+        values[tradeLevelRate.id] = {
+            billableValue:
+                billableValue != null
+                    ? formatValueAsCurrencyWithVariableDecimals(billableValue, true, 2)
+                    : "",
+            baseValue,
+            markupPercent
+        };
+    }
+    setFormValues(values);
+    setDirtyFormValues(() => ({}));
+};
+```
+
+- `baseValue > 0` guard avoids divide-by-zero — when cost is 0, markup is undefined, so display blank.
+- `roundTo(..., 4)` gives up to 4 decimals on the derived percentage; `String(...)` lets `NumericInput` consume it.
+
+### 1d. Add a `Markup %` editable row to the matrix
+
+The current matrix has three rows: Cost Rate (read-only, lines 283-329), Billable Rate (editable, lines 330-402), Margin % (read-only, lines 403-470). Insert a new editable **Markup %** row between Billable Rate and Margin % so the read-only summary still anchors the bottom of the cell.
+
+The new row mirrors the Billable Rate row's structure (same sticky header column, same trade-level mapping, same `cellClasses`), but the editable cell uses `NumericInput` with a `%` suffix. Place it directly after the Billable Rate row's closing `</tr>` (after line 402):
+
+```tsx
+{/* Markup Row (editable, two-way bound with Billable Rate) */}
+<tr>
+    <td
+        className={new ClassNames(cellClasses)
+            .add("sticky -left-px z-10 bg-white font-medium")
+            .list()}
+    >
+        Markup %
+    </td>
+    {tradeLevels
+        .filter((tl) => tl.employeeAgreementRateLabelId === rateType.id)
+        .sort((a, b) => {
+            const orderNoCompare = (a.orderNo ?? 0) - (b.orderNo ?? 0);
+            if (orderNoCompare !== 0) return orderNoCompare;
+            return a.name.localeCompare(b.name);
+        })
+        .map((tradeLevel) => {
+            const tlrId = tradeLevel.tradeLevelRateId;
+            const row = formValues[tlrId];
+            return (
+                <td
+                    key={`${tlrId}-markup`}
+                    className={new ClassNames(cellClasses).list()}
+                >
+                    <div className="flex items-center gap-1">
+                        <NumericInput
+                            value={row?.markupPercent ?? ""}
+                            onChange={(value) => {
+                                const baseValue = row?.baseValue ?? 0;
+                                const newBillable = roundTo(
+                                    baseValue * (1 + value / 100),
+                                    2
+                                );
+                                setFormValues({
+                                    ...formValues,
+                                    [tlrId]: {
+                                        ...row,
+                                        markupPercent: String(value),
+                                        billableValue:
+                                            formatValueAsCurrencyWithVariableDecimals(
+                                                newBillable,
+                                                true,
+                                                2
+                                            )
+                                    }
+                                });
+                            }}
+                            onBlur={() => {}}
+                            disabled={!isEdit || disableForm}
+                            decimalPlaces={4}
+                        />
+                        <span className="text-sm text-gray-500">%</span>
+                    </div>
+                </td>
+            );
+        })}
+</tr>
+```
+
+- `NumericInput` is the right primitive (see CLAUDE.md "Form Controls & UI Components" — `NumericInput` for non-currency numeric input). No `<input type="number">`.
+- `decimalPlaces={4}` matches the precision used on hydrate.
+- The `%` glyph sits in a sibling `<span>` because `NumericInput` doesn't accept a trailing-text prop.
+- When `value` is 0 (cleared markup), `newBillable = roundTo(baseValue × 1, 2) = baseValue` — billable snaps to cost, matching the rule "clearing markup means no markup."
+
+### 1e. Recompute markup when Billable Rate changes
+
+The Billable Rate cell (lines 363-398) currently writes `billableValue` only. Extend both `handleChange` and `onBlur` so editing the dollar value also re-derives markup against the cell's cost:
+
+```tsx
+<CurrencyInput
+    name={tlrId}
+    handleChange={(value: string) => {
+        const baseValue = formValues[tlrId]?.baseValue ?? 0;
+        const billableNum = value ? Number(value.replace(/[,]/g, "")) : null;
+        const markupPercent =
+            billableNum != null && baseValue > 0
+                ? String(roundTo(((billableNum - baseValue) / baseValue) * 100, 4))
+                : "";
+        setFormValues({
+            ...formValues,
+            [tlrId]: {
+                ...formValues[tlrId],
+                billableValue: value,
+                markupPercent
+            }
+        });
+    }}
+    onBlur={(value: string) => {
+        const baseValue = formValues[tlrId]?.baseValue ?? 0;
+        const billableNum = value ? Number(value.replace(/[,]/g, "")) : null;
+        const markupPercent =
+            billableNum != null && baseValue > 0
+                ? String(roundTo(((billableNum - baseValue) / baseValue) * 100, 4))
+                : "";
+        setFormValues({
+            ...formValues,
+            [tlrId]: {
+                ...formValues[tlrId],
+                billableValue: value,
+                markupPercent
+            }
+        });
+    }}
+    onFocus={() => {}}
+    value={formValues[tlrId]?.billableValue ?? ""}
+    disabled={!isEdit || disableForm}
+    decimalPlaces={2}
+/>
+```
+
+The derivation logic is duplicated across the two handlers because that matches the file's existing style — both handlers already write the same value today. Extract a small inline helper if it bothers the reviewer; not required.
+
+### 1f. No changes needed downstream
+
+- **`onSubmit` (lines 120-144) is unchanged.** It already sends only `billableValue` per dirty row, which is exactly right — markup never leaves the browser.
+- **`getChangedValues` (lines 102-112) is unchanged.** It already diffs `billableValue` against the server original, which is the only persisted value. Editing markup updates billable in form state, so dirty detection works transparently.
+- **`EDIT_MANY_TRADE_LEVEL_RATES` mutation, `EMPLOYEE_CONTRACT_BILLABLE_RATES_QUERY`, and all other `gql` blocks at the bottom of the file are unchanged.** No new fields, no new mutations.
+- **Margin % row is unchanged.** It reads `billableValue` from form state, which now stays in sync with markup edits via Step 1d. Existing classes (`text-success` / `text-danger` thresholds) continue to work.
+
+---
+
+## Out-of-Scope Reminders
+
+The original draft of this plan included a Prisma column (`TradeLevelRate.markupPercent`), a migration, model validation, a GraphQL field, and an `EditTradeLevelRate` input field. **All of those are out — markup never leaves the browser.** Anything in the codebase that already reads `TradeLevelRate.billableValue` (invoicing, timesheet pricing, `WorkOrderLaborItem` resolution, `JobSchedule` resolution, payroll exports) is unchanged.
+
+- ❌ No `apps/api/prisma/schema.prisma` change
+- ❌ No migration
+- ❌ No `apps/api/src/types/TradeLevel.types.ts` change
+- ❌ No `apps/api/src/models/TradeLevelRate.ts` change
+- ❌ No `apps/api/src/graphql/models/TradeLevelRate.ts` change
+- ❌ No mutation or query schema additions in `BillableRates.tsx`
+- ❌ No DAA / DocumentModelFormElements rows
+- ❌ No new permission checks
+
+---
+
+## Verification Checklist
+
+- [ ] `roundTo` and `NumericInput` are imported in `BillableRates.tsx` from their existing packages
+- [ ] `IBillableRateFormValues` has a new `markupPercent: string` field (no `mode` flag — no toggle)
+- [ ] `setInitialBillableRates` seeds `markupPercent` from `(billableValue - baseValue) / baseValue × 100` using `roundTo(..., 4)`, guarding `baseValue > 0`
+- [ ] Matrix has four rows in order: **Cost Rate** (read-only), **Billable Rate** (editable currency), **Markup %** (editable numeric, NEW), **Margin %** (read-only)
+- [ ] The Markup % cell uses `@useanzen/ui` `NumericInput` (no raw `<input type="number">`) with `decimalPlaces={4}`
+- [ ] A `%` glyph is rendered next to the `NumericInput` via a sibling `<span>` (no `trailingText` prop — `NumericInput` doesn't accept one)
+- [ ] Typing in the Markup % cell updates `billableValue` in form state via `formatValueAsCurrencyWithVariableDecimals(roundTo(baseValue × (1 + markup/100), 2), true, 2)`
+- [ ] Typing in the Billable Rate cell updates `markupPercent` in form state via `roundTo(((billable - baseValue) / baseValue) × 100, 4)` (both `handleChange` and `onBlur`)
+- [ ] Clearing the Markup % cell (value 0) snaps Billable Rate to equal Cost Rate (`baseValue × 1 = baseValue`)
+- [ ] Cost = 0 → Markup % cell displays blank (no NaN, no divide-by-zero)
+- [ ] `onSubmit` is unchanged — still sends only `billableValue`
+- [ ] `getChangedValues` is unchanged — diff is on `billableValue` only
+- [ ] `EDIT_MANY_TRADE_LEVEL_RATES` mutation and `EMPLOYEE_CONTRACT_BILLABLE_RATES_QUERY` query at the bottom of the file are **unchanged**
+- [ ] The Margin % row continues to render correctly because `billableValue` is kept in sync on every markup edit
+- [ ] No changes to `apps/api/**` — no schema, migration, model, or GraphQL edits
+- [ ] No regressions on rows where the admin types only in the Billable Rate cell (Markup % cell stays passively in sync)
+
+---
+
+## Files Summary
+
+| Action | File | What to do |
+|--------|------|------------|
+| MODIFY | `apps/frontend/src/components/DetailsPage/EmployeeContract/Tabs/BillableRates.tsx` | Import `roundTo` and `NumericInput`; add `markupPercent: string` to `IBillableRateFormValues`; derive markup in `setInitialBillableRates`; insert a new editable **Markup %** row between Billable Rate and Margin % rows using `NumericInput` + `%` glyph; have the new row write back to `billableValue` via `roundTo`; have the existing Billable Rate handlers also recompute `markupPercent` so the cells stay in two-way sync; leave `onSubmit`, `getChangedValues`, and both `gql` blocks unchanged. |
+</script>
+
+<script src="plan-renderer.js"></script>
+<script>renderPlan();</script>
+</body>
+</html>

@@ -1,0 +1,784 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WO-15c · Implementation Plan · Template Apply UI + Planned Crew Advisory</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Inter', -apple-system, sans-serif; background: #f1f5f9; color: #0f172a; }
+.wrap { max-width: 1040px; margin: 0 auto; padding: 40px 24px 80px; }
+.hero { margin-bottom: 28px; }
+.badges { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+.badge { font-size: 11px; font-weight: 700; padding: 4px 12px; border-radius: 6px; }
+.badge-q { background: #0f172a; color: #fff; }
+.badge-wo { background: #ec4899; color: #fff; }
+.badge-plan { background: #7c3aed; color: #fff; }
+h1.title { font-size: 28px; font-weight: 800; margin: 0 0 6px; letter-spacing: -0.01em; }
+p.sub { font-size: 15px; color: #475569; line-height: 1.55; margin: 0; }
+.meta { display: flex; gap: 22px; flex-wrap: wrap; margin-top: 14px; font-size: 13px; color: #64748b; }
+.meta strong { color: #0f172a; }
+.toc { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 18px 26px; margin-bottom: 16px; }
+.toc h3 { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; margin: 0 0 8px; color: #475569; }
+.toc ol { margin: 0; padding-left: 22px; }
+.toc li { font-size: 13.5px; margin-bottom: 3px; }
+.toc a { color: #2563eb; text-decoration: none; }
+.section { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px 28px; margin-bottom: 16px; }
+.section h2 { font-size: 17px; font-weight: 700; margin: 0 0 12px; padding-bottom: 8px; border-bottom: 2px solid #e2e8f0; }
+.section h3 { font-size: 14.5px; font-weight: 700; margin: 16px 0 6px; color: #0f172a; }
+.section h4 { font-size: 13.5px; font-weight: 700; color: #334155; margin: 12px 0 4px; }
+.section p, .section li { font-size: 13.5px; color: #334155; line-height: 1.6; }
+.section ul, .section ol { padding-left: 22px; margin: 6px 0; }
+pre { background: #0f172a; color: #e2e8f0; border-radius: 8px; padding: 14px 16px; overflow-x: auto; font-size: 12.5px; line-height: 1.55; font-family: 'SF Mono', monospace; margin: 10px 0; }
+code { font-family: 'SF Mono', monospace; background: #f1f5f9; padding: 1px 5px; border-radius: 3px; font-size: 12px; color: #7c3aed; }
+table.t { width: 100%; border-collapse: collapse; font-size: 12.5px; margin: 10px 0; }
+table.t th { text-align: left; padding: 8px 10px; background: #f8fafc; border-bottom: 2px solid #e2e8f0; font-weight: 700; }
+table.t td { padding: 8px 10px; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
+.tag-new { background: #dcfce7; color: #166534; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 4px; }
+.tag-mod { background: #fef3c7; color: #92400e; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 4px; }
+.callout { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 12px 16px; margin: 12px 0; font-size: 13px; color: #1e40af; }
+.callout strong { color: #1e3a8a; }
+.warn { background: #fffbeb; border: 1px solid #fcd34d; border-radius: 8px; padding: 12px 16px; margin: 12px 0; font-size: 13px; color: #78350f; }
+.good { background: #f0fdf4; border: 1px solid #86efac; border-radius: 8px; padding: 12px 16px; margin: 12px 0; font-size: 13px; color: #166534; }
+.check-list { margin: 0; padding-left: 0; list-style: none; }
+.check-list li { display: flex; gap: 10px; margin-bottom: 8px; font-size: 13px; color: #334155; line-height: 1.5; }
+.check-list li::before { content: ''; flex-shrink: 0; width: 16px; height: 16px; border: 2px solid #cbd5e1; border-radius: 3px; margin-top: 2px; background: #fff; }
+    </style>
+</head>
+<body>
+<div class="wrap">
+
+    <div class="hero">
+        <div class="badges">
+            <span class="badge badge-q">WO-15c</span>
+            <span class="badge badge-wo">Work Orders</span>
+            <span class="badge badge-plan">Implementation Plan</span>
+        </div>
+        <h1 class="title">Work Order Templates · Apply on WO Create + Planned Crew Advisory</h1>
+        <p class="sub">Operational layer on top of WO-15a (backend) and WO-15b (settings UI). The dispatcher picks a template at the top of the WO create form — <strong>desktop AND mobile</strong>; the form draft hydrates from <code>previewWorkOrderTemplate</code> across every section that has a slot for template content; structured equipment plans surface as launchers into the existing EquipmentAssignment form; structured labor plans render as a read-only advisory; submit serializes the current draft into the <code>workOrderTemplateApplication</code> input on <code>createJob</code>. Post-save (desktop), the same labor advisory continues on the WO detail Schedule tab as a live tally sidebar.</p>
+        <div class="meta">
+            <span><strong>Spec:</strong> <code>tm-work-orders-uis/wo-15c-template-apply-ui.html</code></span>
+            <span><strong>Estimate:</strong> 4-5 days</span>
+            <span><strong>Requires:</strong> WO-15a, WO-15b, WO-16</span>
+        </div>
+    </div>
+
+    <div class="toc">
+        <h3>Steps</h3>
+        <ol>
+            <li><a href="#s1">Form-state architecture for the create form (template provenance + draft buffer)</a></li>
+            <li><a href="#s2">Template picker banner + active-templates query</a></li>
+            <li><a href="#s3">Apply hook: fetch preview, hydrate draft, track provenance</a></li>
+            <li><a href="#s4">Switch-template confirmation modal</a></li>
+            <li><a href="#s5">Field defaults + "FROM TEMPLATE" indicator wiring</a></li>
+            <li><a href="#s6">Checklist + Materials seeded rows</a></li>
+            <li><a href="#s7">Free-form Labor/Equipment line item seeding</a></li>
+            <li><a href="#s8">Forms summary panel</a></li>
+            <li><a href="#s9">Structured Labor advisory callout (create form)</a></li>
+            <li><a href="#s10">Structured Equipment selection prompts + EquipmentAssignment deferred-commit</a></li>
+            <li><a href="#s11">Submit: build <code>workOrderTemplateApplication</code> payload</a></li>
+            <li><a href="#s12">Planned Crew advisory sidebar on WO detail Schedule tab (post-save)</a></li>
+            <li><a href="#s13">Verification</a></li>
+            <li><a href="#files">Files Summary</a></li>
+        </ol>
+    </div>
+
+    <!-- =========================================================================== -->
+    <!-- STEP 1 -->
+    <!-- =========================================================================== -->
+    <div class="section" id="s1">
+        <h2>Step 1 · Form-state architecture for the create form</h2>
+
+        <p>Before any picker UI, we need the form draft buffer to be capable of holding template-derived rows and tracking <em>which</em> rows came from the template. This is a thin extension of whatever state the existing WO create form already exposes via <code>useForm</code>.</p>
+
+        <h3>1.1 New types — <code>useWorkOrderTemplateApply.types.ts</code></h3>
+        <p>Co-located with the apply hook (Step 3). Defines the in-form draft shapes that the hook hydrates and that submit serializes.</p>
+<pre>
+import type {
+    PreviewWorkOrderTemplate,
+    PreviewWorkOrderTemplate_checklistItems,
+    PreviewWorkOrderTemplate_materialItems,
+    PreviewWorkOrderTemplate_laborPlans,
+    PreviewWorkOrderTemplate_equipmentPlans,
+    PreviewWorkOrderTemplate_fieldDefaults,
+    PreviewWorkOrderTemplate_formWrappers
+} from "~root/graphql/queries/__generated__/previewWorkOrderTemplate.query";
+
+export type IProvenance = "template" | "user-add" | "user-edit";
+
+export interface IChecklistDraft {
+    rowId: string;                          // stable client id (nanoid)
+    templateChecklistItemId: string | null; // null when user-added
+    label: string;
+    description?: string | null;
+    orderNo: number;
+    photoRequired: boolean;
+    provenance: IProvenance;
+}
+
+export interface IMaterialDraft { /* same pattern */ }
+export interface IFieldDefaultDraft { /* documentAttributeId, value, provenance */ }
+
+export interface IEquipmentPlanDraft {
+    templatePlanId: string;
+    equipmentCategoryId: string;
+    equipmentCategoryName: string;
+    quantity: number;
+    plannedHours: number | null;
+    description?: string | null;
+    // Resolved assignments (filled when user uses the picker).
+    // EquipmentAssignment form output is preserved verbatim so we can replay it on createJob.
+    selections: IDeferredEquipmentAssignment[];
+}
+
+export interface IDeferredEquipmentAssignment {
+    equipmentId: string;
+    equipmentLabel: string;
+    operatorUserId?: string | null;
+    checkoutAt?: string | null;
+    checkinAt?: string | null;
+    notes?: string | null;
+}
+
+export interface IFormsSummaryDraft {
+    templateFormWrapperId: string;
+    formId: string;
+    formName: string;
+}
+
+export interface ILaborAdvisoryRow {
+    templateLaborPlanId: string;
+    tradeLevelId: string | null;
+    tradeLevelLabel: string | null;   // resolved label for display
+    quantity: number;
+    plannedHours: number | null;
+    description?: string | null;
+}
+
+export interface IWorkOrderTemplateApplyState {
+    appliedTemplateId: string | null;
+    appliedTemplateLabel: string | null;
+    snapshotPreview: PreviewWorkOrderTemplate | null;  // raw preview, kept for re-render of read-only sections
+    checklistItems: IChecklistDraft[];
+    materialItems: IMaterialDraft[];
+    fieldDefaults: IFieldDefaultDraft[];
+    equipmentPlans: IEquipmentPlanDraft[];
+    laborAdvisory: ILaborAdvisoryRow[];
+    formsSummary: IFormsSummaryDraft[];
+    archivedChecklistRowIds: string[];   // rows the user removed from the seeded set
+    archivedMaterialRowIds: string[];
+}
+</pre>
+
+        <h3>1.2 Where the state lives</h3>
+        <p>All of the above lives as a single <code>useState&lt;IWorkOrderTemplateApplyState&gt;</code> inside the WO create form component (next to the existing <code>useForm()</code>). The apply hook (Step 3) returns setters that mutate this slice. Checklist/Materials rows that are <em>also</em> tracked by the existing line-item state in <code>useForm</code> are kept in <em>one place</em> — the apply state — and the regular line-item sections receive their data via props from the form (no double bookkeeping).</p>
+
+        <div class="callout">
+            <strong>Why not push everything into the existing <code>useForm</code> body?</strong> The provenance/archive bookkeeping is template-specific; folding it into <code>useForm</code> would pollute every WO create form whether or not a template is applied. Keeping it adjacent and feeding the existing sections via props keeps the WO create form's core state clean.
+        </div>
+    </div>
+
+    <!-- =========================================================================== -->
+    <!-- STEP 2 -->
+    <!-- =========================================================================== -->
+    <div class="section" id="s2">
+        <h2>Step 2 · Template picker banner</h2>
+
+        <h3>2.1 GraphQL — reuse, no new queries</h3>
+        <p>The picker uses the standard TableFeed query against the WorkOrderTemplate model registered by WO-15a:</p>
+<pre>
+useGetTableDataRecordSetQuery({
+    variables: {
+        name: GqlTableDataName.WorkOrderTemplate,
+        where: { isActive: true },
+        columns: ["name", "estimated-duration", "checklist-count", "material-count", "form-count"],
+        orderBy: { column: "name", direction: "asc" },
+        limit: 50
+    }
+})
+</pre>
+        <p>No <code>useGetWorkOrderTemplatesQuery</code> wrapper — TableFeed enforces scoped view permissions per CLAUDE.md.</p>
+
+        <h3>2.2 Banner component — <code>WorkOrderTemplatePickerBanner.tsx</code></h3>
+        <p>Location: <code>apps/frontend/src/components/WorkOrder/CreateForm/_TemplatePickerBanner/WorkOrderTemplatePickerBanner.tsx</code>.</p>
+        <p>Renders in two states based on whether <code>applyState.appliedTemplateId</code> is set:</p>
+        <ul>
+            <li><strong>Empty state</strong> — purple banner, <code>CustomCombobox</code> with TableFeed results, "Apply" button. Disabled until a template is selected.</li>
+            <li><strong>Applied state</strong> — green banner, template name + summary line ("4 hrs · 2 forms · 12 checklist · …"), "Switch template" button.</li>
+        </ul>
+        <p>Props:</p>
+<pre>
+interface IWorkOrderTemplatePickerBannerProps {
+    appliedTemplateId: string | null;
+    appliedTemplateLabel: string | null;
+    snapshotSummary?: {
+        estimatedDuration: number | null;
+        checklistCount: number;
+        materialCount: number;
+        formCount: number;
+        laborPlanCount: number;
+        equipmentPlanCount: number;
+    };
+    onApply: (templateId: string) =&gt; Promise&lt;void&gt;;
+    onSwitchRequested: (newTemplateId: string) =&gt; void;
+    className?: string | ClassNames;
+}
+</pre>
+        <p>On Apply, the banner calls the parent's <code>onApply(id)</code> which delegates to the apply hook (Step 3). The banner itself does <em>not</em> own preview fetching — it's a presentational shell.</p>
+
+        <h3>2.3 Mount location in the WO create form (desktop + mobile)</h3>
+        <p>The banner mounts at the very top of the existing WO create form, above the WO header card (number, customer, description). Conditional on the form being in WO mode (not other Job types) — if the page is also reused for Project/Estimate creation, the banner only appears when <code>jobType === "WORK_ORDER"</code>.</p>
+        <p><strong>Mobile mirror:</strong> the same banner is also mounted at the top of the mobile WO create form (<code>apps/mobile</code>). The mobile version uses the same component if possible — the picker UI is simple enough (a single combobox + button) that one component renders well at both breakpoints. If the existing mobile form layout requires a thinner/tap-friendlier control, create <code>apps/mobile/src/components/WorkOrder/CreateForm/_TemplatePickerBanner/WorkOrderTemplatePickerBannerMobile.tsx</code> as a slim wrapper that uses the same <code>useWorkOrderTemplateApply</code> hook and renders a full-width banner with stacked layout (label + combobox above, Apply button below). The hook, types, serializer, and badge are <strong>shared</strong> — only the banner shell differs.</p>
+        <div class="callout">
+            <strong>Sharing strategy:</strong> the apply hook, type definitions, serializer, and FromTemplateBadge are pure logic with no platform-specific dependencies. Place them in <code>packages/ui</code> (per the WO helpers convention noted in <code>feedback_wo-helpers-in-ui.md</code>) under <code>packages/ui/src/workOrderTemplates/</code> so both apps consume the same code without rebuilding. The platform-specific banner shells live in their respective <code>apps/*</code> trees.
+        </div>
+    </div>
+
+    <!-- =========================================================================== -->
+    <!-- STEP 3 -->
+    <!-- =========================================================================== -->
+    <div class="section" id="s3">
+        <h2>Step 3 · Apply hook — fetch preview, hydrate draft, track provenance</h2>
+
+        <p>Location: <code>apps/frontend/src/components/WorkOrder/CreateForm/_TemplatePickerBanner/useWorkOrderTemplateApply.ts</code>.</p>
+
+        <h3>3.1 Hook surface</h3>
+<pre>
+export const useWorkOrderTemplateApply = () =&gt; {
+    const [state, setState] = useState&lt;IWorkOrderTemplateApplyState&gt;(EMPTY_STATE);
+    const [previewQuery] = useLazyPreviewWorkOrderTemplateQuery({ fetchPolicy: "no-cache" });
+
+    const apply = async (templateId: string): Promise&lt;void&gt; =&gt; { … };
+    const switchTo = async (templateId: string): Promise&lt;void&gt; =&gt; { … };  // assumes confirm already happened
+
+    // Row-level setters used by every section component.
+    const setChecklistItems = (next: IChecklistDraft[]) =&gt; { … };
+    const archiveChecklistRow = (rowId: string) =&gt; { … };
+    const setMaterialItems = (next: IMaterialDraft[]) =&gt; { … };
+    const archiveMaterialRow = (rowId: string) =&gt; { … };
+    const setFieldDefault = (documentAttributeId: string, value: string) =&gt; { … };
+    const setEquipmentPlanSelections = (templatePlanId: string, selections: IDeferredEquipmentAssignment[]) =&gt; { … };
+
+    return { state, apply, switchTo, setChecklistItems, archiveChecklistRow, setMaterialItems, archiveMaterialRow, setFieldDefault, setEquipmentPlanSelections };
+};
+</pre>
+
+        <h3>3.2 <code>apply(templateId)</code> behavior</h3>
+        <ol>
+            <li>Call <code>previewQuery({ variables: { templateId } })</code>.</li>
+            <li>Map each <code>preview.checklistItems[]</code> to <code>IChecklistDraft</code> with <code>rowId: nanoid()</code>, <code>templateChecklistItemId: item.id</code>, <code>provenance: "template"</code>.</li>
+            <li>Same mapping for materials and field defaults.</li>
+            <li>For equipment plans, build <code>IEquipmentPlanDraft</code>s with <code>selections: []</code> (user hasn't picked specific equipment yet).</li>
+            <li>For labor plans, build <code>ILaborAdvisoryRow</code> entries (read-only — they never become editable rows on the create form).</li>
+            <li>For form wrappers, build <code>IFormsSummaryDraft</code> entries with the resolved form name (already in the preview payload).</li>
+            <li><code>setState</code> replaces the entire applyState in one pass; existing user-added rows in the form's regular state are preserved by the section components themselves.</li>
+        </ol>
+
+        <h3>3.3 Row identity rules (provenance lifecycle)</h3>
+        <ul>
+            <li>Template-seeded row: <code>provenance: "template"</code>, <code>templateChecklistItemId: &lt;id&gt;</code>. Editing the row's label/description bumps to <code>provenance: "user-edit"</code> but keeps the template id (so we can preserve the "this came from the template, but it's been changed" indicator if product wants it in V2 — for V1 just show FROM TEMPLATE as long as the row originated there).</li>
+            <li>Row added inline by the user: <code>provenance: "user-add"</code>, <code>templateChecklistItemId: null</code>.</li>
+            <li>Row removed by the user from the template seed: moved to <code>archivedChecklistRowIds[]</code>, removed from <code>checklistItems[]</code>. This is just so the row stays hidden in the UI without us forgetting it existed; the archived list is <em>not</em> sent to the server (the resolver only sees what's in <code>checklistItems</code>).</li>
+        </ul>
+
+        <h3>3.4 Switch flow</h3>
+        <p><code>switchTo</code> is identical to <code>apply</code> but assumes the confirmation modal (Step 4) has already resolved. It wholesale replaces <code>state</code> — anything the user manually added or edited during the previous template's session is wiped, matching the "Replace" semantics in Mockup 5.</p>
+
+        <div class="warn">
+            <strong>What about user-added rows from the underlying form (non-template)?</strong> Those live in the existing form's <code>useForm</code> state, not in <code>applyState</code>. Switching templates only blows away the applyState slice. The standard WO create form fields stay as the user left them.
+        </div>
+    </div>
+
+    <!-- =========================================================================== -->
+    <!-- STEP 4 -->
+    <!-- =========================================================================== -->
+    <div class="section" id="s4">
+        <h2>Step 4 · Switch-template confirmation modal</h2>
+
+        <p>Component: <code>WorkOrderTemplateSwitchModal.tsx</code>, co-located with the banner.</p>
+
+        <h3>4.1 Flow</h3>
+        <ol>
+            <li>Banner's "Switch template" button reuses the same <code>CustomCombobox</code> dropdown; selecting a different template fires <code>onSwitchRequested(newTemplateId)</code>.</li>
+            <li>Parent form opens the modal via the existing <code>useConfirm</code> hook from <code>@useanzen/shared-utils</code> with custom body content (current template name → new template name; warning that manual edits in this session will also be cleared).</li>
+            <li>On confirm: call <code>applyHook.switchTo(newTemplateId)</code>.</li>
+            <li>On cancel: state untouched, banner reverts to applied state with the current template still showing.</li>
+        </ol>
+
+        <p>The Mockup 5 visual (red destructive button) is achieved via the <code>useConfirm</code> options that already support a danger variant — no bespoke modal component required if the existing API covers it. If the styling doesn't match, drop in a thin <code>WorkOrderTemplateSwitchModal.tsx</code> wrapping <code>Modal</code> from <code>@useanzen/ui</code>; do not reach for raw HTML.</p>
+    </div>
+
+    <!-- =========================================================================== -->
+    <!-- STEP 5 -->
+    <!-- =========================================================================== -->
+    <div class="section" id="s5">
+        <h2>Step 5 · Field defaults + "FROM TEMPLATE" indicator wiring</h2>
+
+        <h3>5.1 Template-tier default resolution</h3>
+        <p>WO-15a's <code>previewWorkOrderTemplate</code> already resolves the value tier per DAA (template &gt; DAA <code>defaultValue</code>). When a template is applied, the apply hook builds an <code>IFieldDefaultDraft[]</code> keyed by <code>documentAttributeId</code>.</p>
+
+        <h3>5.2 Form-render context</h3>
+        <p>The DAA-driven WO field renderer (existing code path) currently consults the DAA <code>defaultValue</code> through whatever context it already reads. Extend that consumption:</p>
+        <ul>
+            <li>Add an optional <code>templateFieldDefaults</code> input to the existing context (find the provider at the top of the WO create form's DAA renderer).</li>
+            <li>The renderer's "compute initial value" function checks <code>templateFieldDefaults[documentAttributeId]?.value</code> first, falls back to DAA <code>defaultValue</code>, falls back to empty.</li>
+            <li>When the user types into the field, the renderer calls the existing field setter — and also calls <code>applyHook.setFieldDefault(documentAttributeId, newValue)</code> so the apply state stays the source of truth for the submit payload.</li>
+        </ul>
+
+        <div class="warn">
+            <strong>Don't try to merge into <code>useForm</code> values directly.</strong> Field values are already managed by the existing DAA renderer's state. The apply state stores them only so we can build the <code>fieldDefaults</code> array on submit. Reading the value from two places creates drift — the renderer wins for display; the applyState mirror is for serialization.
+        </div>
+
+        <h3>5.3 "FROM TEMPLATE" badge</h3>
+        <p>Tiny pill component co-located: <code>FromTemplateBadge.tsx</code> (single 8-line FC). Used wherever a row, field, or section header needs the indicator. No styling override knobs — it's the same pill everywhere (semantic colors per CLAUDE.md: <code>bg-success-light text-on-success-light</code>).</p>
+        <p>The DAA renderer wraps the field label in <code>&lt;FormControlLabel&gt;</code> already (or however the existing labels render); add a sibling <code>&lt;FromTemplateBadge&gt;</code> when <code>templateFieldDefaults[id]</code> exists.</p>
+    </div>
+
+    <!-- =========================================================================== -->
+    <!-- STEP 6 -->
+    <!-- =========================================================================== -->
+    <div class="section" id="s6">
+        <h2>Step 6 · Checklist + Materials seeded rows</h2>
+
+        <h3>6.1 Checklist section</h3>
+        <p>The WO checklist editor on the create form (built in WO-14, mounted as <code>WorkOrderChecklistSection</code> on the existing create form) already accepts an items array and onChange callback per the WO-14 plan. Extend its props to receive the apply hook's row list:</p>
+<pre>
+&lt;WorkOrderChecklistSection
+    items={applyState.checklistItems}             // template + user-added rows
+    onItemsChange={apply.setChecklistItems}
+    onArchiveRow={apply.archiveChecklistRow}
+    renderRowBadge={(row) =&gt; row.provenance === "template" ? &lt;FromTemplateBadge /&gt; : null}
+    photoRequiredFlagFromRow={(row) =&gt; row.photoRequired}
+/&gt;
+</pre>
+        <p>If <code>WorkOrderChecklistSection</code> currently controls its own state internally, lift the state up — same pattern as WO-15b §4b (controlled component contract). The component becomes a presentational/coordinator layer that delegates to the parent for canonical state.</p>
+
+        <h3>6.2 Photo-required carry-through</h3>
+        <p>Per AC 5 (spec § 7): each <code>IChecklistDraft</code> preserves <code>photoRequired</code> from the template snapshot. The checklist row component (built in WO-14, <code>ChecklistItemRow</code>) already renders the camera glyph when this flag is set — no new code, just make sure the field plumbs through.</p>
+
+        <h3>6.3 Materials section</h3>
+        <p>Same pattern as checklist: the existing WO Materials section accepts <code>items / onItemsChange / onArchiveRow / renderRowBadge</code>. Template materials seed in with their <code>quantity</code> (variant TBD per Mockup 2 — the row is a placeholder until the user picks a specific MaterialVariant, but it serializes as-is on submit because the resolver in WO-15a accepts variant-less seeds).</p>
+
+        <h3>6.4 "FROM TEMPLATE" provenance after edit</h3>
+        <p>Per the Step 3.3 rule, editing a template-seeded row bumps it to <code>provenance: "user-edit"</code>. For V1, <code>renderRowBadge</code> shows the badge for both <code>"template"</code> and <code>"user-edit"</code> rows (origin-based). Per AC 3 (spec § 7), the badge "persists for traceability while the value is the template's default" — V1 keeps it simple and shows the badge as long as the row was template-originated, regardless of subsequent edits.</p>
+    </div>
+
+    <!-- =========================================================================== -->
+    <!-- STEP 7 -->
+    <!-- =========================================================================== -->
+    <div class="section" id="s7">
+        <h2>Step 7 · Free-form Labor/Equipment line item seeding</h2>
+
+        <p>The WO-15a snapshot returns labor plans and equipment plans in the standard preview. Per WO-15b/WO-15a, plans are <em>structured</em> when they have a <code>tradeLevelId</code> (labor) or <code>equipmentCategoryId</code> (equipment), and <em>free-form</em> when those FK fields are null.</p>
+
+        <h3>7.1 Routing in the apply hook</h3>
+<pre>
+preview.laborPlans.forEach((plan) =&gt; {
+    if (plan.tradeLevelId) {
+        laborAdvisory.push({ … });            // -&gt; structured -&gt; advisory callout (Step 9)
+    } else {
+        labourLineItems.push({                 // -&gt; free-form -&gt; regular WO Labor section
+            templateLaborPlanId: plan.id,
+            description: plan.description,
+            plannedHours: plan.plannedHours,
+            provenance: "template"
+        });
+    }
+});
+
+preview.equipmentPlans.forEach((plan) =&gt; {
+    if (plan.equipmentCategoryId) {
+        equipmentPlans.push({ … });           // -&gt; structured -&gt; selection prompt (Step 10)
+    } else {
+        equipmentLineItems.push({              // -&gt; free-form -&gt; regular WO Equipment section
+            templateEquipmentPlanId: plan.id,
+            description: plan.description,
+            quantity: plan.quantity,
+            plannedHours: plan.plannedHours,
+            provenance: "template"
+        });
+    }
+});
+</pre>
+
+        <h3>7.2 Where the free-form items go</h3>
+        <p>Free-form labor and equipment line items materialize in the regular WO Labor / WO Equipment line item sections via the same prop pattern as checklist/materials. They are <strong>fully editable</strong>: the user can change description, hours, qty, even delete them. They serialize through the standard WO line item path on <code>createJob</code> (not the <code>workOrderTemplateApplication</code> input) — that's why the apply hook tags them with <code>provenance: "template"</code> for the badge but otherwise treats them like any other line item.</p>
+
+        <div class="callout">
+            <strong>Why are free-form line items not in <code>workOrderTemplateApplication</code>?</strong> The application input (per WO-15a) is for things that need the audit FK linking the row back to the template's plan — structured equipment selections, etc. Free-form rows are just text+numbers and have no equivalent server-side concept, so they go through the existing line item pipeline. The cost is that "this WO line item came from a template" is not preserved server-side — V1 accepts that; we can revisit if reporting needs it.
+        </div>
+    </div>
+
+    <!-- =========================================================================== -->
+    <!-- STEP 8 -->
+    <!-- =========================================================================== -->
+    <div class="section" id="s8">
+        <h2>Step 8 · Forms summary panel</h2>
+
+        <p>Component: <code>WorkOrderTemplateFormsSummary.tsx</code>.</p>
+
+        <h3>8.1 Behavior</h3>
+        <ul>
+            <li>Renders only when <code>applyState.formsSummary.length &gt; 0</code>.</li>
+            <li>Shows count + comma-separated form names ("3 forms will be attached when you save: HIRA · Refrigerant Log · Safety Walk").</li>
+            <li>Includes a fixed pointer line: "Form fill-out, submission, and editing happens on the Forms tab of the WO detail page once the WO exists." with a link to the WO-13 detail-page Forms tab.</li>
+            <li>No remove/add controls on the create form — the user manages forms post-save (per spec § 7 AC 6, matching WO-13).</li>
+        </ul>
+
+        <h3>8.2 Submit payload contribution</h3>
+        <p>The <code>workOrderTemplateApplication.formWrapperIds</code> is built from <code>applyState.formsSummary.map(f =&gt; f.templateFormWrapperId)</code> verbatim — there's no opt-out on the create form. (If a user wants to drop a form from a specific WO, they'd remove it from the WO post-save on the Forms tab.)</p>
+    </div>
+
+    <!-- =========================================================================== -->
+    <!-- STEP 9 -->
+    <!-- =========================================================================== -->
+    <div class="section" id="s9">
+        <h2>Step 9 · Structured Labor advisory callout (create form)</h2>
+
+        <p>Component: <code>WorkOrderTemplateAdvisoryCallout.tsx</code>.</p>
+
+        <h3>9.1 Render</h3>
+        <p>Read-only callout (orange dashed border per Mockup 2). For each row in <code>applyState.laborAdvisory</code>:</p>
+<pre>
+&lt;li&gt;
+    {row.quantity} × {row.tradeLevelLabel}
+    {row.plannedHours != null ? ` × ${row.plannedHours} hrs` : null}
+    {row.description ? &lt;em&gt; — "{row.description}"&lt;/em&gt; : null}
+&lt;/li&gt;
+</pre>
+
+        <h3>9.2 Pointer footnote</h3>
+        <p>Per AC 8: "This callout appears on the create form so you know what to plan for. Once you save, the same advisory continues on the <strong>Schedule tab of the WO detail page</strong> (per WO-16) where you can drag actual users onto the calendar." Hardcoded copy; href to the detail-page Schedule tab is computed post-save and irrelevant on the create form — the footnote can be plain text.</p>
+
+        <h3>9.3 Not editable, not serialized to the application input</h3>
+        <p>Structured labor plans are <em>not</em> included in <code>workOrderTemplateApplication.laborSelections</code> — there is no such field in WO-15a's input. The snapshot lives on the resulting Job's <code>appliedWorkOrderTemplate</code> relation (via the template's FKs), and the Schedule tab advisory (Step 12) reads them straight from there. The create form does not need to send anything for these.</p>
+
+        <div class="warn">
+            <strong>Verify in WO-15a:</strong> the snapshot semantics in WO-15a should have <code>Job.appliedWorkOrderTemplateId</code> pointing to the source template; the Schedule tab advisory reads the live <code>WorkOrderTemplate.LaborPlans</code>, not a per-Job copy. If WO-15a instead snapshots labor plans into per-Job rows, this still works — Step 12 just queries those rows directly. Either way the create form is not responsible.
+        </div>
+    </div>
+
+    <!-- =========================================================================== -->
+    <!-- STEP 10 -->
+    <!-- =========================================================================== -->
+    <div class="section" id="s10">
+        <h2>Step 10 · Structured Equipment prompts + EquipmentAssignment deferred-commit</h2>
+
+        <h3>10.1 Prompt component — <code>WorkOrderTemplateEquipmentPrompt.tsx</code></h3>
+        <p>Per equipment plan row, two states (Mockups 2 + 3):</p>
+        <ul>
+            <li><strong>Unresolved</strong>: amber banner with the plan's qty + category + planned hours, "Open assignment form" button.</li>
+            <li><strong>Resolved</strong>: green row showing each selected equipment + optional operator/dates, "Edit" button to re-open the form.</li>
+        </ul>
+        <p>Multiple selections per plan are supported (qty &gt; 1 implies multiple specific assets) — the prompt shows a row per selection.</p>
+
+        <h3>10.2 Existing EquipmentAssignment form — deferred-commit mode (desktop + mobile)</h3>
+        <p>Both <code>apps/frontend</code> and <code>apps/mobile</code> have their own EquipmentAssignment form. Apply the same two prop additions to <em>both</em>; the deferred-commit contract is identical. Add two new props:</p>
+<pre>
+interface IEquipmentAssignmentFormProps {
+    // ...existing props
+    equipmentCategoryFilter?: string;   // pre-applies category, hides category picker
+    deferredCommit?: {                  // when set, form returns payload to caller instead of writing
+        onSubmit: (payload: IDeferredEquipmentAssignment) =&gt; void;
+        existing?: IDeferredEquipmentAssignment;   // for re-edit
+    };
+}
+</pre>
+        <ul>
+            <li>When <code>deferredCommit</code> is set, the form's normal "submit creates an EquipmentAssignment row" wiring is bypassed — it just builds the payload and hands it back to <code>onSubmit</code>.</li>
+            <li>When <code>equipmentCategoryFilter</code> is set, the category field is locked and the equipment picker is constrained to that category. No backend change — Solr/TableFeed already accepts a category filter via the standard <code>where</code>.</li>
+        </ul>
+
+        <div class="callout">
+            <strong>Open this form via the existing flyout/modal mechanism</strong> the EquipmentAssignment surface already uses (likely <code>useFlyout</code> per CLAUDE.md UI conventions). The prompt component dispatches the flyout open call with the deferred-commit props and consumes the resolved payload via <code>setEquipmentPlanSelections</code> on the apply hook.
+        </div>
+
+        <h3>10.3 Submit-time commit</h3>
+        <p>On <code>createJob</code> submit (Step 11), the apply hook serializes resolved selections into <code>equipmentSelections</code> on <code>workOrderTemplateApplication</code>. Per spec § 7 AC 12, EquipmentAssignment rows are created in the same transaction as the Job (WO-15a's resolver handles this — see WO-15a §8c). Unresolved plans (no selections) are <em>not</em> blocking — the structured plan stays as advisory on the WO snapshot, and the dispatcher can fill it later from the WO-16 EquipmentAssignment surface (Pending Business Decision §1, leaning "allow").</p>
+
+        <h3>10.4 Operator / dates / notes passthrough</h3>
+        <p>The <code>IDeferredEquipmentAssignment</code> payload carries every field the EquipmentAssignment form collects (operatorUserId, checkoutAt, checkinAt, notes). The <code>workOrderTemplateApplication.equipmentSelections</code> input must accept these as part of each selection — confirm WO-15a's input shape covers them; if not, this surfaces a small WO-15a addendum (extend the existing input, not a separate mutation).</p>
+    </div>
+
+    <!-- =========================================================================== -->
+    <!-- STEP 11 -->
+    <!-- =========================================================================== -->
+    <div class="section" id="s11">
+        <h2>Step 11 · Submit — build <code>workOrderTemplateApplication</code> payload</h2>
+
+        <h3>11.1 Helper — <code>buildWorkOrderTemplateApplicationInput.ts</code></h3>
+        <p>Co-located with the apply hook. Pure function: takes <code>IWorkOrderTemplateApplyState</code>, returns the <code>workOrderTemplateApplication</code> input shape from WO-15a (or <code>null</code> if no template applied).</p>
+<pre>
+export const buildWorkOrderTemplateApplicationInput = (
+    state: IWorkOrderTemplateApplyState
+): WorkOrderTemplateApplicationInput | null =&gt; {
+    if (!state.appliedTemplateId) return null;
+    return {
+        templateId: state.appliedTemplateId,
+        checklistItems: state.checklistItems.map((row) =&gt; ({
+            id: row.templateChecklistItemId,            // null when user-added
+            label: row.label,
+            description: row.description ?? null,
+            orderNo: row.orderNo,
+            photoRequired: row.photoRequired
+        })),
+        materialItems: state.materialItems.map((row) =&gt; ({
+            id: row.templateMaterialItemId,
+            materialId: row.materialId ?? null,
+            materialVariantId: row.materialVariantId ?? null,
+            quantity: row.quantity,
+            description: row.description ?? null
+        })),
+        formWrapperIds: state.formsSummary.map((f) =&gt; f.templateFormWrapperId),
+        fieldDefaults: state.fieldDefaults.map((d) =&gt; ({
+            documentAttributeId: d.documentAttributeId,
+            value: d.value
+        })),
+        equipmentSelections: state.equipmentPlans
+            .filter((p) =&gt; p.selections.length &gt; 0)
+            .flatMap((p) =&gt; p.selections.map((s) =&gt; ({
+                equipmentPlanId: p.templatePlanId,
+                equipmentId: s.equipmentId,
+                operatorUserId: s.operatorUserId ?? null,
+                checkoutAt: s.checkoutAt ?? null,
+                checkinAt: s.checkinAt ?? null,
+                notes: s.notes ?? null
+            })))
+    };
+};
+</pre>
+
+        <h3>11.2 Wire into the existing <code>createJob</code> call</h3>
+        <p>The WO create form's <code>onSubmit</code> already calls <code>useCreateJobMutation</code>. One-line addition:</p>
+<pre>
+const result = await createJob({
+    variables: {
+        data: {
+            ...existingJobInput,
+            workOrderTemplateApplication: buildWorkOrderTemplateApplicationInput(applyState)
+        }
+    }
+});
+</pre>
+        <p>If <code>workOrderTemplateApplication</code> is null, the mutation behaves exactly as it does today (no-op extension).</p>
+
+        <h3>11.3 Post-submit behavior</h3>
+        <ul>
+            <li>WO-15a's resolver bumps <code>WorkOrderTemplate.lastUsedAt</code> + <code>useCount</code> as part of the apply path.</li>
+            <li>The returned Job's <code>appliedWorkOrderTemplateId</code> is set — the redirect to the detail page lands on a WO that will trigger the Step 12 advisory.</li>
+            <li>If the mutation fails, the apply state is preserved — the form re-renders with the same hydrated content the user was working on. No retry / undo logic in V1.</li>
+        </ul>
+    </div>
+
+    <!-- =========================================================================== -->
+    <!-- STEP 12 -->
+    <!-- =========================================================================== -->
+    <div class="section" id="s12">
+        <h2>Step 12 · Planned Crew advisory sidebar (post-save, WO detail Schedule tab — desktop only)</h2>
+
+        <p>This is the second half of WO-15c — the post-save companion to the create-form advisory. Per the spec In Scope list, the labor advisory continues on the WO detail Schedule tab with a live tally.</p>
+
+        <div class="callout">
+            <strong>Desktop only.</strong> The post-save Schedule tab + Planned Crew sidebar live on the WO detail page, which is desktop in 1.33 (per WO-16). The create-form template picker (Steps 2-11) ships on both desktop and mobile; the post-save advisory is desktop-only because the surface it lives on doesn't yet exist on mobile.
+        </div>
+
+        <h3>12.1 GraphQL — what the Schedule tab needs to fetch</h3>
+        <p>The Schedule tab already fetches the Job via its existing query (added in WO-16). Extend that query to include:</p>
+<pre>
+job(id: $id) {
+    id
+    appliedWorkOrderTemplateId
+    AppliedWorkOrderTemplate {       # the template the WO was created from
+        id
+        name
+        LaborPlans {
+            id
+            quantity
+            plannedHours
+            description
+            tradeLevelId
+            TradeLevel { id title }   # so we can label the row
+        }
+    }
+    JobSchedules {
+        id
+        userId
+        User {
+            id
+            EmployeeAgreement {
+                TradeLevels { id }    # used to tally per labor plan
+            }
+        }
+    }
+}
+</pre>
+        <p>Two notes on this:</p>
+        <ul>
+            <li>The exact relation names should match the Prisma schema casing per CLAUDE.md (PascalCase relationships) — adjust if the Job/JobSchedule fields use different names.</li>
+            <li>If WO-15a snapshots labor plans onto a per-Job copy rather than relying on the live template's plans, swap <code>AppliedWorkOrderTemplate.LaborPlans</code> for whatever per-Job snapshot field WO-15a defined. The component contract below is unchanged.</li>
+        </ul>
+
+        <h3>12.2 Sidebar component — <code>WorkOrderPlannedCrewAdvisory.tsx</code></h3>
+        <p>Location: <code>apps/frontend/src/components/WorkOrder/DetailTabs/_ScheduleTab/WorkOrderPlannedCrewAdvisory.tsx</code> (or wherever WO-16 placed its Schedule tab files).</p>
+<pre>
+interface IWorkOrderPlannedCrewAdvisoryProps {
+    laborPlans: IAppliedTemplateLaborPlan[];
+    jobSchedules: IJobScheduleWithUserTradeLevels[];
+    className?: string | ClassNames;
+}
+</pre>
+        <p>Renders nothing if <code>laborPlans.length === 0</code> (caller can use this to decide layout — see 12.3).</p>
+
+        <h3>12.3 Per-plan tally computation</h3>
+        <p>Client-side, no new GraphQL needed. For each plan with a <code>tradeLevelId</code>:</p>
+<pre>
+const scheduledCount = jobSchedules.filter((s) =&gt;
+    s.User?.EmployeeAgreement?.TradeLevels?.some((tl) =&gt; tl.id === plan.tradeLevelId)
+).length;
+// Display: "scheduled {scheduledCount} of {plan.quantity}" with a ✓ when scheduledCount &gt;= quantity
+</pre>
+        <p>Plans with <code>tradeLevelId === null</code> (free-form) render description-only with no tally (per AC 19).</p>
+
+        <div class="callout">
+            <strong>V1 caveat (spec § 3 callout):</strong> a user holding multiple TradeLevels via their employee agreement counts toward any plan whose <code>tradeLevelId</code> matches any of their levels. Accepted for V1 advisory accuracy.
+        </div>
+
+        <h3>12.4 Schedule tab 2-column layout</h3>
+        <p>Modify the existing Schedule tab (added in WO-16) to conditionally wrap its calendar in a 2-column grid:</p>
+<pre>
+const hasTemplate = Boolean(data.job.appliedWorkOrderTemplateId);
+const laborPlans = data.job.AppliedWorkOrderTemplate?.LaborPlans ?? [];
+
+return (
+    &lt;div className={new ClassNames("grid gap-4")
+        .if(hasTemplate &amp;&amp; laborPlans.length &gt; 0, "grid-cols-3")
+        .if(!hasTemplate || laborPlans.length === 0, "grid-cols-1")
+        .list()}&gt;
+        &lt;div className={new ClassNames()
+            .if(hasTemplate &amp;&amp; laborPlans.length &gt; 0, "col-span-2")
+            .list()}&gt;
+            &lt;JobScheduleCalendarPage {...existingProps} /&gt;
+        &lt;/div&gt;
+        {hasTemplate &amp;&amp; laborPlans.length &gt; 0 &amp;&amp; (
+            &lt;WorkOrderPlannedCrewAdvisory
+                laborPlans={laborPlans}
+                jobSchedules={data.job.JobSchedules ?? []}
+            /&gt;
+        )}
+    &lt;/div&gt;
+);
+</pre>
+
+        <h3>12.5 Live tally during the user's session</h3>
+        <p>The tally just consumes whatever <code>JobSchedules</code> Apollo cache holds for the Job. When the user drags a user onto the calendar and the existing JobSchedule mutation (from WO-16 or whatever predates it) writes a new row, Apollo's cache update on that mutation refreshes the parent query — the advisory re-renders with the new count automatically.</p>
+        <p>If the JobSchedule mutation in the existing codebase doesn't already refetch / update <code>job.JobSchedules</code>, add a <code>refetchQueries</code> entry on the mutation call site pointing at the Schedule tab's query. Single-line change.</p>
+    </div>
+
+    <!-- =========================================================================== -->
+    <!-- STEP 13 -->
+    <!-- =========================================================================== -->
+    <div class="section" id="s13">
+        <h2>Step 13 · Verification</h2>
+
+        <ul class="check-list">
+            <li>Picker banner shows on WO create flows on both desktop and mobile; hidden on non-WO Job types.</li>
+            <li>Apply hook, types, serializer, and FromTemplateBadge live in <code>packages/ui</code> and are imported by both <code>apps/frontend</code> and <code>apps/mobile</code> (no copy-paste).</li>
+            <li>Mobile picker banner uses a stacked/tap-friendly layout if the desktop banner doesn't render well at narrow widths; logic is the same shared hook.</li>
+            <li>Mobile EquipmentAssignment form also accepts <code>equipmentCategoryFilter</code> + <code>deferredCommit</code> props with identical behavior to desktop.</li>
+            <li>Active-templates list comes from a TableFeed query (not a custom <code>workOrderTemplates</code> wrapper).</li>
+            <li>Apply fires <code>previewWorkOrderTemplate</code> exactly once and replaces <code>applyState</code> wholesale.</li>
+            <li>Switch flow prompts confirm before replacing; cancel leaves state intact.</li>
+            <li>Field defaults render with FROM TEMPLATE badge; editing keeps badge (V1 traceability).</li>
+            <li>Checklist seeded rows render with FROM TEMPLATE badge and camera glyph when <code>photoRequired</code>.</li>
+            <li>User can add/edit/remove any checklist or material row regardless of provenance.</li>
+            <li>Removing a template-seeded checklist row pushes its <code>rowId</code> into <code>archivedChecklistRowIds</code>; the row stays hidden and is not in the submit payload.</li>
+            <li>Free-form labor/equipment plans materialize as standard editable line items in their normal sections (not in the advisory).</li>
+            <li>Structured labor plans render in the orange advisory callout — read-only, with pointer to detail-page Schedule tab.</li>
+            <li>Structured equipment plans render as amber prompts; clicking "Open assignment form" launches the existing EquipmentAssignment form with <code>equipmentCategoryFilter</code> pre-applied and <code>deferredCommit</code> set.</li>
+            <li>Submitted equipment selections collapse the prompt to a green resolved state with chosen equipment + optional operator/dates; Edit re-opens the form pre-populated.</li>
+            <li>Forms summary panel lists count + comma-separated names; pointer to detail Forms tab; no inline form editing on create.</li>
+            <li>Submit calls <code>createJob</code> with <code>workOrderTemplateApplication</code> built by <code>buildWorkOrderTemplateApplicationInput</code>; null when no template applied (no-op extension).</li>
+            <li>EquipmentAssignment rows commit alongside the Job for resolved selections (per WO-15a resolver); unresolved plans don't block submit.</li>
+            <li>Cancelling the create form does not bump <code>WorkOrderTemplate.lastUsedAt</code> or <code>useCount</code> (those are server-side, only on successful apply).</li>
+            <li>Post-save, WO detail Schedule tab renders 2-column layout when <code>appliedWorkOrderTemplateId</code> is set and template has labor plans; full width otherwise.</li>
+            <li>Each structured labor plan shows "scheduled X of Y" tally computed from <code>JobSchedules</code> + user TradeLevel membership.</li>
+            <li>Free-form labor plans show description-only with no tally.</li>
+            <li>Dragging a new user onto the calendar updates the tally within the same session without manual refresh.</li>
+            <li>Sidebar fully hidden when WO has no applied template; calendar uses full width.</li>
+            <li>All form controls use the app-specific <code>FormControl</code> from <code>~root/components/Forms/_FormControls/FormControl</code> or <code>@useanzen/ui</code> primitives — no raw <code>&lt;input&gt;</code>, <code>&lt;select&gt;</code>, <code>&lt;button&gt;</code>.</li>
+            <li>All conditional classNames use <code>new ClassNames().if(...)</code> — no template-literal string interpolation.</li>
+            <li>All semantic colors use the design system tokens (<code>bg-success-light</code>, <code>bg-warning-light</code>, etc.) — no arbitrary Tailwind colors.</li>
+            <li>One React component per file; new components use <code>FC</code> arrow function pattern; <code>gql</code> definitions live at the bottom of their files; no trailing commas.</li>
+        </ul>
+    </div>
+
+    <!-- =========================================================================== -->
+    <!-- FILES SUMMARY -->
+    <!-- =========================================================================== -->
+    <div class="section" id="files">
+        <h2>Files Summary</h2>
+
+        <h3>Shared (packages/ui) — consumed by both apps</h3>
+        <table class="t">
+            <thead><tr><th>Action</th><th>Path</th><th>Purpose</th></tr></thead>
+            <tbody>
+                <tr><td><span class="tag-new">NEW</span></td><td><code>packages/ui/src/workOrderTemplates/useWorkOrderTemplateApply.ts</code></td><td>State + actions for the apply slice (apply, switchTo, setChecklistItems, etc.)</td></tr>
+                <tr><td><span class="tag-new">NEW</span></td><td><code>packages/ui/src/workOrderTemplates/useWorkOrderTemplateApply.types.ts</code></td><td>Shared draft + provenance types</td></tr>
+                <tr><td><span class="tag-new">NEW</span></td><td><code>packages/ui/src/workOrderTemplates/buildWorkOrderTemplateApplicationInput.ts</code></td><td>Pure serializer: applyState → <code>workOrderTemplateApplication</code> input</td></tr>
+                <tr><td><span class="tag-new">NEW</span></td><td><code>packages/ui/src/workOrderTemplates/FromTemplateBadge.tsx</code></td><td>Tiny presentational pill used wherever the indicator is needed</td></tr>
+                <tr><td><span class="tag-mod">MODIFY</span></td><td><code>packages/ui/src/index.ts</code></td><td>Export the four entries above</td></tr>
+            </tbody>
+        </table>
+
+        <h3>Desktop (apps/frontend)</h3>
+        <table class="t">
+            <thead><tr><th>Action</th><th>Path</th><th>Purpose</th></tr></thead>
+            <tbody>
+                <tr><td><span class="tag-new">NEW</span></td><td><code>apps/frontend/src/components/WorkOrder/CreateForm/_TemplatePickerBanner/WorkOrderTemplatePickerBanner.tsx</code></td><td>Purple/green picker banner with TableFeed combobox + Apply / Switch actions (desktop layout)</td></tr>
+                <tr><td><span class="tag-new">NEW</span></td><td><code>apps/frontend/src/components/WorkOrder/CreateForm/_TemplatePickerBanner/WorkOrderTemplateAdvisoryCallout.tsx</code></td><td>Read-only structured-labor advisory callout (orange dashed) for the create form</td></tr>
+                <tr><td><span class="tag-new">NEW</span></td><td><code>apps/frontend/src/components/WorkOrder/CreateForm/_TemplatePickerBanner/WorkOrderTemplateEquipmentPrompt.tsx</code></td><td>Per-plan amber/green prompt that launches the deferred-commit EquipmentAssignment form</td></tr>
+                <tr><td><span class="tag-new">NEW</span></td><td><code>apps/frontend/src/components/WorkOrder/CreateForm/_TemplatePickerBanner/WorkOrderTemplateFormsSummary.tsx</code></td><td>Read-only forms summary panel with pointer to detail Forms tab</td></tr>
+                <tr><td><span class="tag-mod">MODIFY</span></td><td>Existing WO create form (per WO-3 family)</td><td>Mount picker banner above header card; pipe apply state into Checklist / Materials / Labor / Equipment / Forms / DAA renderer; build template application input on submit</td></tr>
+                <tr><td><span class="tag-mod">MODIFY</span></td><td>Existing WO checklist section (per WO-14)</td><td>Lift item state up; accept controlled <code>items</code> + <code>onItemsChange</code> + <code>onArchiveRow</code> + <code>renderRowBadge</code> props</td></tr>
+                <tr><td><span class="tag-mod">MODIFY</span></td><td>Existing WO materials section (per WO-3)</td><td>Same controlled-component contract as checklist</td></tr>
+                <tr><td><span class="tag-mod">MODIFY</span></td><td>Existing WO labor / equipment line item sections</td><td>Accept template-seeded free-form rows with provenance flag for badge rendering</td></tr>
+                <tr><td><span class="tag-mod">MODIFY</span></td><td>Existing DAA field renderer on WO create</td><td>Read template-tier field defaults from <code>applyState</code>; mirror writes back via <code>setFieldDefault</code> for serialization</td></tr>
+                <tr><td><span class="tag-mod">MODIFY</span></td><td>Existing desktop EquipmentAssignment form</td><td>Add <code>equipmentCategoryFilter</code> + <code>deferredCommit</code> props; bypass write on deferred mode, return payload to caller</td></tr>
+                <tr><td><span class="tag-new">NEW</span></td><td><code>apps/frontend/src/components/WorkOrder/DetailTabs/_ScheduleTab/WorkOrderPlannedCrewAdvisory.tsx</code></td><td>Post-save sidebar — labor plan rows + per-plan tally from JobSchedules (desktop only)</td></tr>
+                <tr><td><span class="tag-mod">MODIFY</span></td><td>WO detail Schedule tab (added in WO-16)</td><td>Wrap calendar in 2-column grid when WO has applied template + labor plans; mount the advisory; extend the tab's GraphQL query to include <code>AppliedWorkOrderTemplate.LaborPlans</code> + <code>JobSchedules.User.EmployeeAgreement.TradeLevels</code></td></tr>
+            </tbody>
+        </table>
+
+        <h3>Mobile (apps/mobile)</h3>
+        <table class="t">
+            <thead><tr><th>Action</th><th>Path</th><th>Purpose</th></tr></thead>
+            <tbody>
+                <tr><td><span class="tag-new">NEW</span></td><td><code>apps/mobile/src/components/WorkOrder/CreateForm/_TemplatePickerBanner/WorkOrderTemplatePickerBannerMobile.tsx</code></td><td>Stacked / tap-friendly banner shell using the shared <code>useWorkOrderTemplateApply</code> hook. (If the desktop banner renders fine at mobile widths, this file is unnecessary and the desktop component can be imported directly.)</td></tr>
+                <tr><td><span class="tag-new">NEW</span></td><td><code>apps/mobile/src/components/WorkOrder/CreateForm/_TemplatePickerBanner/WorkOrderTemplateAdvisoryCallout.tsx</code></td><td>Mobile-styled labor advisory callout (full-width card; otherwise identical to desktop)</td></tr>
+                <tr><td><span class="tag-new">NEW</span></td><td><code>apps/mobile/src/components/WorkOrder/CreateForm/_TemplatePickerBanner/WorkOrderTemplateEquipmentPrompt.tsx</code></td><td>Mobile-styled equipment prompt; opens the mobile EquipmentAssignment form in deferred-commit mode</td></tr>
+                <tr><td><span class="tag-new">NEW</span></td><td><code>apps/mobile/src/components/WorkOrder/CreateForm/_TemplatePickerBanner/WorkOrderTemplateFormsSummary.tsx</code></td><td>Mobile-styled forms summary panel</td></tr>
+                <tr><td><span class="tag-mod">MODIFY</span></td><td>Mobile WO create form</td><td>Mount picker banner above header; same prop wiring into Checklist / Materials / Labor / Equipment / Forms / DAA renderer; same serializer on submit</td></tr>
+                <tr><td><span class="tag-mod">MODIFY</span></td><td>Mobile WO checklist section</td><td>Lift item state up; accept controlled-component props</td></tr>
+                <tr><td><span class="tag-mod">MODIFY</span></td><td>Mobile WO materials section</td><td>Same controlled-component contract</td></tr>
+                <tr><td><span class="tag-mod">MODIFY</span></td><td>Mobile WO labor / equipment line item sections</td><td>Accept template-seeded free-form rows with provenance flag</td></tr>
+                <tr><td><span class="tag-mod">MODIFY</span></td><td>Mobile DAA field renderer on WO create</td><td>Read template-tier field defaults from <code>applyState</code></td></tr>
+                <tr><td><span class="tag-mod">MODIFY</span></td><td>Existing mobile EquipmentAssignment form</td><td>Add <code>equipmentCategoryFilter</code> + <code>deferredCommit</code> props; identical contract to desktop</td></tr>
+            </tbody>
+        </table>
+
+        <div class="callout">
+            <strong>Reuse strategy recap:</strong> hook + types + serializer + badge live once in <code>packages/ui</code>. Banner shells, callouts, prompts, and summary panels are <em>presentational</em> components that render differently at the two breakpoints — duplicated per app rather than over-abstracted, matching the existing pattern in the repo.
+        </div>
+
+        <div class="good">
+            <strong>What's not in this plan:</strong> any backend changes (the entire surface is consumed from WO-15a's existing API); any settings UI changes (WO-15b); apply-on-edit flow (create-only); "clear template" affordance (the user manually removes anything they don't want); the post-save Planned Crew sidebar on mobile (the WO detail Schedule tab from WO-16 is desktop-only in 1.33; revisit when mobile gets a detail page).
+        </div>
+        <div class="warn">
+            <strong>Spec drift:</strong> the WO-15c spec currently lists "Mobile WO create template picker — desktop only in V1" as Out of Scope. This plan supersedes that — both platforms ship in 1.33 per the latest direction. Update the spec to match (or leave it as historical record and note the plan is the authority).
+        </div>
+    </div>
+
+</div>
+</body>
+</html>

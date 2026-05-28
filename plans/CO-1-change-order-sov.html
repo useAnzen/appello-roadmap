@@ -1,0 +1,622 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CO-1 · Change Orders with their own Schedule of Values</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Inter', -apple-system, sans-serif; background: #f1f5f9; color: #1e293b; line-height: 1.5; }
+
+.in-iframe .top-nav { display: none !important; }
+.top-nav { position: sticky; top: 0; z-index: 100; background: #0f172a; border-bottom: 1px solid #1e293b; padding: 0 24px; display: flex; align-items: center; gap: 0; }
+.top-nav a { display: inline-flex; align-items: center; padding: 12px 18px; font-size: 13px; font-weight: 600; color: #94a3b8; text-decoration: none; border-bottom: 2px solid transparent; transition: all 0.15s; white-space: nowrap; }
+.top-nav a:hover { color: #f8fafc; background: #1e293b; }
+.top-nav .nav-logo { font-size: 11px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: #475569; padding-right: 18px; margin-right: 4px; border-right: 1px solid #1e293b; }
+
+.wrap { max-width: 1080px; margin: 0 auto; padding: 36px 24px 80px; }
+
+.hero { background: linear-gradient(135deg, #6d28d9, #4338ca); color: #fff; border-radius: 14px; padding: 28px 32px; margin-bottom: 22px; }
+.hero .badges { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+.hero .badge { font-size: 10px; font-weight: 700; padding: 4px 10px; border-radius: 5px; background: rgba(255,255,255,0.18); letter-spacing: 0.5px; text-transform: uppercase; }
+.hero .badge.warn { background: rgba(245, 158, 11, 0.5); }
+.hero .badge.danger { background: rgba(239, 68, 68, 0.5); }
+.hero .badge.success { background: rgba(34, 197, 94, 0.5); }
+.hero h1 { font-size: 28px; font-weight: 800; letter-spacing: -0.01em; margin-bottom: 10px; }
+.hero .pitch { font-size: 15px; line-height: 1.6; color: #ddd6fe; max-width: 820px; }
+.hero .meta { display: flex; gap: 22px; margin-top: 14px; font-size: 12px; color: #c4b5fd; flex-wrap: wrap; }
+.hero .meta strong { color: #fff; }
+
+section.card { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 22px 26px; margin-bottom: 16px; }
+section.card h2 { font-size: 18px; font-weight: 800; color: #0f172a; margin-bottom: 12px; padding-bottom: 10px; border-bottom: 2px solid #f1f5f9; }
+section.card h3 { font-size: 14px; font-weight: 700; color: #0f172a; margin: 16px 0 6px; }
+section.card p { font-size: 14px; color: #334155; margin-bottom: 8px; }
+section.card ul, section.card ol { padding-left: 20px; margin: 6px 0 10px; }
+section.card li { font-size: 14px; color: #334155; margin-bottom: 4px; line-height: 1.55; }
+section.card code { background: #f1f5f9; padding: 1px 6px; border-radius: 4px; font-size: 12px; font-family: 'SF Mono', Menlo, monospace; color: #be185d; }
+section.card strong { color: #0f172a; }
+
+.callout { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 14px 18px; margin: 14px 0; font-size: 13px; color: #1e40af; }
+.callout.danger { background: #fef2f2; border-color: #fecaca; color: #991b1b; }
+.callout.warn { background: #fffbeb; border-color: #fed7aa; color: #92400e; }
+.callout.success { background: #f0fdf4; border-color: #bbf7d0; color: #166534; }
+.callout strong { color: inherit; font-weight: 700; }
+
+.where { background: #f8fafc; border-left: 3px solid #6d28d9; padding: 12px 16px; border-radius: 0 8px 8px 0; margin: 8px 0 14px; font-size: 13px; color: #334155; line-height: 1.65; }
+.where strong { color: #0f172a; }
+.where code { background: #fff; padding: 1px 6px; border-radius: 3px; font-family: 'SF Mono', Menlo, monospace; font-size: 11px; color: #0f172a; border: 1px solid #e2e8f0; }
+
+table.lens-table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 13px; }
+table.lens-table th { text-align: left; padding: 10px 12px; background: #f8fafc; border-bottom: 2px solid #e2e8f0; font-weight: 700; color: #0f172a; font-size: 12px; }
+table.lens-table td { padding: 10px 12px; border-bottom: 1px solid #f1f5f9; color: #334155; vertical-align: top; }
+table.lens-table tr:last-child td { border-bottom: none; }
+
+.option-card { border: 2px solid #e2e8f0; border-radius: 10px; padding: 18px 22px; background: #fff; margin: 12px 0; }
+.option-card.recommended { border-color: #22c55e; background: linear-gradient(180deg, #f0fdf4 0%, #fff 80px); }
+.option-card .opt-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; gap: 10px; flex-wrap: wrap; }
+.option-card .opt-label { font-size: 16px; font-weight: 800; color: #0f172a; }
+.option-card .opt-badges { display: flex; gap: 5px; flex-wrap: wrap; }
+.opt-badge { font-size: 10px; font-weight: 700; padding: 3px 9px; border-radius: 5px; letter-spacing: 0.3px; text-transform: uppercase; }
+.opt-badge.rec { background: #dcfce7; color: #166534; }
+.opt-badge.lift-l { background: #dbeafe; color: #1e40af; }
+.opt-badge.lift-m { background: #fef3c7; color: #92400e; }
+.opt-badge.lift-h { background: #fee2e2; color: #991b1b; }
+.option-card p { font-size: 14px; color: #334155; line-height: 1.6; margin-bottom: 6px; }
+.option-card ul { padding-left: 20px; }
+.option-card li { font-size: 13px; margin-bottom: 3px; color: #334155; }
+
+.scenario { background: #f5f3ff; border: 1px solid #ddd6fe; border-radius: 8px; padding: 14px 18px; margin: 12px 0; }
+.scenario .title { font-size: 12px; font-weight: 700; color: #5b21b6; text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 6px; }
+.scenario p { font-size: 13px; color: #4c1d95; margin-bottom: 4px; line-height: 1.55; }
+
+.qbox { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px 18px; margin: 10px 0; }
+.qbox h4 { font-size: 13px; font-weight: 700; color: #0f172a; margin-bottom: 6px; }
+.qbox p { font-size: 13px; color: #334155; margin-bottom: 4px; }
+.qbox .why { font-size: 12px; color: #64748b; font-style: italic; margin-top: 6px; }
+
+.phase-tag { display: inline-block; font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 4px; letter-spacing: 0.5px; text-transform: uppercase; margin-right: 8px; vertical-align: middle; }
+.phase-tag.p1 { background: #ede9fe; color: #5b21b6; }
+.phase-tag.p2 { background: #fef3c7; color: #92400e; }
+
+/* SOV mockup */
+.sov-frame { border: 1px solid #e2e8f0; border-radius: 10px; overflow: hidden; margin: 10px 0; background: #fff; }
+.sov-header { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; background: #f8fafc; border-bottom: 1px solid #e2e8f0; }
+.sov-header.collapsed { border-bottom: none; }
+.sov-header .left { display: flex; align-items: center; gap: 10px; }
+.sov-header .chev { font-size: 12px; color: #64748b; }
+.sov-header .title { font-size: 14px; font-weight: 700; color: #0f172a; }
+.sov-header .totals { display: flex; gap: 14px; font-size: 11px; color: #64748b; }
+.sov-header .totals strong { color: #0f172a; font-size: 12px; }
+.sov-header .actions { display: flex; gap: 6px; }
+.sov-header .actions button { font-size: 11px; padding: 4px 10px; border-radius: 5px; border: 1px solid #cbd5e1; background: #fff; color: #334155; cursor: default; }
+.sov-header .actions button.primary { background: #6d28d9; color: #fff; border-color: #6d28d9; }
+.sov-summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; padding: 12px 16px; background: #fff; border-bottom: 1px solid #f1f5f9; }
+.sov-summary .stat { padding: 8px; border-radius: 6px; background: #f8fafc; }
+.sov-summary .stat .lbl { font-size: 10px; color: #64748b; text-transform: uppercase; letter-spacing: 0.3px; }
+.sov-summary .stat .val { font-size: 14px; font-weight: 700; color: #0f172a; margin-top: 2px; }
+.sov-summary .stat.bid .val { color: #6d28d9; }
+.sov-rows { padding: 8px 16px; font-size: 11px; color: #64748b; }
+.sov-rows table { width: 100%; border-collapse: collapse; }
+.sov-rows th { text-align: left; padding: 4px 6px; font-size: 10px; color: #94a3b8; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px; }
+.sov-rows td { padding: 4px 6px; border-top: 1px solid #f1f5f9; color: #334155; font-size: 12px; }
+.sov-rows td.num { font-family: 'SF Mono', Menlo, monospace; }
+.sov-block-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: #6d28d9; margin: 18px 0 6px; padding-bottom: 4px; border-bottom: 1px dashed #c4b5fd; }
+.sov-empty { padding: 14px 16px; font-size: 12px; color: #94a3b8; text-align: center; background: #fafafa; }
+
+/* Files-to-touch table */
+table.files-table { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 12px; }
+table.files-table th { text-align: left; padding: 8px 10px; background: #f8fafc; border-bottom: 2px solid #e2e8f0; font-weight: 700; color: #0f172a; font-size: 11px; text-transform: uppercase; }
+table.files-table td { padding: 8px 10px; border-bottom: 1px solid #f1f5f9; color: #334155; vertical-align: top; }
+table.files-table td.path { font-family: 'SF Mono', Menlo, monospace; font-size: 11px; color: #0f172a; white-space: nowrap; }
+table.files-table td.what { font-size: 12px; line-height: 1.55; }
+table.files-table .tag { font-size: 9px; font-weight: 700; padding: 2px 6px; border-radius: 3px; letter-spacing: 0.3px; text-transform: uppercase; }
+table.files-table .tag.api { background: #dbeafe; color: #1e40af; }
+table.files-table .tag.sql { background: #fef3c7; color: #92400e; }
+table.files-table .tag.ui { background: #dcfce7; color: #166534; }
+table.files-table .tag.gql { background: #fce7f3; color: #9d174d; }
+table.files-table .tag.db { background: #ede9fe; color: #5b21b6; }
+</style>
+</head>
+<body>
+<script>if(self!==top)document.documentElement.classList.add("in-iframe")</script>
+<nav class="top-nav">
+    <span class="nav-logo">Appello SDLC</span>
+    <a href="../index.html">Roadmap</a>
+    <a href="../release-1.33-timeline.html">Release 1.33</a>
+    <a href="CC-1-cost-code-financials-rollup.html">CC-1</a>
+    <a href="CO-2-change-order-time-logging.html">CO-2</a>
+</nav>
+
+<div class="wrap">
+
+<div class="hero">
+    <div class="badges">
+        <span class="badge">Options + Plan</span>
+        <span class="badge warn">Decision + Build</span>
+        <span class="badge danger">Q21030-11809</span>
+        <span class="badge">Cost-code pilots</span>
+    </div>
+    <h1>CO-1 · Change Orders with their own Schedule of Values</h1>
+    <p class="pitch">
+        The job's main contract has a full cost-code SOV — area / system / phase / cost code / value. Large change orders need the same: their own cost-code breakdown, scoped to the CO's bid, sitting beneath the main SOV on the same Planning &amp; Tracking screen. Today <code>CostCode</code> is only keyed to the job, so any code coded against a CO blurs into the main contract totals — and progress invoicing can't separate them. This doc proposes adding <code>CostCode.changeOrderId</code> and rendering each CO's SOV as its own collapsible block.
+    </p>
+    <div class="meta">
+        <span><strong>Jira:</strong> Q21030-11809</span>
+        <span><strong>Companion:</strong> <a href="CO-2-change-order-time-logging.html" style="color:#fff;">CO-2 · Q21030-11812</a> (mobile filtering)</span>
+        <span><strong>Related:</strong> <a href="CC-1-cost-code-financials-rollup.html" style="color:#fff;">CC-1 · Q21030-11808</a> (financials rollup)</span>
+        <span><strong>Status:</strong> Pre-decision / pre-build</span>
+        <span><strong>Target:</strong> v1.33+</span>
+    </div>
+</div>
+
+<!-- ============================================================ -->
+<section class="card">
+    <h2>The scenario</h2>
+    <div class="scenario">
+        <div class="title">Source — Q21030-11809 Jira + Rival cost-codes pilot (May 27)</div>
+        <p>The current Schedule of Values is tied to the original contract only. Change orders are appended below as flat line items, which works when billing is driven purely by % complete on each CO. <strong>When cost codes are in play</strong>, large change orders need their own cost-code breakdown — a "schedule of values within a schedule of values" — so that time and materials logged against the CO roll up to the right financial buckets and progress billing.</p>
+    </div>
+    <p>Two practical problems if we don't do this:</p>
+    <ol>
+        <li><strong>Progress invoicing can't separate CO work from base-contract work.</strong> <code>JobBillLineItem</code> already has <code>changeOrderId</code>, but <code>CostCode</code> doesn't — so when a JobBill line is generated from a cost-code, there's no way to know if that cost code lived in the base SOV or a CO SOV.</li>
+        <li><strong>Field labor coded to a CO disappears into the main SOV's totals.</strong> If a foreman codes 8 hrs to <code>2105 Pipe Direct Labor</code> on the change-order portion of the job, that cost code is currently job-scoped only — there's no way for the customer to ask "how much of this base contract code is actually CO work?"</li>
+    </ol>
+    <p>This is the first of the two takeaways from the Rival meeting. CC-1 covers the financials rollup; this doc covers the SOV-per-CO data model and UI.</p>
+</section>
+
+<!-- ============================================================ -->
+<section class="card">
+    <h2>What's already true (load-bearing givens)</h2>
+
+    <h3>1. The cost-code SOV grid lives on Planning &amp; Tracking</h3>
+    <div class="where">
+        <strong>Where:</strong> <code>apps/frontend/src/components/DetailsPage/JobDetailsPage/index.tsx</code> · the <code>planning-tracking</code> tab. The SOV editor is <code>apps/frontend/src/components/Forms/CostCode/CostCodeAddEditForm.tsx</code>. The top of the page renders four summary cards (Contract Value, Amount Allocated / Remaining Balance, Total Cost, Total Margin) followed by an Actions row with <strong>Import Template</strong> and <strong>SOV Setup</strong> buttons, then the editable cost-code grid. This is the screen the new Change-Order SOV blocks attach to.
+    </div>
+
+    <h3>2. <code>CostCode</code> is currently scoped only to a job</h3>
+    <div class="where">
+        <strong>Where:</strong> <code>apps/api/prisma/schema.prisma:4383</code> — <code>CostCode</code>.<br>
+        Has <code>jobId</code>, <code>accountItemId</code>, <code>accountCategoryId</code>, area/system/phase/module/component, but <em>no</em> <code>changeOrderId</code>. The unique constraint <code>CostCode_unique_key</code> already includes the area/system/phase/etc tuple plus <code>accountItemId</code> + <code>description</code> — adding <code>changeOrderId</code> to that constraint lets the same logical code exist on both the base contract and a CO without colliding.
+    </div>
+
+    <h3>3. <code>JobBillLineItem</code> and <code>ProgressReportLineItem</code> already carry <code>changeOrderId</code></h3>
+    <div class="where">
+        <strong>Where:</strong> <code>apps/api/prisma/schema.prisma:4360-4374</code> · <code>JobBillLineItem.changeOrderId</code> + denormalized <code>changeOrderBid</code>, <code>changeOrderSubTitle</code>, <code>changeOrderCustomerReferenceNumber</code>, <code>changeOrderFullEstimateNumber</code>.<br>
+        <strong>Where:</strong> <code>apps/api/prisma/schema.prisma:4537</code> · <code>ProgressReportLineItem.changeOrderId</code>.<br>
+        So the billing/progress-invoice schema is <em>already</em> aware of change orders — what's missing is the cost-code side. Once <code>CostCode.changeOrderId</code> exists, the existing "is this a CO line?" filter on Progress Report and JobBill generation can read it from the cost code instead of being inferred.
+    </div>
+
+    <h3>4. <code>EstimateChangeOrderRecord</code> is the CO entity</h3>
+    <div class="where">
+        <strong>Where:</strong> <code>apps/api/prisma/schema.prisma:3097</code> — <code>EstimateChangeOrderRecord</code> (used for both Estimates and Change Orders via the <code>type</code> enum).<br>
+        Has <code>bid</code> (the CO's contract value), <code>fullEstimateNumber</code>, <code>subTitle</code>, <code>includeInJobValue</code>, <code>dateWon</code>, and a status. The "won" filter for CO SOV applicability is "the status maps to Won + <code>includeInJobValue = true</code>". Same record drives the existing JobBillLineItem CO denorm.
+    </div>
+
+    <h3>5. Cost codes can be imported from templates per job</h3>
+    <div class="where">
+        <strong>Where:</strong> <code>CostCodeAddEditForm.tsx</code> · the <strong>Import Template</strong> button opens <code>CopyTemplate</code> which seeds cost codes from a <code>CostCodeTemplate</code> + <code>CostCodeTemplateLineItem</code>. Today this dumps into the base contract. The same flow needs to be reachable for each CO SOV so that customers don't manually rebuild a 30-line CO SOV from scratch.
+    </div>
+
+    <h3>6. Existing cost-code numbering is free-form per code</h3>
+    <p>From the Jira: <em>"Cost codes used on change orders can reuse the standard cost-code set or use a separate numbering convention (e.g., 3000-series) at the customer's discretion."</em> The data model doesn't enforce ranges — customers can use whatever numbering they like. The collision-avoidance is handled by including <code>changeOrderId</code> in the uniqueness constraint, not by reserving number ranges.</p>
+</section>
+
+<!-- ============================================================ -->
+<section class="card" style="border: 2px solid #6d28d9; background: linear-gradient(180deg, #faf5ff 0%, #fff 120px);">
+    <h2 style="color: #5b21b6;">★ Top Option — <code>changeOrderId</code> on CostCode + collapsible Change Order blocks</h2>
+    <p><strong>One column. One UI section. No new join tables.</strong> Add a nullable <code>changeOrderId</code> to <code>CostCode</code>; <code>NULL</code> means "base contract" (current behavior). Render the existing SOV grid for the base contract (unchanged), then below it a section labelled <strong>Change Orders</strong> that lists each won CO as a collapsible block. Each block is the same editor reused — area / system / cost-code rows — scoped to that CO's bid.</p>
+
+    <h3>How the data flows under this model</h3>
+    <ul>
+        <li><strong><code>CostCode.changeOrderId</code> is the only schema change.</strong> Nullable FK to <code>EstimateChangeOrderRecord</code>. <code>NULL</code> = base contract. Existing rows backfill to <code>NULL</code>. The unique constraint <code>CostCode_unique_key</code> picks up the new column so the same code/area/system tuple can exist on both base and CO.</li>
+        <li><strong>The CostCode-fed surfaces (Progress Report, JobBill, Financial Forecast) read it through.</strong> <code>ProgressReportLineItem.changeOrderId</code> and <code>JobBillLineItem.changeOrderId</code> are already there — when those line items are generated from a cost code, they pull the CO from the cost code rather than from a separately-tracked rule.</li>
+        <li><strong>The UI reuses the existing SOV editor as a sub-component per CO.</strong> The Planning &amp; Tracking page becomes: base SOV block (existing editor) → "Change Orders" header → one collapsible <code>CostCodeAddEditForm</code> instance per won CO, each scoped via a <code>changeOrderId</code> prop. Same Import Template / Advanced toggle, same row interactions.</li>
+        <li><strong>Summary cards aggregate.</strong> The four top-of-page cards become "Contract Value" = base bid + ∑ won CO bids; "Total Cost" = ∑ allocated across all SOVs; "Total Margin" = derived. Each CO block also shows its own mini-summary inside its collapsible header (CO Value, Allocated, Remaining, Margin).</li>
+    </ul>
+
+    <h3>What it looks like</h3>
+
+    <div class="sov-frame">
+        <div class="sov-header">
+            <div class="left">
+                <span class="chev">▾</span>
+                <span class="title">Base Contract SOV</span>
+                <span style="font-size: 11px; padding: 2px 7px; background: #ede9fe; color: #5b21b6; border-radius: 4px; font-weight: 700;">$15,000.00</span>
+            </div>
+            <div class="totals">
+                <span>Allocated <strong>$15,000</strong></span>
+                <span>Remaining <strong>$0</strong></span>
+                <span>Margin <strong>6.6%</strong></span>
+            </div>
+            <div class="actions">
+                <button>Import Template</button>
+                <button class="primary">SOV Setup</button>
+            </div>
+        </div>
+        <div class="sov-rows">
+            <table>
+                <thead><tr><th>Area</th><th>System</th><th>Description</th><th>Cost Code #</th><th>Code Name</th><th style="text-align:right;">Value</th></tr></thead>
+                <tbody>
+                    <tr><td>General Conditions</td><td>Demobilization</td><td>Template 3</td><td class="num">003</td><td>003 - General Conditions - Demobilization</td><td class="num" style="text-align:right;">$1,200</td></tr>
+                    <tr><td>Rentals</td><td>Equipment</td><td>Template 1</td><td class="num">004</td><td>004 - Rentals - Equipment</td><td class="num" style="text-align:right;">$800</td></tr>
+                    <tr><td>Supervision</td><td>Project Management</td><td>—</td><td class="num">005</td><td>005 - Supervision - Project Management</td><td class="num" style="text-align:right;">$2,400</td></tr>
+                    <tr><td colspan="5" style="color:#94a3b8; font-style:italic; padding-left: 14px;">… 8 more rows …</td><td class="num" style="text-align:right;">$10,600</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="sov-block-label">Change Orders</div>
+
+    <div class="sov-frame">
+        <div class="sov-header">
+            <div class="left">
+                <span class="chev">▾</span>
+                <span class="title">CO-001 · Additional roof penetrations</span>
+                <span style="font-size: 11px; padding: 2px 7px; background: #ede9fe; color: #5b21b6; border-radius: 4px; font-weight: 700;">$8,500.00</span>
+                <span style="font-size: 10px; padding: 2px 6px; background: #dcfce7; color: #166534; border-radius: 4px; font-weight: 700; text-transform: uppercase;">Won</span>
+            </div>
+            <div class="totals">
+                <span>Allocated <strong>$6,200</strong></span>
+                <span>Remaining <strong>$2,300</strong></span>
+                <span>Margin <strong>12.0%</strong></span>
+            </div>
+            <div class="actions">
+                <button>Import Template</button>
+                <button class="primary">SOV Setup</button>
+            </div>
+        </div>
+        <div class="sov-rows">
+            <table>
+                <thead><tr><th>Area</th><th>System</th><th>Description</th><th>Cost Code #</th><th>Code Name</th><th style="text-align:right;">Value</th></tr></thead>
+                <tbody>
+                    <tr><td>Roofing</td><td>Penetrations</td><td>Extra curbs</td><td class="num">3001</td><td>3001 - CO-001 - Curb Materials</td><td class="num" style="text-align:right;">$3,200</td></tr>
+                    <tr><td>Roofing</td><td>Labor</td><td>—</td><td class="num">3002</td><td>3002 - CO-001 - Direct Labor</td><td class="num" style="text-align:right;">$3,000</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="sov-frame">
+        <div class="sov-header collapsed">
+            <div class="left">
+                <span class="chev">▸</span>
+                <span class="title">CO-002 · Insulation upgrade — closed cell</span>
+                <span style="font-size: 11px; padding: 2px 7px; background: #ede9fe; color: #5b21b6; border-radius: 4px; font-weight: 700;">$22,400.00</span>
+                <span style="font-size: 10px; padding: 2px 6px; background: #dcfce7; color: #166534; border-radius: 4px; font-weight: 700; text-transform: uppercase;">Won</span>
+            </div>
+            <div class="totals">
+                <span>Allocated <strong>$0</strong></span>
+                <span>Remaining <strong>$22,400</strong></span>
+                <span style="color:#b45309;">Needs setup</span>
+            </div>
+            <div class="actions">
+                <button>Import Template</button>
+                <button class="primary">SOV Setup</button>
+            </div>
+        </div>
+    </div>
+
+    <p style="font-size: 12px; color: #64748b; margin-top: 6px;">Each block: header has CO label, won status, bid value, mini summary, its own Import Template / SOV Setup buttons. Click chevron to expand/collapse. Identical row editor to the base SOV inside.</p>
+
+    <h3>Why this beats add-a-section-but-keep-cost-codes-flat</h3>
+    <ul>
+        <li>Filtering is a single column read. <code>WHERE jobId = ? AND changeOrderId IS NULL</code> for base; <code>changeOrderId = ?</code> for a CO. No new tables, no join chain.</li>
+        <li>The existing Progress Report / JobBill filtering logic (which already has <code>changeOrderId</code> on its line items) can collapse to "inherit the CO from the cost code." One less manual selection at invoice time.</li>
+        <li>Existing customers with no cost-coded COs see no behavior change: <code>changeOrderId</code> is <code>NULL</code> everywhere, the base SOV renders exactly as it does today, the Change Orders section is just empty (or hidden — see Q3).</li>
+        <li>Template import works without modification — the same <code>CopyTemplate</code> flow runs with <code>changeOrderId</code> set on each created cost code.</li>
+    </ul>
+
+    <h3>Invariants the system enforces</h3>
+    <ul>
+        <li><strong>I1.</strong> A cost code's <code>changeOrderId</code> is immutable. Confirmed by Emma: a cost code cannot move between base and any CO (or between COs) after creation, regardless of whether referencing rows exist yet. Setup mistakes require delete-and-recreate. Enforced in <code>CostCode.editItem</code>.</li>
+        <li><strong>I2.</strong> A cost code with a <code>changeOrderId</code> set must reference a CO on the same <code>jobId</code>. Validated at create time.</li>
+        <li><strong>I3.</strong> Only "won" COs (status = Won + <code>includeInJobValue = true</code>) show a CO SOV block. COs in other statuses don't appear — they're not yet contributing to the contract value.</li>
+        <li><strong>I4.</strong> The base SOV (<code>changeOrderId IS NULL</code>) is always present even if empty. CO SOVs render only when their CO meets I3.</li>
+    </ul>
+
+    <h3>Cons / tradeoffs</h3>
+    <ul>
+        <li>Once a TSDRVCC, ProgressReportLineItem, or JobBillLineItem points at a cost code, that cost code can't be moved between base/CO without manual data correction. This is a feature for audit but a constraint for setup mistakes — see Q1.</li>
+        <li>The Planning &amp; Tracking page gets visually busier on jobs with many won COs. Default-collapse all CO blocks except the first to keep scroll length manageable.</li>
+        <li>If a customer's CO has <em>zero</em> cost-coded work (they bill it purely on % complete of the CO bid), the CO block can be left empty — its bid still rolls into the Contract Value summary card via the existing <code>EstimateChangeOrderRecord</code> pipeline, independent of cost codes.</li>
+    </ul>
+</section>
+
+<!-- ============================================================ -->
+<section class="card">
+    <h2><span class="phase-tag p1">Phase 1</span>Data model + base SOV refactor for CO-awareness</h2>
+
+    <h3>Schema migration</h3>
+    <div class="where" style="border-left-color: #475569;">
+<pre style="font-family: 'SF Mono', Menlo, monospace; font-size: 11px; color: #0f172a; white-space: pre-wrap; margin: 0;">model CostCode {
+    // ... existing fields
+    changeOrderId String?                    @db.VarChar(21)
+    ChangeOrder   EstimateChangeOrderRecord? @relation(fields: [changeOrderId], references: [id])
+
+    // unique constraint gains changeOrderId
+    @@unique([jobId, changeOrderId, areaId, systemId, phaseId, moduleId, componentId,
+              accountItemId, description, isDeleted], map: "CostCode_unique_key")
+}</pre>
+    </div>
+    <p>Backfill is implicit (column defaults to <code>NULL</code>). One Prisma migration. The existing unique-constraint name <code>CostCode_unique_key</code> is replaced with the new tuple — confirm no production data violates the new shape (existing rows all have <code>NULL</code>, so they can't collide on the new column).</p>
+
+    <h3>Model + resolver changes</h3>
+    <ul>
+        <li><code>apps/api/src/models/CostCode.ts</code> — add <code>changeOrderId</code> to <code>modelFields</code>. Validate that the CO exists on the same job at <code>validatePayload</code>.</li>
+        <li><code>apps/api/src/graphql/models/CostCode.ts</code> — expose <code>changeOrderId</code> on the GraphQL type. Add it to the input shapes (<code>CreateCostCode</code>, <code>EditCostCode</code>).</li>
+        <li><code>GetCostCodes</code> / <code>GetCostCodesByJob</code> / <code>GetLabourCostCodesByJob</code> — return <code>changeOrderId</code> (and <code>ChangeOrder</code> when needed) so the UI can group rows by CO without an extra query.</li>
+    </ul>
+
+    <h3>SOV editor extraction</h3>
+    <p>Today <code>CostCodeAddEditForm.tsx</code> assumes a job-scoped flat list. Refactor it so it can be invoked with an optional <code>changeOrderId</code> prop. When <code>changeOrderId</code> is set, the form filters its rows to that CO, scopes the Import Template flow to that CO, and writes the value to new rows. When omitted, behavior is unchanged (base contract).</p>
+    <p>The wrapper that lives on the Planning &amp; Tracking page becomes:</p>
+    <div class="where" style="border-left-color: #475569;">
+<pre style="font-family: 'SF Mono', Menlo, monospace; font-size: 11px; color: #0f172a; white-space: pre-wrap; margin: 0;">&lt;PlanningTrackingSOV jobId={jobId}&gt;
+    &lt;CostCodeAddEditForm jobId={jobId} /&gt;                {/* base SOV */}
+
+    &lt;ChangeOrderSOVList jobId={jobId}&gt;
+        {wonChangeOrders.map(co =&gt; (
+            &lt;CollapsibleSOVBlock co={co} key={co.id}&gt;
+                &lt;CostCodeAddEditForm jobId={jobId} changeOrderId={co.id} /&gt;
+            &lt;/CollapsibleSOVBlock&gt;
+        ))}
+    &lt;/ChangeOrderSOVList&gt;
+&lt;/PlanningTrackingSOV&gt;</pre>
+    </div>
+    <p><code>CollapsibleSOVBlock</code> renders the header (CO label / bid / status / mini-summary / actions). Defaults to collapsed; expand-state is local component state (not persisted) — open the most recent CO by default.</p>
+</section>
+
+<!-- ============================================================ -->
+<section class="card">
+    <h2><span class="phase-tag p2">Phase 2</span>Progress Report + Progress Invoice filtering</h2>
+
+    <h3>Progress Report grouping</h3>
+    <p>Today the Progress Report is generated from <code>CostCode</code> rows on a job. With <code>CostCode.changeOrderId</code> populated, the report layout needs to split into:</p>
+    <ul>
+        <li>Base Contract section: <code>WHERE costCode.changeOrderId IS NULL</code></li>
+        <li>One section per CO: <code>WHERE costCode.changeOrderId = $coId</code></li>
+    </ul>
+    <p>This is a frontend-only change in the Progress Report layout — the data is already there because <code>ProgressReportLineItem</code> carries <code>changeOrderId</code> directly (per the existing schema). The line item's CO is just <em>also</em> derivable from its cost code, which is the load-bearing fact: once cost codes carry the CO, the progress report doesn't need a separate "which CO is this line?" prompt.</p>
+
+    <div class="where">
+        <strong>Where:</strong> <code>apps/api/src/models/ProgressReportLineItem.ts</code> — when a Progress Report is generated from cost codes, the line items already inherit the CO. Confirm the population path uses <code>costCode.changeOrderId</code> rather than re-prompting the user.
+    </div>
+
+    <h3>JobBill (Progress Invoice) generation</h3>
+    <p>Same story: <code>JobBillLineItem.changeOrderId</code> exists. When the bill is generated from a Progress Report or directly from cost codes, the CO link is read off the cost code. The CO-totals section of the invoice (which today renders from the flat CO line-items at the bottom) becomes a proper "CO progress" sub-table per CO, with its own % complete and total billed-to-date.</p>
+
+    <div class="where">
+        <strong>Where:</strong> <code>apps/api/src/models/JobBill.ts</code> — the generation paths around <code>createManyLineItemsWithTax</code> (line 565) and <code>generateInvoiceFromWorkOrder</code> (line 580). Verify the existing CO denorm logic (<code>changeOrderBid</code>, <code>changeOrderSubTitle</code>, etc.) populates correctly when the source cost code has <code>changeOrderId</code> set.
+    </div>
+
+    <h3>Frontend file changes</h3>
+    <table class="files-table">
+        <thead><tr><th>File</th><th>What changes</th><th>Type</th></tr></thead>
+        <tbody>
+            <tr>
+                <td class="path">apps/api/prisma/schema.prisma</td>
+                <td class="what">Add <code>changeOrderId</code> + <code>ChangeOrder</code> relation to <code>CostCode</code>. Update <code>CostCode_unique_key</code>. Add inverse <code>CostCode[]</code> relation on <code>EstimateChangeOrderRecord</code>.</td>
+                <td><span class="tag db">schema</span></td>
+            </tr>
+            <tr>
+                <td class="path">apps/api/prisma/migrations/&lt;new&gt;/migration.sql</td>
+                <td class="what">Add nullable column, FK, drop+recreate unique index. Backfill is automatic (column NULL).</td>
+                <td><span class="tag sql">migration</span></td>
+            </tr>
+            <tr>
+                <td class="path">apps/api/src/models/CostCode.ts</td>
+                <td class="what">Field def for <code>changeOrderId</code>. Validate CO belongs to same job in <code>validatePayload</code>. Block updates that change <code>changeOrderId</code> when TDRVCC / PRLI / JBLI rows exist.</td>
+                <td><span class="tag api">model</span></td>
+            </tr>
+            <tr>
+                <td class="path">apps/api/src/graphql/models/CostCode.ts</td>
+                <td class="what">Expose <code>changeOrderId</code> + <code>ChangeOrder</code>. Add to <code>CreateCostCode</code> / <code>EditCostCode</code> inputs.</td>
+                <td><span class="tag gql">GraphQL</span></td>
+            </tr>
+            <tr>
+                <td class="path">apps/frontend/src/graphql/queries/costCodes.query.graphql</td>
+                <td class="what"><code>GetCostCodesByJob</code> + <code>GetCostCodes</code> + <code>GetLabourCostCodesByJob</code> return <code>changeOrderId</code>. New query <code>GetWonChangeOrdersForJob(jobId)</code> drives the CO blocks (filtered by Won status + <code>includeInJobValue</code>).</td>
+                <td><span class="tag gql">GraphQL</span></td>
+            </tr>
+            <tr>
+                <td class="path">apps/frontend/src/components/Forms/CostCode/CostCodeAddEditForm.tsx</td>
+                <td class="what">Accept optional <code>changeOrderId</code> prop. When set: filter rows, scope save mutation, scope Import Template, swap the header summary to CO-scoped figures.</td>
+                <td><span class="tag ui">desktop</span></td>
+            </tr>
+            <tr>
+                <td class="path">apps/frontend/src/components/DetailsPage/JobDetailsPage/Tabs/<wbr>PlanningTracking/ChangeOrderSOVList.tsx <em>(new)</em></td>
+                <td class="what">Lists won COs; renders one <code>CollapsibleSOVBlock</code> per CO; each wraps a scoped <code>CostCodeAddEditForm</code>. Mini-summary in the header.</td>
+                <td><span class="tag ui">desktop</span></td>
+            </tr>
+            <tr>
+                <td class="path">apps/frontend/src/components/DetailsPage/JobDetailsPage/Tabs/<wbr>PlanningTracking/CollapsibleSOVBlock.tsx <em>(new)</em></td>
+                <td class="what">Pure container — header (CO label, bid, status, mini-summary, actions) + collapsible body. Header always visible; body conditionally rendered.</td>
+                <td><span class="tag ui">desktop</span></td>
+            </tr>
+            <tr>
+                <td class="path">apps/frontend/src/components/DetailsPage/JobDetailsPage/index.tsx</td>
+                <td class="what">Planning &amp; Tracking tab wires base SOV + <code>ChangeOrderSOVList</code> on the same page.</td>
+                <td><span class="tag ui">desktop</span></td>
+            </tr>
+            <tr>
+                <td class="path">apps/api/src/models/ProgressReportLineItem.ts</td>
+                <td class="what">When generating from cost codes, inherit <code>changeOrderId</code> off the source cost code (instead of requiring it on the input).</td>
+                <td><span class="tag api">model</span></td>
+            </tr>
+            <tr>
+                <td class="path">apps/api/src/models/JobBill.ts</td>
+                <td class="what">Same — when materializing from a cost code, set <code>JobBillLineItem.changeOrderId</code> from the cost code. Confirm CO denorm fields (<code>changeOrderBid</code>, etc.) populate correctly.</td>
+                <td><span class="tag api">model</span></td>
+            </tr>
+            <tr>
+                <td class="path">apps/frontend/src/components/DetailsPage/JobDetailsPage/Tabs/<wbr>Billing/ProgressBill.tsx</td>
+                <td class="what">Group bill lines by CO via the (already-present) <code>changeOrderId</code>. Base contract first, then one sub-section per CO.</td>
+                <td><span class="tag ui">desktop</span></td>
+            </tr>
+            <tr>
+                <td class="path">apps/frontend/src/components/DetailsPage/JobDetailsPage/Tabs/<wbr>ProgressReport/ProgressReportList.tsx</td>
+                <td class="what">Same grouping for the Progress Report read view.</td>
+                <td><span class="tag ui">desktop</span></td>
+            </tr>
+        </tbody>
+    </table>
+</section>
+
+<!-- ============================================================ -->
+<section class="card">
+    <h2>Summary cards — three options for how CO totals roll up</h2>
+
+    <p>The four cards at the top of Planning &amp; Tracking today reflect base-contract figures only. Once CO SOVs exist there are three reasonable presentation choices:</p>
+
+    <div class="option-card recommended">
+        <div class="opt-head">
+            <span class="opt-label">A · Single aggregate set of cards (base + all won COs) <span class="opt-badge rec">Recommended</span></span>
+        </div>
+        <p>Top cards show "Total Contract Value" = base bid + ∑ won CO bids. "Amount Allocated" = ∑ allocated across all SOVs. "Remaining" = derived. "Total Margin" = weighted average.</p>
+        <p>Each individual CO block shows its own mini-summary inside its collapsible header (CO Value / Allocated / Remaining / Margin). So users see the rollup at the top and the per-CO numbers when they expand a block.</p>
+        <p><strong>Why this:</strong> matches the existing "Job Value" pill in the page header (which already includes CO value when COs are flagged into job value). One source of truth at the top, drill-down per CO.</p>
+    </div>
+
+    <div class="option-card">
+        <div class="opt-head">
+            <span class="opt-label">B · Separate card sets — one row of cards per SOV (base + each CO)</span>
+            <div class="opt-badges"><span class="opt-badge lift-m">Heavy UI</span></div>
+        </div>
+        <p>The top of the page becomes a vertical stack: base cards, base SOV grid, "CO-001" cards, "CO-001" grid, "CO-002" cards, "CO-002" grid, etc.</p>
+        <p><strong>Why not:</strong> on a job with 5 won COs that's 24 stat cards before the first row of grid. Scroll cost is brutal and the cards repeat the same labels — visual noise.</p>
+    </div>
+
+    <div class="option-card">
+        <div class="opt-head">
+            <span class="opt-label">C · Aggregate cards + a toggle to switch the cards' scope</span>
+            <div class="opt-badges"><span class="opt-badge lift-m">Med UI</span></div>
+        </div>
+        <p>Same single row of cards, but a "Scope: Base / CO-001 / CO-002 / All" pill swaps the numbers in place.</p>
+        <p><strong>Why not (probably):</strong> hidden state (which scope is selected) makes screenshots ambiguous and adds a cognitive step. Option A's expand-block mini-summary delivers the same information without state.</p>
+    </div>
+
+    <p style="font-size: 13px; color: #64748b; margin-top: 6px;">Open for discussion — Option A is the recommendation but worth confirming with Brad / Kate before building.</p>
+</section>
+
+<!-- ============================================================ -->
+<section class="card">
+    <h2>Alternatives considered</h2>
+
+    <div class="option-card">
+        <div class="opt-head">
+            <span class="opt-label">D · New <code>ChangeOrderCostCode</code> table (separate model)</span>
+            <div class="opt-badges">
+                <span class="opt-badge lift-h">High lift</span>
+                <span class="opt-badge lift-m">Duplicates schema</span>
+            </div>
+        </div>
+        <p>Create a parallel <code>ChangeOrderCostCode</code> model with the same shape as <code>CostCode</code> but FK'd to <code>EstimateChangeOrderRecord</code>.</p>
+        <p><strong>Why we didn't pick it:</strong> every consumer of <code>CostCode</code> (TDRVCC, JobBillLineItem, ProgressReportLineItem, JobFinancialForecastLineItem, EquipmentTimeEntryCostCode, TimesheetEntryTemplateCostCode) would need a parallel FK plus a discriminator on every read. The Top Option achieves the same separation with one nullable column.</p>
+    </div>
+
+    <div class="option-card">
+        <div class="opt-head">
+            <span class="opt-label">E · Re-use <code>EstimateChangeOrderRecordValue</code> as the CO line items</span>
+            <div class="opt-badges">
+                <span class="opt-badge lift-m">Med lift</span>
+                <span class="opt-badge lift-h">Mismatched semantics</span>
+            </div>
+        </div>
+        <p>The CO already has <code>EstimateChangeOrderRecordValue</code> rows (description + numeric + accountItemId). Why not just promote those to cost-code-like behavior?</p>
+        <p><strong>Why we didn't pick it:</strong> ECORV is the <em>estimate</em>-time breakdown for pricing the CO. It has different lifecycle constraints (locked once the CO is approved), a different unique key, and doesn't carry area/system/phase/module/component or the cost-code numbering convention. Trying to fork its meaning into a runtime cost-code role would muddle both. Cost codes are operational; ECORV is contractual.</p>
+    </div>
+
+    <div class="option-card">
+        <div class="opt-head">
+            <span class="opt-label">F · Don't add the data field — let customers re-use base codes with a naming convention</span>
+            <div class="opt-badges">
+                <span class="opt-badge lift-l">No-op</span>
+                <span class="opt-badge lift-h">Breaks invoicing</span>
+            </div>
+        </div>
+        <p>Tell customers to prefix CO codes with "CO-" and rely on the name. Group on the frontend by the name prefix.</p>
+        <p><strong>Why we didn't pick it:</strong> string-prefix grouping is fragile (typos, varying conventions, internationalization) and doesn't propagate to <code>JobBillLineItem.changeOrderId</code> which is already structured. The Jira explicitly says: <em>"Each CO line is tied back to the parent change order (so progress invoicing still works — change orders remain their own entity, not merged into the main SOV)."</em> A structured FK is the only way to deliver that.</p>
+    </div>
+</section>
+
+<!-- ============================================================ -->
+<section class="card">
+    <h2>Open questions for business review</h2>
+
+    <div class="qbox" style="background: #f0fdf4; border-color: #bbf7d0;">
+        <h4>Q1. Can a cost code be moved between base and a CO after creation? <span style="font-size: 10px; color: #166534; background: #dcfce7; padding: 2px 7px; border-radius: 4px; font-weight: 700; margin-left: 6px;">ANSWERED · Emma</span></h4>
+        <p><strong>Immutable.</strong> A cost code cannot switch from CO to base contract (or between COs) once created. Setup mistakes require delete-and-recreate. Top Option's design stands as-is — <code>changeOrderId</code> is locked at create time, full stop, regardless of whether TDRVCC / PRLI / JBLI rows exist yet.</p>
+        <p class="why">Implementation note: validation in <code>CostCode.editItem</code> rejects any update that would change <code>changeOrderId</code> from its current value (including <code>NULL</code> ↔ value).</p>
+    </div>
+
+    <div class="qbox">
+        <h4>Q2. Should pending (not-yet-Won) COs show an SOV block?</h4>
+        <p>I3 above says only Won + <code>includeInJobValue = true</code> COs render. But a customer might want to pre-build the SOV on a "Pending" CO so they can hit the ground running on Day 1 of approval.</p>
+        <p class="why">Why ask: cleanest UX is "hide until approved" so the screen stays focused on active work. But the "draft early" use case is real for large COs. Could expose this as an instance setting if needed.</p>
+    </div>
+
+    <div class="qbox" style="background: #f0fdf4; border-color: #bbf7d0;">
+        <h4>Q3. Should the Change Orders section be hidden entirely when no COs exist? <span style="font-size: 10px; color: #166534; background: #dcfce7; padding: 2px 7px; border-radius: 4px; font-weight: 700; margin-left: 6px;">ANSWERED · Emma</span></h4>
+        <p><strong>Yes — hide the section header when no COs exist.</strong> The exact trigger depends on Q2: if Q2 lands on "Won only," hide when no Won COs exist; if Q2 lands on "Pending too," hide when no Pending-or-Won COs exist. Either way, an empty header is not rendered.</p>
+    </div>
+
+    <div class="qbox" style="background: #f0fdf4; border-color: #bbf7d0;">
+        <h4>Q4. Summary cards — Option A (aggregate) confirmed? <span style="font-size: 10px; color: #166534; background: #dcfce7; padding: 2px 7px; border-radius: 4px; font-weight: 700; margin-left: 6px;">ANSWERED · Emma</span></h4>
+        <p><strong>Option A confirmed.</strong> Single aggregate set of cards at the top of the page (Contract Value = base + ∑ won CO bids; Total Cost = ∑ allocated across all SOVs; Total Margin = derived). Plus the per-CO mini-summary in each collapsible block's header (CO Value / Allocated / Remaining / Margin) for drill-down. Build to this.</p>
+    </div>
+
+    <div class="qbox">
+        <h4>Q5. Import Template on CO blocks — same templates, or CO-specific templates?</h4>
+        <p><strong>Emma's leaning:</strong> keep the global template library as-is (customers can name templates "CO …" if they want), and add an additional <strong>"Import from CO"</strong> entry on the CO block's import affordance that lets you pull the cost-code layout from another CO (on this job, or another job). The "Import from Template" button on the CO block continues to use the same global template list.</p>
+        <p>Still flagged as a business question — Brad/Kate to confirm. Implementation impact is minimal: same flow as the existing Import Template, but with a second source ("from CO") behind a small picker.</p>
+        <p class="why">Why ask: scope hint. If global templates are sufficient + "import from CO" is added, no template-library work needed. If true CO-specific templates are required, we need a scope toggle on the template list itself.</p>
+    </div>
+
+    <div class="qbox" style="background: #f0fdf4; border-color: #bbf7d0;">
+        <h4>Q6. Does the <code>Job Value</code> pill in the header continue to reflect base + COs (current behavior)? <span style="font-size: 10px; color: #166534; background: #dcfce7; padding: 2px 7px; border-radius: 4px; font-weight: 700; margin-left: 6px;">ANSWERED · Emma</span></h4>
+        <p><strong>Yes — unchanged.</strong> The page header pill remains the canonical Job Value = base + COs flagged into job value (<code>includeInJobValue</code>). Under Option A, the new "Contract Value" summary card derives from the same source — no divergence.</p>
+    </div>
+</section>
+
+<!-- ============================================================ -->
+<section class="card">
+    <h2>Recommended path forward</h2>
+    <ol>
+        <li><strong>Approve the Top Option direction</strong> — single <code>CostCode.changeOrderId</code> column + reuse of <code>CostCodeAddEditForm</code> per CO block.</li>
+        <li><strong>Phase 1 in v1.33:</strong> schema migration, model + resolver updates, refactor <code>CostCodeAddEditForm</code> to accept <code>changeOrderId</code>, render the Change Orders section on Planning &amp; Tracking. Most existing CO data continues to behave the same (no <code>changeOrderId</code> on existing rows).</li>
+        <li><strong>Phase 2 in v1.33 or v1.34:</strong> Progress Report + Progress Bill grouping by CO via the already-present <code>changeOrderId</code> on line items. UI-only change once Phase 1 lands.</li>
+        <li><strong>Q1–Q6 above</strong> get a 15-minute conversation with Brad / Kate / Corey before Phase 1 starts. They're cheap to answer and they shape implementation choices.</li>
+        <li><strong>Pair with CO-2 (Q21030-11812)</strong> — the field-worker filtering. CO-2 is what makes the CO SOVs actually useful at time-entry time; without it, the field still doesn't know which SOV their hours are coding to.</li>
+    </ol>
+
+    <div class="callout success">
+        <strong>Bottom line:</strong> One nullable FK on <code>CostCode</code>, reuse of the existing SOV editor scoped per CO, and a collapsible section beneath the base SOV. The schema change is tiny because <code>JobBillLineItem</code> and <code>ProgressReportLineItem</code> already carry <code>changeOrderId</code> — adding it to <code>CostCode</code> simply completes the chain so the line items can inherit instead of being re-tagged manually.
+    </div>
+</section>
+
+<!-- ============================================================ -->
+<section class="card">
+    <h2>Source traceability</h2>
+    <ul>
+        <li><strong>Jira:</strong> Q21030-11809 — "Change Orders with their own Schedule of Values"</li>
+        <li><strong>Companion:</strong> Q21030-11812 (CO-2) — Desktop scheduling + mobile cost-code filtering. The two ship best together.</li>
+        <li><strong>Related:</strong> Q21030-11808 (CC-1) — Cost-code financials rollup. Phase 1 of CC-1 also depends on <code>changeOrderId</code> being on <code>CostCode</code> for the eventual CO-grouped Financial Summary breakdown.</li>
+        <li><strong>Source meeting:</strong> Brad, Kate, Josh, Corey × Cost Codes — May 27 (<a href="https://fathom.video/calls/686820706">Fathom recording, 63 min</a>). The CO SOV question surfaced at the same setup session that drove CC-1.</li>
+        <li><strong>Code paths in scope:</strong>
+            <ul>
+                <li><code>apps/api/prisma/schema.prisma</code> — <code>CostCode</code> (line 4383), <code>EstimateChangeOrderRecord</code> (line 3097), <code>JobBillLineItem.changeOrderId</code> (line 4362), <code>ProgressReportLineItem.changeOrderId</code> (line 4537)</li>
+                <li><code>apps/frontend/src/components/Forms/CostCode/CostCodeAddEditForm.tsx</code> — the SOV editor</li>
+                <li><code>apps/frontend/src/graphql/queries/costCodes.query.graphql</code> — picker + list queries</li>
+                <li><code>apps/api/src/models/CostCode.ts</code> + <code>apps/api/src/graphql/models/CostCode.ts</code> — model + resolver</li>
+                <li><code>apps/api/src/models/JobBill.ts</code> + <code>apps/api/src/models/ProgressReportLineItem.ts</code> — line-item generation paths that read <code>changeOrderId</code></li>
+                <li><code>apps/frontend/src/components/DetailsPage/JobDetailsPage/index.tsx</code> — Planning &amp; Tracking tab definition</li>
+            </ul>
+        </li>
+    </ul>
+</section>
+
+</div>
+</body>
+</html>

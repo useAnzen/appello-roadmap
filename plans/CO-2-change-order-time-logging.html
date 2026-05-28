@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CO-2 · Schedule users to Change Order + filter mobile cost codes</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Inter', -apple-system, sans-serif; background: #f1f5f9; color: #1e293b; line-height: 1.5; }
+
+.in-iframe .top-nav { display: none !important; }
+.top-nav { position: sticky; top: 0; z-index: 100; background: #0f172a; border-bottom: 1px solid #1e293b; padding: 0 24px; display: flex; align-items: center; gap: 0; }
+.top-nav a { display: inline-flex; align-items: center; padding: 12px 18px; font-size: 13px; font-weight: 600; color: #94a3b8; text-decoration: none; border-bottom: 2px solid transparent; transition: all 0.15s; white-space: nowrap; }
+.top-nav a:hover { color: #f8fafc; background: #1e293b; }
+.top-nav .nav-logo { font-size: 11px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: #475569; padding-right: 18px; margin-right: 4px; border-right: 1px solid #1e293b; }
+
+.wrap { max-width: 1080px; margin: 0 auto; padding: 36px 24px 80px; }
+
+.hero { background: linear-gradient(135deg, #b91c1c, #be185d); color: #fff; border-radius: 14px; padding: 28px 32px; margin-bottom: 22px; }
+.hero .badges { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+.hero .badge { font-size: 10px; font-weight: 700; padding: 4px 10px; border-radius: 5px; background: rgba(255,255,255,0.18); letter-spacing: 0.5px; text-transform: uppercase; }
+.hero .badge.warn { background: rgba(245, 158, 11, 0.5); }
+.hero .badge.danger { background: rgba(239, 68, 68, 0.5); }
+.hero .badge.success { background: rgba(34, 197, 94, 0.5); }
+.hero h1 { font-size: 28px; font-weight: 800; letter-spacing: -0.01em; margin-bottom: 10px; }
+.hero .pitch { font-size: 15px; line-height: 1.6; color: #fce7f3; max-width: 820px; }
+.hero .meta { display: flex; gap: 22px; margin-top: 14px; font-size: 12px; color: #fbcfe8; flex-wrap: wrap; }
+.hero .meta strong { color: #fff; }
+
+section.card { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 22px 26px; margin-bottom: 16px; }
+section.card h2 { font-size: 18px; font-weight: 800; color: #0f172a; margin-bottom: 12px; padding-bottom: 10px; border-bottom: 2px solid #f1f5f9; }
+section.card h3 { font-size: 14px; font-weight: 700; color: #0f172a; margin: 16px 0 6px; }
+section.card p { font-size: 14px; color: #334155; margin-bottom: 8px; }
+section.card ul, section.card ol { padding-left: 20px; margin: 6px 0 10px; }
+section.card li { font-size: 14px; color: #334155; margin-bottom: 4px; line-height: 1.55; }
+section.card code { background: #f1f5f9; padding: 1px 6px; border-radius: 4px; font-size: 12px; font-family: 'SF Mono', Menlo, monospace; color: #be185d; }
+section.card strong { color: #0f172a; }
+
+.callout { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 14px 18px; margin: 14px 0; font-size: 13px; color: #1e40af; }
+.callout.danger { background: #fef2f2; border-color: #fecaca; color: #991b1b; }
+.callout.warn { background: #fffbeb; border-color: #fed7aa; color: #92400e; }
+.callout.success { background: #f0fdf4; border-color: #bbf7d0; color: #166534; }
+.callout strong { color: inherit; font-weight: 700; }
+
+.where { background: #f8fafc; border-left: 3px solid #be185d; padding: 12px 16px; border-radius: 0 8px 8px 0; margin: 8px 0 14px; font-size: 13px; color: #334155; line-height: 1.65; }
+.where strong { color: #0f172a; }
+.where code { background: #fff; padding: 1px 6px; border-radius: 3px; font-family: 'SF Mono', Menlo, monospace; font-size: 11px; color: #0f172a; border: 1px solid #e2e8f0; }
+
+.option-card { border: 2px solid #e2e8f0; border-radius: 10px; padding: 18px 22px; background: #fff; margin: 12px 0; }
+.option-card .opt-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; gap: 10px; flex-wrap: wrap; }
+.option-card .opt-label { font-size: 16px; font-weight: 800; color: #0f172a; }
+.option-card .opt-badges { display: flex; gap: 5px; flex-wrap: wrap; }
+.opt-badge { font-size: 10px; font-weight: 700; padding: 3px 9px; border-radius: 5px; letter-spacing: 0.3px; text-transform: uppercase; }
+.opt-badge.rec { background: #dcfce7; color: #166534; }
+.opt-badge.lift-l { background: #dbeafe; color: #1e40af; }
+.opt-badge.lift-m { background: #fef3c7; color: #92400e; }
+.opt-badge.lift-h { background: #fee2e2; color: #991b1b; }
+.option-card p { font-size: 14px; color: #334155; line-height: 1.6; margin-bottom: 6px; }
+.option-card ul { padding-left: 20px; }
+.option-card li { font-size: 13px; margin-bottom: 3px; color: #334155; }
+
+.scenario { background: #fdf2f8; border: 1px solid #fbcfe8; border-radius: 8px; padding: 14px 18px; margin: 12px 0; }
+.scenario .title { font-size: 12px; font-weight: 700; color: #9d174d; text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 6px; }
+.scenario p { font-size: 13px; color: #831843; margin-bottom: 4px; line-height: 1.55; }
+
+.qbox { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px 18px; margin: 10px 0; }
+.qbox h4 { font-size: 13px; font-weight: 700; color: #0f172a; margin-bottom: 6px; }
+.qbox p { font-size: 13px; color: #334155; margin-bottom: 4px; }
+.qbox .why { font-size: 12px; color: #64748b; font-style: italic; margin-top: 6px; }
+
+.phase-tag { display: inline-block; font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 4px; letter-spacing: 0.5px; text-transform: uppercase; margin-right: 8px; vertical-align: middle; }
+.phase-tag.p1 { background: #fce7f3; color: #9d174d; }
+.phase-tag.p2 { background: #fef3c7; color: #92400e; }
+
+/* Desktop modal mockup */
+.desk-modal { max-width: 460px; margin: 12px auto; border: 1px solid #cbd5e1; border-radius: 10px; background: #fff; box-shadow: 0 14px 40px rgba(0,0,0,0.12); overflow: hidden; }
+.desk-modal .modal-head { padding: 14px 18px; border-bottom: 1px solid #f1f5f9; font-size: 14px; font-weight: 700; color: #0f172a; display: flex; justify-content: space-between; align-items: center; }
+.desk-modal .modal-head .x { color: #94a3b8; font-size: 16px; }
+.desk-modal .modal-body { padding: 14px 18px; }
+.desk-modal .modal-body p { font-size: 13px; color: #475569; margin-bottom: 10px; }
+.desk-modal .modal-body .opt-row { padding: 10px 12px; border: 1px solid #e2e8f0; border-radius: 8px; margin-bottom: 6px; display: flex; justify-content: space-between; align-items: center; cursor: default; }
+.desk-modal .modal-body .opt-row.selected { border-color: #be185d; background: #fdf2f8; }
+.desk-modal .modal-body .opt-row .lbl { font-size: 13px; font-weight: 600; color: #0f172a; }
+.desk-modal .modal-body .opt-row .sub { font-size: 11px; color: #64748b; margin-top: 2px; }
+.desk-modal .modal-body .opt-row .pill { font-size: 10px; padding: 2px 7px; border-radius: 4px; background: #ede9fe; color: #5b21b6; font-weight: 700; text-transform: uppercase; }
+.desk-modal .modal-foot { padding: 12px 18px; border-top: 1px solid #f1f5f9; display: flex; justify-content: flex-end; gap: 8px; background: #f8fafc; }
+.desk-modal .modal-foot button { font-size: 12px; padding: 6px 14px; border-radius: 6px; border: 1px solid #cbd5e1; background: #fff; color: #334155; }
+.desk-modal .modal-foot button.primary { background: #be185d; border-color: #be185d; color: #fff; }
+
+/* Mobile mockup */
+.mob-frame { max-width: 340px; margin: 12px auto; border: 2px solid #cbd5e1; border-radius: 22px; overflow: hidden; background: #fff; }
+.mob-frame .mob-header { background: #0f172a; color: #fff; padding: 10px 14px; font-size: 13px; font-weight: 600; }
+.mob-frame .mob-body { padding: 14px; }
+.mob-frame .ctx-pill { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 600; padding: 4px 9px; border-radius: 5px; background: #fdf2f8; color: #9d174d; margin-bottom: 10px; }
+.mob-cc-row { padding: 10px 12px; border: 1px solid #e2e8f0; border-radius: 8px; margin-bottom: 6px; background: #fff; }
+.mob-cc-row .num { font-size: 11px; font-weight: 700; color: #64748b; }
+.mob-cc-row .nm { font-size: 13px; font-weight: 500; color: #0f172a; margin-top: 2px; }
+.mob-cc-row.muted { background: #f8fafc; opacity: 0.4; }
+
+/* Flow */
+.flow { display: flex; flex-direction: column; gap: 10px; margin: 14px 0; }
+.flow-row { display: grid; grid-template-columns: 140px 1fr; gap: 14px; align-items: start; }
+.flow-row .lbl { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px; color: #64748b; padding-top: 4px; }
+.flow-row .body { font-size: 13px; color: #334155; }
+.flow-row .body code { background: #f1f5f9; padding: 1px 5px; border-radius: 3px; font-size: 11px; color: #be185d; }
+
+/* Files-to-touch table */
+table.files-table { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 12px; }
+table.files-table th { text-align: left; padding: 8px 10px; background: #f8fafc; border-bottom: 2px solid #e2e8f0; font-weight: 700; color: #0f172a; font-size: 11px; text-transform: uppercase; }
+table.files-table td { padding: 8px 10px; border-bottom: 1px solid #f1f5f9; color: #334155; vertical-align: top; }
+table.files-table td.path { font-family: 'SF Mono', Menlo, monospace; font-size: 11px; color: #0f172a; white-space: nowrap; }
+table.files-table td.what { font-size: 12px; line-height: 1.55; }
+table.files-table .tag { font-size: 9px; font-weight: 700; padding: 2px 6px; border-radius: 3px; letter-spacing: 0.3px; text-transform: uppercase; }
+table.files-table .tag.api { background: #dbeafe; color: #1e40af; }
+table.files-table .tag.sql { background: #fef3c7; color: #92400e; }
+table.files-table .tag.ui { background: #dcfce7; color: #166534; }
+table.files-table .tag.gql { background: #fce7f3; color: #9d174d; }
+table.files-table .tag.db { background: #ede9fe; color: #5b21b6; }
+table.files-table .tag.mobile { background: #fef3c7; color: #92400e; }
+</style>
+</head>
+<body>
+<script>if(self!==top)document.documentElement.classList.add("in-iframe")</script>
+<nav class="top-nav">
+    <span class="nav-logo">Appello SDLC</span>
+    <a href="../index.html">Roadmap</a>
+    <a href="../release-1.33-timeline.html">Release 1.33</a>
+    <a href="CC-1-cost-code-financials-rollup.html">CC-1</a>
+    <a href="CO-1-change-order-sov.html">CO-1</a>
+</nav>
+
+<div class="wrap">
+
+<div class="hero">
+    <div class="badges">
+        <span class="badge">Options + Plan</span>
+        <span class="badge warn">Decision + Build</span>
+        <span class="badge danger">Q21030-11812</span>
+        <span class="badge">Mobile + Desktop</span>
+    </div>
+    <h1>CO-2 · Schedule users to a Change Order + filter mobile cost codes</h1>
+    <p class="pitch">
+        Once a job has won change orders with their own cost-code SOVs (CO-1), field workers logging time on mobile need to know <em>which</em> SOV their hours roll into. Today the mobile cost-code picker shows every direct-labour code on the job — no separation between base and CO. This doc proposes a small modal that fires when scheduling a user to a job with cost-coded COs ("base, or which CO?"), persists the choice on the schedule record, and uses it to filter the mobile picker. The actual logged-against value lands on a new nullable <code>changeOrderId</code> on <code>TimeSheetDetailRecord</code> (the job-scoped record — alongside its existing <code>jobId</code>), so the field can still override case-by-case.
+    </p>
+    <div class="meta">
+        <span><strong>Jira:</strong> Q21030-11812</span>
+        <span><strong>Depends on:</strong> <a href="CO-1-change-order-sov.html" style="color:#fff;">CO-1 · Q21030-11809</a></span>
+        <span><strong>Related:</strong> <a href="CC-1-cost-code-financials-rollup.html" style="color:#fff;">CC-1 · Q21030-11808</a></span>
+        <span><strong>Status:</strong> Pre-decision / pre-build</span>
+        <span><strong>Target:</strong> v1.33+ (after CO-1)</span>
+    </div>
+</div>
+
+<!-- ============================================================ -->
+<section class="card">
+    <h2>The scenario</h2>
+    <div class="scenario">
+        <div class="title">Source — Q21030-11812 Jira + Rival cost-codes pilot (May 27)</div>
+        <p>With cost codes on change orders (CO-1), field workers logging time on mobile need to know which cost codes belong to the main contract versus a specific change order. The cleanest way to handle this is at scheduling time: a project manager or scheduler indicates on the desktop that a user is working the base contract or a specific change order, and the mobile cost-code dropdown filters accordingly.</p>
+    </div>
+    <p>Without this gating, two things go wrong:</p>
+    <ol>
+        <li><strong>Field workers see CO codes they shouldn't.</strong> A foreman assigned to base-contract work for the day sees the entire 60-line cost-code list (base + every CO) and has to know which 5 codes are theirs. Brad's framing from the May 27 meeting: <em>"don't give me the opportunity to screw up because I'm going to screw up."</em></li>
+        <li><strong>CO-coded hours land on the wrong SOV's actuals.</strong> Once CO-1 ships, hours coded to a CO's <code>3001</code> code roll up into that CO's progress. Mis-coded hours show up in the wrong invoice. The data-model fix is good; the UX gating prevents the mistake.</li>
+    </ol>
+</section>
+
+<!-- ============================================================ -->
+<section class="card">
+    <h2>What's already true (load-bearing givens)</h2>
+
+    <h3>1. Cost codes will carry <code>changeOrderId</code> after CO-1 ships</h3>
+    <div class="where">
+        <strong>Where:</strong> <a href="CO-1-change-order-sov.html">CO-1</a> Phase 1 adds <code>CostCode.changeOrderId</code> (nullable). <code>NULL</code> = base contract; a value points at a won <code>EstimateChangeOrderRecord</code>. This doc <strong>depends on</strong> that field existing.<br>
+        <strong>Implication:</strong> CO-2 cannot ship without CO-1. Plan accordingly.
+    </div>
+
+    <h3>2. Today's cost-code picker filters on <code>jobId</code> + AccountCategory only</h3>
+    <div class="where">
+        <strong>Where:</strong> <code>apps/frontend/src/graphql/queries/costCodes.query.graphql</code> · <code>GetLabourCostCodesByJob</code> (line 131).<br>
+        Filter: <code>jobId = $jobId AND AccountCategory.slug = "direct-labour"</code>. Adding a <code>changeOrderId</code> filter is straightforward — same query, one more clause.
+    </div>
+
+    <h3>3. <code>JobSchedule</code> exists but doesn't carry per-user assignments today</h3>
+    <div class="where">
+        <strong>Where:</strong> <code>apps/api/prisma/schema.prisma:4116</code> — <code>JobSchedule</code> has <code>jobId</code>, <code>supervisorId</code>, date/time, calendarViewId, workerCount, title/description — but no user FK. Users are scheduled onto jobs through an adjacent layer (the calendar UI in <code>JobScheduleCalendarAddEditForm.tsx</code> calls <code>assignWorker(jobIds, userId, ...)</code>).<br>
+        <strong>Implication:</strong> there isn't a clean per-user-per-job-per-date record to hang the CO assignment on. We need either (a) a new model or (b) to extend whatever layer wires users to schedules. See "Where the assignment lives" below.
+    </div>
+
+    <h3>4. <code>TimeSheetDetailRecord</code> is the job-scoped record; TSDRV is the rate/hours leaf</h3>
+    <div class="where">
+        <strong>Where:</strong> <code>apps/api/prisma/schema.prisma:4039</code> — <code>TimeSheetDetailRecord</code> (TSDR). Has <code>jobId</code> + optional <code>overrideTradeLevelId</code>; unique on <code>(timeSheetRecordId, jobId, overrideTradeLevelId)</code>.<br>
+        <code>apps/api/prisma/schema.prisma:4075</code> — <code>TimeSheetDetailRecordValue</code> (TSDRV). Sits beneath TSDR; one TSDRV per <code>tradeLevelRateId</code>, holds <code>approvedDuration</code> + the rate link. Cost codes attach via TSDRVCC under each TSDRV.<br>
+        <strong>Implication:</strong> "this time is on a change order" is a TSDR-level fact — it scopes the whole job assignment for that work-day. The new nullable <code>changeOrderId</code> lives on <strong>TSDR</strong>, alongside <code>jobId</code>. All TSDRVs (and their TSDRVCCs) under that TSDR inherit the scope.
+    </div>
+
+    <h3>5. Mobile cost-code step already exists and is permission-gated</h3>
+    <div class="where">
+        <strong>Where:</strong> <code>apps/mobile/src/components/Forms/TimesheetAddEditForm/TimesheetCostCodeStep.tsx</code>. Step in the timesheet add/edit wizard. Already conditionally rendered based on <code>requireCostCodeOnMobileTimesheet</code> + presence of direct-labour cost codes on the job.<br>
+        <strong>Implication:</strong> the place to apply the CO filter is here. No new step needed; just narrow the existing list.
+    </div>
+
+    <h3>6. <code>EstimateChangeOrderRecord</code> already has the "won" status</h3>
+    <p>Same as CO-1: only Won + <code>includeInJobValue = true</code> COs are eligible. COs in Pending / Lost / Draft are not surfaced in the scheduling modal — they're not active work.</p>
+</section>
+
+<!-- ============================================================ -->
+<section class="card" style="border: 2px solid #be185d; background: linear-gradient(180deg, #fdf2f8 0%, #fff 120px);">
+    <h2 style="color: #9d174d;">★ Top Option — Schedule-time modal + TSDR.changeOrderId + mobile filter</h2>
+    <p><strong>Three small changes, one cohesive flow.</strong></p>
+    <ol>
+        <li><strong>Schema:</strong> add nullable <code>changeOrderId</code> to <code>TimeSheetDetailRecord</code> (the job-scoped record, alongside <code>jobId</code>). Also add it to whichever layer carries the per-user schedule assignment (see "Where the assignment lives" — proposed: extend the existing user-schedule join with a nullable <code>changeOrderId</code>).</li>
+        <li><strong>Desktop modal at scheduling time:</strong> when a user is being scheduled to a job that has <em>at least one</em> won CO with cost-code lines, pop a small modal: "Base contract or which CO?" The selection persists on the schedule assignment.</li>
+        <li><strong>Mobile picker:</strong> when the user opens their timesheet for that job-date, the cost-code step reads the assignment's <code>changeOrderId</code> and filters the picker to that scope. The user can switch (out-of-band) if needed, but the default is locked to the scheduled scope.</li>
+    </ol>
+
+    <h3>How the data flows</h3>
+    <div class="flow">
+        <div class="flow-row">
+            <div class="lbl">Scheduler</div>
+            <div class="body">PM schedules Bob to Job 01-02 for Tuesday. Job has CO-001 (Won) with cost-code SOV → modal fires. PM picks "CO-001". Choice saved on the user's schedule assignment.</div>
+        </div>
+        <div class="flow-row">
+            <div class="lbl">Bob's phone</div>
+            <div class="body">Tuesday morning, Bob opens the job on mobile to log time. Cost-code step queries with <code>changeOrderId = co-001-id</code> → picker shows only the 2 codes under CO-001's SOV.</div>
+        </div>
+        <div class="flow-row">
+            <div class="lbl">TSDR save</div>
+            <div class="body">When Bob's TSDR is created/saved for the day, <code>changeOrderId</code> on the TSDR is set from the schedule assignment by default. All TSDRVs under it inherit the scope; TSDRVCC rows reference the (now filtered-to-CO) cost codes.</div>
+        </div>
+        <div class="flow-row">
+            <div class="lbl">Rollup</div>
+            <div class="body">CO-1's SOV actuals see Bob's 8 hrs land under <code>3002 CO-001 Direct Labor</code>. Base contract is undisturbed. Progress invoice for CO-001 picks up the new actuals next time it runs.</div>
+        </div>
+    </div>
+
+    <div class="callout warn" style="margin-top: 14px;">
+        <strong>Why TSDR (not TSDRV).</strong> <code>TimeSheetDetailRecord</code> is the job-scoped record (carries <code>jobId</code>) — one TSDR per (timesheet, job, optional trade-level override). <code>TimeSheetDetailRecordValue</code> sits beneath the TSDR and holds the rate × hours for a given <code>TradeLevelRate</code>. "Which CO is this work on?" is a property of the user's job assignment for the day, not of the rate line — so it belongs on TSDR alongside <code>jobId</code> and <code>overrideTradeLevelId</code>. Every TSDRV under the TSDR shares the same CO scope.
+    </div>
+
+    <h3>What the desktop modal looks like</h3>
+    <div class="desk-modal">
+        <div class="modal-head">
+            <span>Schedule Bob Mendez · Job 01-02 · Tuesday</span>
+            <span class="x">✕</span>
+        </div>
+        <div class="modal-body">
+            <p>This job has change orders with their own cost-code SOVs. Which part of the work is Bob assigned to?</p>
+            <div class="opt-row selected">
+                <div>
+                    <div class="lbl">Base contract</div>
+                    <div class="sub">Standard cost-code SOV ($15,000)</div>
+                </div>
+                <span style="font-size: 11px; color: #be185d; font-weight: 700;">●</span>
+            </div>
+            <div class="opt-row">
+                <div>
+                    <div class="lbl">CO-001 · Additional roof penetrations</div>
+                    <div class="sub">$8,500 · 2 cost codes</div>
+                </div>
+                <span class="pill">Won</span>
+            </div>
+            <div class="opt-row">
+                <div>
+                    <div class="lbl">CO-002 · Insulation upgrade — closed cell</div>
+                    <div class="sub">$22,400 · SOV not yet set up</div>
+                </div>
+                <span class="pill" style="background: #fef3c7; color: #92400e;">Needs setup</span>
+            </div>
+        </div>
+        <div class="modal-foot">
+            <button>Cancel</button>
+            <button class="primary">Confirm</button>
+        </div>
+    </div>
+    <p style="font-size: 12px; color: #64748b;">Modal only fires when a job has at least one Won CO with a cost-code SOV configured. For jobs without that, scheduling behavior is unchanged.</p>
+
+    <h3>What the mobile picker looks like</h3>
+    <div class="mob-frame">
+        <div class="mob-header">Timesheet · 01-02 · Tue</div>
+        <div class="mob-body">
+            <div class="ctx-pill">▼ Logging to: CO-001 · Roof penetrations</div>
+            <div class="mob-cc-row">
+                <div class="num">3001</div>
+                <div class="nm">CO-001 - Curb Materials</div>
+            </div>
+            <div class="mob-cc-row">
+                <div class="num">3002</div>
+                <div class="nm">CO-001 - Direct Labor</div>
+            </div>
+            <div style="font-size: 11px; color: #94a3b8; margin: 8px 0 4px;">Tap context pill to switch to base contract codes</div>
+        </div>
+    </div>
+    <p style="font-size: 12px; color: #64748b;">Context pill at the top shows the active scope. Tap to open a chooser identical to the desktop modal — lets the field worker override the scheduled scope when a day actually does straddle base + CO work (e.g. they were on base in the morning, did a CO punch-list item after lunch).</p>
+
+    <h3>Invariants the system enforces</h3>
+    <ul>
+        <li><strong>I1.</strong> A TSDR's <code>changeOrderId</code>, when set, must reference a CO on the same <code>jobId</code> as the TSDR. Validated on save.</li>
+        <li><strong>I2.</strong> Every TSDRVCC (cost-code allocation) reachable through TSDRVs under a TSDR must reference a cost code whose <code>changeOrderId</code> matches the parent TSDR's <code>changeOrderId</code> (both <code>NULL</code> = base contract is also valid). Validated on save.</li>
+        <li><strong>I3.</strong> The schedule-time modal only fires when the target job has ≥ 1 Won CO with at least one cost code attached. Plain old jobs with no cost-coded COs see no behavior change.</li>
+        <li><strong>I4.</strong> The mobile context pill is always present whenever the user has a schedule assignment with a CO scope — even when the user is logging time outside the wizard (e.g. quick-log).</li>
+    </ul>
+
+    <h3>Cons / tradeoffs</h3>
+    <ul>
+        <li>One more modal at scheduling time on jobs with cost-coded COs. For schedulers running bulk operations across many users, this adds a few clicks. Mitigation: the modal supports a "Apply to all selected users" checkbox.</li>
+        <li>If a field worker actually does split a day between base and CO work, they have to toggle the context pill mid-timesheet. Acceptable: it's still 1-tap, and the data model (per-TSDRV <code>changeOrderId</code>) supports it cleanly.</li>
+        <li>Mobile cost-code list shortens — which is a feature, but feels like "missing options" to users not yet familiar with the new flow. Mitigate with the visible context pill that explains why.</li>
+    </ul>
+</section>
+
+<!-- ============================================================ -->
+<section class="card">
+    <h2>Where the assignment lives — open architectural question</h2>
+    <p>Today, <code>JobSchedule</code> is a job-date-level record (one per job per day, with a supervisor and a workerCount). The actual per-user assignment to a scheduled day appears to flow through the calendar UI's <code>assignWorker(jobIds, userId, ...)</code> function, which likely writes to either an undiscovered model or a join that we haven't located in this exploration.</p>
+
+    <div class="callout warn">
+        <strong>Action required before implementation:</strong> trace the <code>assignWorker</code> path in <code>JobScheduleCalendarAddEditForm.tsx</code> + <code>SelectedUsersToSchedule.tsx</code> to identify the model that records "User X is scheduled to Job Y on Date Z." That model gets the new nullable <code>changeOrderId</code>. If no such model exists yet, this work has a small data-modeling dependency that should be resolved up-front.
+    </div>
+
+    <h3>Three possible homes for the per-user CO assignment</h3>
+
+    <div class="option-card">
+        <div class="opt-head">
+            <span class="opt-label">Home A · On the existing user-schedule join (whichever it is) <span class="opt-badge rec">Likely best</span></span>
+        </div>
+        <p>Add a nullable <code>changeOrderId</code> column to the join record. The schedule modal writes the value when the user is assigned. The mobile picker reads it via a query keyed on (userId, jobId, workDate).</p>
+        <p><strong>Why:</strong> the assignment is intrinsically per (user, job, date); the join is the natural carrier. No new table.</p>
+    </div>
+
+    <div class="option-card">
+        <div class="opt-head">
+            <span class="opt-label">Home B · A new <code>JobScheduleUserCOAssignment</code> model</span>
+            <div class="opt-badges"><span class="opt-badge lift-m">More plumbing</span></div>
+        </div>
+        <p>Separate model keyed by (userId, jobId, workDate, changeOrderId). Survives JobSchedule deletes; can carry future per-assignment metadata.</p>
+        <p><strong>Why not (default):</strong> over-engineered if Home A is viable. Worth it only if the user-schedule join is too rigid to extend.</p>
+    </div>
+
+    <div class="option-card">
+        <div class="opt-head">
+            <span class="opt-label">Home C · On <code>TimeSheetRecord</code> itself (per-day per-user)</span>
+            <div class="opt-badges"><span class="opt-badge lift-h">Wrong layer</span></div>
+        </div>
+        <p>Add <code>changeOrderId</code> directly to <code>TimeSheetRecord</code> as the per-user-per-day source. The schedule modal writes it on TSR create.</p>
+        <p><strong>Why not:</strong> couples scheduling intent to a record that may not exist yet (TSRs are created when the user opens the timesheet, not when they're scheduled). The schedule's "intent" needs to exist <em>before</em> the TSR. Also, TSR is already busy with status / approval workflow concerns — keep scheduling intent separate.</p>
+    </div>
+
+    <p style="font-size: 13px; color: #64748b;"><strong>Recommendation:</strong> proceed with Home A once we've identified the user-schedule join. If for some reason it doesn't exist (and assignment is purely transient on the calendar), use Home B. Skip Home C.</p>
+</section>
+
+<!-- ============================================================ -->
+<section class="card">
+    <h2><span class="phase-tag p1">Phase 1</span>Schema + mobile picker filter (no scheduling UI yet)</h2>
+
+    <h3>Schema migration</h3>
+    <div class="where" style="border-left-color: #475569;">
+<pre style="font-family: 'SF Mono', Menlo, monospace; font-size: 11px; color: #0f172a; white-space: pre-wrap; margin: 0;">model TimeSheetDetailRecord {
+    // ... existing fields (jobId, overrideTradeLevelId, etc.)
+    changeOrderId String?                    @db.VarChar(21)
+    ChangeOrder   EstimateChangeOrderRecord? @relation(fields: [changeOrderId], references: [id])
+}</pre>
+    </div>
+    <p>Sits naturally alongside <code>jobId</code> and <code>overrideTradeLevelId</code> — all three are facts about <em>this user's work on this job for this timesheet</em>. Plus the per-user-schedule join model (Home A above) gets a matching nullable <code>changeOrderId</code> once that model is identified.</p>
+
+    <h3>Mobile picker filter</h3>
+    <p>Extend <code>GetLabourCostCodesByJob</code> (or add a sibling query) to accept an optional <code>changeOrderId</code> filter argument. The mobile cost-code step reads the user's schedule assignment for the (jobId, workDate) — if a CO scope is set, pass it through; otherwise pass <code>NULL</code> (base contract).</p>
+
+    <div class="where">
+<pre style="font-family: 'SF Mono', Menlo, monospace; font-size: 11px; color: #0f172a; white-space: pre-wrap; margin: 0;">query GetLabourCostCodesByJob($jobId: String!, $changeOrderId: String) {
+    costCodes(options: {
+        where: {
+            filter: {
+                logic: "AND"
+                filters: [
+                    { fieldName: "jobId", fieldOperation: "equals", value: $jobId }
+                    {
+                        tableName: "AccountCategory"
+                        fieldName: "slug"
+                        fieldOperation: "equals"
+                        value: "direct-labour"
+                    }
+                    # NEW:
+                    { fieldName: "changeOrderId", fieldOperation: "equals", value: $changeOrderId }
+                ]
+            }
+        }
+    }) { ... }
+}</pre>
+    </div>
+
+    <h3>Save-time validation</h3>
+    <p>When a TSDR (or any of its children) is created or updated:</p>
+    <ul>
+        <li>If TSDR has <code>changeOrderId</code> set, every TSDRVCC under the TSDR's TSDRVs must reference a cost code whose <code>changeOrderId</code> matches.</li>
+        <li>If TSDR has <code>changeOrderId = NULL</code>, every TSDRVCC must reference a cost code with <code>changeOrderId = NULL</code>.</li>
+        <li>Reject with a clear error otherwise. (Same shape as <a href="CC-1-cost-code-financials-rollup.html">CC-1</a>'s save-time validation pattern.)</li>
+    </ul>
+
+    <h3>Mobile context pill</h3>
+    <p>Always render a small context pill at the top of the mobile cost-code step (and on the timesheet summary screen) showing the current scope. Tapping it opens a bottom-sheet identical to the desktop scheduling modal — lets the field worker switch scope for the current TSDR if they actually did mixed work that day.</p>
+
+    <p style="font-size: 13px; color: #64748b;">Phase 1 ships <em>functionality</em> for jobs that already have CO assignments coming through some other means (initial pilot can use admin direct-write to set them). Phase 2 ships the desktop scheduling modal so the assignments get set in the normal flow.</p>
+</section>
+
+<!-- ============================================================ -->
+<section class="card">
+    <h2><span class="phase-tag p2">Phase 2</span>Desktop scheduling modal</h2>
+
+    <h3>Where it fires</h3>
+    <p>In <code>apps/frontend/src/components/Forms/JobScheduleCalendarAddEditForm/JobScheduleCalendarAddEditForm.tsx</code> at the point where users are assigned (the <code>assignWorker</code> call path). Before <code>assignWorker</code> fires for a job that has won cost-coded COs, present the modal.</p>
+
+    <h3>Modal behavior</h3>
+    <ul>
+        <li><strong>Trigger condition:</strong> target job has ≥ 1 won CO with at least one cost code (<code>changeOrderId</code> on a cost code). Otherwise skip the modal entirely.</li>
+        <li><strong>Default selection:</strong> "Base contract" pre-selected.</li>
+        <li><strong>"Apply to all" support:</strong> when scheduling multiple users in a batch, the modal supports an "Apply to all selected users" checkbox so the PM doesn't have to click through each one.</li>
+        <li><strong>Edit later:</strong> existing scheduled users on a job get an edit affordance — clicking a user's name on the calendar shows their current CO scope and lets the PM switch it.</li>
+        <li><strong>COs without SOV set up:</strong> a "Needs setup" pill renders next to the CO label. Selecting that CO is allowed but warns the PM that the cost-code picker will be empty until the SOV is configured.</li>
+    </ul>
+</section>
+
+<!-- ============================================================ -->
+<section class="card">
+    <h2>Files to touch</h2>
+    <table class="files-table">
+        <thead><tr><th>File</th><th>What changes</th><th>Type</th></tr></thead>
+        <tbody>
+            <tr>
+                <td class="path">apps/api/prisma/schema.prisma</td>
+                <td class="what">Nullable <code>changeOrderId</code> + <code>ChangeOrder</code> relation on <code>TimeSheetDetailRecord</code> (alongside <code>jobId</code>). Same on the user-schedule join (Home A).</td>
+                <td><span class="tag db">schema</span></td>
+            </tr>
+            <tr>
+                <td class="path">apps/api/prisma/migrations/&lt;new&gt;/migration.sql</td>
+                <td class="what">Add nullable columns + FKs. Backfill is automatic (NULL = base).</td>
+                <td><span class="tag sql">migration</span></td>
+            </tr>
+            <tr>
+                <td class="path">apps/api/src/models/TimeSheetDetailRecord.ts</td>
+                <td class="what">Field def for <code>changeOrderId</code>. Save-time validation: <code>TSDRVCC.CostCode.changeOrderId</code> must match the parent TSDR's <code>changeOrderId</code>. Validate CO is on the same job as the TSDR.</td>
+                <td><span class="tag api">model</span></td>
+            </tr>
+            <tr>
+                <td class="path">apps/api/src/models/TimeSheetDetailRecordCostCode.ts</td>
+                <td class="what">When TSDRVCC rows are written, validate the cost code's <code>changeOrderId</code> against the grandparent TSDR's <code>changeOrderId</code> (TSDRVCC → TSDRV → TSDR).</td>
+                <td><span class="tag api">model</span></td>
+            </tr>
+            <tr>
+                <td class="path">apps/api/src/models/&lt;UserScheduleJoinModel&gt;.ts</td>
+                <td class="what">Same — accept <code>changeOrderId</code> on create/edit. Validate the CO is won + on the right job.</td>
+                <td><span class="tag api">model</span></td>
+            </tr>
+            <tr>
+                <td class="path">apps/api/src/graphql/models/TimeSheetDetailRecord.ts</td>
+                <td class="what">Expose <code>changeOrderId</code> on the TSDR type + create/edit inputs.</td>
+                <td><span class="tag gql">GraphQL</span></td>
+            </tr>
+            <tr>
+                <td class="path">apps/frontend/src/graphql/queries/costCodes.query.graphql</td>
+                <td class="what"><code>GetLabourCostCodesByJob</code> gains optional <code>changeOrderId</code> param. Same for any sibling queries the mobile picker uses.</td>
+                <td><span class="tag gql">GraphQL</span></td>
+            </tr>
+            <tr>
+                <td class="path">apps/frontend/src/graphql/queries/&lt;user-schedule&gt;.graphql</td>
+                <td class="what">Query that resolves the user's CO scope for a (jobId, workDate). Used by mobile picker.</td>
+                <td><span class="tag gql">GraphQL</span></td>
+            </tr>
+            <tr>
+                <td class="path">apps/mobile/src/components/Forms/TimesheetAddEditForm/TimesheetCostCodeStep.tsx</td>
+                <td class="what">Read the schedule assignment's <code>changeOrderId</code>. Pass to the cost-code query. Render context pill at top with switch-scope affordance.</td>
+                <td><span class="tag mobile">mobile</span></td>
+            </tr>
+            <tr>
+                <td class="path">apps/mobile/src/components/Forms/TimesheetAddEditForm/&lt;ScopeSwitcherSheet&gt;.tsx <em>(new)</em></td>
+                <td class="what">Bottom-sheet to switch base/CO scope for the current TSDR. Mirrors the desktop modal.</td>
+                <td><span class="tag mobile">mobile</span></td>
+            </tr>
+            <tr>
+                <td class="path">apps/frontend/src/components/Forms/JobScheduleCalendarAddEditForm/JobScheduleCalendarAddEditForm.tsx</td>
+                <td class="what">Before <code>assignWorker</code>: if job has won cost-coded COs, open the CO-scope modal and pass the answer into the assignment. "Apply to all selected users" checkbox when batch-scheduling.</td>
+                <td><span class="tag ui">desktop</span></td>
+            </tr>
+            <tr>
+                <td class="path">apps/frontend/src/components/Forms/JobScheduleCalendarAddEditForm/&lt;COScopeModal&gt;.tsx <em>(new)</em></td>
+                <td class="what">The modal itself. Lists base + each won CO with bid + setup status. Confirms selection.</td>
+                <td><span class="tag ui">desktop</span></td>
+            </tr>
+            <tr>
+                <td class="path">apps/frontend/src/components/Scheduling/JobScheduleScheduledUsers.tsx</td>
+                <td class="what">When listing scheduled users on a job calendar, show their current CO scope. Inline edit reopens the modal.</td>
+                <td><span class="tag ui">desktop</span></td>
+            </tr>
+        </tbody>
+    </table>
+</section>
+
+<!-- ============================================================ -->
+<section class="card">
+    <h2>Alternatives considered</h2>
+
+    <div class="option-card">
+        <div class="opt-head">
+            <span class="opt-label">A · No modal; mobile picker shows all codes, field worker chooses scope</span>
+            <div class="opt-badges">
+                <span class="opt-badge lift-l">Low lift</span>
+                <span class="opt-badge lift-h">Defeats the purpose</span>
+            </div>
+        </div>
+        <p>Skip the scheduling modal entirely. Mobile picker shows everything, organized by base/CO group. Field worker picks the right group themselves.</p>
+        <p><strong>Why we didn't pick it:</strong> Brad's "don't give me the opportunity to screw up" comment is the entire reason this ticket exists. Forcing the field to pick the scope reintroduces the mistake we're trying to prevent.</p>
+    </div>
+
+    <div class="option-card">
+        <div class="opt-head">
+            <span class="opt-label">B · Put <code>changeOrderId</code> on TSDRV instead of TSDR</span>
+            <div class="opt-badges">
+                <span class="opt-badge lift-l">Same lift</span>
+                <span class="opt-badge lift-m">Wrong granularity</span>
+            </div>
+        </div>
+        <p>Add the field one layer down — on each TSDRV (rate × hours leaf) rather than on the TSDR (job-scoped parent).</p>
+        <p><strong>Why we didn't pick it:</strong> TSDR is the layer that already carries <code>jobId</code> + <code>overrideTradeLevelId</code> for the same user-day-job context. CO scope is the same kind of fact — it scopes the whole assignment for that day's work on that job, not per rate line. Putting it on TSDRV would allow different TSDRVs under one TSDR to have different CO scopes, which is incoherent (the user can't be on base contract for some rate lines and on a CO for other rate lines within a single job-day). TSDR-level matches the actual semantics.</p>
+    </div>
+
+    <div class="option-card">
+        <div class="opt-head">
+            <span class="opt-label">B′ · Put <code>changeOrderId</code> on TSDRVCC (per cost-code allocation)</span>
+            <div class="opt-badges">
+                <span class="opt-badge lift-m">Redundant</span>
+            </div>
+        </div>
+        <p>Instead of a single CO scope on TSDR, mark each cost-code allocation under each TSDRV with its own <code>changeOrderId</code>.</p>
+        <p><strong>Why we didn't pick it:</strong> TSDRVCC's <code>costCode</code> already carries <code>changeOrderId</code> via CO-1. Adding a redundant field on TSDRVCC creates two sources of truth and offers no granularity gain. The TSDR-level field is the picker-scope default; the cost code is the actual integrity bearer via I2.</p>
+    </div>
+
+    <div class="option-card">
+        <div class="opt-head">
+            <span class="opt-label">C · Scope per work-order (use the WO subsystem instead of scheduling)</span>
+            <div class="opt-badges">
+                <span class="opt-badge lift-h">Cross-cutting</span>
+                <span class="opt-badge lift-h">Not all customers use WOs</span>
+            </div>
+        </div>
+        <p>Pair each CO with a work order; assign users to WOs; mobile picker filters via the WO.</p>
+        <p><strong>Why we didn't pick it:</strong> requires the customer to use Work Orders, which not everyone does. The Rival pilot is direct-job-coding; making WOs a prerequisite would block them. Schedule-time assignment is the lowest common denominator.</p>
+    </div>
+</section>
+
+<!-- ============================================================ -->
+<section class="card">
+    <h2>Open questions for business review</h2>
+
+    <div class="qbox">
+        <h4>Q1. Field worker override — soft (one TSDR) or sticky (rest of the day)?</h4>
+        <p>If a field worker switches scope mid-day via the context pill, does the switch apply only to the current TSDR being edited, or does it stick for the rest of the timesheet entries that day?</p>
+        <p class="why">Why ask: sticky reduces taps but might surprise the worker if they go back to base in the afternoon. Default proposal: per-TSDR (not sticky) — they tap the pill each time they switch, which is rare in practice.</p>
+    </div>
+
+    <div class="qbox">
+        <h4>Q2. PM permission to set CO scope — anyone who can schedule, or a narrower role?</h4>
+        <p>Anyone who can assign a user to a job can pick the CO scope today (by default). Is that the right gating, or should it be restricted to a more specific permission (e.g. "manage cost code allocation")?</p>
+        <p class="why">Why ask: scheduling and cost-coding are sometimes done by different people in larger orgs. A narrower permission gate would prevent a scheduler from inadvertently mis-categorizing CO hours.</p>
+    </div>
+
+    <div class="qbox">
+        <h4>Q3. What happens if a CO scope is set, then the CO is reverted from Won → Pending?</h4>
+        <p>Existing TSDRV / TSDRVCC rows referencing the CO are still valid (audit trail). But the schedule modal would no longer list that CO in fresh assignments. Show a warning when this happens, or silently re-default to base?</p>
+        <p class="why">Why ask: status changes on COs are rare but non-zero. Need to make sure the design doesn't strand assignments.</p>
+    </div>
+
+    <div class="qbox">
+        <h4>Q4. Multi-day scheduling — one modal, or per-day?</h4>
+        <p>If a PM schedules a user across a week to the same job, does the modal fire once (and apply to all days) or once per day?</p>
+        <p class="why">Why ask: once-and-done is cleaner UX but locks the user into one scope for the whole stretch. Most jobs don't switch scope mid-week, so this is probably the right default.</p>
+    </div>
+
+    <div class="qbox">
+        <h4>Q5. Should the desktop timesheet also enforce the CO scope?</h4>
+        <p>Same flavour as CC-1's Q5. When office staff edit timesheets desktop-side, today they can pick any cost code on the job. Should the desktop picker also apply the CO filter when a schedule assignment exists?</p>
+        <p class="why">Why ask: consistency with mobile. If yes, the desktop timesheet editor needs the same filter logic. If no, the mobile gate is the only one and office overrides are the escape hatch — that's defensible too.</p>
+    </div>
+
+    <div class="qbox">
+        <h4>Q6. Where the assignment lives (Home A vs Home B) — confirm during implementation kickoff</h4>
+        <p>See the "Where the assignment lives" section. The data model dependency is small but real; need to trace <code>assignWorker</code> in the calendar form before sizing Phase 1 confidently.</p>
+        <p class="why">Why ask: 2-hour spike to confirm, but it shifts the scope of the migration.</p>
+    </div>
+</section>
+
+<!-- ============================================================ -->
+<section class="card">
+    <h2>Recommended path forward</h2>
+    <ol>
+        <li><strong>Ship CO-1 first.</strong> This doc depends on <code>CostCode.changeOrderId</code> existing.</li>
+        <li><strong>Resolve Q6 up-front</strong> (where the per-user-per-day CO assignment lives). 2-hour spike traces <code>assignWorker</code> in the calendar form.</li>
+        <li><strong>Phase 1 (schema + mobile filter + validation):</strong> ship the data field on TSDRV and the user-schedule join, the mobile picker filter, the context pill, and save-time validation. Pilot customers (Rival) can set assignments via admin direct-write while Phase 2 is being built.</li>
+        <li><strong>Phase 2 (desktop scheduling modal):</strong> ship the modal so assignments flow naturally through the calendar UI. "Apply to all selected users" + inline-edit on already-scheduled users.</li>
+        <li><strong>Q1–Q5</strong> get answered in the same review session as CO-1's Q1–Q6.</li>
+    </ol>
+
+    <div class="callout success">
+        <strong>Bottom line:</strong> Schedule-time modal sets the default; nullable <code>changeOrderId</code> on TSDR (the job-scoped record) is the source of truth at log time; mobile picker filters by it. Field worker keeps a one-tap escape hatch via the context pill. Save-time validation (TSDR's CO matches every TSDRVCC cost code's CO) is the integrity contract that ties it all back to CO-1's data model.
+    </div>
+</section>
+
+<!-- ============================================================ -->
+<section class="card">
+    <h2>Source traceability</h2>
+    <ul>
+        <li><strong>Jira:</strong> Q21030-11812 — "Desktop: schedule user to Change Order portion of work"</li>
+        <li><strong>Depends on:</strong> Q21030-11809 (CO-1) — the <code>CostCode.changeOrderId</code> column it filters against.</li>
+        <li><strong>Related:</strong> Q21030-11808 (CC-1) — the cost-code picker filter changes in CO-2 stack with CC-1's trade-level / AccountItem filter. Both filters AND together.</li>
+        <li><strong>Source meeting:</strong> Brad, Kate, Josh, Corey × Cost Codes — May 27 (<a href="https://fathom.video/calls/686820706">Fathom recording, 63 min</a>). Field-worker scope confusion came up at the 49:35 / 50:00 marks alongside <code>requireCostCodeOnMobileTimesheet</code>.</li>
+        <li><strong>Code paths in scope:</strong>
+            <ul>
+                <li><code>apps/api/prisma/schema.prisma</code> — <code>TimeSheetDetailRecord</code> (line 4039), <code>TimeSheetDetailRecordValue</code> (line 4075), <code>JobSchedule</code> (line 4116), <code>EstimateChangeOrderRecord</code> (line 3097), <code>CostCode</code> (line 4383)</li>
+                <li><code>apps/frontend/src/components/Forms/JobScheduleCalendarAddEditForm/</code> — scheduling form (and the <code>assignWorker</code> trail to identify the per-user-schedule join)</li>
+                <li><code>apps/mobile/src/components/Forms/TimesheetAddEditForm/TimesheetCostCodeStep.tsx</code> — mobile picker</li>
+                <li><code>apps/frontend/src/graphql/queries/costCodes.query.graphql</code> — picker query</li>
+                <li><code>apps/api/src/models/TimeSheetDetailRecord.ts</code> + <code>TimeSheetDetailRecordCostCode.ts</code> — field def + save-time validation (TSDR ↔ TSDRVCC.CostCode.changeOrderId match)</li>
+                <li><code>apps/frontend/src/components/Scheduling/JobScheduleScheduledUsers.tsx</code> — surfacing the CO scope on scheduled-user displays</li>
+            </ul>
+        </li>
+    </ul>
+</section>
+
+</div>
+</body>
+</html>

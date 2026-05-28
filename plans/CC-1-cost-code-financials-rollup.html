@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CC-1 · Cost-Code Financials Rollup + Financial Summary Breakdown</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Inter', -apple-system, sans-serif; background: #f1f5f9; color: #1e293b; line-height: 1.5; }
+
+.in-iframe .top-nav { display: none !important; }
+.top-nav { position: sticky; top: 0; z-index: 100; background: #0f172a; border-bottom: 1px solid #1e293b; padding: 0 24px; display: flex; align-items: center; gap: 0; }
+.top-nav a { display: inline-flex; align-items: center; padding: 12px 18px; font-size: 13px; font-weight: 600; color: #94a3b8; text-decoration: none; border-bottom: 2px solid transparent; transition: all 0.15s; white-space: nowrap; }
+.top-nav a:hover { color: #f8fafc; background: #1e293b; }
+.top-nav .nav-logo { font-size: 11px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: #475569; padding-right: 18px; margin-right: 4px; border-right: 1px solid #1e293b; }
+
+.wrap { max-width: 1080px; margin: 0 auto; padding: 36px 24px 80px; }
+
+.hero { background: linear-gradient(135deg, #0f766e, #0e7490); color: #fff; border-radius: 14px; padding: 28px 32px; margin-bottom: 22px; }
+.hero .badges { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+.hero .badge { font-size: 10px; font-weight: 700; padding: 4px 10px; border-radius: 5px; background: rgba(255,255,255,0.18); letter-spacing: 0.5px; text-transform: uppercase; }
+.hero .badge.warn { background: rgba(245, 158, 11, 0.5); }
+.hero .badge.danger { background: rgba(239, 68, 68, 0.5); }
+.hero .badge.success { background: rgba(34, 197, 94, 0.5); }
+.hero h1 { font-size: 28px; font-weight: 800; letter-spacing: -0.01em; margin-bottom: 10px; }
+.hero .pitch { font-size: 15px; line-height: 1.6; color: #ccfbf1; max-width: 820px; }
+.hero .meta { display: flex; gap: 22px; margin-top: 14px; font-size: 12px; color: #99f6e4; flex-wrap: wrap; }
+.hero .meta strong { color: #fff; }
+
+section.card { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 22px 26px; margin-bottom: 16px; }
+section.card h2 { font-size: 18px; font-weight: 800; color: #0f172a; margin-bottom: 12px; padding-bottom: 10px; border-bottom: 2px solid #f1f5f9; }
+section.card h3 { font-size: 14px; font-weight: 700; color: #0f172a; margin: 16px 0 6px; }
+section.card p { font-size: 14px; color: #334155; margin-bottom: 8px; }
+section.card ul, section.card ol { padding-left: 20px; margin: 6px 0 10px; }
+section.card li { font-size: 14px; color: #334155; margin-bottom: 4px; line-height: 1.55; }
+section.card code { background: #f1f5f9; padding: 1px 6px; border-radius: 4px; font-size: 12px; font-family: 'SF Mono', Menlo, monospace; color: #be185d; }
+section.card strong { color: #0f172a; }
+
+.callout { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 14px 18px; margin: 14px 0; font-size: 13px; color: #1e40af; }
+.callout.danger { background: #fef2f2; border-color: #fecaca; color: #991b1b; }
+.callout.warn { background: #fffbeb; border-color: #fed7aa; color: #92400e; }
+.callout.success { background: #f0fdf4; border-color: #bbf7d0; color: #166534; }
+.callout strong { color: inherit; font-weight: 700; }
+
+.where { background: #f8fafc; border-left: 3px solid #3b82f6; padding: 12px 16px; border-radius: 0 8px 8px 0; margin: 8px 0 14px; font-size: 13px; color: #334155; line-height: 1.65; }
+.where strong { color: #0f172a; }
+.where code { background: #fff; padding: 1px 6px; border-radius: 3px; font-family: 'SF Mono', Menlo, monospace; font-size: 11px; color: #0f172a; border: 1px solid #e2e8f0; }
+
+.fathom-quote { background: #faf5ff; border-left: 3px solid #a855f7; padding: 12px 16px; border-radius: 0 8px 8px 0; margin: 10px 0; font-size: 13px; color: #44307c; line-height: 1.65; font-style: italic; }
+.fathom-quote strong { font-style: normal; color: #6b21a8; }
+.fathom-quote .who { display: block; font-size: 11px; font-weight: 700; color: #6b21a8; font-style: normal; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+
+table.lens-table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 13px; }
+table.lens-table th { text-align: left; padding: 10px 12px; background: #f8fafc; border-bottom: 2px solid #e2e8f0; font-weight: 700; color: #0f172a; font-size: 12px; }
+table.lens-table td { padding: 10px 12px; border-bottom: 1px solid #f1f5f9; color: #334155; vertical-align: top; }
+table.lens-table tr:last-child td { border-bottom: none; }
+table.lens-table td.opt { font-weight: 700; color: #0f172a; min-width: 160px; }
+table.lens-table .pass { color: #15803d; font-weight: 600; }
+table.lens-table .fail { color: #b91c1c; font-weight: 600; }
+table.lens-table .warn { color: #b45309; font-weight: 600; }
+
+.option-card { border: 2px solid #e2e8f0; border-radius: 10px; padding: 18px 22px; background: #fff; margin: 12px 0; }
+.option-card.recommended { border-color: #22c55e; background: linear-gradient(180deg, #f0fdf4 0%, #fff 80px); }
+.option-card .opt-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; gap: 10px; flex-wrap: wrap; }
+.option-card .opt-label { font-size: 16px; font-weight: 800; color: #0f172a; }
+.option-card .opt-badges { display: flex; gap: 5px; flex-wrap: wrap; }
+.opt-badge { font-size: 10px; font-weight: 700; padding: 3px 9px; border-radius: 5px; letter-spacing: 0.3px; text-transform: uppercase; }
+.opt-badge.rec { background: #dcfce7; color: #166534; }
+.opt-badge.lift-l { background: #dbeafe; color: #1e40af; }
+.opt-badge.lift-m { background: #fef3c7; color: #92400e; }
+.opt-badge.lift-h { background: #fee2e2; color: #991b1b; }
+.option-card p { font-size: 14px; color: #334155; line-height: 1.6; margin-bottom: 6px; }
+.option-card ul { padding-left: 20px; }
+.option-card li { font-size: 13px; margin-bottom: 3px; color: #334155; }
+
+.scenario { background: #fffbeb; border: 1px solid #fed7aa; border-radius: 8px; padding: 14px 18px; margin: 12px 0; }
+.scenario .title { font-size: 12px; font-weight: 700; color: #92400e; text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 6px; }
+.scenario p { font-size: 13px; color: #78350f; margin-bottom: 4px; line-height: 1.55; }
+
+.qbox { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px 18px; margin: 10px 0; }
+.qbox h4 { font-size: 13px; font-weight: 700; color: #0f172a; margin-bottom: 6px; }
+.qbox p { font-size: 13px; color: #334155; margin-bottom: 4px; }
+.qbox .why { font-size: 12px; color: #64748b; font-style: italic; margin-top: 6px; }
+
+.phase-tag { display: inline-block; font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 4px; letter-spacing: 0.5px; text-transform: uppercase; margin-right: 8px; vertical-align: middle; }
+.phase-tag.p1 { background: #dbeafe; color: #1e40af; }
+.phase-tag.p2 { background: #fef3c7; color: #92400e; }
+
+/* Worked example diagram */
+.flow { display: flex; flex-direction: column; gap: 10px; margin: 14px 0; }
+.flow-row { display: grid; grid-template-columns: 140px 1fr; gap: 14px; align-items: start; }
+.flow-row .lbl { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px; color: #64748b; padding-top: 4px; }
+.flow-row .body { font-size: 13px; color: #334155; }
+.flow-row .body code { background: #f1f5f9; padding: 1px 5px; border-radius: 3px; font-size: 11px; color: #be185d; }
+.flow-row.bad .body { background: #fef2f2; border: 1px solid #fecaca; padding: 8px 12px; border-radius: 6px; color: #991b1b; }
+.flow-row.good .body { background: #f0fdf4; border: 1px solid #bbf7d0; padding: 8px 12px; border-radius: 6px; color: #166534; }
+
+/* FS table mockup */
+.fs-table { width: 100%; border-collapse: collapse; font-size: 12px; background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; margin: 12px 0; }
+.fs-table th { text-align: right; padding: 8px 10px; background: #f8fafc; border-bottom: 2px solid #e2e8f0; font-weight: 600; color: #64748b; font-size: 11px; text-transform: uppercase; letter-spacing: 0.3px; }
+.fs-table th:first-child { text-align: left; padding-left: 14px; }
+.fs-table td { padding: 8px 10px; border-bottom: 1px solid #f1f5f9; text-align: right; color: #334155; font-variant-numeric: tabular-nums; }
+.fs-table td:first-child { text-align: left; padding-left: 14px; }
+.fs-table tr.cat-head td { background: #f1f5f9; font-weight: 700; color: #0f172a; text-transform: uppercase; font-size: 11px; letter-spacing: 0.4px; }
+.fs-table tr.ai-row td { font-weight: 600; color: #0f172a; }
+.fs-table tr.cc-row td { background: #fafafa; color: #475569; font-size: 11px; }
+.fs-table tr.cc-row td:first-child { padding-left: 36px; color: #64748b; }
+.fs-table tr.cc-row td:first-child::before { content: "↳ "; color: #94a3b8; }
+.fs-table tr.unalloc td { background: #fffbeb; color: #92400e; font-style: italic; }
+.fs-table tr.unalloc td:first-child { padding-left: 36px; }
+.fs-table tr.unalloc td:first-child::before { content: "↳ "; color: #d97706; font-style: normal; }
+.fs-table tr.total td { background: #f8fafc; font-weight: 700; color: #0f172a; }
+
+.expand-toggle { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; color: #2563eb; cursor: pointer; }
+
+/* mobile form mockup mini */
+.mob-frame { max-width: 360px; margin: 0 auto; border: 2px solid #cbd5e1; border-radius: 22px; overflow: hidden; background: #fff; }
+.mob-frame .mob-header { background: #0f172a; color: #fff; padding: 10px 14px; font-size: 13px; font-weight: 600; }
+.mob-frame .mob-body { padding: 14px; }
+.mob-pill { display: inline-block; font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 4px; background: #dcfce7; color: #166534; margin-bottom: 6px; }
+.mob-cc-row { padding: 10px 12px; border: 1px solid #e2e8f0; border-radius: 8px; margin-bottom: 6px; background: #fff; }
+.mob-cc-row .num { font-size: 11px; font-weight: 700; color: #64748b; }
+.mob-cc-row .nm { font-size: 13px; font-weight: 500; color: #0f172a; margin-top: 2px; }
+.mob-cc-row.muted { background: #f8fafc; opacity: 0.55; }
+.mob-cc-row.muted .nm { color: #94a3b8; }
+.mob-cc-row.disabled-tag { font-size: 9px; color: #b45309; background: #fef3c7; padding: 1px 6px; border-radius: 3px; margin-left: 6px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px; }
+
+/* Files-to-touch table */
+table.files-table { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 12px; }
+table.files-table th { text-align: left; padding: 8px 10px; background: #f8fafc; border-bottom: 2px solid #e2e8f0; font-weight: 700; color: #0f172a; font-size: 11px; text-transform: uppercase; }
+table.files-table td { padding: 8px 10px; border-bottom: 1px solid #f1f5f9; color: #334155; vertical-align: top; }
+table.files-table td.path { font-family: 'SF Mono', Menlo, monospace; font-size: 11px; color: #0f172a; white-space: nowrap; }
+table.files-table td.what { font-size: 12px; line-height: 1.55; }
+table.files-table .tag { font-size: 9px; font-weight: 700; padding: 2px 6px; border-radius: 3px; letter-spacing: 0.3px; text-transform: uppercase; }
+table.files-table .tag.api { background: #dbeafe; color: #1e40af; }
+table.files-table .tag.sql { background: #fef3c7; color: #92400e; }
+table.files-table .tag.ui { background: #dcfce7; color: #166534; }
+table.files-table .tag.gql { background: #fce7f3; color: #9d174d; }
+</style>
+</head>
+<body>
+<script>if(self!==top)document.documentElement.classList.add("in-iframe")</script>
+<nav class="top-nav">
+    <span class="nav-logo">Appello SDLC</span>
+    <a href="../index.html">Roadmap</a>
+    <a href="../release-1.33-timeline.html">Release 1.33</a>
+    <a href="EQ-1-operator-time-propagation-options.html">EQ-1</a>
+    <a href="LEM-1-labor-billable-rates.html">LEM-1</a>
+</nav>
+
+<div class="wrap">
+
+<div class="hero">
+    <div class="badges">
+        <span class="badge">Options + Plan</span>
+        <span class="badge warn">Decision + Build</span>
+        <span class="badge danger">Q21030-11808</span>
+        <span class="badge">Rival Insulation</span>
+    </div>
+    <h1>CC-1 · Cost-Code Financials Rollup + Financial Summary Breakdown</h1>
+    <p class="pitch">
+        Rival is the first cost-code pilot. Brad and Kate spotted the gap mid-setup: <code>CostCode</code> rolls up to an <code>AccountItem</code>, and <code>TradeLevel</code> <em>also</em> rolls up to an <code>AccountItem</code>. If both fire on the same timesheet entry, the same labour cost lands in the Financial Summary twice. The Financial Summary also has no cost-code-level breakdown — once you turn cost codes on, the granularity disappears at the financial roll-up. This doc lays out what to do about both, with concrete file paths and a phased plan.
+    </p>
+    <div class="meta">
+        <span><strong>Jira:</strong> Q21030-11808</span>
+        <span><strong>Driver:</strong> Rival (Brad Viers, Kate Hallett, Josh Jankowiak)</span>
+        <span><strong>Related:</strong> Rival cost-codes pilot, Foundation payroll import</span>
+        <span><strong>Status:</strong> Pre-decision / pre-build</span>
+        <span><strong>Target:</strong> v1.33</span>
+    </div>
+</div>
+
+<!-- ============================================================ -->
+<section class="card">
+    <h2>The scenario</h2>
+    <div class="scenario">
+        <div class="title">Where this came from — the Rival cost-codes meeting (May 27)</div>
+        <p>Rival is the first customer wiring up cost codes. Brad built the schedule of values for two pilot jobs manually so he could see how the codes flow. Kate walked through how it'd land in Foundation. Mid-conversation Corey caught what was hiding under it.</p>
+    </div>
+    <div class="fathom-quote">
+        <span class="who">Corey · May 27 · 18:38</span>
+        We may actually run into a double counting issue now that we have cost codes because what's going to happen is it's already going to roll up into these <em>[AccountItem]</em> ones here… If you code it to <em>[the cost code]</em>, I don't think this is actually going to change anything. So I'm going to take this one away to Emma. I'm going to go talk to Emma about this specific scenario because I have to look at how the code is written and how these are going to roll up. And remember that this entire system needs to continue running, even if you don't use cost codes. And then if you use cost codes, it also needs to work perfectly with that as well.
+    </div>
+    <p>Two things came out of that conversation that this doc is answering:</p>
+    <ol>
+        <li><strong>The rollup question.</strong> Both <code>CostCode</code> and <code>TradeLevel</code> have an <code>accountItemId</code>. Do they both feed the Financial Summary actuals, and if so does that double-count? (Investigation + guardrail.)</li>
+        <li><strong>The breakdown question.</strong> Once cost codes are in use, customers want to see cost-code-level totals nested under each <code>AccountItem</code> row in the Financial Summary — same numbers, finer slice. (UI work.)</li>
+    </ol>
+    <p>Brad's framing later in the same call:</p>
+    <div class="fathom-quote">
+        <span class="who">Brad · May 27 · 20:48</span>
+        I would, if we're always going to put in labor, if I haven't done a setup in two months, I'm going to go in there and form and bam, bam, right? And I'm going to, it's just going to, just like the description side, I'm just, in my head, I'm thinking description is this, but it's really this. So I just, I need to make sure that, you know, that's not even an option if we don't want it to be… Don't give me the opportunity to screw up because I'm going to screw up.
+    </div>
+    <p>That's the whole spirit of Phase 1: <em>don't give the form the opportunity to produce data that double-counts</em>. The breakdown UI (Phase 2) only works if Phase 1's guardrail is in place — otherwise the cost-code subtotals under an <code>AccountItem</code> row will not reconcile with the <code>AccountItem</code> total.</p>
+</section>
+
+<!-- ============================================================ -->
+<section class="card">
+    <h2>What's already true (load-bearing givens)</h2>
+
+    <h3>1. The Financial Summary feed is a SQL view, not a service</h3>
+    <div class="where">
+        <strong>Where:</strong> <code>apps/api/prisma/views/Z_FinancialSummaryFeed.sql</code> — the <code>FinancialSummaryFeed</code> MySQL view is the single source of truth for everything you see in the per-AccountItem Financial Summary grid (estimate, actual, expenses, wages, hours, equipment cost). The GraphQL resolver (<code>financialSummaryFeed</code>) is a thin <code>SELECT * FROM FinancialSummaryFeed WHERE …</code>.<br>
+        <strong>Implication:</strong> changes to how labour rolls up to <code>AccountItem</code> happen in this SQL file. There is no application-layer transform to hook into. Update the view, run <code>pnpm run prisma:updateViews</code> — no migration needed.
+    </div>
+
+    <h3>2. Labour wages today roll up via <code>TradeLevel → AccountItem</code> — that's the only path</h3>
+    <p>The <code>TimesheetHoursAndWages</code> CTE inside <code>Z_FinancialSummaryFeed.sql</code>:</p>
+    <div class="where" style="border-left-color: #475569;">
+<pre style="font-family: 'SF Mono', Menlo, monospace; font-size: 11px; color: #0f172a; white-space: pre-wrap; margin: 0;">TimesheetHoursAndWages AS (
+    SELECT tsdr.jobId, ai.id AS accountItemId,
+           SUM(tsdrv.approvedDuration) AS hoursAsSeconds,
+           CAST(SUM((tsdrv.approvedDuration / 3600) * tlr.baseValue) AS DECIMAL(10,2)) AS wages
+    FROM TimeSheetDetailRecordValue tsdrv
+    LEFT JOIN TimeSheetDetailRecord tsdr ON tsdr.id = tsdrv.timeSheetDetailRecordId
+    LEFT JOIN TimeSheetRecord tsr ON tsr.id = tsdr.timeSheetRecordId
+    LEFT JOIN TradeLevelRate tlr ON tlr.id = tsdrv.tradeLevelRateId
+    LEFT JOIN TradeLevel tl ON tl.id = tlr.tradeLevelId
+    LEFT JOIN AccountItem ai ON ai.id = tl.accountItemId
+    WHERE tsr.status = 'Approved' AND tsdr.isDeleted = false
+    GROUP BY tsdr.jobId, ai.id
+)</pre>
+    </div>
+    <p>So today, a Foreman's 8 hrs hit one row: <code>AccountItem = Foreman.accountItem</code>, <code>wages = 8 × baseValue</code>. <em>Nothing about cost codes is in this rollup.</em> If you toggle cost codes on and code that same 8 hrs to <code>2105 Pipe Direct Labor</code>, the Financial Summary view sees no change at all — TDRVCC is not joined.</p>
+
+    <h3>3. Cost codes already map to an <code>AccountItem</code></h3>
+    <div class="where">
+        <strong>Where:</strong> <code>apps/api/prisma/schema.prisma</code> — <code>CostCode.accountItemId</code> (line 4393).<br>
+        <code>CostCode</code> is also tied to an <code>AccountCategory</code> (e.g. "Direct Labour"). The cost-code template UI already enforces an <code>AccountItem</code> mapping per code.
+    </div>
+
+    <h3>4. Cost codes attach to TDRV via the <code>TimeSheetDetailRecordCostCode</code> junction</h3>
+    <div class="where">
+        <strong>Where:</strong> <code>apps/api/prisma/schema.prisma</code> — <code>TimeSheetDetailRecordCostCode</code> (line 4098).<br>
+        A single TDRV can have multiple cost codes, each with its own <code>approvedDuration</code>. The split is enforced to sum to the parent TDRV's duration. The job-level summary service (<code>JobFinancialSummaryService</code>) already aggregates labour cost via this junction — but only for its <em>own</em> consumer (the monthly forecast vs actual dashboard), not for the per-AccountItem feed.
+    </div>
+
+    <h3>5. The mobile form has a "require cost codes" instance setting</h3>
+    <div class="where">
+        <strong>Where:</strong> <code>apps/mobile/src/components/Forms/TimesheetAddEditForm/TimesheetCostCodeStep.tsx</code> · <code>requireCostCodeOnMobileTimesheet</code>.<br>
+        When the instance setting is on <em>and</em> the job has direct-labour cost codes, a user can't submit time without allocating every hour to a cost code. Emma confirmed this in the May 27 meeting at the 50:00 mark. Desktop has no such gate yet.
+    </div>
+
+    <h3>6. The current cost-code picker is filtered only by job + AccountCategory</h3>
+    <div class="where">
+        <strong>Where:</strong> <code>apps/frontend/src/graphql/queries/costCodes.query.graphql</code> · <code>GetLabourCostCodesByJob</code>.<br>
+        Filter is <code>jobId = $jobId AND AccountCategory.slug = "direct-labour"</code>. <em>Nothing</em> restricts to the user's trade level. A Foreman sees every direct-labour cost code on the job — including ones that map to an <code>AccountItem</code> the Foreman's trade level <em>doesn't</em> map to.
+    </div>
+</section>
+
+<!-- ============================================================ -->
+<section class="card">
+    <h2>The double-count risk — worked example</h2>
+    <p>Take Rival's pilot job. Foreman trade level maps to <code>AccountItem = Labour — Direct</code>. Cost code <code>2105 Pipe Direct Labor</code> also maps to <code>AccountItem = Labour — Direct</code> (per the meeting decision: <em>"all labor into this 106 bucket"</em>).</p>
+
+    <p>Brad's foreman logs 8 hours at $52/hr, allocating all 8 hours to cost code 2105:</p>
+
+    <div class="flow">
+        <div class="flow-row">
+            <div class="lbl">Today</div>
+            <div class="body">
+                FinancialSummaryFeed labour rollup: <code>TimesheetHoursAndWages</code> CTE only.<br>
+                <code>Labour — Direct</code> row: <strong>$416 wages</strong>, <strong>8 hrs</strong>. Correct.<br>
+                <em>Cost code is invisible to the Financial Summary.</em>
+            </div>
+        </div>
+        <div class="flow-row bad">
+            <div class="lbl">⚠ Naïve add</div>
+            <div class="body">
+                If we add a parallel <code>CostCode → AccountItem</code> rollup CTE (via TDRVCC) <em>alongside</em> the existing <code>TradeLevel → AccountItem</code> one, both feed the same <code>AccountItem</code> row.<br>
+                <code>Labour — Direct</code> row: <strong>$832 wages</strong>, <strong>16 hrs</strong>. <strong>Double-counted.</strong>
+            </div>
+        </div>
+        <div class="flow-row good">
+            <div class="lbl">Goal</div>
+            <div class="body">
+                <code>Labour — Direct</code> row: <strong>$416 wages, 8 hrs</strong>, <em>broken down</em> as: ↳ <code>2105 Pipe Direct Labor — $416, 8 hrs</code>. AccountItem total = sum of cost-code rows under it. Numbers reconcile.
+            </div>
+        </div>
+    </div>
+
+    <p><strong>The ticket's investigation question — does it double-count <em>today</em>?</strong> No. The Financial Summary view currently has only the TradeLevel path. The double-count is a <em>latent</em> risk that becomes real the moment Phase 2 is added without Phase 1 in place. But there's a related current problem worth knowing about:</p>
+
+    <div class="callout warn">
+        <strong>The <em>cross-AccountItem</em> drift problem (already possible today).</strong> Nothing stops Brad's foreman from coding their 8 hours to a cost code that maps to <code>AccountItem = Subcontractor Labour</code>. The view still uses the Foreman trade level for the rollup, so the wages still land in <code>Labour — Direct</code>. But when we add the cost-code breakdown, that <code>Subcontractor Labour</code> AccountItem will have zero wages on it and a ghost cost-code line showing 8 hrs — because the AccountItem total comes from one source and the breakdown from another. The reconciliation contract is broken before we even ship. <strong>This is the actual reason Phase 1's filter matters</strong> — not "today's double-count," but "guarantee the two rollup paths always pick the same AccountItem so they can be unified into one source."
+    </div>
+</section>
+
+<!-- ============================================================ -->
+<section class="card" style="border: 2px solid #22c55e; background: linear-gradient(180deg, #f0fdf4 0%, #fff 120px);">
+    <h2 style="color: #166534;">★ Top Option — One CTE, two grouping keys</h2>
+    <p><strong>Don't run two rollups and dedupe.</strong> Run a single TDRV aggregation that emits one row per <code>(jobId, accountItemId, costCodeId)</code> with the cost code allowed to be <code>NULL</code> (for un-coded hours). The Financial Summary feed sums it to AccountItem; the breakdown reads the same rows grouped by cost code under each AccountItem. <em>Same query, same numbers, no reconciliation step.</em></p>
+
+    <h3>How the data flows under this model</h3>
+    <ul>
+        <li><strong>AccountItem comes from the cost code if there is one, otherwise from the trade level.</strong> Picking AccountItem off the cost code (when present) means cost-coded time always lands under the AccountItem its cost code maps to — even if it differs from the trade level's. Un-coded time still rolls into the trade-level's AccountItem like it does today, preserving the existing flow for non-cost-coded customers.</li>
+        <li><strong>Phase 1's guardrail eliminates the divergence at the source.</strong> The cost-code picker on timesheet entry forms filters to codes whose <code>accountItemId</code> matches the user's trade level's <code>accountItemId</code>. So <code>cost-code.accountItem</code> and <code>tradeLevel.accountItem</code> always agree — the "AccountItem comes from the cost code" rule is just a tiebreaker that already aligns.</li>
+        <li><strong>The breakdown is a free output of the same query.</strong> The CTE groups by <code>(jobId, accountItemId, costCodeId)</code>. The existing Financial Summary feed groups it up to <code>(jobId, accountItemId)</code> — sums match by construction. A new <code>jobCostCodeBreakdown</code> query reads the same rows pre-rollup.</li>
+        <li><strong>Un-coded hours show up as an "Unallocated" line.</strong> Under each AccountItem row, in addition to the cost-code subtotals, there's a row for <code>costCodeId IS NULL</code>. This is the "didn't bother / cost codes not required on this job" bucket. It is a normal expected line, not an error state.</li>
+    </ul>
+
+    <h3>Why this beats run-two-paths-and-dedupe</h3>
+    <ul>
+        <li>There is no possible reconciliation drift: the total and the breakdown come from the same SELECT.</li>
+        <li>No "subtract path B from path A" code anywhere — that kind of dedupe always rots when one consumer changes.</li>
+        <li>Future cost-code-aware reports (Brad's "monthly cost report" pivot) read the same rows pre-rollup. One source, many views — the rule the meeting already settled on.</li>
+    </ul>
+
+    <h3>Invariants the system enforces</h3>
+    <ul>
+        <li><strong>I1.</strong> Cost-code AccountItem must match trade-level AccountItem at time of TDRV save (enforced on the form + backend validation).</li>
+        <li><strong>I2.</strong> The Financial Summary feed labour rollup reads from one CTE only. No new CTE that joins via the cost-code path independently.</li>
+        <li><strong>I3.</strong> Existing flow (no cost codes anywhere on the job) continues to produce identical numbers — the new CTE collapses to the current behaviour when <code>tsdrvcc</code> rows don't exist.</li>
+    </ul>
+
+    <h3>Cons / tradeoffs</h3>
+    <ul>
+        <li>If a customer changes a cost code's <code>accountItemId</code> mapping later, historical Financial Summary numbers shift — same as today for any rollup-mapping change.</li>
+        <li>Phase 1's filter is a small extra step in the timesheet picker (cost codes narrow as the user's trade level is known). Trade-off: the picker is shorter, so for some scenarios it's actually faster.</li>
+        <li>Adds an additional <code>LEFT JOIN</code> on <code>TimeSheetDetailRecordCostCode</code> in the FS view; existing perf budget should absorb it (the view is rebuilt on the same nightly cadence as today).</li>
+    </ul>
+</section>
+
+<!-- ============================================================ -->
+<section class="card">
+    <h2><span class="phase-tag p1">Phase 1</span>Investigation + guardrail: filter cost codes by AccountItem</h2>
+
+    <h3>What changes</h3>
+    <ol>
+        <li><strong>Backend filter on the cost-code picker query.</strong> <code>GetLabourCostCodesByJob</code> currently filters by <code>jobId</code> + <code>AccountCategory.slug = "direct-labour"</code>. Add a third filter: <code>CostCode.accountItemId = userTradeLevel.accountItemId</code>. Resolve the user's trade level on the API side from the user's active <code>TradeLevelRate</code> + the date of the timesheet entry, so this works for users with multiple trade levels.</li>
+        <li><strong>Backend validation on save.</strong> When a TDRV with a cost code is created/updated, validate that <code>costCode.accountItemId === tradeLevelRate.tradeLevel.accountItemId</code>. Reject with a clear error otherwise. This is the actual integrity gate — the form-level filter is UX, the validation is the contract.</li>
+        <li><strong>Desktop bulk-entry picker</strong> already at <code>apps/frontend/src/components/BulkEntry/BulkEntryCostCodeSelect.tsx</code> — same filter applied.</li>
+        <li><strong>Mobile picker</strong> at <code>apps/mobile/src/components/Forms/TimesheetAddEditForm/TimesheetCostCodeStep.tsx</code> — same filter applied. Already permission-gated by <code>requireCostCodeOnMobileTimesheet</code>; just need the narrower list.</li>
+    </ol>
+
+    <h3>Resolving the user's trade level for the picker</h3>
+    <p>A user has exactly one active trade level on any given date — no union, no disambiguation step needed. The TSDR record itself, however, can carry an <code>overrideTradeLevelId</code> (already on the model, wired on desktop, surfaced on mobile separately under the Q21030-11722 work). The filter uses that override when present, otherwise falls back to the user's default trade level for the date:</p>
+    <div class="where" style="border-left-color: #475569;">
+<pre style="font-family: 'SF Mono', Menlo, monospace; font-size: 11px; color: #0f172a; white-space: pre-wrap; margin: 0;">effectiveTradeLevelId =
+    TSDR.overrideTradeLevelId
+    ?? user.activeTradeLevelOn(TSDR.workDate)
+
+allowedAccountItemId = TradeLevel[effectiveTradeLevelId].accountItemId
+
+// Picker shows: cost codes WHERE accountItemId = allowedAccountItemId</pre>
+    </div>
+    <p>Cost-code allocations within a TSDR all share the same effective trade level — there's no way to split a single TSDR across two trade levels — so a single AccountItem-scoped picker is correct for the whole TSDR's worth of allocations.</p>
+
+    <h3>Edge cases the design must handle</h3>
+    <ul>
+        <li><strong>Trade level has no <code>accountItemId</code> set.</strong> Treat as "show all direct-labour cost codes." Log a warning; the customer needs to fix the mapping. Don't block the user.</li>
+        <li><strong>Cost code has no <code>accountItemId</code> set.</strong> Hide from the picker. (Same logic — incomplete config; flag in setup.)</li>
+        <li><strong>Customer doesn't use cost codes at all.</strong> Picker is not shown — current behaviour unchanged.</li>
+        <li><strong>TSDR's <code>overrideTradeLevelId</code> changes after cost codes are already allocated.</strong> Existing allocations may now violate the filter. Re-validate on save: surface the conflict so the user can clear and re-allocate, rather than silently dropping rows.</li>
+    </ul>
+
+    <h3>Migration / backfill</h3>
+    <p>No data migration. The filter is read-side only. Existing TDRVCC rows with mismatched AccountItems remain (we don't fix history); the Phase 2 view query handles them by treating the cost-code's AccountItem as the source of truth — anything historical that drifted gets resolved into its own breakdown row.</p>
+</section>
+
+<!-- ============================================================ -->
+<section class="card">
+    <h2><span class="phase-tag p2">Phase 2</span>Financial Summary cost-code breakdown</h2>
+
+    <h3>SQL view change</h3>
+    <p>Replace <code>TimesheetHoursAndWages</code> with a new <code>TimesheetHoursAndWagesWithCostCode</code> CTE that joins through <code>TimeSheetDetailRecordCostCode</code> with a <code>LEFT JOIN</code> (so un-coded hours still appear, with <code>costCodeId = NULL</code>). It emits:</p>
+    <div class="where" style="border-left-color: #475569;">
+<pre style="font-family: 'SF Mono', Menlo, monospace; font-size: 11px; color: #0f172a; white-space: pre-wrap; margin: 0;">TimesheetHoursAndWagesWithCostCode AS (
+    SELECT tsdr.jobId,
+           COALESCE(cc.accountItemId, tl.accountItemId) AS accountItemId,
+           tsdrvcc.costCodeId AS costCodeId,         -- NULL for un-coded
+           SUM(COALESCE(tsdrvcc.approvedDuration, tsdrv.approvedDuration)) AS hoursAsSeconds,
+           CAST(SUM(
+               (COALESCE(tsdrvcc.approvedDuration, tsdrv.approvedDuration) / 3600)
+               * tlr.baseValue
+           ) AS DECIMAL(10,2)) AS wages
+    FROM TimeSheetDetailRecordValue tsdrv
+    LEFT JOIN TimeSheetDetailRecord tsdr ON tsdr.id = tsdrv.timeSheetDetailRecordId
+    LEFT JOIN TimeSheetRecord tsr ON tsr.id = tsdr.timeSheetRecordId
+    LEFT JOIN TradeLevelRate tlr ON tlr.id = tsdrv.tradeLevelRateId
+    LEFT JOIN TradeLevel tl ON tl.id = tlr.tradeLevelId
+    LEFT JOIN TimeSheetDetailRecordCostCode tsdrvcc
+        ON tsdrvcc.timeSheetDetailRecordValueId = tsdrv.id
+        AND tsdrvcc.isDeleted = false
+        AND tsdrvcc.approvedDuration > 0
+    LEFT JOIN CostCode cc ON cc.id = tsdrvcc.costCodeId
+    WHERE tsr.status = 'Approved' AND tsdr.isDeleted = false
+    GROUP BY tsdr.jobId, COALESCE(cc.accountItemId, tl.accountItemId), tsdrvcc.costCodeId
+)</pre>
+    </div>
+    <p>The existing Financial Summary feed view aggregates this further to <code>(jobId, accountItemId)</code> — that's the rollup. A new query reads it grouped by <code>(jobId, accountItemId, costCodeId)</code> — that's the breakdown. <strong>Same rows.</strong></p>
+
+    <h3>New GraphQL query for the breakdown</h3>
+    <div class="where">
+        <strong>Where:</strong> add <code>jobCostCodeLabourBreakdown(jobId: ID!): [CostCodeLabourBreakdownRow]</code> to <code>apps/api/src/graphql/models/FinancialSummary.ts</code> (or a new resolver file <code>JobCostCodeBreakdown.ts</code>). Model method on <code>apps/api/src/models/FinancialSummary.ts</code>.<br>
+        Returns one row per <code>(accountItemId, costCodeId | null)</code> with the same <code>hoursAsSeconds</code> / <code>wages</code> shape the FS feed uses, so the frontend can sum-check trivially.
+    </div>
+
+    <h3>UI: nested rows beneath each AccountItem</h3>
+    <p>The main Financial Summary table renders one row per <code>AccountItem</code>. Under that row, when the job has cost codes, the row is expandable — opening it reveals one row per cost code that contributed, plus an "Unallocated" row for un-coded time. <strong>Cost-code rows only populate Actual + Hours.</strong> Estimates are captured at the AccountItem level on the Estimate / Change Order Record — there is no cost-code-level estimate, so there's no cost-code-level variance to display either. The Estimate and Variance columns continue to belong to the AccountItem rollup row.</p>
+
+    <table class="fs-table">
+        <thead>
+            <tr><th>Account</th><th>Estimate</th><th>Actual</th><th>Hours</th><th>Variance</th></tr>
+        </thead>
+        <tbody>
+            <tr class="cat-head"><td colspan="5">Direct Labour</td></tr>
+            <tr class="ai-row"><td>Labour — Direct <span class="expand-toggle">▾</span></td><td>$48,500.00</td><td>$22,360.00</td><td>430.0</td><td>($26,140.00)</td></tr>
+            <tr class="cc-row"><td>2105 · Pipe Direct Labor</td><td>—</td><td>$9,360.00</td><td>180.0</td><td>—</td></tr>
+            <tr class="cc-row"><td>2106 · Duct Direct Labor</td><td>—</td><td>$7,800.00</td><td>150.0</td><td>—</td></tr>
+            <tr class="cc-row"><td>2107 · Insulation Direct Labor</td><td>—</td><td>$5,200.00</td><td>100.0</td><td>—</td></tr>
+            <tr class="ai-row"><td>Labour — Indirect</td><td>$6,000.00</td><td>$2,080.00</td><td>40.0</td><td>($3,920.00)</td></tr>
+            <tr class="cat-head"><td colspan="5">Materials</td></tr>
+            <tr class="ai-row"><td>Materials — Pipe <span class="expand-toggle">▾</span></td><td>$22,400.00</td><td>$9,815.40</td><td>—</td><td>($12,584.60)</td></tr>
+            <tr class="cc-row"><td>4105 · Pipe Materials</td><td>—</td><td>$9,815.40</td><td>—</td><td>—</td></tr>
+            <tr class="unalloc"><td>Unallocated (no cost code)</td><td>—</td><td>$0.00</td><td>—</td><td>—</td></tr>
+            <tr class="total"><td>Total Direct Job Cost</td><td>$76,900.00</td><td>$34,255.40</td><td>470.0</td><td>($42,644.60)</td></tr>
+        </tbody>
+    </table>
+
+    <p style="font-size: 12px; color: #64748b;">↳ Cost-code rows render only when the parent AccountItem has cost-coded actuals. <em>Unallocated</em> only renders when un-coded actuals exist. Reconciliation: sum of cost-code Actual cells under an AccountItem (+ any Unallocated) must equal the AccountItem's Actual.</p>
+
+    <h3>Expense rollup — same pattern, different table</h3>
+    <p>For expenses (AP + employee expense), <code>ExpenseLineItem.accountItemId</code> already lives at the line item, and the <code>ExpenseLineItemRecord.referenceId</code> already points to <code>CostCode</code> when cost-coded. The breakdown CTE for expenses joins <code>ExpenseLineItemRecord</code> where <code>referenceModel = 'CostCode'</code>; the existing ExpenseSums CTE handles the AccountItem total. The same "AccountItem total = sum of cost-code rows" contract holds — but for expenses, an "Unallocated" row covers expenses coded only to the Job (<code>referenceModel = 'Job'</code>) and not to a cost code.</p>
+
+    <h3>Frontend changes</h3>
+    <table class="files-table">
+        <thead><tr><th>File</th><th>What changes</th><th>Type</th></tr></thead>
+        <tbody>
+            <tr>
+                <td class="path">apps/api/prisma/views/Z_FinancialSummaryFeed.sql</td>
+                <td class="what">Replace <code>TimesheetHoursAndWages</code> with cost-code-aware CTE. Re-deploy via <code>pnpm run prisma:updateViews</code>.</td>
+                <td><span class="tag sql">SQL view</span></td>
+            </tr>
+            <tr>
+                <td class="path">apps/api/src/models/FinancialSummary.ts</td>
+                <td class="what">Add <code>getJobLabourCostCodeBreakdown(jobId)</code> method — queries the same CTE grouped by <code>(accountItemId, costCodeId)</code>. Add <code>getJobExpenseCostCodeBreakdown(jobId)</code> for expenses.</td>
+                <td><span class="tag api">model</span></td>
+            </tr>
+            <tr>
+                <td class="path">apps/api/src/graphql/models/FinancialSummary.ts</td>
+                <td class="what">New query: <code>jobCostCodeBreakdown(jobId: ID!): [CostCodeBreakdownRow]</code>. Thin — delegates to model methods.</td>
+                <td><span class="tag gql">GraphQL</span></td>
+            </tr>
+            <tr>
+                <td class="path">apps/frontend/src/graphql/queries/costCodes.query.graphql</td>
+                <td class="what"><code>GetLabourCostCodesByJob</code> gains optional <code>accountItemId</code> filter argument (passed by the form).</td>
+                <td><span class="tag gql">GraphQL</span></td>
+            </tr>
+            <tr>
+                <td class="path">apps/frontend/src/components/BulkEntry/BulkEntryCostCodeSelect.tsx</td>
+                <td class="what">Pass the row's trade-level AccountItem to the query. Hide codes outside it.</td>
+                <td><span class="tag ui">desktop</span></td>
+            </tr>
+            <tr>
+                <td class="path">apps/mobile/src/components/Forms/TimesheetAddEditForm/TimesheetCostCodeStep.tsx</td>
+                <td class="what">Same filter on mobile picker. Filter the existing <code>costCodesByJob</code> map by AccountItem before rendering.</td>
+                <td><span class="tag ui">mobile</span></td>
+            </tr>
+            <tr>
+                <td class="path">apps/api/src/models/TimeSheetDetailRecord*.ts</td>
+                <td class="what">On TDRV save, validate <code>costCode.accountItemId === tradeLevelRate.tradeLevel.accountItemId</code>. Reject mismatches with a clear error.</td>
+                <td><span class="tag api">validation</span></td>
+            </tr>
+            <tr>
+                <td class="path">apps/frontend/src/components/DetailsPage/JobDetailsPage/Reports/JobFinancialSummaryReport/</td>
+                <td class="what">Render expandable rows beneath each AccountItem when the job has cost codes. Lazy-load the breakdown via the new query on row expand.</td>
+                <td><span class="tag ui">desktop</span></td>
+            </tr>
+        </tbody>
+    </table>
+</section>
+
+<!-- ============================================================ -->
+<section class="card">
+    <h2>Alternatives considered</h2>
+
+    <div class="option-card">
+        <div class="opt-head">
+            <span class="opt-label">A · Two parallel rollups + subtraction dedupe</span>
+            <div class="opt-badges">
+                <span class="opt-badge lift-m">Med lift</span>
+                <span class="opt-badge lift-h">High risk</span>
+            </div>
+        </div>
+        <p>Keep the existing <code>TradeLevel → AccountItem</code> rollup. Add a new <code>CostCode → AccountItem</code> rollup. On the final SELECT, subtract cost-coded hours from the trade-level path so each row's hours are only counted once.</p>
+        <p><strong>Why we didn't pick it:</strong> the subtraction is brittle. If anything ever creates TDRVCC rows that don't sum to the parent TDRV's <code>approvedDuration</code> (partial allocation), the subtraction produces nonsense. Also: two SELECTs is two places to update when anything changes. The Top Option's single-CTE approach makes the math impossible to get wrong.</p>
+    </div>
+
+    <div class="option-card">
+        <div class="opt-head">
+            <span class="opt-label">B · CostCode is the only source; drop TradeLevel→AccountItem rollup entirely</span>
+            <div class="opt-badges">
+                <span class="opt-badge lift-h">High lift</span>
+                <span class="opt-badge lift-h">Breaks non-cost-code customers</span>
+            </div>
+        </div>
+        <p>Strip the <code>TradeLevel.accountItemId</code> link entirely. Every TDRV must have a cost code; Financial Summary actuals come from <code>CostCode.accountItemId</code> only.</p>
+        <p><strong>Why we didn't pick it:</strong> most existing customers don't use cost codes. Removing the trade-level rollup breaks their Financial Summary. Even Rival's pilot has the option of un-cost-coded time during transition. The Top Option preserves the trade-level fallback for the no-cost-code case via <code>COALESCE</code>.</p>
+    </div>
+
+    <div class="option-card">
+        <div class="opt-head">
+            <span class="opt-label">C · Don't add the breakdown — surface cost codes only in the Monthly Cost Report</span>
+            <div class="opt-badges">
+                <span class="opt-badge lift-l">Low lift</span>
+                <span class="opt-badge lift-m">Punts</span>
+            </div>
+        </div>
+        <p>Leave Financial Summary alone. Direct customers wanting cost-code-level analysis to the Monthly Cost Report (which already aggregates by cost code via <code>JobFinancialSummaryService</code>).</p>
+        <p><strong>Why we didn't pick it:</strong> Brad and Kate were already in the Financial Summary asking this question during setup. The Monthly Cost Report is a separate report; users analyzing a job's actuals expect to see them in one place. Also doesn't address the latent double-count risk if anyone <em>does</em> wire up a cost-code CTE later — the structural problem remains.</p>
+    </div>
+
+    <div class="option-card">
+        <div class="opt-head">
+            <span class="opt-label">D · Validate-only Phase 1; ship breakdown later</span>
+            <div class="opt-badges">
+                <span class="opt-badge lift-l">Low lift</span>
+                <span class="opt-badge lift-m">Leaves UI gap</span>
+            </div>
+        </div>
+        <p>Implement the cost-code AccountItem filter + save-time validation now, without the Financial Summary breakdown UI. Brad and Kate's Rival pilot can then run safely; the breakdown is a follow-up release.</p>
+        <p><strong>Why this is a viable fallback:</strong> if the breakdown UI work doesn't fit the release window, Phase 1 alone is independently useful — it stops the cross-AccountItem drift problem and is the prerequisite for Phase 2. Brad already gets the data integrity guarantee; the visualization comes later. This is essentially "ship Phase 1 in v1.33, Phase 2 in v1.34."</p>
+    </div>
+</section>
+
+<!-- ============================================================ -->
+<section class="card">
+    <h2>Open questions for business review</h2>
+
+    <div class="qbox">
+        <h4>Q1. Cross-AccountItem cost-coding — strict block or warning?</h4>
+        <p>If Brad's foreman tries to code their time to <code>3005 Subcontractor</code> (which maps to a different AccountItem), should we block it or warn? Strict block keeps Financial Summary clean; warning gives the field user a way out.</p>
+        <p class="why">Why ask: blocks force users to ask their PM for a code that exists. Warnings get ignored. Either is defensible — but it has to be one or the other consistently across desktop + mobile.</p>
+    </div>
+
+    <div class="qbox">
+        <h4>Q2. Should "Unallocated (no cost code)" show on jobs that require cost codes?</h4>
+        <p>On a job where the instance setting + cost codes are both on, every hour must be allocated — so the row would be 0. Still render the row for visual consistency, or hide it?</p>
+        <p class="why">Why ask: cosmetics matter when this is for business review. Showing a constant zero row clutters the UI; hiding it makes the table shape depend on data. Default proposal: hide when zero.</p>
+    </div>
+
+    <div class="qbox">
+        <h4>Q3. Change orders — do change-order cost codes get their own grouping in the breakdown?</h4>
+        <p>The May 27 meeting flagged this separately: change-order cost codes (3xxx series at Rival) need to be visually distinguishable from base-contract codes. Do we group them as a sub-section under each AccountItem? Or just sort with a label?</p>
+        <p class="why">Why ask: the change-order schedule-of-values is its own design (see related Jira). For now this doc treats CO cost codes as ordinary cost codes; we can layer the CO grouping in once that design lands.</p>
+    </div>
+
+    <div class="qbox">
+        <h4>Q4. Historical TDRVCC rows that violate the new constraint</h4>
+        <p>Pre-fix, nothing stopped a foreman from coding time to a cost code whose AccountItem differs from their trade level's. There may be a handful of these on Rival's pilot already. Do we backfill / fix them, leave them as drift, or surface them in a separate "needs review" lane?</p>
+        <p class="why">Why ask: the Top Option's <code>COALESCE(cc.accountItemId, tl.accountItemId)</code> makes the cost-code's AccountItem win — historical drift gets resolved silently. That's probably fine for Rival's small pilot but worth confirming before we ship to other customers.</p>
+    </div>
+
+    <div class="qbox">
+        <h4>Q5. Should the desktop timesheet also enforce cost codes (like the mobile setting)?</h4>
+        <p>From Emma in the May 27 meeting: <em>"I believe on desktop, it's still like you can submit time how you submit time normally."</em> Most data entry happens on mobile, but office staff editing timesheets desktop-side currently bypass the requirement. Do we extend <code>requireCostCodeOnMobileTimesheet</code> to desktop?</p>
+        <p class="why">Why ask: not strictly part of this ticket, but Brad's "don't give me the opportunity to screw up" framing makes it relevant. Easy follow-up.</p>
+    </div>
+
+    <div class="qbox">
+        <h4>Q6. Phasing decision — ship Phase 1 alone in v1.33, Phase 2 in v1.34?</h4>
+        <p>Phase 1 is the integrity gate; Phase 2 is the UI. Phase 1 has no user-visible UI change other than a shorter picker list and a save-time error. Phase 2 is mostly frontend work + one SQL view change. Could be a clean two-release split.</p>
+        <p class="why">Why ask: lets Rival pilot run safely on v1.33 with no double-count risk while the breakdown UI is iterated on. Corey already mentioned the Rival rollout target is v1.33 in the meeting.</p>
+    </div>
+</section>
+
+<!-- ============================================================ -->
+<section class="card">
+    <h2>Recommended path forward</h2>
+    <ol>
+        <li><strong>Approve the Top Option direction</strong> — single CTE keyed by <code>(jobId, accountItemId, costCodeId)</code> with <code>COALESCE(cc.accountItemId, tl.accountItemId)</code> as the AccountItem source. This is the architectural commitment.</li>
+        <li><strong>Phase 1 in v1.33:</strong> picker filter + save-time validation, on both desktop and mobile. Rival pilot ships on this. No FS view change yet.</li>
+        <li><strong>Phase 2 in v1.34:</strong> swap the <code>TimesheetHoursAndWages</code> CTE for the cost-code-aware version + add the breakdown UI to the Financial Summary report. Same swap for expenses.</li>
+        <li><strong>Q1–Q6 above</strong> get answered by Corey / Brad / Kate before Phase 1 starts. They're cheap to resolve and the answers shape implementation choices.</li>
+    </ol>
+
+    <div class="callout success">
+        <strong>Bottom line:</strong> Brad and Corey were right that "this entire system needs to continue running, even if you don't use cost codes." The Top Option preserves that: with no cost codes, the new CTE collapses to the old one. With cost codes, you get a richer breakdown for free, with no double-count possible by construction.
+    </div>
+</section>
+
+<!-- ============================================================ -->
+<section class="card">
+    <h2>Source traceability</h2>
+    <ul>
+        <li><strong>Jira:</strong> Q21030-11808 — "Cost-code financials rollup + Financial Summary breakdown"</li>
+        <li><strong>Source meeting:</strong> Brad, Kate, Josh, Corey × Cost Codes — May 27 (<a href="https://fathom.video/calls/686820706">Fathom recording, 63 min</a>). Key moments: 18:38 (double-count discovery), 49:35 (mobile enforcement), 50:00 (Emma confirms <code>requireCostCodeOnMobileTimesheet</code>), 53:00 (Corey's "this needs to keep running without cost codes").</li>
+        <li><strong>Code paths in scope:</strong>
+            <ul>
+                <li><code>apps/api/prisma/views/Z_FinancialSummaryFeed.sql</code> — the labour rollup CTE (<code>TimesheetHoursAndWages</code>)</li>
+                <li><code>apps/api/src/services/JobFinancialSummaryService.ts</code> + <code>CostCalculationHelper.ts</code> — Monthly Cost Report's cost-code labour aggregation (reference pattern)</li>
+                <li><code>apps/api/src/models/FinancialSummary.ts</code> + <code>apps/api/src/graphql/models/FinancialSummaryFeed.ts</code> — feed resolver layer</li>
+                <li><code>apps/frontend/src/graphql/queries/costCodes.query.graphql</code> — <code>GetLabourCostCodesByJob</code> picker query</li>
+                <li><code>apps/mobile/src/components/Forms/TimesheetAddEditForm/TimesheetCostCodeStep.tsx</code> + <code>apps/frontend/src/components/BulkEntry/BulkEntryCostCodeSelect.tsx</code> — pickers</li>
+                <li><code>apps/api/prisma/schema.prisma</code> — <code>CostCode</code>, <code>TradeLevel</code>, <code>TimeSheetDetailRecordCostCode</code> models</li>
+            </ul>
+        </li>
+        <li><strong>Related plans:</strong> EQ-1 (the cost-rollup risk callout in EQ-1's "load-bearing givens" cross-references this work).</li>
+    </ul>
+</section>
+
+</div>
+</body>
+</html>

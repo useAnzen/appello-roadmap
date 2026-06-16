@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UIS-MAT-10: Material &rarr; Company Relationship</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+.in-iframe .top-nav { display: none !important; }
+.top-nav { position: sticky; top: 0; z-index: 100; background: #0f172a; border-bottom: 1px solid #1e293b; padding: 0 24px; display: flex; align-items: center; gap: 0; }
+.top-nav a { display: inline-flex; align-items: center; padding: 12px 18px; font-size: 13px; font-weight: 600; color: #94a3b8; text-decoration: none; border-bottom: 2px solid transparent; transition: all 0.15s; white-space: nowrap; }
+.top-nav a:hover { color: #f8fafc; background: #1e293b; }
+.top-nav .nav-logo { font-size: 11px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: #475569; padding-right: 18px; margin-right: 4px; border-right: 1px solid #1e293b; }
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Inter', -apple-system, sans-serif; background: #f1f5f9; color: #0f172a; }
+.uis-wrap { max-width: 960px; margin: 0 auto; padding: 40px 24px 80px; }
+.uis-hero { margin-bottom: 32px; }
+.uis-badges { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+.uis-badge { font-size: 11px; font-weight: 700; padding: 4px 12px; border-radius: 6px; display: inline-flex; align-items: center; gap: 5px; }
+.badge-q { background: #0f172a; color: #fff; }
+.badge-lane { background: #10b981; color: #fff; }
+.badge-status { background: #fef3c7; color: #92400e; }
+.badge-priority { background: #fee2e2; color: #dc2626; }
+.badge-prereq { background: #3b82f6; color: #fff; }
+.uis-h1 { font-size: 30px; font-weight: 800; color: #0f172a; margin: 0 0 8px; letter-spacing: -0.01em; }
+.uis-sub { font-size: 15px; color: #64748b; line-height: 1.5; margin: 0; }
+.uis-sub code, .uis-section code { font-family: 'SF Mono', monospace; }
+.uis-meta { display: flex; gap: 24px; flex-wrap: wrap; margin-top: 14px; font-size: 13px; color: #64748b; }
+.uis-meta strong { color: #0f172a; }
+.uis-toc { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px 28px; margin-bottom: 16px; }
+.uis-toc h3 { font-size: 13px; font-weight: 700; color: #0f172a; margin: 0 0 10px; text-transform: uppercase; letter-spacing: 0.5px; }
+.uis-toc ol { margin: 0; padding-left: 20px; }
+.uis-toc li { font-size: 14px; color: #3b82f6; margin-bottom: 4px; }
+.uis-toc a { color: #3b82f6; text-decoration: none; }
+.uis-section { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px 28px; margin-bottom: 16px; }
+.uis-section h2 { font-size: 17px; font-weight: 700; color: #0f172a; margin: 0 0 14px; padding-bottom: 10px; border-bottom: 2px solid #e2e8f0; }
+.uis-section h3 { font-size: 15px; font-weight: 700; color: #0f172a; margin: 16px 0 8px; }
+.uis-section p, .uis-section li { font-size: 14px; color: #334155; line-height: 1.65; }
+.uis-section ul, .uis-section ol { padding-left: 20px; margin: 8px 0; }
+.customer-quote { background: #fef3c7; border-left: 3px solid #f59e0b; padding: 12px 16px; border-radius: 0 8px 8px 0; margin: 14px 0; font-style: italic; font-size: 14px; color: #92400e; }
+.customer-quote .attribution { font-style: normal; font-weight: 600; display: block; margin-top: 6px; }
+pre { background: #0f172a; border: 1px solid #1e293b; border-radius: 8px; padding: 16px; overflow-x: auto; font-size: 13px; line-height: 1.5; font-family: 'SF Mono', monospace; color: #e2e8f0; margin: 12px 0; }
+table.schema-table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 12px 0; }
+table.schema-table th { text-align: left; padding: 8px 12px; background: #f8fafc; border-bottom: 2px solid #e2e8f0; font-weight: 600; }
+table.schema-table td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
+table.schema-table code { font-family: monospace; background: #f1f5f9; padding: 1px 5px; border-radius: 3px; font-size: 12px; color: #7c3aed; }
+pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
+.blast-summary { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 16px 20px; margin-bottom: 16px; }
+.blast-row { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; }
+.blast-row:not(:last-child) { border-bottom: 1px solid #f1f5f9; }
+.blast-label { font-size: 13px; color: #64748b; }
+.blast-value { font-size: 13px; font-weight: 700; color: #0f172a; }
+.action-new { background: #dcfce7; color: #166534; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 4px; }
+.action-mod { background: #fef3c7; color: #92400e; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 4px; }
+.criteria-list { list-style: none; padding: 0; }
+.criteria-list li { padding: 8px 0; border-bottom: 1px solid #f1f5f9; display: flex; gap: 10px; align-items: flex-start; font-size: 14px; color: #334155; }
+.criteria-list li:last-child { border-bottom: none; }
+.criteria-check { width: 18px; height: 18px; border: 2px solid #cbd5e1; border-radius: 4px; flex-shrink: 0; margin-top: 1px; }
+.dep-tag { display: inline-block; font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 5px; margin-right: 6px; margin-bottom: 6px; text-decoration: none; }
+.dep-requires { background: #fee2e2; color: #dc2626; }
+.dep-enables { background: #dcfce7; color: #166534; }
+.scope-tag { display: inline-block; font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 5px; margin-right: 6px; }
+.scope-in { background: #dcfce7; color: #166534; }
+.scope-out { background: #fee2e2; color: #dc2626; }
+.callout { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 14px 18px; margin: 14px 0; font-size: 13px; color: #1e40af; }
+.callout strong { color: #1e3a8a; }
+.callout.warn { background: #fffbeb; border-color: #fde68a; color: #92400e; }
+.callout.warn strong { color: #78350f; }
+.callout.success { background: #f0fdf4; border-color: #bbf7d0; color: #166534; }
+.callout.success strong { color: #14532d; }
+.qlean { font-size: 13px; color: #475569; margin-top: 6px; }
+.qlean strong { color: #0f172a; }
+.decision-pill { display: inline-block; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 4px; margin-left: 8px; vertical-align: middle; text-transform: uppercase; letter-spacing: 0.3px; background: #ede9fe; color: #5b21b6; }
+    </style>
+</head>
+<body>
+
+<script>if(self!==top)document.documentElement.classList.add("in-iframe")</script>
+<nav class="top-nav">
+    <span class="nav-logo">Appello SDLC</span>
+    <a href="index.html">Roadmap</a>
+    <a href="release-1.33-timeline.html">Release 1.33</a>
+    <a href="release-1.34-timeline.html">Release 1.34</a>
+    <a href="master-spec-reconciliation.html">Spec Reconciliation</a>
+    <a href="ui-interface-library.html">UI Library</a>
+    <a href="cross-release-continuity-audit.html">Continuity Audit</a>
+</nav>
+<div class="uis-wrap">
+
+    <!-- Hero -->
+    <div class="uis-hero">
+        <div class="uis-badges">
+            <span class="uis-badge badge-q">MAT-10</span>
+            <span class="uis-badge badge-prereq">Backend + UI</span>
+            <span class="uis-badge badge-priority">Gating Prereq &mdash; MAT-0</span>
+            <span class="uis-badge badge-status">Draft &middot; 2 items in review</span>
+        </div>
+        <h1 class="uis-h1">Material &rarr; Company Relationship</h1>
+        <p class="uis-sub">Manufacturer and Distributor on a Material today are free-form attribute picks (<code>MaterialAttributeValue</code> rows pointing at a <code>MaterialAttributeListValue</code> under the <code>manufacturer</code> / <code>distributor</code> attribute) &mdash; string labels with no link to the real <code>Company</code> table. This replaces them with a <code>MaterialCompany</code> M:N join keyed to <code>Company</code>, plus a dry-run-first migration that resolves the existing pick-list names against real Companies. <strong>Gating prerequisite for the entire supply-chain chain</strong> &mdash; MAT-0&rsquo;s priced supply-chain layer (per-source pricing on the material grid) assumes Material&rarr;Company is a real link.</p>
+        <div class="uis-meta">
+            <span><strong>Jira:</strong> Q21030-11814</span>
+            <span><strong>Estimate:</strong> TBD (set with the plan)</span>
+            <span><strong>Sequence:</strong> Root of the chain &mdash; gates MAT-0</span>
+            <span><strong>Also addresses:</strong> Q21030-11797 (string validation)</span>
+            <span><strong>Status:</strong> Decisions captured &mdash; Q3 &amp; Q4 flagged for business review</span>
+        </div>
+    </div>
+
+    <!-- TOC -->
+    <div class="uis-toc">
+        <h3>Contents</h3>
+        <ol>
+            <li><a href="#business-case">Business Case</a></li>
+            <li><a href="#scope">Scope</a></li>
+            <li><a href="#current-state">Current State &mdash; Load-Bearing Givens</a></li>
+            <li><a href="#data-model">Data Model Changes</a></li>
+            <li><a href="#migration">Data Migration</a></li>
+            <li><a href="#read-paths">Read-Path Impacts</a></li>
+            <li><a href="#api-surface">API Surface</a></li>
+            <li><a href="#ui">UI &mdash; Material Add / Edit</a></li>
+            <li><a href="#alternatives">Alternatives Considered</a></li>
+            <li><a href="#open-questions">Open Questions / Decisions Needed</a></li>
+            <li><a href="#change-surface">Change Surface</a></li>
+            <li><a href="#acceptance-criteria">Acceptance Criteria</a></li>
+            <li><a href="#dependencies">Dependencies</a></li>
+        </ol>
+    </div>
+
+    <!-- Section 1: Business Case -->
+    <div class="uis-section" id="business-case">
+        <h2>1. Business Case</h2>
+        <p>A Material&rsquo;s manufacturer and distributor look like Companies and behave like Companies &mdash; but they are not. They are <code>MaterialAttributeValue</code> rows pointing at a per-attribute pick list (the <code>MaterialAttributeListValue</code> rows whose parent <code>MaterialAttribute.slug</code> is <code>"manufacturer"</code> or <code>"distributor"</code>). They live in a parallel namespace with no foreign key to the real <code>Company</code> table, which causes three concrete pains:</p>
+        <ol>
+            <li><strong>POs and AP can&rsquo;t link a line back to the material&rsquo;s supplier.</strong> Even though Material and Company sit in the same database, a purchase-order line carrying material X has no way to say &ldquo;this came from Company Y&rdquo; <em>via the material itself</em>. The PO&rsquo;s supplier is independent of the material&rsquo;s known distributors.</li>
+            <li><strong>The MAT-0 supply-chain model is blocked.</strong> MAT-0 adds per-source pricing &mdash; each material cost row carries a manufacturer + distributor Company. That assumes Material&rarr;Company is a real relationship. Today it isn&rsquo;t &mdash; so MAT-0 cannot land on top.</li>
+            <li><strong>Dirty-data drift between the pick list and the Company table.</strong> &ldquo;Grainger&rdquo; in the manufacturer pick list and &ldquo;Grainger Industrial Supply&rdquo; in the Company table are two unrelated things with no link, and nothing keeps them in sync. The Thermogenix import is the live example: it created materials with empty manufacturer/distributor and others whose names match no existing Company.</li>
+        </ol>
+
+        <div class="callout">
+            <strong>Also closes the structural half of Q21030-11797.</strong> That ticket asks for &ldquo;validation&rdquo; of the manufacturer/distributor strings. Once they are FKs to <code>Company</code>, validation becomes &ldquo;did the user pick a real company&rdquo; &mdash; which the foreign key enforces for free. Recommend resolving Q21030-11797 as &ldquo;wait for MAT-10, then drop the validation requirement.&rdquo;
+        </div>
+
+        <div class="callout warn">
+            <strong>Ticket says 1:N, body recommends M:N &mdash; this spec commits to M:N.</strong> The same pipe is genuinely bought from two distributors and sometimes made by two manufacturers. A single FK per role would ship and immediately need walking back (see <a href="#alternatives" style="color:inherit;font-weight:700;">Alternative C</a>).
+        </div>
+    </div>
+
+    <!-- Section 2: Scope -->
+    <div class="uis-section" id="scope">
+        <h2>2. Scope</h2>
+        <div class="callout" style="background:#f0fdf4; border-color:#bbf7d0; color:#166534;">
+            <strong>Backend + the directly-attached read/write surfaces.</strong> New join model + migration, the read paths that today resolve the manufacturer/distributor attribute (list view, material-order line items, PDF, facets), the material add/edit form, and the MCP material tools. Priced/SKU&rsquo;d supplier detail is explicitly <em>not</em> here &mdash; that is MAT-0.
+        </div>
+
+        <h3>In Scope</h3>
+        <ul>
+            <li><span class="scope-tag scope-in">IN</span> <code>MaterialCompany</code> M:N join + <code>MaterialCompanyRole</code> enum, with relations on <code>Material</code> and <code>Company</code></li>
+            <li><span class="scope-tag scope-in">IN</span> Dry-run-first data migration resolving existing manufacturer/distributor pick-list names against real Companies; archive (not drop) the legacy attribute data</li>
+            <li><span class="scope-tag scope-in">IN</span> <code>MaterialListFeed</code> view rework to expose comma-joined manufacturer/distributor names, and facet queries resolving to Companies (filter by join-existence)</li>
+            <li><span class="scope-tag scope-in">IN</span> <code>MaterialOrderRecordValue</code> + material-order PDF read paths switched from the attribute slugs to the new relation</li>
+            <li><span class="scope-tag scope-in">IN</span> Material add/edit form: multi-select Manufacturers / Distributors (flat set, no primary) and inline &ldquo;+ Add Company&rdquo;</li>
+            <li><span class="scope-tag scope-in">IN</span> MCP <code>create_material</code> / <code>bulk_upsert_materials</code>: accept Company ids; keep a fail-loud string shim for one release</li>
+        </ul>
+
+        <h3>Out of Scope</h3>
+        <ul>
+            <li><span class="scope-tag scope-out">OUT</span> Per-source pricing &amp; SKUs (the priced supply-chain layer) &mdash; that is MAT-0</li>
+            <li><span class="scope-tag scope-out">OUT</span> Dropping the legacy <code>manufacturer</code> / <code>distributor</code> <code>MaterialAttribute</code> rows (archived now; decommission is a later follow-up &mdash; see <a href="#open-questions" style="color:inherit;">Q6</a>)</li>
+            <li><span class="scope-tag scope-out">OUT</span> A standalone Company-merge/dedup admin tool (the migration creates duplicates conservatively; merging them later is separate)</li>
+            <li><span class="scope-tag scope-out">OUT</span> Default-supplier-driven behaviour on requests/POs/estimates &mdash; depends on the &ldquo;primary&rdquo; decision (<a href="#open-questions" style="color:inherit;">Q3</a>) and downstream MAT items</li>
+        </ul>
+    </div>
+
+    <!-- Section 3: Current State -->
+    <div class="uis-section" id="current-state">
+        <h2>3. Current State &mdash; Load-Bearing Givens</h2>
+        <p>Grounded against the <code>Release-v1.33.0</code> checkout. These are the facts the migration and read-path rework depend on.</p>
+
+        <h3>1. Manufacturer / Distributor are already structured picks, not raw strings</h3>
+        <p>A material&rsquo;s manufacturer/distributor is a <code>MaterialAttributeValue</code> whose <code>materialAttributeId</code> points at the <code>MaterialAttribute</code> with <code>slug = "manufacturer"</code> or <code>"distributor"</code>; the selected value is a <code>MaterialAttributeListValue</code>. <strong>Dedup within the attribute is already done</strong> &mdash; one pick-list row per name. So the drift risk is <em>between</em> the pick list and the <code>Company</code> table, not within the pick list. That simplifies the migration: resolve the set of distinct pick-list names to Companies once, then fan out per material.</p>
+
+        <h3>2. The <code>MaterialListFeed</code> view already returns one <code>manufacturerId</code> / <code>distributorId</code> per material</h3>
+        <p><code>apps/api/prisma/views/MaterialListFeed.sql</code> LEFT-JOINs the pick-list table once per attribute and exposes <code>manufacturerName / manufacturerId / distributorName / distributorId</code>. The &ldquo;Id&rdquo; is a <strong><code>MaterialAttributeListValue.id</code>, not a <code>Company.id</code></strong> &mdash; anything downstream treating it as a company id is structurally wrong today. Going M:N forces a decision on what this column becomes (resolved as comma-joined names &mdash; see <a href="#read-paths" style="color:#3b82f6;">&sect;6</a>).</p>
+
+        <h3>3. <code>Company.companyTypeId</code> exists but is configurable &mdash; not a reliable signal</h3>
+        <p><code>Company.companyTypeId</code> &rarr; <code>PropertyValue</code> in the <code>"company type"</code> property group. <strong>These values are customer-configurable</strong> &mdash; real tenants type companies as &ldquo;Vendor&rdquo; / &ldquo;Customer&rdquo;, and there is <em>no guarantee</em> a &ldquo;Manufacturer&rdquo;, &ldquo;Distributor&rdquo;, or &ldquo;Supplier&rdquo; value exists at all. So company type cannot drive correctness here.</p>
+        <p>The authoritative signal is the <strong>hardcoded <code>MaterialCompanyRole</code> enum on the join</strong> &mdash; it is guaranteed to exist and records <em>how this Company relates to this Material</em>, fully independent of the Company&rsquo;s own type tag. A company that both makes and sells a material gets two rows (different roles); its <code>companyTypeId</code> is irrelevant to that. <strong>Company type plays no part in MAT-10 at all</strong> (Q2 &mdash; decided to ignore it): no filtering, no ordering, no warning, never a migration input. See Q2.</p>
+
+        <h3>4. <code>MaterialOrderRecordValue</code> reads the attribute slugs by name today</h3>
+        <p><code>apps/api/src/models/MaterialOrderRecordValue.ts</code> filters attributes <code>notIn: ["distributor", "manufacturer"]</code> (line 184), then separately pulls those two slugs and folds them into a <code>distributorAndManufacture</code> payload (lines 412&ndash;440) for the order-item form and PDF. The two-role handling already exists structurally; after migration the data source changes to <code>MaterialCompany</code> + <code>Company</code>.</p>
+
+        <h3>5. The material list page + facets are keyed to the same ids</h3>
+        <p>The materials list (<code>apps/frontend/src/pages/materials/</code>) renders Manufacturer / Distributor columns and filters via manufacturer/distributor facet queries that pull distinct pick-list names. After migration these pull distinct <strong>Companies</strong>; filter values move from <code>MaterialAttributeListValue.id</code> to <code>Company.id</code>. Column labels stay; the source moves.</p>
+
+        <h3>6. MAT-0 is the priced layer above this</h3>
+        <p>MAT-0 adds <strong>per-source pricing on the existing <code>MaterialAttributePrice</code> grid</strong> &mdash; each cost row gains a (distributor + manufacturer) Company source, SKU, and price. MAT-10&rsquo;s <code>MaterialCompany</code> is the lightweight &ldquo;this Company makes/sells this material&rdquo; link; MAT-0 carries the priced detail and <strong>keeps <code>MaterialCompany</code> in sync</strong> when a source row is created (see <a href="#open-questions" style="color:#3b82f6;">Q5</a>). <em>(MAT-0 was collapsed from an earlier ManufacturerProduct/DistributorPrice design.)</em></p>
+    </div>
+
+    <!-- Section 4: Data Model -->
+    <div class="uis-section" id="data-model">
+        <h2>4. Data Model Changes</h2>
+
+        <h3>New model + enum</h3>
+<pre>model MaterialCompany {
+  id          String              @id @db.VarChar(21)
+  isArchived  Boolean             @default(false)
+  isDeleted   Boolean             @default(false)
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @default(now()) @updatedAt
+
+  materialId  String              @db.VarChar(21)
+  companyId   String              @db.VarChar(21)
+  role        MaterialCompanyRole
+  note        String?             @db.VarChar(400)
+
+  Material    Material            @relation(fields: [materialId], references: [id])
+  Company     Company             @relation(fields: [companyId], references: [id])
+
+  @@unique([materialId, companyId, role], map: "MaterialCompany_unique_key")
+  @@index([materialId])
+  @@index([companyId])
+}
+
+enum MaterialCompanyRole {
+  Manufacturer
+  Distributor
+  // Supplier intentionally omitted for now — adding a role later is a one-line change (Q1)
+}
+
+// + relation MaterialCompanies MaterialCompany[] on both Material and Company</pre>
+
+        <table class="schema-table">
+            <thead><tr><th>Field</th><th>Type</th><th>Purpose</th></tr></thead>
+            <tbody>
+                <tr><td><code>materialId</code></td><td>VarChar(21)</td><td>FK &rarr; Material</td></tr>
+                <tr><td><code>companyId</code></td><td>VarChar(21)</td><td>FK &rarr; Company (the real relationship this whole spec is about)</td></tr>
+                <tr><td><code>role</code></td><td>MaterialCompanyRole</td><td><code>Manufacturer</code> | <code>Distributor</code>. Same Company may appear under multiple roles. (No <code>Supplier</code> yet &mdash; Q1.)</td></tr>
+                <tr><td><code>note</code></td><td>VarChar(400)?</td><td>Optional free note (e.g. &ldquo;preferred for west region&rdquo;)</td></tr>
+            </tbody>
+        </table>
+        <div class="callout"><strong>Enum convention.</strong> <code>MaterialCompanyRole</code> follows the app&rsquo;s standard enum pattern (like <code>ApprovalStatus</code>): a Prisma enum with <strong>PascalCase</strong> values, plus a TS const-array + derived union type in <code>types</code>, exposed as a GraphQL enum via codegen. Implementation detail in the <a href="plans/MAT-10-material-company-fk.html">plan</a> (Step 1.1).</div>
+
+        <h3>Invariants</h3>
+        <ul>
+            <li><strong>I1.</strong> <code>(materialId, companyId, role)</code> is unique &mdash; a company can&rsquo;t appear twice under the same role on the same material. Different roles are allowed.</li>
+            <li><strong>I2.</strong> <code>role</code> is authoritative and <strong>company type is ignored entirely</strong> (Q2). The picker does no company-type filtering, ordering, or warning; the migration never sets or reads <code>companyTypeId</code>. (Types are configurable <code>PropertyValue</code>s &mdash; a tenant may have only &ldquo;Vendor&rdquo;/&ldquo;Customer&rdquo; &mdash; so they can&rsquo;t be relied on.)</li>
+            <li><strong>No primary.</strong> Each <code>(materialId, role)</code> is a flat set &mdash; all manufacturers/distributors are equal and shown together (Q3, Q7); there is no <code>isPrimary</code> column. <em>Flagged for business review (Q3): if a default/primary supplier proves necessary, it&rsquo;s an additive <code>isPrimary</code> column later, not a reshape.</em></li>
+        </ul>
+
+        <div class="callout">
+            <strong>One migration file</strong> &mdash; table create + indexes + relations, then the data backfill (next section). Per project convention, one migration per related change. Suggested name: <code>add-material-company-join-and-migrate-attributes</code>.
+        </div>
+    </div>
+
+    <!-- Section 5: Migration -->
+    <div class="uis-section" id="migration">
+        <h2>5. Data Migration</h2>
+        <p>The unique input to resolve is the set of <strong>distinct pick-list names per attribute</strong> (not per material) &mdash; every material that says &ldquo;Grainger&rdquo; already points at the same pick-list row. Resolve once, fan out per material. The migration runs in two modes: a <strong>dry-run</strong> that produces a review CSV and makes no DB changes, and a <strong>commit</strong> that reads a confirmed CSV and applies it.</p>
+
+        <table class="schema-table">
+            <thead><tr><th>Pass</th><th>What it does</th></tr></thead>
+            <tbody>
+                <tr><td><strong>1 &middot; Build name &rarr; company map</strong></td><td>For each pick-list value under the <code>manufacturer</code> / <code>distributor</code> attributes, attempt an exact (case-insensitive, trimmed) match against <code>Company.name</code>. Record match / no-match.</td></tr>
+                <tr><td><strong>2 &middot; Fuzzy review (dry-run)</strong></td><td>For near-misses above a similarity threshold, emit a CSV: <code>name | best Company match | similarity | action | materials affected</code>. <strong>Human reviews before commit.</strong> See Q4.</td></tr>
+                <tr><td><strong>3 &middot; Create + rewrite (commit)</strong></td><td>Create Companies for confirmed no-matches &mdash; <strong>left untyped</strong> (<code>companyTypeId = null</code>); the migration never sets or invents company-type <code>PropertyValue</code>s (Q2). For every manufacturer/distributor <code>MaterialAttributeValue</code>, insert a <code>MaterialCompany</code> row with the resolved <code>companyId</code> + role (the role carries the meaning). Materials with no value stay empty.</td></tr>
+            </tbody>
+        </table>
+
+        <div class="callout warn">
+            <strong>Reviewer in the loop; conservative default.</strong> Anything below the match threshold becomes <em>Create</em>, not a fuzzy fold &mdash; we&rsquo;d rather create a duplicate Company that can be merged later than incorrectly fold supplier A&rsquo;s materials into supplier B. Customers with strong supplier-naming opinions (Thermogenix after the recent import) sign off on the fuzzy matches before commit.
+        </div>
+
+        <div class="callout warn">
+            <strong>Q4 &mdash; scope &amp; threshold need a business + tech review before the plan.</strong> The migration&rsquo;s size hinges on <em>how many customers actually use the materials catalogue at all</em> &mdash; current read is &ldquo;most don&rsquo;t,&rdquo; which would make this a small, low-risk backfill, but it needs digging (per-tenant counts of materials with manufacturer/distributor values). The exact fuzzy-match threshold and the review mechanism (CSV vs. admin screen) are decided off the back of that finding.
+        </div>
+
+        <h3>What happens to the old data (Q6)</h3>
+        <ul>
+            <li>The <code>manufacturer</code> / <code>distributor</code> <code>MaterialAttribute</code> rows are <strong>not dropped</strong> &mdash; after backfill they get <strong><code>isArchived = true</code> and <code>isDeleted = true</code></strong> so they disappear from live use but the rows are retained for recovery if ever needed.</li>
+            <li>The corresponding <code>MaterialAttributeValue</code> rows (the per-material manufacturer/distributor selections) get the <strong>same treatment &mdash; <code>isArchived = true</code> + <code>isDeleted = true</code></strong> &mdash; preserving the audit trail of each material&rsquo;s old value through the transition.</li>
+        </ul>
+    </div>
+
+    <!-- Section 6: Read paths -->
+    <div class="uis-section" id="read-paths">
+        <h2>6. Read-Path Impacts</h2>
+
+        <h3>MaterialListFeed view &mdash; comma-joined names (Q7)</h3>
+        <p>M:N means the view can&rsquo;t keep a single <code>manufacturerId</code> the way it does today, and with no primary (Q3) every supplier is equal. The view exposes <strong>comma-joined name strings</strong> &mdash; <code>manufacturerNames</code> = <code>GROUP_CONCAT(DISTINCT Company.name)</code> per role, same for <code>distributorNames</code> &mdash; so the list cell shows the full set (&ldquo;JM Eagle, Charlotte Pipe&rdquo;).</p>
+        <div class="callout">
+            <strong>Full set everywhere</strong> (list, order item, PDF). This matches the Q3 lean: a material with two distributors should show both wherever it&rsquo;s displayed, not a single chosen one. If business review later wants a single default, that&rsquo;s the additive <code>isPrimary</code> path &mdash; the view would then also expose a <code>primary*</code> column.</p>
+        </div>
+
+        <h3>Facets &amp; filters</h3>
+        <p>Manufacturer/distributor facets pull distinct <strong>Companies</strong> (not pick-list names). Filtering is <strong>by join-existence</strong> &mdash; &ldquo;materials having a <code>MaterialCompany</code> row with role = Manufacturer and <code>companyId IN (&hellip;)</code>&rdquo; &mdash; rather than matching a single id column, since a material can have several. Column labels are unchanged.</p>
+
+        <h3>Material-order line items &amp; PDF</h3>
+        <p><code>MaterialOrderRecordValue</code> (lines 184, 412&ndash;440) and the material-order PDF read the new <code>MaterialCompany</code> relation instead of the attribute slugs, showing the full comma-joined set per role.</p>
+    </div>
+
+    <!-- Section 7: API Surface -->
+    <div class="uis-section" id="api-surface">
+        <h2>7. API Surface</h2>
+
+        <h3>GraphQL</h3>
+<pre>type MaterialCompany {
+    id: String!
+    companyId: String!
+    Company: Company!
+    role: MaterialCompanyRole!
+    note: String
+}
+
+enum MaterialCompanyRole { Manufacturer  Distributor }
+
+extend type Material {
+    MaterialCompanies: [MaterialCompany!]!
+    manufacturers: [Company!]!   # role = Manufacturer
+    distributors:  [Company!]!   # role = Distributor
+}
+
+extend type Mutation {
+    createMaterialCompany(input: CreateMaterialCompanyInput!): MaterialCompany!
+    updateMaterialCompany(input: UpdateMaterialCompanyInput!): MaterialCompany!
+    deleteMaterialCompany(id: String!): Boolean!
+}</pre>
+        <p>Material create/edit inputs accept <code>manufacturerCompanyIds: [ID!]</code> and <code>distributorCompanyIds: [ID!]</code> &mdash; flat sets, no primary/order semantics (Q3).</p>
+
+        <h3>MCP tools (Q8)</h3>
+        <p><code>create_material</code> and <code>bulk_upsert_materials</code> (in <code>apps/api/src/mcp/tools/materialTools.ts</code>) accept <code>manufacturerCompanyIds</code> / <code>distributorCompanyIds</code> as the canonical inputs. For the <code>manufacturer: string</code> / <code>distributor: string</code> shim kept for one release: <strong>resolve the name via the Company search MCP; on no match, prompt the user to confirm before creating a new Company</strong> &mdash; never silently auto-create, never silently fail.</p>
+        <div class="callout warn">
+            <strong>Search &rarr; confirm &rarr; create; never silent.</strong> Silent auto-create is exactly what produced the dirty state this refactor removes. The agent/importer must look the name up (Company search MCP) and, when nothing matches, surface the no-match to the user and wait for an explicit &ldquo;yes, create it&rdquo; rather than minting a duplicate on its own.
+        </div>
+    </div>
+
+    <!-- Section 8: UI -->
+    <div class="uis-section" id="ui">
+        <h2>8. UI &mdash; Material Add / Edit</h2>
+        <p>The Material form&rsquo;s single Manufacturer and single Distributor pick lists are replaced with two multi-select fields &mdash; <strong>Manufacturers</strong> and <strong>Distributors</strong> &mdash; each a Company-backed combobox with an inline <strong>+ Add</strong> to create a new Company.</p>
+        <ul>
+            <li>Each field holds a flat set of chips &mdash; no primary, no ordering, all equal (Q3). Add/remove only.</li>
+            <li>Any Company is pickable &mdash; a plain Company search, <strong>no company-type filtering or ordering at all</strong> (Q2). No warning, no block.</li>
+            <li>The combobox reuses the existing Company picker pattern; inline &ldquo;+ Add&rdquo; opens the standard Company add modal pre-populated with the typed name (company type left to the user / its existing default), then re-resolves the picker on save. No new picker component.</li>
+        </ul>
+        <div class="callout">
+            <strong>Full set everywhere.</strong> Both the list (comma-joined) and the material detail page show all manufacturers/distributors &mdash; none singled out.
+        </div>
+    </div>
+
+    <!-- Section 9: Alternatives -->
+    <div class="uis-section" id="alternatives">
+        <h2>9. Alternatives Considered</h2>
+        <table class="schema-table">
+            <thead><tr><th style="width:24%;">Option</th><th>Summary</th><th style="width:22%;">Verdict</th></tr></thead>
+            <tbody>
+                <tr>
+                    <td><strong>A &middot; <code>MaterialCompany</code> join + role enum</strong></td>
+                    <td>One join table with a role discriminator. One query path for &ldquo;which companies relate to this material and how&rdquo;; a future role (Supplier, rep, private-label) is one row, not one table. Mirrors existing role-discriminated joins in the codebase.</td>
+                    <td><strong style="color:#166534;">Recommended</strong></td>
+                </tr>
+                <tr>
+                    <td>B &middot; Two join tables (<code>MaterialManufacturer</code>, <code>MaterialDistributor</code>)</td>
+                    <td>One table per role, no enum. Self-describing names, but two of every query/resolver path and a new table per future role.</td>
+                    <td>Rejected &mdash; roles are structurally identical; divergence fits as nullable columns on the unified join.</td>
+                </tr>
+                <tr>
+                    <td>C &middot; <code>manufacturerId</code> / <code>distributorId</code> columns on <code>Material</code></td>
+                    <td>Nullable FKs directly on Material (the ticket title&rsquo;s literal 1:N). Dead simple, no join.</td>
+                    <td>Rejected &mdash; hard-codes single-supplier; the two-distributors case is real and we&rsquo;d walk it back immediately.</td>
+                </tr>
+                <tr>
+                    <td>D &middot; Defer to MAT-0&rsquo;s priced supply-chain layer</td>
+                    <td>Skip MAT-10; treat priced supplier rows as the relationship. Strictly more info per link.</td>
+                    <td>Rejected as a replacement &mdash; blocked on MAT-0, and forces placeholder SKUs/prices at migration. MAT-10 stays the lightweight link; MAT-0 layers on top.</td>
+                </tr>
+                <tr>
+                    <td>E &middot; Validate the existing strings (Q21030-11797 path)</td>
+                    <td>Keep the attribute strings; add a rule that the chosen name must match a <code>Company.name</code>. Tiny change, zero migration.</td>
+                    <td>Rejected &mdash; brittle (rename breaks silently), no real relation to query, PO/AP linkage still impossible. MAT-10 is the better answer to Q21030-11797.</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Section 10: Open Questions -->
+    <div class="uis-section" id="open-questions">
+        <h2>10. Decisions &amp; Open Items</h2>
+        <p>Reviewed June 2026. <strong>Six decided</strong> (baked into the spec above); <strong>two flagged for review</strong> before the plan locks &mdash; Q3 (business) and Q4 (business + tech).</p>
+
+        <h3>Q1. Supplier as a third role? <span class="decision-pill" style="background:#dcfce7;color:#166534;">Decided</span></h3>
+        <p class="qlean"><strong>Skip <code>Supplier</code> for now</strong> &mdash; ship <code>Manufacturer</code> / <code>Distributor</code> only. Adding a role later is a one-line enum change, so no cost to deferring.</p>
+
+        <h3>Q2. Lean on <code>companyTypeId</code> in the picker? <span class="decision-pill" style="background:#dcfce7;color:#166534;">Decided</span></h3>
+        <p class="qlean"><strong>Ignore company type entirely.</strong> Plain Company search &mdash; no filtering, no ordering, no warning, never a migration input. (Types are configurable; many tenants have only &ldquo;Vendor&rdquo;/&ldquo;Customer&rdquo;.) <code>role</code> on the join is the sole source of truth.</p>
+
+        <h3>Q3. Is there a &ldquo;primary&rdquo; supplier? <span class="decision-pill" style="background:#fef3c7;color:#92400e;">Flagged &middot; business review</span></h3>
+        <p><strong>For now: no primary.</strong> Drop the flag; show the full set everywhere (comma-joined). The working assumption is that a material with more than one manufacturer/distributor should surface all of them, not a chosen one.</p>
+        <p class="qlean"><strong>Needs business review &mdash; could go either way.</strong> If a default/primary supplier turns out to drive behaviour (default on requests/POs, the one quoted on estimates), we add an <code>isPrimary</code> column later &mdash; additive, not a reshape.</p>
+
+        <h3>Q4. Migration scope, fuzzy threshold &amp; review workflow <span class="decision-pill" style="background:#fef3c7;color:#92400e;">Flagged &middot; business + tech</span></h3>
+        <p><strong>Needs digging first.</strong> Scope hinges on how many tenants actually use the materials catalogue &mdash; current read is &ldquo;most don&rsquo;t,&rdquo; which would make this a small backfill. Pull per-tenant counts of materials carrying manufacturer/distributor values before sizing it.</p>
+        <p class="qlean"><strong>Interim default holds:</strong> exact-match auto-resolve, human review for near-misses, create-new (conservative) below threshold. Exact threshold + review mechanism (CSV vs. admin screen) decided off the usage findings.</p>
+
+        <h3>Q5. Block on MAT-0, or run first? <span class="decision-pill" style="background:#dcfce7;color:#166534;">Decided</span></h3>
+        <p class="qlean"><strong>MAT-10 first</strong> &mdash; it&rsquo;s the gating prerequisite; MAT-0 layers on top. Matches the timeline&rsquo;s working order.</p>
+
+        <h3>Q6. What happens to the legacy attribute data? <span class="decision-pill" style="background:#dcfce7;color:#166534;">Decided</span></h3>
+        <p class="qlean"><strong>Archive + <code>isDeleted = true</code></strong> on the manufacturer/distributor <code>MaterialAttribute</code> rows <em>and</em> their <code>MaterialAttributeValue</code> rows &mdash; removed from live use, retained for recovery, never hard-dropped.</p>
+
+        <h3>Q7. List column shape <span class="decision-pill" style="background:#dcfce7;color:#166534;">Decided</span></h3>
+        <p class="qlean"><strong>Comma-joined</strong> (full set in the cell) &mdash; consistent with no-primary (Q3). Facets filter by join-existence.</p>
+
+        <h3>Q8. MCP string shim behaviour <span class="decision-pill" style="background:#dcfce7;color:#166534;">Decided</span></h3>
+        <p class="qlean"><strong>Search &rarr; confirm &rarr; create.</strong> When a name is provided, look it up via the Company search MCP; on no match, prompt the user to confirm before creating a new Company. Never silently auto-create, never silently fail.</p>
+    </div>
+
+    <!-- Section 11: Change Surface -->
+    <div class="uis-section" id="change-surface">
+        <h2>11. Change Surface</h2>
+        <div class="blast-summary">
+            <div class="blast-row"><span class="blast-label">New Files</span><span class="blast-value">~3</span></div>
+            <div class="blast-row"><span class="blast-label">Modified Files</span><span class="blast-value">~9</span></div>
+            <div class="blast-row"><span class="blast-label">Migration</span><span class="blast-value">1 (table + backfill, dry-run gated)</span></div>
+        </div>
+        <table class="schema-table">
+            <thead><tr><th>Action</th><th>Area</th><th>Change</th></tr></thead>
+            <tbody>
+                <tr><td><span class="action-mod">MOD</span></td><td><code>prisma/schema.prisma</code></td><td>Add <code>MaterialCompany</code> + <code>MaterialCompanyRole</code>; relations on Material &amp; Company</td></tr>
+                <tr><td><span class="action-new">NEW</span></td><td><code>prisma/migrations/&hellip;_add-material-company-join-and-migrate-attributes</code></td><td>Create table + indexes; dry-run/commit backfill; archive + <code>isDeleted</code> legacy attribute &amp; value rows</td></tr>
+                <tr><td><span class="action-mod">MOD</span></td><td><code>prisma/views/MaterialListFeed.sql</code></td><td>Join through <code>MaterialCompany</code> + <code>Company</code>; expose comma-joined <code>manufacturerNames</code> / <code>distributorNames</code></td></tr>
+                <tr><td><span class="action-new">NEW</span></td><td><code>src/models/MaterialCompany.ts</code></td><td><code>BaseModel</code> CRUD (no primary logic)</td></tr>
+                <tr><td><span class="action-mod">MOD</span></td><td><code>src/models/Material.ts</code></td><td>Include <code>MaterialCompanies</code>; accept <code>manufacturerCompanyIds[]</code> / <code>distributorCompanyIds[]</code> (flat sets)</td></tr>
+                <tr><td><span class="action-mod">MOD</span></td><td><code>src/models/MaterialOrderRecordValue.ts</code></td><td>Lines 184, 412&ndash;440 &mdash; read the new relation instead of the attribute slugs</td></tr>
+                <tr><td><span class="action-new">NEW</span></td><td><code>src/graphql/models/MaterialCompany.ts</code></td><td>Resolvers delegating to the model; register in <code>schema.ts</code></td></tr>
+                <tr><td><span class="action-mod">MOD</span></td><td><code>src/graphql/models/MaterialListFeed.ts</code></td><td>Facets/filter by join-existence over <code>MaterialCompany</code> + <code>Company</code></td></tr>
+                <tr><td><span class="action-mod">MOD</span></td><td><code>src/mcp/tools/materialTools.ts</code></td><td><code>create_material</code> / <code>bulk_upsert_materials</code>: Company-id inputs + search-then-confirm string shim</td></tr>
+                <tr><td><span class="action-mod">MOD</span></td><td><code>frontend/.../MaterialForm</code> &amp; <code>pages/materials/</code></td><td>Multi-select Manufacturers/Distributors (flat, no primary) + inline add; facets &amp; filters by Company / join-existence</td></tr>
+                <tr><td><span class="action-mod">MOD</span></td><td><code>frontend MaterialOrderItemForm</code> + <code>DownloadablePDF/MaterialOrder</code></td><td>Read the relation; show the full comma-joined set per role</td></tr>
+            </tbody>
+        </table>
+        <div class="callout"><strong>Exact paths &amp; line-level steps land in the plan.</strong> This is the change footprint at spec altitude; the implementation plan grounds each against the live tree.</div>
+    </div>
+
+    <!-- Section 12: Acceptance Criteria -->
+    <div class="uis-section" id="acceptance-criteria">
+        <h2>12. Acceptance Criteria</h2>
+        <ul class="criteria-list">
+            <li><div class="criteria-check"></div><code>MaterialCompany</code> + <code>MaterialCompanyRole</code> exist with relations on Material and Company; <code>(materialId, companyId, role)</code> is unique (I1)</li>
+            <li><div class="criteria-check"></div>The migration dry-run produces a review CSV and makes no DB writes; commit applies only a confirmed CSV</li>
+            <li><div class="criteria-check"></div>Every manufacturer/distributor <code>MaterialAttributeValue</code> is backfilled into a <code>MaterialCompany</code> row with the resolved Company + role; materials with no value stay empty</li>
+            <li><div class="criteria-check"></div>No-match names create new Companies (left untyped, <code>companyTypeId = null</code>); nothing below the threshold is fuzzy-folded</li>
+            <li><div class="criteria-check"></div>Legacy <code>manufacturer</code> / <code>distributor</code> <code>MaterialAttribute</code> rows <em>and</em> their <code>MaterialAttributeValue</code> rows are set <code>isArchived = true</code> + <code>isDeleted = true</code> (retained, not dropped)</li>
+            <li><div class="criteria-check"></div>No <code>isPrimary</code> column; each (material, role) is a flat set rendered in full everywhere (comma-joined in the list)</li>
+            <li><div class="criteria-check"></div><code>MaterialListFeed</code> exposes comma-joined <code>manufacturerNames</code> / <code>distributorNames</code>; facets/filters work by join-existence over Companies</li>
+            <li><div class="criteria-check"></div><code>MaterialOrderRecordValue</code> + the material-order PDF read <code>MaterialCompany</code> instead of the attribute slugs</li>
+            <li><div class="criteria-check"></div>The material add/edit form multi-selects Manufacturers/Distributors (no primary), plain Company search (no company-type filtering), inline &ldquo;+ Add Company&rdquo;</li>
+            <li><div class="criteria-check"></div>MCP <code>create_material</code> / <code>bulk_upsert_materials</code> accept Company-id inputs; the string shim searches via the Company MCP and prompts for confirmation before creating on no-match</li>
+            <li><div class="criteria-check"></div>After migration, no live read path resolves manufacturer/distributor from the attribute system</li>
+        </ul>
+    </div>
+
+    <!-- Section 13: Dependencies -->
+    <div class="uis-section" id="dependencies">
+        <h2>13. Dependencies</h2>
+
+        <h3>Requires</h3>
+        <p>Root of the supply-chain chain &mdash; no MAT prerequisites. Builds only on existing <code>Material</code>, <code>MaterialAttribute*</code>, and <code>Company</code>.</p>
+
+        <h3>Enables</h3>
+        <p>
+            <a class="dep-tag dep-enables" href="uis-MAT-0-supply-chain-model.html">MAT-0 &mdash; per-source pricing lands on a real Material&rarr;Company link</a>
+            <a class="dep-tag dep-enables" href="uis-MAT-1-customer-po-entity.html">MAT-1 / MAT-5 &mdash; PO &amp; AP lines link back to the material&rsquo;s supplier</a>
+        </p>
+
+        <h3>Resolves</h3>
+        <p>
+            <span class="dep-tag dep-requires" style="background:#ede9fe;color:#5b21b6;">Q21030-11814 &mdash; this ticket</span>
+            <span class="dep-tag dep-requires" style="background:#ede9fe;color:#5b21b6;">Q21030-11797 &mdash; string validation (structural half)</span>
+        </p>
+    </div>
+
+</div>
+</body>
+</html>

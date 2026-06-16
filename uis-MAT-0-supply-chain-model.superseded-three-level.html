@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UIS-MAT-0: Supply Chain Foundation &mdash; ManufacturerProduct + DistributorPrice</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+.in-iframe .top-nav { display: none !important; }
+.top-nav { position: sticky; top: 0; z-index: 100; background: #0f172a; border-bottom: 1px solid #1e293b; padding: 0 24px; display: flex; align-items: center; gap: 0; }
+.top-nav a { display: inline-flex; align-items: center; padding: 12px 18px; font-size: 13px; font-weight: 600; color: #94a3b8; text-decoration: none; border-bottom: 2px solid transparent; transition: all 0.15s; white-space: nowrap; }
+.top-nav a:hover { color: #f8fafc; background: #1e293b; }
+.top-nav .nav-logo { font-size: 11px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: #475569; padding-right: 18px; margin-right: 4px; border-right: 1px solid #1e293b; }
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Inter', -apple-system, sans-serif; background: #f1f5f9; color: #0f172a; }
+.uis-wrap { max-width: 960px; margin: 0 auto; padding: 40px 24px 80px; }
+.uis-hero { margin-bottom: 32px; }
+.uis-badges { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+.uis-badge { font-size: 11px; font-weight: 700; padding: 4px 12px; border-radius: 6px; display: inline-flex; align-items: center; gap: 5px; }
+.badge-q { background: #0f172a; color: #fff; }
+.badge-status { background: #fef3c7; color: #92400e; }
+.badge-priority { background: #fee2e2; color: #dc2626; }
+.badge-prereq { background: #3b82f6; color: #fff; }
+.uis-h1 { font-size: 30px; font-weight: 800; color: #0f172a; margin: 0 0 8px; letter-spacing: -0.01em; }
+.uis-sub { font-size: 15px; color: #64748b; line-height: 1.5; margin: 0; }
+.uis-sub code, .uis-section code { font-family: 'SF Mono', monospace; }
+.uis-meta { display: flex; gap: 24px; flex-wrap: wrap; margin-top: 14px; font-size: 13px; color: #64748b; }
+.uis-meta strong { color: #0f172a; }
+.uis-toc { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px 28px; margin-bottom: 16px; }
+.uis-toc h3 { font-size: 13px; font-weight: 700; color: #0f172a; margin: 0 0 10px; text-transform: uppercase; letter-spacing: 0.5px; }
+.uis-toc ol { margin: 0; padding-left: 20px; }
+.uis-toc li { font-size: 14px; color: #3b82f6; margin-bottom: 4px; }
+.uis-toc a { color: #3b82f6; text-decoration: none; }
+.uis-section { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px 28px; margin-bottom: 16px; }
+.uis-section h2 { font-size: 17px; font-weight: 700; color: #0f172a; margin: 0 0 14px; padding-bottom: 10px; border-bottom: 2px solid #e2e8f0; }
+.uis-section h3 { font-size: 15px; font-weight: 700; color: #0f172a; margin: 16px 0 8px; }
+.uis-section p, .uis-section li { font-size: 14px; color: #334155; line-height: 1.65; }
+.uis-section ul, .uis-section ol { padding-left: 20px; margin: 8px 0; }
+pre { background: #0f172a; border: 1px solid #1e293b; border-radius: 8px; padding: 16px; overflow-x: auto; font-size: 13px; line-height: 1.5; font-family: 'SF Mono', monospace; color: #e2e8f0; margin: 12px 0; }
+table.schema-table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 12px 0; }
+table.schema-table th { text-align: left; padding: 8px 12px; background: #f8fafc; border-bottom: 2px solid #e2e8f0; font-weight: 600; }
+table.schema-table td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
+table.schema-table code { font-family: monospace; background: #f1f5f9; padding: 1px 5px; border-radius: 3px; font-size: 12px; color: #7c3aed; }
+pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
+.blast-summary { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 16px 20px; margin-bottom: 16px; }
+.blast-row { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; }
+.blast-row:not(:last-child) { border-bottom: 1px solid #f1f5f9; }
+.blast-label { font-size: 13px; color: #64748b; }
+.blast-value { font-size: 13px; font-weight: 700; color: #0f172a; }
+.action-new { background: #dcfce7; color: #166534; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 4px; }
+.action-mod { background: #fef3c7; color: #92400e; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 4px; }
+.criteria-list { list-style: none; padding: 0; }
+.criteria-list li { padding: 8px 0; border-bottom: 1px solid #f1f5f9; display: flex; gap: 10px; align-items: flex-start; font-size: 14px; color: #334155; }
+.criteria-list li:last-child { border-bottom: none; }
+.criteria-check { width: 18px; height: 18px; border: 2px solid #cbd5e1; border-radius: 4px; flex-shrink: 0; margin-top: 1px; }
+.dep-tag { display: inline-block; font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 5px; margin-right: 6px; margin-bottom: 6px; text-decoration: none; }
+.dep-requires { background: #fee2e2; color: #dc2626; }
+.dep-enables { background: #dcfce7; color: #166534; }
+.scope-tag { display: inline-block; font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 5px; margin-right: 6px; }
+.scope-in { background: #dcfce7; color: #166534; }
+.scope-out { background: #fee2e2; color: #dc2626; }
+.callout { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 14px 18px; margin: 14px 0; font-size: 13px; color: #1e40af; }
+.callout strong { color: #1e3a8a; }
+.callout.warn { background: #fffbeb; border-color: #fde68a; color: #92400e; }
+.callout.warn strong { color: #78350f; }
+.callout.green { background: #f0fdf4; border-color: #bbf7d0; color: #166534; }
+.callout.green strong { color: #14532d; }
+.qlean { font-size: 13px; color: #475569; margin-top: 6px; }
+.qlean strong { color: #0f172a; }
+.decision-pill { display: inline-block; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 4px; margin-left: 8px; vertical-align: middle; text-transform: uppercase; letter-spacing: 0.3px; background: #ede9fe; color: #5b21b6; }
+    </style>
+</head>
+<body>
+
+<script>if(self!==top)document.documentElement.classList.add("in-iframe")</script>
+<nav class="top-nav">
+    <span class="nav-logo">Appello SDLC</span>
+    <a href="index.html">Roadmap</a>
+    <a href="release-1.33-timeline.html">Release 1.33</a>
+    <a href="release-1.34-timeline.html">Release 1.34</a>
+    <a href="master-spec-reconciliation.html">Spec Reconciliation</a>
+    <a href="ui-interface-library.html">UI Library</a>
+    <a href="cross-release-continuity-audit.html">Continuity Audit</a>
+</nav>
+<div class="uis-wrap">
+
+    <div style="background:#fef2f2; border:2px solid #fecaca; border-radius:12px; padding:16px 20px; margin-bottom:20px; font-size:14px; color:#991b1b; line-height:1.6;">
+        <strong style="display:block; font-size:15px; margin-bottom:4px;">&#9888; SUPERSEDED &mdash; three-level design (archived for comparison)</strong>
+        This was the first hardened MAT-0 spec: a three-level model (<code>Material &rarr; ManufacturerProduct &rarr; DistributorPrice</code>). It was <strong>replaced</strong> after review because SKUs/prices are size-specific (they belong on the per-cell price grid, not at material level), a parallel supplier-price table duplicated <code>MaterialAttributePrice</code>, and splitting Materials per source broke MAT-10&rsquo;s M:N link + the Shopify one-Product mapping. The active design extends <code>MaterialAttributePrice</code> with a (distributor + manufacturer) source dimension instead &mdash; see <a href="uis-MAT-0-supply-chain-model.html" style="color:#991b1b; font-weight:700;">the current spec</a> (&sect; Design History for the full rationale). Kept only for reference.
+    </div>
+
+    <!-- Hero -->
+    <div class="uis-hero">
+        <div class="uis-badges">
+            <span class="uis-badge badge-q">MAT-0</span>
+            <span class="uis-badge badge-prereq">Backend + UI</span>
+            <span class="uis-badge badge-priority">Foundation &mdash; needs MAT-10</span>
+            <span class="uis-badge badge-status">Draft</span>
+        </div>
+        <h1 class="uis-h1">Supply Chain Foundation &mdash; ManufacturerProduct + DistributorPrice</h1>
+        <p class="uis-sub">The priced supply-chain layer on top of <a href="uis-MAT-10-material-company-fk.html">MAT-10</a>. Adds <code>ManufacturerProduct</code> (a manufacturer&rsquo;s catalogue entry for a material &mdash; SKU, MSRP, packaging) and <code>DistributorPrice</code> (what a distributor charges for that product &mdash; unit/list price, discount, lead time), and wires the resulting per-distributor cost into the existing <code>bestAvailableCost()</code> hook that LEM-3a left for it. Establishes &ldquo;who makes / who sells this material, and for how much.&rdquo; <strong>Foundation for MAT-3 (price book), MAT-5 (supplier PO), MAT-9 (discounts).</strong></p>
+        <div class="uis-meta">
+            <span><strong>Estimate:</strong> TBD (set with the plan)</span>
+            <span><strong>Sequence:</strong> after MAT-10; before MAT-1 / MAT-9 / MAT-5</span>
+            <span><strong>Requires:</strong> MAT-10, LEM-3a (both in 1.33)</span>
+            <span><strong>Enables:</strong> MAT-3, MAT-5, MAT-9</span>
+            <span><strong>Status:</strong> Pre-build</span>
+        </div>
+    </div>
+
+    <!-- TOC -->
+    <div class="uis-toc">
+        <h3>Contents</h3>
+        <ol>
+            <li><a href="#business-case">Business Case</a></li>
+            <li><a href="#scope">Scope</a></li>
+            <li><a href="#current-state">Current State &mdash; Load-Bearing Givens</a></li>
+            <li><a href="#data-model">Data Model Changes</a></li>
+            <li><a href="#pricing">Pricing Integration (the centerpiece)</a></li>
+            <li><a href="#company">Company &amp; Catalogue-Readiness</a></li>
+            <li><a href="#api-surface">API Surface</a></li>
+            <li><a href="#ui">UI</a></li>
+            <li><a href="#open-questions">Open Questions / Decisions Needed</a></li>
+            <li><a href="#change-surface">Change Surface</a></li>
+            <li><a href="#acceptance-criteria">Acceptance Criteria</a></li>
+            <li><a href="#dependencies">Dependencies</a></li>
+        </ol>
+    </div>
+
+    <!-- 1. Business Case -->
+    <div class="uis-section" id="business-case">
+        <h2>1. Business Case</h2>
+        <p>After MAT-10, a Material knows <em>which Companies</em> are its manufacturers / distributors (the lightweight <code>MaterialCompany</code> link). What it still can&rsquo;t answer: <strong>what SKU each manufacturer uses, and what each distributor charges.</strong> Today the only material cost in the system is <code>MaterialAttributePrice.value</code> (a single catalogue cost per material/cell) and <code>Material.unitCost</code> (0-axis SKUs) &mdash; there is no per-supplier price, no notion of a cheapest source, and nothing for procurement (PO sourcing, price-book import) to build on.</p>
+        <p>MAT-0 adds the two-level priced model the rest of the supply chain depends on:</p>
+        <ul>
+            <li><strong><code>ManufacturerProduct</code></strong> &mdash; a manufacturer&rsquo;s catalogue entry for a material: their SKU, MSRP, UPC, pack size. One Material has many (one per manufacturer that makes it).</li>
+            <li><strong><code>DistributorPrice</code></strong> &mdash; what a distributor charges for a given ManufacturerProduct: unit price, list price, negotiated discount, lead time, min qty. One ManufacturerProduct has many (one per distributor that sells it).</li>
+        </ul>
+        <div class="callout green">
+            <strong>The pricing payoff is concrete and already wired for.</strong> LEM-3a&rsquo;s <code>MaterialPricingService.bestAvailableCost()</code> carries an explicit comment: <em>&ldquo;MAT-0 will upgrade this to prefer <code>DistributorPrice.effectivePrice</code> for the material&rsquo;s preferred ManufacturerProduct before falling through to MaterialAttributePrice. Service signature must not change.&rdquo;</em> MAT-0 fulfils that hook &mdash; real distributor cost flows into every sell-price the app already computes, with zero change to LEM-3a&rsquo;s callers.
+        </div>
+    </div>
+
+    <!-- 2. Scope -->
+    <div class="uis-section" id="scope">
+        <h2>2. Scope</h2>
+        <div class="callout" style="background:#f0fdf4; border-color:#bbf7d0; color:#166534;">
+            <strong>The priced relationship + its read/write surfaces + the cost-tier integration.</strong> Two new models, the <code>effectivePrice</code> computation and best-cost selection, the <code>bestAvailableCost()</code> upgrade, Company &amp; Material UI to view/manage it, GraphQL + MCP, and the Shopify catalogue-readiness fields that belong with the catalogue. Bulk import, quantity-tier discounts, and PO creation are explicitly downstream.
+        </div>
+        <h3>In Scope</h3>
+        <ul>
+            <li><span class="scope-tag scope-in">IN</span> <code>ManufacturerProduct</code> + <code>DistributorPrice</code> models (+ relations on Material &amp; Company), keeping <code>MaterialCompany</code> (MAT-10) in sync</li>
+            <li><span class="scope-tag scope-in">IN</span> <code>effectivePrice</code> (computed) + best-cost selection across a material&rsquo;s active distributor prices</li>
+            <li><span class="scope-tag scope-in">IN</span> <strong>Wiring the distributor cost tier into <code>bestAvailableCost()</code></strong> (the MAT-0 hook) &mdash; signature unchanged</li>
+            <li><span class="scope-tag scope-in">IN</span> Company detail: Products tab (manufacturers) / Products &amp; Pricing tab (distributors), shown by join-existence (not company type)</li>
+            <li><span class="scope-tag scope-in">IN</span> Material detail: Supply Chain section (manufacturers + distributor pricing with a best-price marker)</li>
+            <li><span class="scope-tag scope-in">IN</span> GraphQL types/inputs/queries/mutations + MCP tools (thin &rarr; model)</li>
+            <li><span class="scope-tag scope-in">IN</span> Catalogue-readiness fields on Material &mdash; <code>sku</code>, <code>barcode</code>, <code>weight</code>, <code>weightUnit</code> (standalone value now; Shopify-forward later)</li>
+        </ul>
+        <h3>Out of Scope</h3>
+        <ul>
+            <li><span class="scope-tag scope-out">OUT</span> Bulk price-book import (CSV/XLSX) &mdash; <strong>MAT-3</strong></li>
+            <li><span class="scope-tag scope-out">OUT</span> Quantity/tier discounts &amp; cascading discount resolution &mdash; <strong>MAT-9</strong> (MAT-0 has a single price + optional flat <code>discountPercent</code> only)</li>
+            <li><span class="scope-tag scope-out">OUT</span> Creating Supplier POs from pricing &mdash; <strong>MAT-5</strong></li>
+            <li><span class="scope-tag scope-out">OUT</span> Per-cell distributor pricing for dimensional (X/Y/Z) materials &mdash; their per-cell cost stays in <code>MaterialAttributePrice</code> (see &sect;5)</li>
+            <li><span class="scope-tag scope-out">OUT</span> <code>isPublishedToShopify</code> / any Shopify sync &mdash; deferred until the integration is real (per Shopify forward-compat decision)</li>
+            <li><span class="scope-tag scope-out">OUT</span> Product images &mdash; already handled by the existing <code>AssetReference</code> polymorphic join (<code>referenceTable = "Material"</code>); no schema change needed</li>
+        </ul>
+    </div>
+
+    <!-- 3. Current State -->
+    <div class="uis-section" id="current-state">
+        <h2>3. Current State &mdash; Load-Bearing Givens</h2>
+        <p>Grounded against <code>Release-v1.33.0</code>.</p>
+
+        <h3>1. <code>bestAvailableCost()</code> is the named MAT-0 hook</h3>
+        <p><code>apps/api/src/services/MaterialPricingService.ts</code> (LEM-3a, shipped in 1.33). <code>bestAvailableCost(materialId)</code> today: for a material whose group has pricing axes, returns the most-recently-updated <code>MaterialAttributePrice.value</code>; for 0-axis materials, returns <code>Material.unitCost</code>. The file&rsquo;s header comment reserves the upgrade for MAT-0 and states <strong>the signature must not change</strong>. <code>resolveMaterialSellPrice()</code> calls it only when the caller doesn&rsquo;t already supply a <code>costPrice</code>.</p>
+        <div class="callout warn">
+            <strong>Important boundary (from the same comment):</strong> for dimensional materials with multiple priced cells, <code>bestAvailableCost</code> is an <em>any-cell</em> fallback &mdash; WO/IE structured line items resolve the specific (X,Y[,Z]) cell themselves and pass <code>costPrice</code> in. So MAT-0&rsquo;s distributor-cost tier is the cost source for <strong>0-axis SKUs and any-cell estimates</strong>, not a per-cell override for dimensional price sheets. This is the natural fit &mdash; procured supply-chain items are predominantly 0-axis SKUs.
+        </div>
+
+        <h3>2. <code>MaterialAttributePrice</code> is the existing cost grid &mdash; the fallback below MAT-0</h3>
+        <p><code>schema.prisma</code> ~line 2906: per-material cost keyed on <code>(materialId, selectedXValueId, selectedYValueId[, selectedZValueId])</code>, <code>value Decimal(10,2)</code>. Distributor cost sits <em>above</em> this in the resolution order; MAP remains the fallback when a material has no distributor price.</p>
+
+        <h3>3. MAT-10 <code>MaterialCompany</code> is the prerequisite &mdash; MAT-0 keeps it in sync</h3>
+        <p>MAT-10 establishes <code>MaterialCompany(materialId, companyId, role)</code> (the lightweight &ldquo;this company manufactures/distributes this material&rdquo; link, rendered comma-joined on the material). MAT-0 layers SKU/price detail on top. <strong>Rule:</strong> creating a <code>ManufacturerProduct(material, manufacturer)</code> ensures a <code>MaterialCompany(material, manufacturer, Manufacturer)</code> row; creating a <code>DistributorPrice</code> (whose <code>ManufacturerProduct</code> resolves a material) ensures a <code>MaterialCompany(material, distributor, Distributor)</code> row. The manufacturers/distributors MAT-10 displays are thus populated as a side-effect of MAT-0 data entry.</p>
+
+        <h3>4. Company type is NOT load-bearing (inherited from MAT-10 Q2)</h3>
+        <p>MAT-10 decided company type (a configurable <code>PropertyValue</code>) is ignored for correctness &mdash; many tenants only have &ldquo;Vendor&rdquo;/&ldquo;Customer&rdquo;. MAT-0 honours that: <strong>do not gate manufacturer/distributor behaviour on a &ldquo;Manufacturer&rdquo; company type.</strong> A company shows the Products tab because it <em>has</em> <code>ManufacturerProduct</code>/<code>DistributorPrice</code> rows (join-existence), not because of a type tag. (The CEO draft&rsquo;s &ldquo;seed a Manufacturer company type&rdquo; step becomes optional cosmetic &mdash; see Q-f.)</p>
+
+        <h3>5. Company detail is tabbed; Material has no <code>sku</code>/<code>barcode</code>/<code>weight</code> yet</h3>
+        <p>The Company detail page composes a flat <code>allTabOptions</code> array (<code>apps/frontend/.../CompanyDetailsPage</code>) &mdash; a new tab is one entry + one component. <code>Material</code> currently has no <code>sku</code>, <code>barcode</code>, <code>weight</code>, or <code>weightUnit</code> (confirmed greenfield); <code>MaterialGroup.unitOfMeasure</code> exists but isn&rsquo;t normalized.</p>
+    </div>
+
+    <!-- 4. Data Model -->
+    <div class="uis-section" id="data-model">
+        <h2>4. Data Model Changes</h2>
+        <p>Two plain relational models (not DataModel entities &mdash; fixed shape, no user-configurable attributes; same call as MAT-10&rsquo;s <code>MaterialCompany</code>). IDs are app-generated 21-char (<code>@id @db.VarChar(21)</code>, <strong>no <code>@default(cuid())</code></strong> &mdash; matches the codebase convention; the CEO draft&rsquo;s <code>cuid()</code> is wrong for this repo).</p>
+<pre>model ManufacturerProduct {
+    id              String   @id @db.VarChar(21)
+    isArchived      Boolean  @default(false)
+    isDeleted       Boolean  @default(false)
+    createdAt       DateTime @default(now())
+    updatedAt       DateTime @default(now()) @updatedAt
+
+    materialId      String   @db.VarChar(21)
+    manufacturerId  String   @db.VarChar(21)         // Company (the manufacturer)
+    manufacturerSku String   @db.VarChar(100)
+    msrp            Decimal? @db.Decimal(10, 2)
+    upc             String?  @db.VarChar(50)
+    description     String?  @db.Text
+    packageQty      Decimal? @db.Decimal(10, 2)
+    packageUnit     String?  @db.VarChar(50)
+    isActive        Boolean  @default(true)
+
+    Material        Material @relation(fields: [materialId], references: [id])
+    Manufacturer    Company  @relation("ManufacturerProducts", fields: [manufacturerId], references: [id])
+    DistributorPrices DistributorPrice[]
+
+    @@unique([materialId, manufacturerId, manufacturerSku])
+    @@index([materialId])
+    @@index([manufacturerId])
+}
+
+model DistributorPrice {
+    id                    String   @id @db.VarChar(21)
+    isArchived            Boolean  @default(false)
+    isDeleted             Boolean  @default(false)
+    createdAt             DateTime @default(now())
+    updatedAt             DateTime @default(now()) @updatedAt
+
+    manufacturerProductId String   @db.VarChar(21)
+    distributorId         String   @db.VarChar(21)   // Company (the distributor)
+    distributorSku        String   @db.VarChar(100)
+    unitPrice             Decimal  @db.Decimal(10, 2)
+    listPrice             Decimal? @db.Decimal(10, 2)
+    discountPercent       Decimal? @db.Decimal(5, 2)
+    effectiveFrom         DateTime?
+    effectiveTo           DateTime?
+    minQty                Int?
+    leadTimeDays          Int?
+    isPreferred           Boolean  @default(false)
+    isInStock             Boolean?
+    notes                 String?  @db.Text
+
+    ManufacturerProduct   ManufacturerProduct @relation(fields: [manufacturerProductId], references: [id])
+    Distributor           Company             @relation("DistributorPrices", fields: [distributorId], references: [id])
+
+    @@unique([manufacturerProductId, distributorId, distributorSku])
+    @@index([manufacturerProductId])
+    @@index([distributorId])
+}
+
+// Material: Shopify-forward catalogue-readiness (standalone value now)
+model Material {
+    // ...existing...
+    sku         String?  @db.VarChar(64)
+    barcode     String?  @db.VarChar(64)   // UPC/EAN/GTIN, house-level
+    weight      Decimal? @db.Decimal(10, 3)
+    weightUnit  String?  @db.VarChar(8)
+    ManufacturerProducts ManufacturerProduct[]
+}
+
+// Company: + ManufacturerProducts / DistributorPrices back-relations (named relations above)</pre>
+        <p><strong>Cardinality:</strong> <code>Material 1&mdash;N ManufacturerProduct N&mdash;1 Manufacturer(Company)</code>; <code>ManufacturerProduct 1&mdash;N DistributorPrice N&mdash;1 Distributor(Company)</code>. <code>ManufacturerProduct</code> is a horizontal breakdown <em>by manufacturer</em> (e.g. R-30 batts by Owens Corning vs. Johns Manville) &mdash; <strong>not</strong> a per-attribute/variant cell. SKUs differ: <code>Material.sku</code> = the contractor&rsquo;s house SKU; <code>ManufacturerProduct.manufacturerSku</code>/<code>upc</code> = the maker&rsquo;s; <code>DistributorPrice.distributorSku</code> = the seller&rsquo;s.</p>
+        <div class="callout"><strong>No new enums.</strong> The model uses booleans (<code>isActive</code>, <code>isPreferred</code>, <code>isInStock</code>) and a free-text <code>packageUnit</code>. If <code>packageUnit</code> is later constrained to a fixed set, introduce it via the app&rsquo;s enum convention (Prisma enum + const-array + GraphQL enum, PascalCase &mdash; like <code>ApprovalStatus</code>), not a raw Prisma enum.</div>
+    </div>
+
+    <!-- 5. Pricing Integration -->
+    <div class="uis-section" id="pricing">
+        <h2>5. Pricing Integration (the centerpiece)</h2>
+
+        <h3><code>effectivePrice</code> (computed on DistributorPrice)</h3>
+        <p>Not stored. <code>effectivePrice = (discountPercent != null &amp;&amp; listPrice != null) ? listPrice &times; (1 &minus; discountPercent/100) : unitPrice</code>. Exposed as a computed GraphQL field; computed in the model layer so MCP can read it too.</p>
+
+        <h3>Best-cost selection for a material</h3>
+        <p>Across the material&rsquo;s <code>ManufacturerProduct</code>s &rarr; their <code>DistributorPrice</code>s, filtered to <strong>active</strong> rows (not deleted/archived; currently within <code>[effectiveFrom, effectiveTo]</code> or open-ended), pick the cost as:</p>
+        <ol>
+            <li>If any active price is <code>isPreferred</code> &rarr; its <code>effectivePrice</code> (preferred wins).</li>
+            <li>Else the lowest <code>effectivePrice</code> among active prices (cheapest source).</li>
+        </ol>
+        <p>(Whether preferred-overrides-lowest, or lowest-always, is <a href="#open-questions">Q-a</a> &mdash; it intersects MAT-10&rsquo;s &ldquo;no primary&rdquo; decision.)</p>
+
+        <h3>The <code>bestAvailableCost()</code> upgrade</h3>
+        <p>Insert a tier <em>above</em> today&rsquo;s logic, signature unchanged:</p>
+<pre>bestAvailableCost(materialId):
+    cost = bestDistributorCost(materialId)      // NEW (MAT-0): active preferred/lowest effectivePrice
+    if (cost != null) return cost
+    // unchanged LEM-3a fallback:
+    if (group has pricing axes) return latest MaterialAttributePrice.value
+    return Material.unitCost ?? null</pre>
+        <div class="callout green"><strong>Net effect:</strong> every sell price the app already computes (<code>resolveMaterialSellPrice</code>, the <code>resolvedSellPrice</code> TableFeed column, WO/IE/LEM consumers) now rests on real distributor cost where it exists, automatically &mdash; no caller changes. Per &sect;3.1 this applies to 0-axis/any-cell costing; dimensional per-cell costs are still resolved by the caller from <code>MaterialAttributePrice</code>.</div>
+        <div class="callout warn"><strong>Keep the SQL mirror in sync.</strong> The no-job sell-price tiers are mirrored as SQL in <code>graphql/models/TableFeed/ConfigureColumnsData/material.ts</code> (<code>resolvedSellPrice</code>). If MAT-0 changes the <em>cost basis</em> that column should reflect distributor cost too &mdash; the plan must address whether/how the SQL column reads distributor cost (likely a correlated subquery for best <code>effectivePrice</code>).</div>
+    </div>
+
+    <!-- 6. Company & Catalogue -->
+    <div class="uis-section" id="company">
+        <h2>6. Company &amp; Catalogue-Readiness</h2>
+        <h3>Company detail tabs (join-existence, not type)</h3>
+        <ul>
+            <li><strong>Products</strong> tab &mdash; for any company with <code>ManufacturerProduct</code> rows: the materials it makes (SKU, MSRP, pack, active).</li>
+            <li><strong>Products &amp; Pricing</strong> tab &mdash; for any company with <code>DistributorPrice</code> rows: material / manufacturer / SKUs / unit &amp; list price / discount / lead time / preferred.</li>
+        </ul>
+        <p>Both added to the <code>allTabOptions</code> array; visibility keyed on the join existing, consistent with the MAT-10 company-type decision. No dependence on a seeded company type.</p>
+        <h3>Catalogue-readiness fields</h3>
+        <p><code>sku</code> / <code>barcode</code> / <code>weight</code> / <code>weightUnit</code> on Material earn their place now as standard catalogue attributes (house SKU, scan code, shipping weight) independent of Shopify; they also happen to be exactly what a future Shopify product/variant needs. <strong>No <code>isPublishedToShopify</code></strong> (deferred). <strong>Images</strong> use the existing <code>AssetReference</code> join (<code>referenceTable = "Material"</code>) &mdash; no schema change.</p>
+    </div>
+
+    <!-- 7. API Surface -->
+    <div class="uis-section" id="api-surface">
+        <h2>7. API Surface</h2>
+        <h3>GraphQL</h3>
+<pre>type ManufacturerProduct {
+    id: ID!  materialId: String!  Material: Material
+    manufacturerId: String!  Manufacturer: Company
+    manufacturerSku: String!  msrp: Float  upc: String
+    description: String  packageQty: Float  packageUnit: String  isActive: Boolean!
+    DistributorPrices: [DistributorPrice!]!
+}
+type DistributorPrice {
+    id: ID!  manufacturerProductId: String!  ManufacturerProduct: ManufacturerProduct
+    distributorId: String!  Distributor: Company  distributorSku: String!
+    unitPrice: Float!  listPrice: Float  discountPercent: Float
+    effectiveFrom: DateTime  effectiveTo: DateTime  minQty: Int  leadTimeDays: Int
+    isPreferred: Boolean!  isInStock: Boolean  notes: String
+    effectivePrice: Float!     # computed
+}
+extend type Material {
+    ManufacturerProducts: [ManufacturerProduct!]!
+    bestDistributorCost: Float          # null when no active distributor price
+}
+extend type Query {
+    manufacturerProducts(materialId: ID, manufacturerId: ID): [ManufacturerProduct!]!
+    distributorPrices(manufacturerProductId: ID, distributorId: ID): [DistributorPrice!]!
+}
+extend type Mutation {
+    createManufacturerProduct / updateManufacturerProduct / deleteManufacturerProduct
+    createDistributorPrice / updateDistributorPrice / deleteDistributorPrice
+}</pre>
+        <p>Create/update of either model also upserts the corresponding <code>MaterialCompany</code> row (&sect;3.3). MCP: thin tools (<code>create_manufacturer_product</code>, <code>upsert_distributor_price</code>, &hellip;) delegating to the models, per the golden rule.</p>
+    </div>
+
+    <!-- 8. UI -->
+    <div class="uis-section" id="ui">
+        <h2>8. UI</h2>
+        <ul>
+            <li><strong>Material detail &mdash; Supply Chain section:</strong> a Manufacturers sub-table (company, SKU, MSRP, pack) and a Distributor Pricing table (distributor, SKU, unit/list, discount, lead time) with the best-cost row badged <em>&ldquo;Best Price&rdquo;</em>. Quick-add for linking a manufacturer / adding a distributor price.</li>
+            <li><strong>Company detail &mdash; Products / Products &amp; Pricing tabs</strong> as in &sect;6.</li>
+            <li>Catalogue-readiness fields (<code>sku</code>, <code>barcode</code>, <code>weight</code>, <code>weightUnit</code>) added to the material add/edit form.</li>
+        </ul>
+    </div>
+
+    <!-- 9. Open Questions -->
+    <div class="uis-section" id="open-questions">
+        <h2>9. Open Questions / Decisions Needed</h2>
+
+        <h3>Q-a. Best-cost: preferred-wins or always-lowest? <span class="decision-pill">pricing</span></h3>
+        <p>If a <code>DistributorPrice.isPreferred</code> exists, does it set the cost even when another active price is cheaper, or is cost always the lowest active <code>effectivePrice</code>? Note the tension with MAT-10 Q3 (we dropped a &ldquo;primary&rdquo; supplier on the lightweight link).</p>
+        <p class="qlean"><strong>Lean:</strong> preferred-wins when set, else lowest. <code>isPreferred</code> here is a per-price procurement choice (distinct from MAT-10&rsquo;s display question) and is genuinely useful for sourcing. Confirm with the business.</p>
+
+        <h3>Q-b. Effective-date filtering in best-cost <span class="decision-pill">pricing</span></h3>
+        <p>Best-cost should ignore prices outside <code>[effectiveFrom, effectiveTo]</code> &mdash; confirm, and confirm the &ldquo;as of&rdquo; date is &ldquo;now&rdquo; (not the WO/estimate date) for the LEM cost basis.</p>
+        <p class="qlean"><strong>Lean:</strong> filter to currently-active (now); open-ended (null) bounds always active.</p>
+
+        <h3>Q-c. DistributorPrice cost applies at material level only (0-axis / any-cell)? <span class="decision-pill">scope</span></h3>
+        <p>Per &sect;3.1, dimensional materials resolve per-cell cost from <code>MaterialAttributePrice</code> and the caller passes <code>costPrice</code>; <code>bestAvailableCost</code> (where MAT-0 hooks) is the 0-axis/any-cell path. Confirm we are NOT trying to attach distributor prices to specific X/Y/Z cells in MAT-0.</p>
+        <p class="qlean"><strong>Lean:</strong> yes &mdash; material-level only. Per-cell supplier pricing, if ever needed, is a separate future item.</p>
+
+        <h3>Q-d. Do <code>sku</code> / <code>barcode</code> belong on Material? <span class="decision-pill">catalogue</span></h3>
+        <p>House SKU/barcode on <code>Material</code>, maker SKU/UPC on <code>ManufacturerProduct</code>, seller SKU on <code>DistributorPrice</code> &mdash; confirm the house-level fields are wanted now (they&rsquo;re the Shopify-forward set) vs. deferring to whenever Shopify lands.</p>
+        <p class="qlean"><strong>Lean:</strong> add them now &mdash; standard catalogue fields, low cost, avoids a second migration later (per the Shopify forward-compat decision; <code>isPublishedToShopify</code> stays out).</p>
+
+        <h3>Q-e. MaterialCompany sync &mdash; auto-manage on delete? <span class="decision-pill">data</span></h3>
+        <p>Creating a ManufacturerProduct/DistributorPrice upserts the <code>MaterialCompany</code> link. When the <em>last</em> ManufacturerProduct/DistributorPrice for a (material, company, role) is removed, do we auto-remove the <code>MaterialCompany</code> link, or leave it (it may have been added manually in MAT-10)?</p>
+        <p class="qlean"><strong>Lean:</strong> leave it &mdash; don&rsquo;t delete a link MAT-0 didn&rsquo;t exclusively own; manual cleanup via the MAT-10 surface. Avoids surprising removals.</p>
+
+        <h3>Q-f. Seed a &ldquo;Manufacturer&rdquo; company type? <span class="decision-pill">optional</span></h3>
+        <p>The CEO draft seeded a Manufacturer company-type PropertyValue + CompanyPayableType (AP/AR false). Per &sect;3.4 nothing keys off it. Keep as optional cosmetic (companies are easier to find when typed), or drop?</p>
+        <p class="qlean"><strong>Lean:</strong> optional, idempotent (<code>INSERT IGNORE</code> on slug <code>company-type-manufacturer</code>), never required by logic. Don&rsquo;t assume Distributor/Supplier types exist.</p>
+    </div>
+
+    <!-- 10. Change Surface -->
+    <div class="uis-section" id="change-surface">
+        <h2>10. Change Surface</h2>
+        <div class="blast-summary">
+            <div class="blast-row"><span class="blast-label">New models</span><span class="blast-value">2 (+ Material catalogue fields)</span></div>
+            <div class="blast-row"><span class="blast-label">Key integration</span><span class="blast-value">bestAvailableCost() distributor tier + resolvedSellPrice SQL mirror</span></div>
+            <div class="blast-row"><span class="blast-label">Frontend</span><span class="blast-value">Company tabs + Material Supply Chain section + form fields</span></div>
+        </div>
+        <table class="schema-table">
+            <thead><tr><th>Action</th><th>Area</th><th>Change</th></tr></thead>
+            <tbody>
+                <tr><td><span class="action-mod">MOD</span></td><td><code>prisma/schema.prisma</code></td><td>Add ManufacturerProduct, DistributorPrice; Material catalogue fields; Company/Material relations</td></tr>
+                <tr><td><span class="action-new">NEW</span></td><td><code>prisma/migrations/&hellip;</code></td><td>Tables + indexes; (optional) Manufacturer company-type seed</td></tr>
+                <tr><td><span class="action-new">NEW</span></td><td><code>src/models/ManufacturerProduct.ts</code>, <code>DistributorPrice.ts</code></td><td>Plain relational models (BaseAuditableModel); effectivePrice + best-cost helpers; MaterialCompany upsert</td></tr>
+                <tr><td><span class="action-mod">MOD</span></td><td><code>src/services/MaterialPricingService.ts</code></td><td><code>bestAvailableCost()</code> distributor tier (signature unchanged)</td></tr>
+                <tr><td><span class="action-mod">MOD</span></td><td><code>graphql/models/&hellip;</code> + <code>schema.ts</code></td><td>New resolvers (4 spots each); Material <code>bestDistributorCost</code>/<code>ManufacturerProducts</code>; TableFeed <code>resolvedSellPrice</code> SQL</td></tr>
+                <tr><td><span class="action-new">NEW</span></td><td><code>src/mcp/tools/&hellip;</code></td><td>Thin MCP tools for both models</td></tr>
+                <tr><td><span class="action-mod">MOD</span></td><td><code>apps/frontend</code> CompanyDetailsPage + Material detail + material form</td><td>Tabs, Supply Chain section, catalogue fields</td></tr>
+            </tbody>
+        </table>
+        <div class="callout"><strong>Exact paths &amp; line-level steps land in the plan.</strong></div>
+    </div>
+
+    <!-- 11. Acceptance Criteria -->
+    <div class="uis-section" id="acceptance-criteria">
+        <h2>11. Acceptance Criteria</h2>
+        <ul class="criteria-list">
+            <li><div class="criteria-check"></div><code>ManufacturerProduct</code> + <code>DistributorPrice</code> exist with the stated fields, uniques, indexes, Company/Material relations; ids are <code>@db.VarChar(21)</code> app-generated (no <code>cuid()</code>).</li>
+            <li><div class="criteria-check"></div>Creating either model upserts the matching <code>MaterialCompany</code> row (role Manufacturer/Distributor); removal follows Q-e.</li>
+            <li><div class="criteria-check"></div><code>effectivePrice</code> computes <code>listPrice&times;(1&minus;discount/100)</code> when discount+list present, else <code>unitPrice</code>; readable from GraphQL and the model.</li>
+            <li><div class="criteria-check"></div><code>bestAvailableCost()</code> returns the active preferred/lowest distributor <code>effectivePrice</code> when one exists, else falls through to the unchanged MAP/unitCost logic; <strong>signature unchanged</strong>.</li>
+            <li><div class="criteria-check"></div>Expired/future-dated and archived/deleted prices are excluded from best-cost.</li>
+            <li><div class="criteria-check"></div><code>resolveMaterialSellPrice</code> and the <code>resolvedSellPrice</code> TableFeed column reflect distributor cost for 0-axis materials with a distributor price.</li>
+            <li><div class="criteria-check"></div>Company detail shows Products / Products &amp; Pricing tabs by join-existence (not company type); Material detail shows the Supply Chain section with a best-price marker.</li>
+            <li><div class="criteria-check"></div>Material carries <code>sku</code>, <code>barcode</code>, <code>weight</code>, <code>weightUnit</code>; editable on the form; no <code>isPublishedToShopify</code>; images via <code>AssetReference</code>.</li>
+            <li><div class="criteria-check"></div>GraphQL + MCP CRUD present for both models, thin &rarr; model.</li>
+            <li><div class="criteria-check"></div>No raw Prisma enum added; build + prettier pass.</li>
+        </ul>
+    </div>
+
+    <!-- 12. Dependencies -->
+    <div class="uis-section" id="dependencies">
+        <h2>12. Dependencies</h2>
+        <h3>Requires</h3>
+        <p>
+            <a class="dep-tag dep-requires" href="uis-MAT-10-material-company-fk.html">MAT-10 &mdash; MaterialCompany link MAT-0 keeps in sync</a>
+            <span class="dep-tag dep-requires">LEM-3a &mdash; MaterialPricingService.bestAvailableCost() hook (in 1.33)</span>
+        </p>
+        <h3>Enables</h3>
+        <p>
+            <a class="dep-tag dep-enables" href="uis-MAT-3-price-book-import.html">MAT-3 &mdash; bulk DistributorPrice import</a>
+            <a class="dep-tag dep-enables" href="uis-MAT-9-discount-management.html">MAT-9 &mdash; tiered/quantity discounts over DistributorPrice</a>
+            <a class="dep-tag dep-enables" href="uis-MAT-5-supplier-po.html">MAT-5 &mdash; Supplier POs sourced from distributor pricing</a>
+        </p>
+        <h3>Resolves</h3>
+        <p><span class="dep-tag dep-requires" style="background:#ede9fe;color:#5b21b6;">The <code>TODO(MAT-0)</code> in MaterialPricingService.bestAvailableCost()</span></p>
+    </div>
+
+</div>
+</body>
+</html>

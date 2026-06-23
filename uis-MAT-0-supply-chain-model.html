@@ -162,7 +162,7 @@ pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
         </div>
         <h3>In Scope</h3>
         <ul>
-            <li><span class="scope-tag scope-in">IN</span> Extend <code>MaterialAttributePrice</code>: nullable <code>distributorId</code> + <code>manufacturerId</code> (source), <code>sku</code> (+ optional <code>manufacturerSku</code>/<code>upc</code>), and procurement metadata (<code>listPrice</code>, <code>discountPercent</code>, <code>effectiveFrom/To</code>, <code>minQty</code>, <code>leadTimeDays</code>, <code>packageQty</code>/<code>packageUnit</code>, <code>isPreferred</code>, <code>isInStock</code>); relaxed unique so a cell has many source rows + one house row</li>
+            <li><span class="scope-tag scope-in">IN</span> Extend <code>MaterialAttributePrice</code>: nullable <code>distributorId</code> + <code>manufacturerId</code> (source), <code>sku</code> (+ optional <code>manufacturerSku</code>/<code>upc</code>), and procurement metadata (<code>listPrice</code>, <code>discountId</code> FK &rarr; Discount, <code>effectiveFrom/To</code>, <code>minQty</code>, <code>leadTimeDays</code>, <code>packageQty</code>/<code>packageUnit</code>, <code>isPreferred</code>, <code>isInStock</code>); relaxed unique so a cell has many source rows + one house row</li>
             <li><span class="scope-tag scope-in">IN</span> Migrate the 0-axis price from <code>Material.unitCost</code> into an all-null MAP row so 0-axis SKUs carry sources too (axes already nullable per PR #7211; see Q-a)</li>
             <li><span class="scope-tag scope-in">IN</span> <code>effectivePrice</code> (computed) + cheapest/preferred source resolution per cell/material</li>
             <li><span class="scope-tag scope-in">IN</span> <strong>Wiring the source cost tier into <code>bestAvailableCost()</code></strong> (the MAT-0 hook) &mdash; signature unchanged; keep the <code>resolvedSellPrice</code> SQL mirror in sync</li>
@@ -172,7 +172,7 @@ pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
         </ul>
         <h3>Out of Scope</h3>
         <ul>
-            <li><span class="scope-tag scope-out">OUT</span> Bulk price-book import &mdash; <strong>MAT-3</strong> &middot; Quantity/tier discount cascade &mdash; <strong>MAT-9</strong> (MAT-0 has a single price + flat <code>discountPercent</code>) &middot; Supplier POs &mdash; <strong>MAT-5</strong></li>
+            <li><span class="scope-tag scope-out">OUT</span> Bulk price-book import &mdash; <strong>MAT-3</strong> &middot; Blanket discount cascade (category/global tiers + <code>direction</code>/<code>distributorId</code> on Discount) &mdash; <strong>MAT-9</strong> (MAT-0 ships only the per-cell <code>discountId</code> FK + single-discount <code>effectivePrice</code>) &middot; Supplier POs &mdash; <strong>MAT-5</strong></li>
             <li><span class="scope-tag scope-out">OUT</span> <code>isPublishedToShopify</code> / Shopify sync (deferred); product images (already handled by <code>AssetReference</code>, <code>referenceTable = "Material"</code>)</li>
             <li><span class="scope-tag scope-out">OUT</span> <code>ManufacturerProduct</code> / <code>DistributorPrice</code> models &mdash; not built (design D)</li>
         </ul>
@@ -227,9 +227,9 @@ pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
     weight            Decimal? @db.Decimal(10, 3)
     weightUnit        String?  @db.VarChar(8)
 
-    // NEW — procurement metadata (per SOURCE row; flat — tiered/qty discounts are MAT-9)
+    // NEW — procurement metadata (per SOURCE row)
     listPrice         Decimal? @db.Decimal(10, 2)
-    discountPercent   Decimal? @db.Decimal(5, 2)
+    discountId        String?  @db.VarChar(21)        // per-cell discount = FK to the Discount value object (MAT-9). Replaces the old flat discountPercent. effectivePrice = listPrice − this discount; blanket category/global tiers layer above it in MAT-9.
     effectiveFrom     DateTime?
     effectiveTo       DateTime?
     minQty            Int?
@@ -239,13 +239,15 @@ pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
     isPreferred       Boolean  @default(false)
     isInStock         Boolean?
 
-    Distributor       Company? @relation("DistributorPrices", fields: [distributorId], references: [id])
-    Manufacturer      Company? @relation("ManufacturerPrices", fields: [manufacturerId], references: [id])
+    Distributor       Company?  @relation("DistributorPrices", fields: [distributorId], references: [id])
+    Manufacturer      Company?  @relation("ManufacturerPrices", fields: [manufacturerId], references: [id])
+    Discount          Discount? @relation(fields: [discountId], references: [id])
 
     // was @@unique([materialId, selectedXValueId, selectedYValueId]) — now includes the source:
     @@unique([materialId, selectedXValueId, selectedYValueId, selectedZValueId, distributorId, manufacturerId])
     @@index([distributorId])
     @@index([manufacturerId])
+    @@index([discountId])
 }
 
 // Material — no catalogue columns added; the variant-intrinsic fields live on the
@@ -264,7 +266,8 @@ model Material {
     <div class="uis-section" id="pricing">
         <h2>6. Pricing Integration (the centerpiece)</h2>
         <h3><code>effectivePrice</code> (computed)</h3>
-        <p>Per source row: <code>effectivePrice = (discountPercent != null &amp;&amp; listPrice != null) ? listPrice &times; (1 &minus; discountPercent/100) : value</code> (<code>value</code> = the unit cost). Computed in the model layer (so MCP reads it) and exposed on the GraphQL type.</p>
+        <p>Per source row, the resolved net cost = <code>listPrice</code> (or <code>value</code>) with the buy-side <strong>resolved discount</strong> applied: <code>Percent</code> &rarr; <code>&times;(1 &minus; value/100)</code>, <code>FixedAmount</code> &rarr; <code>&minus; value</code>; no discount &rarr; <code>value</code>. Computed in the model layer (so MCP reads it) and exposed on the GraphQL type.</p>
+        <div class="callout"><strong>MAT-0 resolves only the row&rsquo;s own <code>discountId</code></strong> (the per-cell tier). The fuller cascade &mdash; per-cell <code>discountId</code> &rsaquo; per-material &rsaquo; category (<code>MaterialGroup</code>) &rsaquo; distributor-global, all <code>direction:Buy</code> + active-dated &mdash; is added by <strong>MAT-9</strong>, which generalises this into a <code>resolveBuyDiscount(distributor, material, cell)</code> the <code>effectivePrice</code> computation and <code>bestAvailableCost()</code> both call. MAT-0 ships the FK + the single-discount case; MAT-9 layers the blanket tiers above it without changing the seam.</div>
         <h3>Cheapest/preferred source for a cell (or material)</h3>
         <p>Among the <strong>active</strong> source rows (not deleted/archived; within <code>[effectiveFrom, effectiveTo]</code> as of now) for a given cell &mdash; or across all cells for the material-level any-cell case &mdash; resolve: <strong>preferred (<code>isPreferred</code>) wins if set, else lowest <code>effectivePrice</code></strong> (Q-c). Fall back to the source-less house row, then (0-axis) <code>Material.unitCost</code>.</p>
         <h3>The <code>bestAvailableCost()</code> upgrade (signature unchanged)</h3>
@@ -314,10 +317,10 @@ model Material {
     distributorId: String   distributor: Company
     manufacturerId: String  manufacturer: Company
     sku: String  manufacturerSku: String  upc: String
-    listPrice: Float  discountPercent: Float
+    listPrice: Float  discountId: String  Discount: Discount
     effectiveFrom: DateTime  effectiveTo: DateTime  minQty: Int  leadTimeDays: Int
     isPreferred: Boolean  isInStock: Boolean
-    effectivePrice: Float          # computed
+    effectivePrice: Float          # computed (listPrice − resolved discount)
 }
 extend type Material { bestDistributorCost: Float }</pre>
     </div>
@@ -388,7 +391,7 @@ extend type Material { bestDistributorCost: Float }</pre>
             <li><div class="criteria-check"></div>One distributor can hold two rows for the same cell under different <code>manufacturerId</code>s, at different prices/SKUs.</li>
             <li><div class="criteria-check"></div>0-axis price lives in an all-axes-null MAP row (backfilled from <code>Material.unitCost</code>) and can carry sources; <code>bestAvailableCost</code> resolves 0-axis from MAP; <code>unitCost</code> kept as transitional fallback.</li>
             <li><div class="criteria-check"></div>One-house-row-per-cell and one-row-per-(cell,source) are enforced (model layer, given the MySQL nullable-unique caveat).</li>
-            <li><div class="criteria-check"></div><code>effectivePrice</code> = <code>listPrice&times;(1&minus;discount/100)</code> when both present, else <code>value</code>; readable from GraphQL + model.</li>
+            <li><div class="criteria-check"></div>A source row&rsquo;s <code>discountId</code> FK &rarr; <code>Discount</code> applies to <code>effectivePrice</code> (<code>Percent</code> &rarr; <code>&times;(1&minus;value/100)</code>, <code>FixedAmount</code> &rarr; <code>&minus;value</code>), else <code>value</code>; readable from GraphQL + model. (Blanket category/global cascade is MAT-9.)</li>
             <li><div class="criteria-check"></div><code>bestAvailableCost()</code> returns the active cheapest/preferred source <code>effectivePrice</code> when one exists, else falls through to house/unitCost; <strong>signature unchanged</strong>; expired/archived excluded.</li>
             <li><div class="criteria-check"></div><code>resolvedSellPrice</code> TableFeed column reflects source cost (matches the service).</li>
             <li><div class="criteria-check"></div>A source row&rsquo;s <code>distributorId</code>/<code>manufacturerId</code> is rejected unless it references a live <code>MaterialCompany</code> of the matching role for that material; a not-yet-linked supplier is added via confirm-then-create; removal of a referenced link follows Q-e.</li>

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MAT-6: Receiving Workflow + Three-Way Match — Implementation Plan</title>
+    <title>MAT-6: Receiving + Two-Way Match &mdash; Implementation Plan</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
 .in-iframe .top-nav { display: none !important; }
@@ -13,17 +13,17 @@
 .top-nav .nav-logo { font-size: 11px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: #475569; padding-right: 18px; margin-right: 4px; border-right: 1px solid #1e293b; }
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body { font-family: 'Inter', -apple-system, sans-serif; background: #f8fafc; color: #0f172a; }
-.plan-wrap { max-width: 880px; margin: 0 auto; padding: 40px 24px 80px; }
-h1 { font-size: 24px; font-weight: 800; margin: 0 0 16px; }
-h2 { font-size: 18px; font-weight: 700; margin: 28px 0 12px; padding-bottom: 8px; border-bottom: 2px solid #e2e8f0; }
-h3 { font-size: 15px; font-weight: 700; margin: 20px 0 8px; padding-top: 10px; border-top: 1px solid #f1f5f9; }
-h4 { font-size: 14px; font-weight: 700; margin: 14px 0 6px; }
+.plan-wrap { max-width: 920px; margin: 0 auto; padding: 40px 24px 80px; }
+h1 { font-size: 24px; font-weight: 800; color: #0f172a; margin: 0 0 16px; letter-spacing: -0.01em; }
+h2 { font-size: 18px; font-weight: 700; color: #0f172a; margin: 28px 0 12px; padding-bottom: 8px; border-bottom: 2px solid #e2e8f0; }
+h3 { font-size: 15px; font-weight: 700; color: #0f172a; margin: 20px 0 8px; padding-top: 10px; border-top: 1px solid #f1f5f9; }
+h4 { font-size: 14px; font-weight: 700; color: #0f172a; margin: 14px 0 6px; }
 p { font-size: 14px; color: #334155; line-height: 1.7; margin: 6px 0; }
 ul, ol { padding-left: 20px; margin: 8px 0; }
 li { font-size: 14px; color: #334155; line-height: 1.7; margin: 3px 0; }
 strong { color: #0f172a; }
 code { font-family: 'SF Mono', monospace; background: #f1f5f9; padding: 1px 6px; border-radius: 4px; font-size: 12px; color: #7c3aed; }
-pre { background: #0f172a; color: #f8fafc; border-radius: 8px; padding: 16px; overflow-x: auto; font-size: 13px; line-height: 1.6; margin: 12px 0; font-family: 'SF Mono', monospace; }
+pre { background: #0f172a; color: #f8fafc; border-radius: 8px; padding: 16px; overflow-x: auto; font-size: 12.5px; line-height: 1.55; margin: 12px 0; font-family: 'SF Mono', monospace; }
 pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
 hr { border: none; border-top: 1px solid #e2e8f0; margin: 24px 0; }
 table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 12px 0; }
@@ -31,8 +31,19 @@ th { text-align: left; padding: 8px 12px; background: #f1f5f9; border-bottom: 2p
 td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
 .check-item { display: flex; gap: 8px; align-items: flex-start; padding: 5px 0; }
 .check-box { width: 16px; height: 16px; border: 2px solid #cbd5e1; border-radius: 3px; flex-shrink: 0; margin-top: 2px; }
+.criteria-list { list-style: none; padding: 0; }
+.criteria-list li { padding: 8px 0; border-bottom: 1px solid #f1f5f9; display: flex; gap: 10px; align-items: flex-start; font-size: 14px; color: #334155; }
 .callout { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 14px 18px; margin: 14px 0; font-size: 13px; color: #1e40af; }
 .callout strong { color: #1e3a8a; }
+.callout.warn { background: #fffbeb; border-color: #fde68a; color: #92400e; }
+.callout.warn strong { color: #78350f; }
+.callout.green { background: #f0fdf4; border-color: #bbf7d0; color: #166534; }
+.callout.green strong { color: #14532d; }
+.callout.flag { background: #faf5ff; border-color: #d8b4fe; color: #6b21a8; }
+.callout.flag strong { color: #581c87; }
+.step-meta { display: grid; grid-template-columns: 110px 1fr; gap: 6px 12px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 16px; margin: 10px 0 14px; font-size: 13px; }
+.step-meta div:nth-child(odd) { font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.5px; font-size: 11px; padding-top: 2px; }
+.step-meta div:nth-child(even) { color: #334155; }
     </style>
 </head>
 <body>
@@ -45,191 +56,581 @@ td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
     <a href="../release-1.34-timeline.html">Release 1.34</a>
     <a href="../master-spec-reconciliation.html">Spec Reconciliation</a>
     <a href="../cross-release-continuity-audit.html">Continuity Audit</a>
-    <a href="ui-interface-library.html">UI Library</a>
+    <a href="../ui-interface-library.html">UI Library</a>
 </nav>
-<div class="plan-wrap" id="rendered"></div>
-<script type="text/plain" id="plan-md">
-# MAT-6: Receiving Workflow + Three-Way Match — Implementation Plan
+<div class="plan-wrap">
 
-## Overview
+<h1>MAT-6: Receiving + Two-Way Match (Implementation Plan)</h1>
 
-Receive deliveries against Supplier POs, track partial/complete receipts, and provide three-way match visibility (PO quantity vs. received quantity vs. supplier invoice amount). Two new models: `PurchaseOrderReceipt` and `ReceiptLineItem`.
+<p style="font-size:14px; color:#475569;">Self-contained execution plan. Another agent should be able to pick this up cold, run the steps in order, and ship a PR. Paths are relative to the monorepo root (<code>apps/api</code>, <code>apps/frontend</code>). Read <strong>Pre-flight</strong> first. Companion spec: <a href="../uis-MAT-6-receiving-workflow.html">uis-MAT-6-receiving-workflow.html</a> (that is the <em>spec</em> + decision log; this is the <em>plan</em>). Code blocks are drop-in starting points grounded in the named precedents on <code>repo-2</code> (~6351-line schema) &mdash; match surrounding style, don&rsquo;t reformat neighbours.</p>
 
-**Estimated effort:** 4-5 days
-**Risk:** Medium — new models, PO status auto-transitions, three-way match logic
-**Deps:** MAT-5 (Supplier PO must exist)
+<h2>Overview &amp; Outcome</h2>
+<p>Receiving records <strong>what physically arrived</strong> against a Supplier PO. It draws down the <code>PurchaseOrderLineItem</code> quantities MAT-5 created, auto-advances the PO through two new customizable statuses, and gives the PO detail page a <strong>two-way match</strong> (Ordered vs Received) + back-order view. After this lands:</p>
+<ul>
+    <li>Two new tables &mdash; <code>PurchaseOrderReceipt</code> (header: who/when/packing slip/notes + a global <code>RCV-####</code>) and <code>ReceiptLineItem</code> (per-line received + damaged qty). Both <code>extend BaseModel</code>.</li>
+    <li>A <code>receivePurchaseOrder</code> mutation validates each line (<code>received &le; remaining</code>), writes the receipt + lines through the models (perm checks / hooks / audit), and recomputes the PO status.</li>
+    <li>Two new <code>PropertyValue</code>s &mdash; <code>Partially Received</code> + <code>Received</code> &mdash; are added to the <strong>existing <code>purchase-order-status</code> group MAT-5 created</strong>, with two new <code>Instance</code> anchors driving the transition (never matched by label).</li>
+    <li><code>PurchaseOrderLineItem</code> gains <strong>computed</strong> <code>receivedQty</code> / <code>backOrderQty</code> GraphQL fields (summed from receipts at query time &mdash; no stored columns).</li>
+    <li>Receiving is gated by MAT-5&rsquo;s dedicated <code>supplierPurchaseOrder</code> permission (resolver-enforced) behind the <code>RESTRICT_MATERIAL</code> env gate.</li>
+</ul>
 
----
+<div class="callout flag">
+    <strong>Decisions baked into this plan (settled with the user this session &mdash; see the spec&rsquo;s reconciliation callout).</strong>
+    <ul style="margin-top:6px;">
+        <li><strong>Two-way match only</strong> (Ordered vs Received). No supplier-invoice / AP entity exists in the schema (only customer <code>JobBill</code>), so the &ldquo;Invoiced&rdquo; leg &mdash; the true three-way match &mdash; is its own slice, <strong>MAT-11</strong>.</li>
+        <li><strong>Committed-cost roll-up is OUT</strong> &rarr; <strong>MAT-12</strong>. <code>JobFinancialSummaryService</code> has no &ldquo;committed&rdquo; concept today (forecast + actuals only; material actuals come from expense line items). Do not touch it here.</li>
+        <li><strong>Status is a customizable <code>PropertyValue</code>, not an enum</strong> &mdash; MAT-6 adds two values to MAT-5&rsquo;s <code>purchase-order-status</code> group + two <code>Instance</code> anchors. Reuses the RFI precedent.</li>
+        <li><strong>Reuse MAT-5&rsquo;s <code>supplierPurchaseOrder</code> permission</strong> (resolver-enforced). Do NOT use <code>materialorder.edit</code> and do NOT add anything to <code>permissionsByReferenceModel</code>.</li>
+        <li><strong>Receipt totals are computed, not stored</strong> &mdash; no <code>receivedQty</code>/<code>backOrderQty</code> columns on <code>PurchaseOrderLineItem</code>.</li>
+        <li><strong>Damaged semantics:</strong> good qty = <code>receivedQty &minus; damagedQty</code> counts toward fulfilment; damaged keeps the line on back-order and feeds Vendor Credits (MAT-8).</li>
+        <li><strong>No <code>instanceId</code></strong> (single-instance app). No MAT-x identifiers in migration names or code comments.</li>
+    </ul>
+</div>
 
-## Step 1: Prisma Schema
+<hr>
 
-### 1a. PurchaseOrderReceipt
+<h2>Pre-flight (do this first)</h2>
 
-```prisma
-model PurchaseOrderReceipt {
-  id                String        @id @db.VarChar(21)
-  isDeleted         Boolean       @default(false)
-  createdAt         DateTime      @default(now())
-  updatedAt         DateTime      @default(now()) @updatedAt
+<h3>Repo &amp; grounding</h3>
+<ul>
+    <li>Working repo: the Appello monorepo (pnpm + turbo). API/frontend grounded against <code>~/Documents/git-repos/appello/repo-2</code> (~6351-line schema). Line numbers below are from that checkout &mdash; re-confirm against the active integration branch (it moves; confirm the branch with the user, do not assume <code>main</code>).</li>
+</ul>
 
-  purchaseOrderId   String        @db.VarChar(21)
-  PurchaseOrder     PurchaseOrder @relation(fields: [purchaseOrderId], references: [id])
+<div class="callout warn"><strong>HARD PREREQ &mdash; MAT-5 must be merged.</strong> This entire plan sits on MAT-5&rsquo;s output. It assumes the following already exist:
+    <ul style="margin-top:6px;">
+        <li><code>PurchaseOrder.type</code> (enum) + <code>statusId</code> (FK&rarr;<code>PropertyValue</code>) and the <code>PurchaseOrderLineItem</code> table (with <code>quantity</code>, <code>unitPrice</code>, <code>total</code>, <code>materialAttributePriceId</code>).</li>
+        <li>The <code>purchase-order-status</code> <code>PropertyValue</code> group (seeded <code>Draft</code>/<code>Issued</code>/<code>Closed</code>/<code>Cancelled</code>) and the MAT-5 <code>Instance</code> anchors (<code>purchaseOrderDefaultStatusId</code> / <code>purchaseOrderIssuedStatusId</code> / <code>purchaseOrderCancelledStatusId</code>).</li>
+        <li>The <code>supplierPurchaseOrder</code> permission (resolver-enforced; not in <code>permissionsByReferenceModel</code>).</li>
+        <li>The Supplier-PO detail page (MAT-5 Step 10) &mdash; MAT-6 adds a tab to it.</li>
+    </ul>
+    If MAT-5 has not merged, stop &mdash; do not re-derive its model/permission/status group here.</div>
 
-  receivedByUserId  String        @db.VarChar(21)
-  receivedDate      DateTime
-  packingSlipNumber String?       @db.VarChar(100)
-  notes             String?       @db.Text
-  status            String        @db.VarChar(50)
+<h3>This is two new child tables &mdash; not a new top-level surface</h3>
+<p>The PO header, its model, resolver, detail page, and permission all exist post-MAT-5. MAT-6 adds two leaf tables that hang off <code>PurchaseOrder</code> / <code>PurchaseOrderLineItem</code>, one mutation, a couple of computed field resolvers, and one frontend tab. <strong>Do not scaffold a new PO surface.</strong> If the repo uses <code>new-data-model</code> to scaffold models, you may use it for the two receipt models, then trim to the shapes below.</p>
 
-  LineItems         ReceiptLineItem[]
+<h3>Reference precedents &mdash; read before writing anything</h3>
+<table>
+    <thead><tr><th>For</th><th>Read (verbatim, on repo-2)</th></tr></thead>
+    <tbody>
+        <tr><td>Line-item / leaf model shape</td><td><code>apps/api/src/models/WorkOrderMaterialItem.ts</code> &mdash; <code>class &hellip; extends BaseModel&lt;I&hellip;&gt;</code> (<code>:5&ndash;6</code>), <code>modelFields</code> (<code>:10&ndash;56</code>), <code>afterCreate</code>/<code>afterEdit</code> (<code>:58&ndash;64</code>) &rarr; <code>recalculateTotal</code> (<code>:100&ndash;109</code>). Our receipt models are simpler (no stored total &rarr; no recalc hook).</td></tr>
+        <tr><td>Prefix auto-numbering + race retry</td><td><code>apps/api/src/models/RequestForInformation.ts:115&ndash;128</code> (<code>getNextRfiNumber</code>: raw-SQL <code>MAX(CAST(SUBSTRING(&hellip;) AS UNSIGNED))</code> + <code>padStart</code>) and <code>:272&ndash;288</code> (collision retry). RCV is <strong>global</strong> &mdash; no parent in the <code>WHERE</code> (RFI is per-job).</td></tr>
+        <tr><td>Status PropertyValues + Instance anchors (the seed precedent)</td><td><code>apps/api/prisma/migrations/20260220182000_rfi_status_property_values/migration.sql</code> &mdash; <code>INSERT IGNORE</code> with <strong>hardcoded semantic ids</strong> (<code>'rfi_status_draft_001'</code>&hellip;) + <code>ALTER TABLE Instance ADD COLUMN rfiDefaultStatusId &hellip; DEFAULT 'rfi_status_draft_001'</code> + FK. Also <code>20260311100000_add_rfi_instance_settings/migration.sql</code> (nullable anchors, <code>UPDATE &hellip; WHERE IS NULL</code>, <code>ON DELETE SET NULL</code>).</td></tr>
+        <tr><td>Parent + children writes (the pattern to follow)</td><td><code>apps/api/src/graphql/models/WorkOrderLineItems.ts:23&ndash;98</code> &mdash; sequential <code>model.createItem</code>/<code>editItem</code>/<code>deleteItem</code> calls (each runs perm checks + <code>afterCreate</code> + audit). <strong>Always use model methods over raw prisma for writes.</strong> <code>BaseModel</code> can&rsquo;t enlist in <code>prisma.$transaction</code>, so writes are sequential, not atomic &mdash; this is the accepted repo trade-off.</td></tr>
+        <tr><td>Resolver-level permission check</td><td><code>apps/api/src/lib/canUserPerformAction.ts:219&ndash;239</code> &mdash; <code>continueIfUserCanPerform(user, referenceModel, action, errorMessage?)</code> (async, throws <code>PermissionError</code> from <code>apps/api/src/errors/Permission.ts</code>). Real call site: <code>apps/api/src/graphql/models/EquipmentJobBreakdown.ts:59&ndash;66</code> &mdash; note <code>context.userId()</code> is a <strong>function call</strong>.</td></tr>
+        <tr><td>Resolver shape + computed/nested field resolvers</td><td><code>apps/api/src/graphql/models/PurchaseOrder.ts:7&ndash;113</code> &mdash; <code>{ typeDef: gql\`&hellip;\`, Resolvers: { Field: async ({ id }) =&gt; &hellip; }, Query, Mutation }</code> and a separate per-type resolver object (<code>PurchaseOrderAssignmentResolvers</code>) for a nested type&rsquo;s field resolvers, spread into <code>graphql/schema.ts</code>.</td></tr>
+        <tr><td>id generation for raw writes</td><td>BaseModel generates VarChar(21) ids via <code>nanoid</code>. When you write rows with raw <code>tx.&lt;model&gt;.create()</code> (bypassing the model), generate the id the same way (<code>nanoid(21)</code> / the repo&rsquo;s id helper).</td></tr>
+    </tbody>
+</table>
+
+<h3>Hard constants</h3>
+<table>
+    <thead><tr><th>What</th><th>Value</th></tr></thead>
+    <tbody>
+        <tr><td>New tables</td><td><code>PurchaseOrderReceipt</code>, <code>ReceiptLineItem</code> (both <code>BaseModel</code>; inherit <code>id/createdAt/updatedAt/isArchived/isDeleted</code>)</td></tr>
+        <tr><td>New enum</td><td><strong>None.</strong> Receipt-level &ldquo;Partial/Complete&rdquo; is derivable; the meaningful status lives on the PO as a <code>PropertyValue</code>.</td></tr>
+        <tr><td>New status values</td><td>Added to MAT-5&rsquo;s existing <code>purchase-order-status</code> group: <code>Partially Received</code>, <code>Received</code> (<code>workflowState</code> <code>inprogress</code> / <code>done</code>; <code>orderNo</code> 4 / 5, after MAT-5&rsquo;s 0&ndash;3)</td></tr>
+        <tr><td>New Instance anchors</td><td><code>purchaseOrderPartiallyReceivedStatusId</code>, <code>purchaseOrderReceivedStatusId</code> &rarr; <code>PropertyValue</code></td></tr>
+        <tr><td>Numbering</td><td><code>RCV-####</code> global sequence (RFI precedent, no parent scope); <code>receiptNumber</code> is <code>@unique</code></td></tr>
+        <tr><td>Permission</td><td>MAT-5 <code>supplierPurchaseOrder</code> &mdash; resolver-enforced via <code>continueIfUserCanPerform</code></td></tr>
+        <tr><td>Env gate</td><td><code>RESTRICT_MATERIAL</code> (obfuscated <code>publicRuntimeConfig.n</code>)</td></tr>
+        <tr><td>Computed (not stored)</td><td><code>receivedQty</code>, <code>backOrderQty</code> on <code>PurchaseOrderLineItem</code> (GraphQL field resolvers)</td></tr>
+        <tr><td>Schema indent</td><td>2 spaces; migration SQL 4 spaces; newline at EOF</td></tr>
+    </tbody>
+</table>
+
+<h3>What you are NOT doing in this PR</h3>
+<ul>
+    <li>No supplier-invoice / AP entity, no Invoiced column, no true three-way match (MAT-11).</li>
+    <li>No committed-cost aggregation in <code>JobFinancialSummaryService</code> (MAT-12).</li>
+    <li>No inventory creation (MAT-7), no mobile receiving, no barcode/QR scan.</li>
+    <li>No stored <code>receivedQty</code>/<code>backOrderQty</code> columns. No <code>instanceId</code>. No MAT identifiers in the migration name or code comments.</li>
+</ul>
+
+<hr>
+
+<h2>Step 1 &mdash; Schema: two models + Instance anchors + back-relations</h2>
+<div class="step-meta">
+    <div>Goal</div><div>Define <code>PurchaseOrderReceipt</code> + <code>ReceiptLineItem</code>; add two <code>Instance</code> anchors; wire back-relations. No stored receipt-total columns.</div>
+    <div>Files</div><div><code>apps/api/prisma/schema.prisma</code></div>
+    <div>Validate</div><div><code>pnpm run prisma:validate</code> passes.</div>
+</div>
+<pre><code>model PurchaseOrderReceipt {
+  id                String   @id @db.VarChar(21)
+  isDeleted         Boolean  @default(false)
+  isArchived        Boolean  @default(false)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @default(now()) @updatedAt
+
+  receiptNumber     String   @unique @db.VarChar(50)
+  purchaseOrderId   String   @db.VarChar(21)
+  receivedByUserId  String   @db.VarChar(21)
+  receivedDate      DateTime @default(now())
+  packingSlipNumber String?  @db.VarChar(100)
+  notes             String?  @db.Text
+
+  PurchaseOrder PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], map: "FK_poReceiptPurchaseOrder")
+  ReceivedBy    User          @relation("PurchaseOrderReceiptReceivedBy", fields: [receivedByUserId], references: [id], map: "FK_poReceiptReceivedBy")
+  LineItems     ReceiptLineItem[]
 
   @@index([purchaseOrderId, isDeleted])
+  @@index([receivedByUserId], map: "FK_poReceiptReceivedBy")
 }
-```
 
-Const-based statuses:
-```typescript
-export const RECEIPT_STATUSES = ["Partial", "Complete"] as const;
-```
-
-### 1b. ReceiptLineItem
-
-```prisma
 model ReceiptLineItem {
-  id                        String               @id @db.VarChar(21)
-  isDeleted                 Boolean              @default(false)
-  createdAt                 DateTime             @default(now())
-  updatedAt                 DateTime             @default(now()) @updatedAt
+  id         String   @id @db.VarChar(21)
+  isDeleted  Boolean  @default(false)
+  isArchived Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @default(now()) @updatedAt
 
-  receiptId                 String               @db.VarChar(21)
-  Receipt                   PurchaseOrderReceipt @relation(fields: [receiptId], references: [id])
+  receiptId               String   @db.VarChar(21)
+  purchaseOrderLineItemId String   @db.VarChar(21)
+  receivedQty             Decimal  @db.Decimal(10, 2)
+  damagedQty              Decimal? @db.Decimal(10, 2)
+  notes                   String?  @db.Text
 
-  purchaseOrderLineItemId   String               @db.VarChar(21)
-  PurchaseOrderLineItem     PurchaseOrderLineItem @relation(fields: [purchaseOrderLineItemId], references: [id])
-
-  receivedQty               Decimal              @db.Decimal(10, 2)
-  damagedQty                Decimal?             @db.Decimal(10, 2)
-  notes                     String?              @db.Text
+  Receipt               PurchaseOrderReceipt  @relation(fields: [receiptId], references: [id], map: "FK_receiptLineItemReceipt")
+  PurchaseOrderLineItem PurchaseOrderLineItem @relation(fields: [purchaseOrderLineItemId], references: [id], map: "FK_receiptLineItemPoLineItem")
 
   @@index([receiptId, isDeleted])
+  @@index([purchaseOrderLineItemId], map: "FK_receiptLineItemPoLineItem")
+}</code></pre>
+<p>Add the back-relations on the parents + the two new <code>Instance</code> anchors (mirror the MAT-5 anchor block, which mirrors <code>rfiDefaultStatusId</code>/<code>rfiSentStatusId</code>):</p>
+<pre><code>  // model PurchaseOrder
+  Receipts PurchaseOrderReceipt[]
+  // model PurchaseOrderLineItem (MAT-5)
+  ReceiptLineItems ReceiptLineItem[]
+  // model User
+  PurchaseOrderReceipts PurchaseOrderReceipt[] @relation("PurchaseOrderReceiptReceivedBy")
+
+  // model PropertyValue — back-relations for the two new anchors
+  PurchaseOrderPartiallyReceivedStatus Instance[] @relation("PurchaseOrderPartiallyReceivedStatus")
+  PurchaseOrderReceivedStatus          Instance[] @relation("PurchaseOrderReceivedStatus")
+
+  // model Instance — two new anchor FKs (mirror MAT-5's PO anchors)
+  purchaseOrderPartiallyReceivedStatusId String?        @db.VarChar(21)
+  purchaseOrderReceivedStatusId          String?        @db.VarChar(21)
+  PurchaseOrderPartiallyReceivedStatus   PropertyValue? @relation("PurchaseOrderPartiallyReceivedStatus", fields: [purchaseOrderPartiallyReceivedStatusId], references: [id])
+  PurchaseOrderReceivedStatus            PropertyValue? @relation("PurchaseOrderReceivedStatus", fields: [purchaseOrderReceivedStatusId], references: [id])</code></pre>
+<div class="callout"><strong>No stored totals.</strong> <code>receivedQty</code>/<code>backOrderQty</code> are NOT columns &mdash; they are GraphQL field resolvers (Step 7) summed from <code>ReceiptLineItem</code>. This is the spec&rsquo;s explicit decision (avoids drift between receipts and a cached summary). So unlike <code>WorkOrderMaterialItem</code>, neither receipt model needs a <code>recalculateTotal</code> hook.</div>
+
+<hr>
+
+<h2>Step 2 &mdash; Migration: tables, anchors, status values</h2>
+<div class="step-meta">
+    <div>Goal</div><div>Create the two tables; add the two <code>Instance</code> anchor columns + FKs; add the two new status <code>PropertyValue</code>s to MAT-5&rsquo;s group.</div>
+    <div>Files</div><div>new <code>prisma/migrations/&lt;ts&gt;_purchase_order_receiving/migration.sql</code></div>
+</div>
+<pre><code>cd apps/api
+pnpm run prisma:migrate purchase_order_receiving</code></pre>
+<p>Prisma emits the two <code>CREATE TABLE</code>s, their FKs/indexes, and the two <code>Instance</code> anchor columns. Append the status-value seed. Follow the <strong>live RFI precedent</strong> (<code>20260220182000_rfi_status_property_values</code>): hardcoded semantic ids + <code>INSERT IGNORE</code>, then point the anchors at those stable ids &mdash; no session variables, no slug subquery needed.</p>
+<pre><code>-- two new values in MAT-5's existing purchase-order-status group (Draft/Issued/Closed/Cancelled = orderNo 0-3)
+INSERT IGNORE INTO `PropertyValue`
+    (`id`, `propertyName`, `propertyNameLabel`, `label`, `slug`, `workflowState`, `includeColourPicker`, `color`, `orderNo`, `referencedOn`)
+VALUES
+    ('po_status_partial_recv_001', 'purchaseorder_status', 'Purchase Order Status', 'Partially Received', 'purchaseorder_status-partially-received', 'inprogress', 1, '#d97706', 4, 'PurchaseOrder'),
+    ('po_status_received_002',     'purchaseorder_status', 'Purchase Order Status', 'Received',           'purchaseorder_status-received',           'done',       1, '#16a34a', 5, 'PurchaseOrder');
+
+-- new instances get the anchor automatically via the column DEFAULT; backfill existing instances explicitly
+ALTER TABLE `Instance`
+    ADD COLUMN `purchaseOrderPartiallyReceivedStatusId` VARCHAR(21) NULL DEFAULT 'po_status_partial_recv_001',
+    ADD COLUMN `purchaseOrderReceivedStatusId`          VARCHAR(21) NULL DEFAULT 'po_status_received_002';
+
+UPDATE `Instance` SET `purchaseOrderPartiallyReceivedStatusId` = 'po_status_partial_recv_001' WHERE `purchaseOrderPartiallyReceivedStatusId` IS NULL;
+UPDATE `Instance` SET `purchaseOrderReceivedStatusId`          = 'po_status_received_002'     WHERE `purchaseOrderReceivedStatusId`          IS NULL;
+
+ALTER TABLE `Instance` ADD CONSTRAINT `Instance_purchaseOrderPartiallyReceivedStatusId_fkey`
+    FOREIGN KEY (`purchaseOrderPartiallyReceivedStatusId`) REFERENCES `PropertyValue` (`id`) ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE `Instance` ADD CONSTRAINT `Instance_purchaseOrderReceivedStatusId_fkey`
+    FOREIGN KEY (`purchaseOrderReceivedStatusId`) REFERENCES `PropertyValue` (`id`) ON DELETE SET NULL ON UPDATE CASCADE;</code></pre>
+<div class="callout flag"><strong>FLAG for the user &mdash; reconcile the seed approach + the group naming with MAT-5.</strong>
+    <ul style="margin-top:6px;">
+        <li><strong>Id approach.</strong> The live RFI status migration uses <em>hardcoded semantic ids</em> + a column <code>DEFAULT</code>, so new instances auto-get the anchor with zero bootstrap code (Step 9 becomes a no-op). MAT-5&rsquo;s plan instead used generated ids (<code>LEFT(md5(uuid()),21)</code>) + slug subqueries + a separate bootstrap seed. Both avoid session variables (the actual CI/CD constraint). The hardcoded-id approach is the proven, simpler one for <em>anchor-target</em> status values &mdash; recommend aligning MAT-5 to it.</li>
+        <li><strong>Group identity.</strong> The values above MUST match the exact <code>propertyName</code> + <code>slug</code> + extra columns (<code>includeColourPicker</code>, <code>referencedOn</code>) that MAT-5 actually ships for its group. RFI uses <code>propertyName = "requestforinformation_status"</code>, <code>slug = "rfi_status-draft"</code> &mdash; so the real convention is <code>&lt;modelname&gt;_status</code>, not the kebab <code>purchase-order-status</code> the MAT-5 spec sketched. Confirm MAT-5&rsquo;s final group name and reuse it verbatim here.</li>
+    </ul>
+</div>
+<p>Run <code>pnpm run prisma:deploy &amp;&amp; pnpm run prisma:generate</code>. No data migration (new tables). The migration directory name carries no MAT identifier.</p>
+
+<hr>
+
+<h2>Step 3 &mdash; Types</h2>
+<div class="step-meta">
+    <div>Goal</div><div>Interfaces for the two models + the receive inputs. No enum (status is a PropertyValue).</div>
+    <div>Files</div><div>new <code>apps/api/src/types/PurchaseOrderReceipt.types.ts</code> (+ barrel export in <code>types/index</code>)</div>
+</div>
+<pre><code>export interface IPurchaseOrderReceipt {
+    id: string;
+    receiptNumber: string;
+    purchaseOrderId: string;
+    receivedByUserId: string;
+    receivedDate: Date;
+    packingSlipNumber?: string | null;
+    notes?: string | null;
+    isDeleted: boolean;
+    isArchived: boolean;
+    createdAt: Date;
+    updatedAt: Date;
 }
-```
 
-### 1c. Extend PurchaseOrderLineItem
+export interface IReceiptLineItem {
+    id: string;
+    receiptId: string;
+    purchaseOrderLineItemId: string;
+    receivedQty: number;
+    damagedQty?: number | null;
+    notes?: string | null;
+    isDeleted: boolean;
+    isArchived: boolean;
+    createdAt: Date;
+    updatedAt: Date;
+}
 
-Add tracking fields:
-- `receivedQty` (Decimal 10,2 — total received across all receipts)
-- `backOrderQty` (Decimal 10,2 — ordered minus received)
+export interface IReceiveItemInput {
+    purchaseOrderLineItemId: string;
+    receivedQty: number;
+    damagedQty?: number | null;
+    notes?: string | null;
+}
 
----
+export interface IReceivePurchaseOrderInput {
+    purchaseOrderId: string;
+    receivedDate?: Date | null;
+    packingSlipNumber?: string | null;
+    notes?: string | null;
+    lineItems: IReceiveItemInput[];
+}</code></pre>
 
-## Step 2: Model + GraphQL
+<hr>
 
-**Create:** `apps/api/src/models/PurchaseOrderReceipt.ts`, `apps/api/src/graphql/models/PurchaseOrderReceipt.ts`
+<h2>Step 4 &mdash; <code>ReceiptLineItem</code> model</h2>
+<div class="step-meta">
+    <div>Goal</div><div>Thin <code>BaseModel</code> subclass. No lifecycle hooks (no stored total).</div>
+    <div>Files</div><div>new <code>apps/api/src/models/ReceiptLineItem.ts</code></div>
+</div>
+<pre><code>import { BaseModel } from "./base/_BaseModel";
+import { IReceiptLineItem, IField } from "../types";
+import prisma from "./_prismaClient";
 
-Key methods:
-- `receiveAgainstPO(purchaseOrderId, lineItems)`: Create receipt, update line item received quantities
-- `calculateReceivedTotals(purchaseOrderId)`: Sum received quantities across all receipts per line item
-- Auto-transition PO status: Sent → PartiallyReceived → FullyReceived based on receipt totals
+class ReceiptLineItemModel extends BaseModel&lt;IReceiptLineItem&gt; {
+    public name = "ReceiptLineItem";
+    name_plural = "ReceiptLineItems";
+    protected prisma = prisma.receiptLineItem;
 
----
+    protected modelFields: IField&lt;IReceiptLineItem&gt;[] = [
+        { name: "receiptId", type: "string", options: { isRequiredOnCreate: true, canCreate: true } },
+        { name: "purchaseOrderLineItemId", type: "string", options: { isRequiredOnCreate: true, canCreate: true } },
+        { name: "receivedQty", type: "float", options: { isRequiredOnCreate: true, canCreate: true, canEdit: true } },
+        { name: "damagedQty", type: "float", options: { canCreate: true, canEdit: true } },
+        { name: "notes", type: "string", options: { canCreate: true, canEdit: true } }
+    ];
+}
 
-## Step 3: Frontend — Receiving Form
+export { ReceiptLineItemModel };</code></pre>
+<p>The receive flow writes line items through this model&rsquo;s <code>createItem</code> (Step 5.3), and it also backs edit/delete + GraphQL exposure. Confirm the real <code>WorkOrderMaterialItem</code> base import path and any abstract-method obligations, and match them.</p>
 
-**Create:** `apps/frontend/src/components/Receiving/ReceivingForm.tsx`
+<hr>
 
-Receive against PO:
-- Select PO (or navigate from PO detail)
-- Line items table showing: ordered qty, previously received, receiving now, damaged
-- Packing slip number entry
-- Notes per line item
-- Submit creates PurchaseOrderReceipt + ReceiptLineItems
+<h2>Step 5 &mdash; <code>PurchaseOrderReceiptModel</code>: numbering, validation, transactional receive, status</h2>
+<div class="step-meta">
+    <div>Goal</div><div>The core: <code>RCV-####</code> numbering, per-line validation, atomic receipt write, PO status recompute via Instance anchors.</div>
+    <div>Files</div><div>new <code>apps/api/src/models/PurchaseOrderReceipt.ts</code></div>
+</div>
 
----
+<h3>5.1 RCV numbering (global, RFI precedent)</h3>
+<pre><code>public async getNextReceiptNumber(): Promise&lt;string&gt; {
+    const result = await prisma.$queryRaw&lt;[{ maxNum: bigint | null }]&gt;`
+        SELECT MAX(CAST(SUBSTRING(receiptNumber, 5) AS UNSIGNED)) as maxNum
+        FROM PurchaseOrderReceipt
+        WHERE isDeleted = false
+        AND receiptNumber REGEXP '^RCV-[0-9]+$'
+    `;
+    const next = Number(result[0]?.maxNum ?? 0) + 1;
+    return `RCV-${String(next).padStart(4, "0")}`;
+}</code></pre>
+<p>Global (no parent in the <code>WHERE</code>). Wrap the create in the same collision-retry RFI uses (<code>RequestForInformation.ts:272&ndash;288</code>): on a <code>receiptNumber</code> unique violation, recompute and retry.</p>
 
-## Step 4: Three-Way Match View
-
-Add to PO detail page — "Receiving" tab:
-- Table: Line Item | Ordered | Received | Back-Ordered | Invoiced (from future AP integration)
-- Visual indicators: green (fully received), yellow (partial), red (back-ordered)
-- Receipt history log with dates, packing slips, receiving user
-
----
-
-## Step 5: P&L Integration (Cross-Cutting Update #2)
-
-**File:** `apps/api/src/services/JobFinancialSummaryService.ts`
-
-Add Supplier PO committed costs:
-- Open Supplier PO amounts (ordered but not yet received/expensed) as "committed" column
-- Received amounts feed material cost actuals
-
----
-
-## Verification Checklist
-
-- [ ] Receive against PO: mark line items received (full/partial/damaged)
-- [ ] Three-way match: PO qty vs. received qty vs. supplier invoice amount
-- [ ] Back-order tracking: unfulfilled quantities flagged
-- [ ] Receipt history on PO detail page
-- [ ] PO status auto-transitions: Sent → PartiallyReceived → FullyReceived
-- [ ] PurchaseOrderLineItem.receivedQty and backOrderQty updated on receipt
-- [ ] Committed material costs appear in Job Financial Summary
-- [ ] Packing slip number captured per receipt
-
----
-
-## Files Summary
-
-| Action | File | What to do |
-|--------|------|------------|
-| MODIFY | `apps/api/prisma/schema.prisma` | Add PurchaseOrderReceipt + ReceiptLineItem, extend PurchaseOrderLineItem |
-| CREATE | `apps/api/prisma/migrations/.../migration.sql` | CREATE TABLE x2 + ALTER PurchaseOrderLineItem |
-| CREATE | `apps/api/src/models/PurchaseOrderReceipt.ts` | Model with receiving + auto-transition logic |
-| CREATE | `apps/api/src/graphql/models/PurchaseOrderReceipt.ts` | GraphQL resolver |
-| MODIFY | `apps/api/src/graphql/schema.ts` | Register resolver |
-| CREATE | `apps/frontend/.../Receiving/ReceivingForm.tsx` | Receiving form component |
-| MODIFY | PO detail page | Add Receiving tab with three-way match |
-| MODIFY | `apps/api/src/services/JobFinancialSummaryService.ts` | Add committed material costs |
-</script>
-<script>
-(function() {
-    var md = document.getElementById('plan-md').textContent;
-    var target = document.getElementById('rendered');
-    var html = md
-        .replace(/```(\w*)\n([\s\S]*?)```/g, function(_, lang, code) {
-            return '<pre><code>' + code.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</code></pre>';
-        })
-        .replace(/`([^`\n]+)`/g, '<code>$1</code>')
-        .replace(/^#### (.+)$/gm, '<h4>$1</h4>')
-        .replace(/^### (.+)$/gm, '<h3>$1</h3>')
-        .replace(/^## (.+)$/gm, '<h2>$1</h2>')
-        .replace(/^# (.+)$/gm, '<h1>$1</h1>')
-        .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-        .replace(/\*(.+?)\*/g, '<em>$1</em>')
-        .replace(/^---$/gm, '<hr>');
-    html = html.replace(/^- \[ \] (.+)$/gm, '<div class="check-item"><div class="check-box"></div><span>$1</span></div>');
-    html = html.replace(/(\|.+\|\n)+/g, function(table) {
-        var rows = table.trim().split('\n');
-        if (rows.length < 2) return table;
-        var headers = rows[0].split('|').filter(function(c) { return c.trim(); });
-        var isSep = /^[\s|:\-]+$/.test(rows[1]);
-        var start = isSep ? 2 : 1;
-        var out = '<table><thead><tr>';
-        headers.forEach(function(h) { out += '<th>' + h.trim() + '</th>'; });
-        out += '</tr></thead><tbody>';
-        for (var i = start; i < rows.length; i++) {
-            var cells = rows[i].split('|').filter(function(c) { return c.trim(); });
-            out += '<tr>'; cells.forEach(function(c) { out += '<td>' + c.trim() + '</td>'; }); out += '</tr>';
-        }
-        out += '</tbody></table>';
-        return out;
+<h3>5.2 Received totals (good qty per line)</h3>
+<pre><code>// good received per line = Σ(receivedQty − damagedQty) across non-deleted receipt lines
+public async getReceivedTotals(purchaseOrderId: string): Promise&lt;Map&lt;string, number&gt;&gt; {
+    const lines = await prisma.purchaseOrderLineItem.findMany({
+        where: { purchaseOrderId, isDeleted: false }, select: { id: true }
     });
-    html = html.replace(/^- (.+)$/gm, '<li>$1</li>');
-    html = html.replace(/(<li>[\s\S]*?<\/li>\n?)+/g, function(m) { return '<ul>' + m + '</ul>'; });
-    html = html.replace(/^(?!<[hultdps\/<]|<\/|<code|<pre|<hr|<div|<strong|<em)(.+)$/gm, '<p>$1</p>');
-    target.innerHTML = html;
-})();
-</script>
+    const rows = await prisma.receiptLineItem.groupBy({
+        by: ["purchaseOrderLineItemId"],
+        where: { isDeleted: false, purchaseOrderLineItemId: { in: lines.map(l =&gt; l.id) } },
+        _sum: { receivedQty: true, damagedQty: true }
+    });
+    const map = new Map&lt;string, number&gt;();
+    for (const r of rows) {
+        map.set(r.purchaseOrderLineItemId, Number(r._sum.receivedQty ?? 0) - Number(r._sum.damagedQty ?? 0));
+    }
+    return map;
+}</code></pre>
+
+<h3>5.3 Receive (validate &rarr; atomic write &rarr; status)</h3>
+<pre><code>public async receiveAgainstPO(input: IReceivePurchaseOrderInput, userId: string): Promise&lt;IPurchaseOrderReceipt&gt; {
+    // 1) load PO + its lines + prior good-received totals (reads)
+    const po = await prisma.purchaseOrder.findFirst({
+        where: { id: input.purchaseOrderId, isDeleted: false },
+        include: { PurchaseOrderLineItems: { where: { isDeleted: false } } }
+    });
+    if (!po) throw new NotFoundError("Purchase order not found");           // match repo error class
+    const prior = await this.getReceivedTotals(po.id);
+
+    // 2) validate each submitted line
+    if (!input.lineItems.length) throw new ValidationError("No line items to receive");
+    for (const l of input.lineItems) {
+        const line = po.PurchaseOrderLineItems.find((x) =&gt; x.id === l.purchaseOrderLineItemId);
+        if (!line) throw new ValidationError("Line item not on this PO");
+        const good = l.receivedQty - (l.damagedQty ?? 0);
+        if (l.receivedQty &lt;= 0 || good &lt; 0) throw new ValidationError("Invalid received/damaged quantity");
+        const remaining = Number(line.quantity ?? 0) - Number(prior.get(line.id) ?? 0);
+        if (good &gt; remaining) throw new ValidationError(`Receiving ${good} exceeds remaining ${remaining}`);
+    }
+
+    // 3) create the receipt header + its lines THROUGH THE MODELS — always prefer model.createItem
+    //    over raw prisma: it runs permission checks, afterCreate hooks, and audit, and generates the id.
+    //    Sequential writes, matching upsertWorkOrderLineItems (WorkOrderLineItems.ts:23-98).
+    const receipt = await this.createItem(
+        {
+            receiptNumber: await this.getNextReceiptNumber(),
+            purchaseOrderId: po.id,
+            receivedByUserId: userId,
+            receivedDate: input.receivedDate ?? new Date(),
+            packingSlipNumber: input.packingSlipNumber ?? null,
+            notes: input.notes ?? null
+        },
+        userId
+    );
+
+    const lineModel = new ReceiptLineItemModel();
+    for (const l of input.lineItems) {
+        await lineModel.createItem(
+            {
+                receiptId: receipt.id,
+                purchaseOrderLineItemId: l.purchaseOrderLineItemId,
+                receivedQty: l.receivedQty,
+                damagedQty: l.damagedQty ?? null,
+                notes: l.notes ?? null
+            },
+            userId
+        );
+    }
+
+    // 4) recompute PO status via the model edit (perm checks + audit), resolving the target via Instance anchors
+    const nextStatusId = await this.resolveStatusAfterReceipt(po.id);
+    if (nextStatusId) await new PurchaseOrderModel().editItem(po.id, { statusId: nextStatusId }, userId);
+
+    return receipt;
+}</code></pre>
+<div class="callout"><strong>Model methods, not raw prisma &mdash; always.</strong> The receipt header and every line are written through <code>createItem</code> (and the status flip through <code>editItem</code>) so each write runs its permission checks, <code>afterCreate</code> hooks, and audit, and gets a model-generated id. <code>BaseModel</code> methods can&rsquo;t enlist in a <code>prisma.$transaction</code>, so the writes are <strong>sequential, not atomic</strong> &mdash; the same trade-off <code>upsertWorkOrderLineItems</code> already lives with. Guard the order so a failure can&rsquo;t leave a header without lines (create the receipt first; if a line throws, the partial receipt is visible and re-runnable). The PO status is fully derivable from the receipt rows, so it&rsquo;s recomputed last via the model edit. Wrap the <code>createItem</code> in the RFI-style retry (5.1) so an <code>RCV-####</code> unique collision regenerates and retries.</div>
+
+<h3>5.4 Resolve status via the Instance anchors</h3>
+<pre><code>private async resolveStatusAfterReceipt(purchaseOrderId: string): Promise&lt;string | null&gt; {
+    const lines = await prisma.purchaseOrderLineItem.findMany({
+        where: { purchaseOrderId, isDeleted: false }, select: { id: true, quantity: true }
+    });
+    if (!lines.length) return null;
+    const totals = await this.getReceivedTotals(purchaseOrderId);
+    const anyReceived = lines.some((l) =&gt; Number(totals.get(l.id) ?? 0) &gt; 0);
+    const allComplete = lines.every((l) =&gt; Number(totals.get(l.id) ?? 0) &gt;= Number(l.quantity ?? 0));
+
+    const instance = await prisma.instance.findFirst({
+        select: { purchaseOrderReceivedStatusId: true, purchaseOrderPartiallyReceivedStatusId: true }
+    });
+    if (allComplete) return instance?.purchaseOrderReceivedStatusId ?? null;
+    if (anyReceived) return instance?.purchaseOrderPartiallyReceivedStatusId ?? null;
+    return null; // nothing received yet → leave status unchanged
+}</code></pre>
+<p>Target states are read from the per-semantic <code>Instance</code> anchor, never matched by label &mdash; a renamed/recolored &ldquo;Received&rdquo; still works. MAT-6 only ever advances <em>forward</em> from Issued; it does not move a PO that is already past Received.</p>
+
+<hr>
+
+<h2>Step 6 &mdash; Permission (reuse MAT-5&rsquo;s <code>supplierPurchaseOrder</code>)</h2>
+<div class="step-meta">
+    <div>Goal</div><div>Gate receiving at the resolver on the existing supplier-PO permission &mdash; no new permission, nothing added to the model map.</div>
+    <div>Files</div><div>resolver (Step 7) &mdash; no schema/seed change</div>
+</div>
+<div class="callout"><strong>No new permission.</strong> MAT-5 already seeds <code>supplierPurchaseOrder</code> (actions <code>view</code>/<code>create</code>/<code>edit</code>/<code>delete</code>/<code>issue</code>) and enforces it at the resolver layer, deliberately keeping <code>PurchaseOrder</code> out of <code>permissionsByReferenceModel</code>. Receiving is an <code>edit</code> on the supplier PO &mdash; reuse it: <code>continueIfUserCanPerform(userId, "supplierPurchaseOrder", "edit")</code>. (If procurement wants receiving split from editing, add a <code>receive</code> action to that permission in MAT-5&rsquo;s seed and regenerate <code>derived.ts</code> &mdash; confirm with the user; <code>edit</code> is the default.) Keep everything behind the <code>RESTRICT_MATERIAL</code> env gate as the rest of the material surfaces are.</div>
+
+<hr>
+
+<h2>Step 7 &mdash; GraphQL surface (one file per model)</h2>
+<div class="step-meta">
+    <div>Goal</div><div>A dedicated graphql model file per model (repo convention): <code>PurchaseOrderReceipt</code> owns the receive operation; <code>ReceiptLineItem</code> owns the line type + the PO-line receiving fields.</div>
+    <div>Files</div><div>new <code>apps/api/src/graphql/models/PurchaseOrderReceipt.ts</code>; new <code>apps/api/src/graphql/models/ReceiptLineItem.ts</code>; <code>apps/api/src/graphql/models/PurchaseOrder.ts</code> (MAT-5 &mdash; +3 PurchaseOrderLineItem fields); <code>apps/api/src/graphql/schema.ts</code></div>
+</div>
+
+<h3>7a &mdash; <code>graphql/models/PurchaseOrderReceipt.ts</code></h3>
+<p>The receipt header + the receive operation. <code>ReceiptLineItem</code> is referenced (in <code>LineItems</code>) but defined in its own file (7b).</p>
+<pre><code>import { gql } from "graphql-tag";
+import prisma from "../../models/_prismaClient";
+import { PurchaseOrderReceiptModel } from "../../models/PurchaseOrderReceipt";
+import { continueIfUserCanPerform } from "../../lib/canUserPerformAction";
+
+export const PurchaseOrderReceiptResolvers = {
+    typeDef: gql`
+        # PurchaseOrder and User already exist (MAT-1 / core) — reference only, never re-declare.
+        type PurchaseOrderReceipt {
+            id: ID!
+            receiptNumber: String!
+            purchaseOrderId: String!
+            PurchaseOrder: PurchaseOrder
+            receivedByUserId: String!
+            ReceivedBy: User
+            receivedDate: DateTime!
+            packingSlipNumber: String
+            notes: String
+            LineItems: [ReceiptLineItem]
+            createdAt: DateTime
+        }
+        input ReceiveItemInput {
+            purchaseOrderLineItemId: String!
+            receivedQty: Float!
+            damagedQty: Float
+            notes: String
+        }
+        input ReceivePurchaseOrderInput {
+            purchaseOrderId: String!
+            receivedDate: DateTime
+            packingSlipNumber: String
+            notes: String
+            lineItems: [ReceiveItemInput!]!
+        }
+    `,
+    Resolvers: {
+        PurchaseOrder: ({ purchaseOrderId }) =&gt; prisma.purchaseOrder.findUnique({ where: { id: purchaseOrderId } }),
+        ReceivedBy:    ({ receivedByUserId }) =&gt; prisma.user.findUnique({ where: { id: receivedByUserId } }),
+        LineItems:     ({ id }) =&gt; prisma.receiptLineItem.findMany({ where: { receiptId: id, isDeleted: false } })
+    },
+    Query: {
+        purchaseOrderReceipts: async (_, { purchaseOrderId }, ctx) =&gt; {
+            await continueIfUserCanPerform(ctx.userId(), "supplierPurchaseOrder", "view");
+            return prisma.purchaseOrderReceipt.findMany({ where: { purchaseOrderId, isDeleted: false }, orderBy: { receivedDate: "desc" } });
+        },
+        purchaseOrderReceipt: async (_, { id }, ctx) =&gt; {
+            await continueIfUserCanPerform(ctx.userId(), "supplierPurchaseOrder", "view");
+            return prisma.purchaseOrderReceipt.findUnique({ where: { id } });
+        }
+    },
+    Mutation: {
+        receivePurchaseOrder: async (_, { input }, ctx) =&gt; {
+            await continueIfUserCanPerform(ctx.userId(), "supplierPurchaseOrder", "edit");
+            return new PurchaseOrderReceiptModel().receiveAgainstPO(input, ctx.userId());
+        }
+    }
+};</code></pre>
+
+<h3>7b &mdash; <code>graphql/models/ReceiptLineItem.ts</code></h3>
+<p>Just the <code>ReceiptLineItem</code> type and its own field resolvers &mdash; a single <code>Resolvers</code>, wired in <code>schema.ts</code> as <code>ReceiptLineItem: { ...ReceiptLineItemResolvers.Resolvers }</code>.</p>
+<pre><code>import { gql } from "graphql-tag";
+import prisma from "../../models/_prismaClient";
+
+export const ReceiptLineItemResolvers = {
+    typeDef: gql`
+        # PurchaseOrderLineItem already exists (MAT-5) — reference only, never re-declare.
+        type ReceiptLineItem {
+            id: ID!
+            receiptId: String!
+            purchaseOrderLineItemId: String!
+            PurchaseOrderLineItem: PurchaseOrderLineItem
+            receivedQty: Float!
+            damagedQty: Float
+            notes: String
+        }
+    `,
+    Resolvers: {
+        PurchaseOrderLineItem: ({ purchaseOrderLineItemId }) =&gt; prisma.purchaseOrderLineItem.findUnique({ where: { id: purchaseOrderLineItemId } })
+    }
+};</code></pre>
+
+<h3>7c &mdash; the PO-line receiving fields belong to <code>PurchaseOrderLineItem</code> (MAT-5)</h3>
+<p><code>receivedQty</code> / <code>backOrderQty</code> / <code>Receipts</code> are fields <em>on</em> <code>PurchaseOrderLineItem</code>, which MAT-5 owns &mdash; so they live under <strong>that type&rsquo;s single <code>Resolvers</code></strong>, not a sibling key here. Add the three SDL fields to MAT-5&rsquo;s <code>PurchaseOrderLineItem</code> type and the three resolvers to its <code>PurchaseOrderLineItem</code> resolver map (the one <code>schema.ts</code> already wires as <code>PurchaseOrderLineItem: { ...PurchaseOrderResolvers.PurchaseOrderLineItemResolvers }</code>). MAT-6 supplies the data (<code>ReceiptLineItem</code>); MAT-5&rsquo;s type exposes it. If MAT-5 and MAT-6 land together, just author these directly on MAT-5&rsquo;s type.</p>
+<pre><code>// in MAT-5's graphql/models/PurchaseOrder.ts
+
+// 1) PurchaseOrderLineItem typeDef — add three fields:
+//      receivedQty: Float!
+//      backOrderQty: Float!
+//      Receipts: [ReceiptLineItem]
+
+// 2) PurchaseOrderResolvers.PurchaseOrderLineItemResolvers — add three resolvers:
+receivedQty: async ({ id }) =&gt; {
+    const s = await prisma.receiptLineItem.aggregate({
+        where: { purchaseOrderLineItemId: id, isDeleted: false }, _sum: { receivedQty: true }
+    });
+    return Number(s._sum.receivedQty ?? 0);
+},
+backOrderQty: async ({ id, quantity }) =&gt; {
+    const s = await prisma.receiptLineItem.aggregate({
+        where: { purchaseOrderLineItemId: id, isDeleted: false }, _sum: { receivedQty: true, damagedQty: true }
+    });
+    const good = Number(s._sum.receivedQty ?? 0) - Number(s._sum.damagedQty ?? 0);
+    return Math.max(0, Number(quantity ?? 0) - good);
+},
+Receipts: ({ id }) =&gt; prisma.receiptLineItem.findMany({ where: { purchaseOrderLineItemId: id, isDeleted: false }, orderBy: { createdAt: "asc" } })</code></pre>
+
+<div class="callout"><strong>Registration in <code>graphql/schema.ts</code>.</strong> Wire each file exactly like every other model &mdash; one <code>Resolvers</code> per type, no sibling-key gymnastics: <code>PurchaseOrderReceipt: { ...PurchaseOrderReceiptResolvers.Resolvers }</code>, <code>ReceiptLineItem: { ...ReceiptLineItemResolvers.Resolvers }</code>, spread <code>PurchaseOrderReceiptResolvers.{Query,Mutation}</code>, and concat both <code>typeDef</code>s. The three PO-line fields are added to MAT-5&rsquo;s <code>PurchaseOrderLineItem</code> resolver (7c), so nothing special happens here for them. Confirm <code>ctx.userId()</code> is a function in this resolver layer (it is in <code>EquipmentJobBreakdown.ts</code>).</div>
+
+<hr>
+
+<h2>Step 8 &mdash; Frontend: receiving form + Receiving tab</h2>
+<div class="step-meta">
+    <div>Goal</div><div>A receive modal/form and a Receiving tab (two-way match + receipt history) on MAT-5&rsquo;s Supplier-PO detail page.</div>
+    <div>Files</div><div>new <code>apps/frontend/src/components/PurchaseOrder/ReceivingForm.tsx</code>; extend the MAT-5 detail page</div>
+</div>
+<ul>
+    <li><strong>ReceivingForm</strong> (FC arrow component): header reads the PO + its lines via the MAT-5 query (now returning <code>receivedQty</code>/<code>backOrderQty</code>). One row per line: Ordered (read-only), Previously Received (= <code>quantity − backOrderQty</code>, read-only), <em>Receiving Now</em> (number input, default empty), <em>Damaged</em> (number input), plus a packing-slip field and a notes field. Client-side guard: receiving now &le; back-order. Submit calls <code>receivePurchaseOrder</code>.</li>
+    <li><strong>Receiving tab</strong> on the detail page (gate on <code>supplierPurchaseOrder: view</code>): the <strong>two-way match table</strong> (Material / Ordered / Received / Back-Order + a status pill driven by back-order &gt; 0) and a <strong>receipt-history list</strong> from <code>purchaseOrderReceipts</code> (RCV #, date, <code>ReceivedBy</code>, packing slip, notes). A &ldquo;Receive items&rdquo; button opens <code>ReceivingForm</code> (hide it once the PO is at the Received status).</li>
+    <li>Reuse the shared <code>ListTable</code>/table primitives and the status-pill component the rest of the app uses; match the MAT-5 detail-page tab pattern. No new table primitives.</li>
+</ul>
+
+<hr>
+
+<h2>Step 9 &mdash; New-instance bootstrap</h2>
+<div class="step-meta">
+    <div>Goal</div><div>Ensure future instances get the two new statuses + anchors.</div>
+    <div>Files</div><div>none if the column <code>DEFAULT</code> is used (Step 2); else the bootstrap seed</div>
+</div>
+<p>If you took the <strong>hardcoded-id + column <code>DEFAULT</code></strong> route in Step 2 (recommended), new instances inherit <code>purchaseOrder*StatusId</code> automatically and the <code>INSERT IGNORE</code>d <code>PropertyValue</code> rows are global &mdash; <strong>no bootstrap change needed</strong>. Only if MAT-5 (and therefore this) uses generated per-instance ids must you add the two values + anchors wherever MAT-5 seeds the <code>purchase-order-status</code> group for a new instance. Resolve this together with the Step 2 flag.</p>
+
+<hr>
+
+<h2>Step 10 &mdash; End-to-end smoke test</h2>
+<ol>
+    <li>Issue a Supplier PO (MAT-5) with two lines (qty 50 and 24).</li>
+    <li>Receive 30 of line A &rarr; receipt gets <code>RCV-0001</code>; PO flips to <strong>Partially Received</strong>; line A back-order = 20, line B = 24.</li>
+    <li>Receive the remaining 20 of A and 18 of B (with 6 damaged on B) &rarr; <code>RCV-0002</code>; line B back-order = 6 (damaged stays outstanding); PO still <strong>Partially Received</strong>.</li>
+    <li>Receive the final 6 of B &rarr; PO flips to <strong>Received</strong>; all back-orders 0.</li>
+    <li>Over-receive (receive 5 against a fully-received line) &rarr; rejected with the remaining-quantity error.</li>
+    <li>Rename the &ldquo;Received&rdquo; status in settings &rarr; the transition still lands on it (anchor, not label).</li>
+    <li>Receipt history shows both RCVs with date, receiver, packing slip, notes. Two-way match table matches the per-line math.</li>
+    <li>Permissions: a user without <code>supplierPurchaseOrder.edit</code> cannot receive; with <code>RESTRICT_MATERIAL</code> off, the Receiving surfaces are hidden.</li>
+</ol>
+
+<hr>
+
+<h2>Downstream impacts (for awareness, NOT this PR)</h2>
+<ul>
+    <li><strong>MAT-7 (Inventory)</strong> &mdash; a confirmed receipt is the natural trigger to create/increment stock; <code>ReceiptLineItem</code> is the hook.</li>
+    <li><strong>MAT-8 (Vendor Credits)</strong> &mdash; <code>damagedQty</code> (and short receipts) are the credit triggers; a credit reads receipt rows.</li>
+    <li><strong>MAT-11 (Supplier Invoices + Three-Way Match)</strong> &mdash; adds the Invoiced leg; the two-way match table grows a third column and a Discrepancy state.</li>
+    <li><strong>MAT-12 (PO Committed Cost)</strong> &mdash; issued-PO totals as &ldquo;committed&rdquo; in <code>JobFinancialSummaryService</code>; received amounts later feed material actuals.</li>
+</ul>
+
+<hr>
+
+<h2>Acceptance Checklist</h2>
+<ul class="criteria-list">
+    <li><div class="check-box"></div><span><code>PurchaseOrderReceipt</code> + <code>ReceiptLineItem</code> exist (<code>BaseModel</code>); two new <code>Instance</code> anchors added; two new values in MAT-5&rsquo;s <code>purchase-order-status</code> group; migration carries no MAT identifier.</span></li>
+    <li><div class="check-box"></div><span><code>receivePurchaseOrder</code> validates <code>good &le; remaining</code> per line and writes receipt + lines via <code>model.createItem</code> (not raw prisma); over-receive is rejected.</span></li>
+    <li><div class="check-box"></div><span>Global <code>RCV-####</code> per receipt (RFI precedent, unique, collision-retry).</span></li>
+    <li><div class="check-box"></div><span>PO status auto-advances to <strong>Partially Received</strong> / <strong>Received</strong> resolved via the <code>Instance</code> anchors, never by label; new statuses are per-instance editable PropertyValues.</span></li>
+    <li><div class="check-box"></div><span><code>receivedQty</code>/<code>backOrderQty</code> are computed field resolvers (no stored columns); back-order = <code>ordered − Σ(received − damaged)</code> so damaged stays outstanding.</span></li>
+    <li><div class="check-box"></div><span>Receiving gated by <code>supplierPurchaseOrder</code> (<code>edit</code>) at the resolver + <code>RESTRICT_MATERIAL</code>; nothing added to <code>permissionsByReferenceModel</code>; not <code>materialorder.edit</code>.</span></li>
+    <li><div class="check-box"></div><span>Two-way match table + receipt history tab on the Supplier-PO detail page.</span></li>
+    <li><div class="check-box"></div><span>No invoice/AP entity, no three-way match, no committed-cost change, no inventory write, no <code>instanceId</code>.</span></li>
+</ul>
+
+</div>
 </body>
 </html>

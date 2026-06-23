@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MAT-5: Supplier PO (CRUD + PDF + Email) — Implementation Plan</title>
+    <title>MAT-5: Supplier Purchase Orders &mdash; Implementation Plan</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
 .in-iframe .top-nav { display: none !important; }
@@ -13,17 +13,17 @@
 .top-nav .nav-logo { font-size: 11px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: #475569; padding-right: 18px; margin-right: 4px; border-right: 1px solid #1e293b; }
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body { font-family: 'Inter', -apple-system, sans-serif; background: #f8fafc; color: #0f172a; }
-.plan-wrap { max-width: 880px; margin: 0 auto; padding: 40px 24px 80px; }
-h1 { font-size: 24px; font-weight: 800; margin: 0 0 16px; }
-h2 { font-size: 18px; font-weight: 700; margin: 28px 0 12px; padding-bottom: 8px; border-bottom: 2px solid #e2e8f0; }
-h3 { font-size: 15px; font-weight: 700; margin: 20px 0 8px; padding-top: 10px; border-top: 1px solid #f1f5f9; }
-h4 { font-size: 14px; font-weight: 700; margin: 14px 0 6px; }
+.plan-wrap { max-width: 920px; margin: 0 auto; padding: 40px 24px 80px; }
+h1 { font-size: 24px; font-weight: 800; color: #0f172a; margin: 0 0 16px; letter-spacing: -0.01em; }
+h2 { font-size: 18px; font-weight: 700; color: #0f172a; margin: 28px 0 12px; padding-bottom: 8px; border-bottom: 2px solid #e2e8f0; }
+h3 { font-size: 15px; font-weight: 700; color: #0f172a; margin: 20px 0 8px; padding-top: 10px; border-top: 1px solid #f1f5f9; }
+h4 { font-size: 14px; font-weight: 700; color: #0f172a; margin: 14px 0 6px; }
 p { font-size: 14px; color: #334155; line-height: 1.7; margin: 6px 0; }
 ul, ol { padding-left: 20px; margin: 8px 0; }
 li { font-size: 14px; color: #334155; line-height: 1.7; margin: 3px 0; }
 strong { color: #0f172a; }
 code { font-family: 'SF Mono', monospace; background: #f1f5f9; padding: 1px 6px; border-radius: 4px; font-size: 12px; color: #7c3aed; }
-pre { background: #0f172a; color: #f8fafc; border-radius: 8px; padding: 16px; overflow-x: auto; font-size: 13px; line-height: 1.6; margin: 12px 0; font-family: 'SF Mono', monospace; }
+pre { background: #0f172a; color: #f8fafc; border-radius: 8px; padding: 16px; overflow-x: auto; font-size: 12.5px; line-height: 1.55; margin: 12px 0; font-family: 'SF Mono', monospace; }
 pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
 hr { border: none; border-top: 1px solid #e2e8f0; margin: 24px 0; }
 table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 12px 0; }
@@ -31,8 +31,19 @@ th { text-align: left; padding: 8px 12px; background: #f1f5f9; border-bottom: 2p
 td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
 .check-item { display: flex; gap: 8px; align-items: flex-start; padding: 5px 0; }
 .check-box { width: 16px; height: 16px; border: 2px solid #cbd5e1; border-radius: 3px; flex-shrink: 0; margin-top: 2px; }
+.criteria-list { list-style: none; padding: 0; }
+.criteria-list li { padding: 8px 0; border-bottom: 1px solid #f1f5f9; display: flex; gap: 10px; align-items: flex-start; font-size: 14px; color: #334155; }
 .callout { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 14px 18px; margin: 14px 0; font-size: 13px; color: #1e40af; }
 .callout strong { color: #1e3a8a; }
+.callout.warn { background: #fffbeb; border-color: #fde68a; color: #92400e; }
+.callout.warn strong { color: #78350f; }
+.callout.green { background: #f0fdf4; border-color: #bbf7d0; color: #166534; }
+.callout.green strong { color: #14532d; }
+.callout.flag { background: #faf5ff; border-color: #d8b4fe; color: #6b21a8; }
+.callout.flag strong { color: #581c87; }
+.step-meta { display: grid; grid-template-columns: 110px 1fr; gap: 6px 12px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 16px; margin: 10px 0 14px; font-size: 13px; }
+.step-meta div:nth-child(odd) { font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.5px; font-size: 11px; padding-top: 2px; }
+.step-meta div:nth-child(even) { color: #334155; }
     </style>
 </head>
 <body>
@@ -45,159 +56,501 @@ td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
     <a href="../release-1.34-timeline.html">Release 1.34</a>
     <a href="../master-spec-reconciliation.html">Spec Reconciliation</a>
     <a href="../cross-release-continuity-audit.html">Continuity Audit</a>
-    <a href="ui-interface-library.html">UI Library</a>
+    <a href="../ui-interface-library.html">UI Library</a>
 </nav>
-<div class="plan-wrap" id="rendered"></div>
-<script type="text/plain" id="plan-md">
-# MAT-5: Supplier PO (CRUD + PDF + Email) — Implementation Plan
+<div class="plan-wrap">
 
-## Overview
+<h1>MAT-5: Supplier Purchase Orders (Implementation Plan)</h1>
 
-Create outbound purchase orders to suppliers, generate PDFs, and email to vendor contacts. Uses the shared `PurchaseOrder` model from MAT-1 with `type: SupplierPO`. Line items auto-price from `DistributorPrice` with effective discounts from MAT-9.
+<p style="font-size:14px; color:#475569;">Self-contained execution plan. Another agent should be able to pick this up cold, run the steps in order, and ship a PR. Paths are relative to the monorepo root (<code>apps/api</code>, <code>apps/frontend</code>). Read <strong>Pre-flight</strong> first. Companion spec: <a href="../uis-MAT-5-supplier-po.html">uis-MAT-5-supplier-po.html</a> (that is the <em>spec</em> + decision log; this is the <em>plan</em>). Code blocks are drop-in starting points grounded in the named precedents on <code>repo-2</code> (Release-v1.33.0 line); match surrounding style, don&rsquo;t reformat neighbours.</p>
 
-**Estimated effort:** 5-7 days
-**Risk:** Medium — extends shared PurchaseOrder model, PDF generation, email integration
-**Deps:** MAT-0 (supply chain model), MAT-1 (shared PurchaseOrder model), MAT-9 (discount resolution for effective pricing)
+<h2>Overview &amp; Outcome</h2>
+<p>A &ldquo;Supplier PO&rdquo; is an <strong>outbound</strong> purchase order to a vendor &mdash; the inverse of today&rsquo;s customer PO. MAT-5 builds it <strong>on the same <code>PurchaseOrder</code> table</strong> that MAT-1 converted to <code>BaseAuditableModel</code>, using a <code>type</code> discriminator. After this lands:</p>
+<ul>
+    <li><code>PurchaseOrder</code> carries <code>type</code> (enum <code>CustomerPO</code>&nbsp;|&nbsp;<code>SupplierPO</code>, existing rows backfilled to <code>CustomerPO</code>), a <strong>customizable</strong> <code>statusId</code> &rarr; <code>PropertyValue</code> (per-instance, seeded <code>Draft</code>/<code>Issued</code>/<code>Closed</code>/<code>Cancelled</code> &mdash; like <code>jobStatus</code>/<code>rfiStatus</code>), and <code>deliveryLocationId</code> (FK&rarr;<code>Location</code>) / <code>shippingMethod</code> / <code>expectedDeliveryDate</code>. The supplier reuses MAT-1&rsquo;s <code>companyId</code> / <code>contactId</code> columns.</li>
+    <li>A new <code>PurchaseOrderLineItem</code> child table holds catalog-or-free-text lines with a locked cost snapshot (a near-clone of <code>WorkOrderMaterialItem</code>).</li>
+    <li>One combined upsert (<code>upsertSupplierPurchaseOrder</code>) saves the header + syncs line items; new supplier POs get an auto <code>SPO-####</code>.</li>
+    <li>The PO renders to an HTML/Tailwind PDF through the existing <code>pdf-export</code> &rarr; PSPDFKit pipeline (download button), and can be sent to the supplier as a JWT <strong>download link</strong> (no attachment).</li>
+    <li>A dedicated <code>supplierPurchaseOrder</code> permission gates the new surfaces at the resolver; everything is behind the <code>RESTRICT_MATERIAL</code> env gate.</li>
+</ul>
 
----
+<div class="callout flag">
+    <strong>Decisions baked into this plan (settled with the user &mdash; see spec reconciliation note).</strong>
+    <ul style="margin-top:6px;">
+        <li><strong>Extend MAT-1&rsquo;s shared model</strong>, do not build a new one. <code>type</code>/<code>status</code>/<code>PurchaseOrderLineItem</code>/<code>SPO-####</code> were explicitly deferred from MAT-1 to here.</li>
+        <li><strong>Status is a customizable <code>PropertyValue</code>, not an enum</strong> (only <code>type</code> is an enum). Per-instance values + <code>Instance</code> anchor FKs drive lifecycle transitions &mdash; the <code>rfiStatus</code> precedent. (User decision this session.)</li>
+        <li><strong>Collapsed FK:</strong> the line item references one <code>materialAttributePriceId</code> (the MAT-0 source row), not the deleted <code>manufacturerProductId</code>/<code>distributorPriceId</code>.</li>
+        <li><strong>No emailed PDF attachments</strong> (anti-spam). Download + JWT link-to-download only, reusing the <code>emailAction</code> pipeline (PR #7385).</li>
+        <li><strong>Dedicated <code>supplierPurchaseOrder</code> permission, resolver-enforced.</strong> Do NOT add <code>PurchaseOrder</code> to <code>permissionsByReferenceModel</code> (it would regress customer-PO parent-authorization).</li>
+        <li><strong>Committed-cost roll-up is OUT</strong> &mdash; a separate follow-up MAT task. Received statuses are MAT-6.</li>
+        <li><strong>No <code>instanceId</code></strong> (single-instance app). No MAT-x identifiers in migration names or code comments.</li>
+    </ul>
+</div>
 
-## Step 1: Extend PurchaseOrder + PurchaseOrderLineItem
+<hr>
 
-### 1a. Supplier PO Fields
+<h2>Pre-flight (do this first)</h2>
 
-Add to PurchaseOrder (or handle via type-specific fields):
-- `supplierId` (FK to Company, type=Supplier) — can reuse `companyId` with type=SupplierPO
-- `deliveryAddress` (Text)
-- `deliveryDate` (DateTime)
-- `shippingMethod` (VarChar 100)
-- `taxRate` (Decimal 5,2)
+<h3>Repo &amp; grounding</h3>
+<ul>
+    <li>Working repo: the Appello monorepo (pnpm + turbo). API/frontend grounded against <code>~/Documents/git-repos/appello/repo-2</code> (6351-line schema, on the Release-v1.33.0 line). Line numbers below are from that checkout &mdash; re-confirm against the active integration branch.</li>
+    <li>Branch off the active &ldquo;Release 1.33&rdquo; integration branch. <strong>Confirm with the user</strong> &mdash; do not assume <code>main</code>.</li>
+</ul>
 
-### 1b. Extend PurchaseOrderLineItem
+<div class="callout warn"><strong>HARD PREREQ &mdash; MAT-1 must be merged.</strong> This plan assumes <code>PurchaseOrderModel</code> already <code>extends BaseAuditableModel</code> with <code>modelFields</code> for <code>companyId</code>/<code>contactId</code>/<code>issuedDate</code>/<code>amount</code>/<code>terms</code>/<code>description</code> (MAT-1, Steps 1&ndash;3). On <code>repo-2</code> as grounded, <code>PurchaseOrderModel</code> is still the <strong>bespoke plain class</strong> (<code>models/PurchaseOrder.ts:1&ndash;304</code>) and the schema model has only <code>id/isDeleted/isArchived/createdAt/updatedAt/poNumber</code> (<code>schema.prisma:5911&ndash;5935</code>). If MAT-1 has not merged, do its model conversion first &mdash; do not re-derive it here.</div>
 
-Add fields for supply chain linking:
-- `manufacturerProductId` (FK to ManufacturerProduct)
-- `materialRequestItemId` (optional FK to MaterialRequestItem — traces back to field request)
-- `distributorSku` (VarChar 255 — auto-populated from DistributorPrice)
+<div class="callout warn"><strong>SOFT deps &mdash; MAT-0 / MAT-9 / MAT-10 feed pricing, they don&rsquo;t block.</strong> Line-item auto-pricing calls <code>bestAvailableCost</code> (MAT-0 makes it prefer the cheapest distributor source row; MAT-9 applies buy-side discount). On a branch without them, <code>bestAvailableCost</code> still returns <code>Material.unitCost</code>/<code>MaterialAttributePrice.value</code> (<code>services/MaterialPricingService.ts:30&ndash;64</code>) and the user can always type a price. <code>materialAttributePriceId</code> is the variant FK regardless of MAT-0&rsquo;s source columns. Supplier filtering by MAT-10 <code>MaterialCompany(role=Distributor)</code> is a nicety &mdash; absent it, the supplier picker lists any Company.</div>
 
-### 1c. Numbering
+<h3>This is EXTEND + one new child table &mdash; not a new top-level model</h3>
+<p>Everything for the header already exists post-MAT-1: <code>model PurchaseOrder</code>, <code>PurchaseOrderModel</code> (<code>models/PurchaseOrder.ts</code>), the resolver object <code>PurchaseOrderResolvers</code> (<code>graphql/models/PurchaseOrder.ts</code>, already spread into <code>graphql/schema.ts</code>), and <code>types/PurchaseOrder.types.ts</code>. <strong>Do not scaffold a new PO model and do not run <code>new-data-model</code> for the header.</strong> The single genuinely-new model is <code>PurchaseOrderLineItem</code> (Step 4) &mdash; clone <code>WorkOrderMaterialItem</code>.</p>
 
-Supplier POs: SPO-#### auto-sequenced per instance (vs. CPO-#### for Customer POs).
+<h3>Reference precedents &mdash; read before writing anything</h3>
+<table>
+    <thead><tr><th>For</th><th>Read (verbatim, on repo-2)</th></tr></thead>
+    <tbody>
+        <tr><td>Header model to extend</td><td><code>apps/api/src/models/PurchaseOrder.ts</code> (304 lines, post-MAT-1 a <code>BaseAuditableModel</code> subclass). Keep every bespoke method (<code>getAllForJob</code>, <code>assignToEntity</code>, <code>handleCreate/EditPOSync</code>, &hellip;).</td></tr>
+        <tr><td>Line-item model + recalculation</td><td><code>apps/api/src/models/WorkOrderMaterialItem.ts</code> &mdash; <code>extends BaseModel</code>; <code>afterCreate</code>/<code>afterEdit</code> (<code>:58&ndash;64</code>) call <code>recalculateTotal</code> (<code>:100&ndash;109</code>, <code>total = quantity &times; unitPrice</code>). Schema <code>5959&ndash;5986</code>.</td></tr>
+        <tr><td>Combined upsert + line-item sync</td><td><code>apps/api/src/graphql/models/WorkOrderLineItems.ts:23&ndash;98</code> &mdash; the canonical &ldquo;get existing for parent &rarr; collect submitted ids &rarr; delete the missing &rarr; create new / edit the rest&rdquo; pattern.</td></tr>
+        <tr><td>Prefix auto-numbering</td><td><code>apps/api/src/models/RequestForInformation.ts:115&ndash;128</code> &mdash; raw-SQL <code>MAX(CAST(SUBSTRING(&hellip;) AS UNSIGNED))</code> + <code>padStart</code>. (No shared counter table exists.)</td></tr>
+        <tr><td>Cost resolution</td><td><code>apps/api/src/services/MaterialPricingService.ts</code> &mdash; <code>bestAvailableCost(materialId): Promise&lt;Decimal|null&gt;</code> (<code>:30&ndash;64</code>); <code>resolveMaterialSellPrice(&hellip;)</code> (<code>:82&ndash;129</code>, for reference &mdash; we want <em>cost</em>, not sell).</td></tr>
+        <tr><td>Permission passthrough</td><td><code>apps/api/src/models/base/_DbModelBase.ts:1181&ndash;1205</code> &mdash; models absent from <code>permissionsByReferenceModel</code> skip the model-layer check. <code>derived.ts</code> <code>MaterialOrder</code> entry (<code>~466&ndash;474</code>) shows the action shape.</td></tr>
+        <tr><td>Resolver-level perm check</td><td><code>apps/api/src/lib/canUserPerformAction.ts</code> &mdash; <code>canUserPerformActionOnModel(userId, Model, action)</code>; find a resolver that calls it explicitly to copy the throw-on-deny shape.</td></tr>
+        <tr><td>PDF dispatch + render</td><td><code>apps/frontend/src/pages/api/pdf-export.ts</code> &mdash; <code>switch(reportType)</code>; the <code>"materialOrder"</code> case (<code>~1092&ndash;1111</code>) fetches via GraphQL then <code>generateMaterialOrderPdfDoc()</code> &rarr; HTML &rarr; PSPDFKit <code>api.nutrient.io/build</code>.</td></tr>
+        <tr><td>PDF template component</td><td><code>apps/frontend/src/components/DownloadablePDF/MaterialOrder/MaterialOrder.tsx</code> &mdash; React FC, inline styles, <code>ReactDOMServer.renderToString</code>; <code>PDFHeader</code> for branding.</td></tr>
+        <tr><td>JWT download link + public route</td><td><code>apps/api/src/helpers/PDFDownloadTokenHelper.ts:129&ndash;153</code> (<code>generateFormDownloadToken</code>); <code>apps/frontend/src/pages/api/rfi-download/[token].ts:15&ndash;156</code> (verify JWT &rarr; mock pdf-export req &rarr; stream; 302 to expiry page). Secret <code>PUBLIC_LINK_SECRET</code>.</td></tr>
+        <tr><td>Generic email-action pipeline</td><td>PR #7385 (Q21030-11893) &mdash; <code>useEmailAction</code> / <code>SendActionLinkModal</code> / <code>performEmailAction</code> + handler registry + <code>/action/*</code> pages + <code>ActionLinkShell</code>. Register a <code>supplierPO</code> handler. If unmerged, fall back to the <code>rfi-download</code> shape above.</td></tr>
+        <tr><td>Enum convention</td><td>any recent enum (e.g. <code>ApprovalStatus</code>) &mdash; Prisma enum (PascalCase) + <code>const</code> array &amp; type in <code>types/</code>, imported into the model <code>enums: [&hellip;]</code> and joined into the GraphQL SDL.</td></tr>
+    </tbody>
+</table>
 
----
+<h3>Hard constants</h3>
+<table>
+    <thead><tr><th>What</th><th>Value</th></tr></thead>
+    <tbody>
+        <tr><td>Table extended</td><td><code>PurchaseOrder</code> (<code>schema.prisma:5911</code>) &mdash; no new header model</td></tr>
+        <tr><td>New enum</td><td><code>PurchaseOrderType { CustomerPO SupplierPO }</code> only. Status is <strong>NOT</strong> an enum &mdash; it&rsquo;s a <code>PropertyValue</code>.</td></tr>
+        <tr><td>New header cols</td><td><code>type</code> (<code>PurchaseOrderType @default(CustomerPO)</code>), <code>statusId</code> (<code>String? @db.VarChar(21)</code>, FK&rarr;<code>PropertyValue</code> <code>@relation("purchaseOrderStatus")</code>), <code>deliveryLocationId</code> (<code>String? @db.VarChar(21)</code>, FK&rarr;<code>Location</code>), <code>shippingMethod</code> (<code>String? @db.VarChar(100)</code>), <code>expectedDeliveryDate</code> (<code>DateTime?</code>)</td></tr>
+        <tr><td>Status PropertyValues</td><td>group <code>propertyName="purchase-order-status"</code>, seeded <code>Draft</code>/<code>Issued</code>/<code>Closed</code>/<code>Cancelled</code> per instance (<code>label</code>/<code>color</code>/<code>orderNo</code>/<code>workflowState</code>)</td></tr>
+        <tr><td>Instance anchors</td><td>new FKs <code>purchaseOrderDefaultStatusId</code>, <code>purchaseOrderIssuedStatusId</code>, <code>purchaseOrderCancelledStatusId</code> &rarr; <code>PropertyValue</code> (the <code>rfiDefaultStatusId</code>/<code>rfiSentStatusId</code> precedent)</td></tr>
+        <tr><td>New child model</td><td><code>PurchaseOrderLineItem</code> &mdash; see Step 1</td></tr>
+        <tr><td>Numbering</td><td>Supplier <code>SPO-####</code> global sequence; customer <code>poNumber</code> stays user-entered</td></tr>
+        <tr><td>Permission</td><td><code>supplierPurchaseOrder</code> &mdash; resolver-enforced; NOT in <code>permissionsByReferenceModel</code></td></tr>
+        <tr><td>Env gate</td><td><code>RESTRICT_MATERIAL</code> (obfuscated <code>publicRuntimeConfig.n</code>) gates the supplier-PO surfaces</td></tr>
+        <tr><td>Schema indent</td><td>2 spaces; migration SQL 4 spaces; newline at EOF</td></tr>
+    </tbody>
+</table>
 
-## Step 2: Supplier PO Form
+<h3>What you are NOT doing in this PR</h3>
+<ul>
+    <li>No committed-cost aggregation in <code>JobFinancialSummaryService</code> (follow-up MAT task).</li>
+    <li>No <code>Received</code> / <code>PartiallyReceived</code> statuses, no receipt flow (MAT-6).</li>
+    <li>No emailed PDF attachment, no EDI, no PO approval workflow, no mobile PO creation, no auto-PO-from-requests.</li>
+    <li>Do not touch customer-PO behaviour: <code>findOrCreateForJob</code>, <code>getAllForJob</code> roll-up, the estimate/CO/invoice PO dropdowns, or <code>Job</code> PO sync.</li>
+</ul>
 
-**Create:** `apps/frontend/src/components/Forms/SupplierPOForm/`
+<hr>
 
-Form flow:
-1. Select distributor (Company type=Supplier)
-2. Add line items — shows ManufacturerProducts carried by that distributor
-3. Auto-pricing from DistributorPrice with effective discounts (MAT-9 resolution)
-4. Auto-populate distributor SKU + manufacturer SKU
-5. Delivery address, date, terms, shipping method
-6. Save as Draft or Issue
+<h2>Step 1 &mdash; Schema: enums, header columns, line-item table</h2>
+<div class="step-meta">
+    <div>Goal</div><div>Add two enums + 5 columns + a back-relation to <code>PurchaseOrder</code>; define <code>PurchaseOrderLineItem</code>.</div>
+    <div>Files</div><div><code>apps/api/prisma/schema.prisma</code></div>
+    <div>Validate</div><div><code>pnpm run prisma:validate</code> passes.</div>
+</div>
+<pre><code>// type is a system discriminator → enum. status is user-customizable → PropertyValue (NOT an enum).
+enum PurchaseOrderType {
+  CustomerPO
+  SupplierPO
+}
 
----
+model PurchaseOrder {
+  // ... existing columns (id, isDeleted, isArchived, createdAt, updatedAt, poNumber)
+  // ... MAT-1 columns (companyId, contactId, issuedDate, amount, terms, description + Company/Contact relations)
 
-## Step 3: PO List Page
+  type                 PurchaseOrderType @default(CustomerPO)
+  statusId             String?           @db.VarChar(21)
+  deliveryLocationId   String?           @db.VarChar(21)
+  shippingMethod       String?           @db.VarChar(100)
+  expectedDeliveryDate DateTime?
 
-**Create:** `apps/frontend/src/pages/purchase-orders/index.tsx`
+  purchaseOrderStatus    PropertyValue?          @relation("purchaseOrderStatus", fields: [statusId], references: [id], map: "FK_purchaseOrderStatus")
+  DeliveryLocation       Location?               @relation("PurchaseOrderDeliveryLocation", fields: [deliveryLocationId], references: [id], map: "FK_purchaseOrderDeliveryLocation")
+  PurchaseOrderLineItems PurchaseOrderLineItem[]
 
-Combined PO list page filtered by type (Customer PO | Supplier PO | All). Reuses ListTableViews pattern.
+  @@index([type])
+  @@index([statusId], map: "FK_purchaseOrderStatus")
+  @@index([deliveryLocationId], map: "FK_purchaseOrderDeliveryLocation")
+}
 
----
+model PurchaseOrderLineItem {
+  id         String   @id @db.VarChar(21)
+  isDeleted  Boolean  @default(false)
+  isArchived Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @default(now()) @updatedAt
 
-## Step 4: PDF Generation
+  purchaseOrderId          String  @db.VarChar(21)
+  materialId               String? @db.VarChar(21)
+  materialAttributePriceId String? @db.VarChar(21)
+  description              String? @db.VarChar(500)
+  quantity                 Decimal?
+  unitPrice                Decimal? @db.Decimal(10, 2)
+  total                    Decimal? @db.Decimal(10, 2)
+  orderNo                  Int     @default(0)
 
-**Create:** `apps/frontend/src/components/DownloadablePDF/PurchaseOrder/SupplierPO.tsx`
+  PurchaseOrder          PurchaseOrder           @relation(fields: [purchaseOrderId], references: [id], map: "FK_poLineItemPurchaseOrder")
+  Material               Material?               @relation(fields: [materialId], references: [id], map: "FK_poLineItemMaterial")
+  MaterialAttributePrice MaterialAttributePrice? @relation(fields: [materialAttributePriceId], references: [id], map: "FK_poLineItemMaterialAttributePrice")
 
-PDF with:
-- Company branding (logo, address)
-- PO number, date, terms
-- Supplier info (name, contact, address)
-- Line items table (material, mfg SKU, dist SKU, qty, unit price, total)
-- Subtotal, tax, grand total
-- Delivery address + date
+  @@index([purchaseOrderId, isDeleted])
+  @@index([materialId], map: "FK_poLineItemMaterial")
+  @@index([materialAttributePriceId], map: "FK_poLineItemMaterialAttributePrice")
+}</code></pre>
+<p>Add the back-relations on <code>Material</code> / <code>MaterialAttributePrice</code> / <code>Location</code> / <code>PropertyValue</code>, plus the <code>Instance</code> status-anchor FKs (the <code>rfiDefaultStatusId</code>/<code>rfiSentStatusId</code> pattern &mdash; <code>schema.prisma</code> Instance block ~1786&ndash;1813):</p>
+<pre><code>  // model Material
+  PurchaseOrderLineItems PurchaseOrderLineItem[]
+  // model MaterialAttributePrice
+  PurchaseOrderLineItems PurchaseOrderLineItem[]
+  // model Location (named — it already carries many back-relations)
+  PurchaseOrders PurchaseOrder[] @relation("PurchaseOrderDeliveryLocation")
 
----
+  // model PropertyValue — the per-row status + the three Instance anchors
+  purchaseOrderStatus       PurchaseOrder[] @relation("purchaseOrderStatus")
+  PurchaseOrderDefaultStatus   Instance[]   @relation("PurchaseOrderDefaultStatus")
+  PurchaseOrderIssuedStatus    Instance[]   @relation("PurchaseOrderIssuedStatus")
+  PurchaseOrderCancelledStatus Instance[]   @relation("PurchaseOrderCancelledStatus")
 
-## Step 5: Email PO to Supplier
+  // model Instance — anchor FKs (nullable; backfilled to the seeded values in the migration)
+  purchaseOrderDefaultStatusId   String?       @db.VarChar(21)
+  purchaseOrderIssuedStatusId    String?       @db.VarChar(21)
+  purchaseOrderCancelledStatusId String?       @db.VarChar(21)
+  PurchaseOrderDefaultStatus   PropertyValue? @relation("PurchaseOrderDefaultStatus", fields: [purchaseOrderDefaultStatusId], references: [id])
+  PurchaseOrderIssuedStatus    PropertyValue? @relation("PurchaseOrderIssuedStatus", fields: [purchaseOrderIssuedStatusId], references: [id])
+  PurchaseOrderCancelledStatus PropertyValue? @relation("PurchaseOrderCancelledStatus", fields: [purchaseOrderCancelledStatusId], references: [id])</code></pre>
+<div class="callout"><strong>Why <code>Instance</code> anchors and not <code>workflowState</code>.</strong> Labels are user-editable, so <code>issueSupplier</code> can&rsquo;t look up &ldquo;Issued&rdquo; by name. <code>PropertyValue.workflowState</code> is only a coarse bucket (<code>todo|inprogress|done|default</code>) &mdash; too lossy to distinguish Issued from Closed. RFI solves this with per-semantic <code>Instance</code> FKs (<code>rfiSentStatusId</code>, &hellip;); we mirror it. <code>Closed</code> needs no anchor for MAT-5 (user-selected, or set by MAT-6 on full receipt); add one only if a code path sets it automatically.</div>
+<div class="callout"><strong>Why mirror <code>WorkOrderMaterialItem</code> and not the richer <code>MaterialOrderRecord</code> tree.</strong> A PO line is flat (one material/variant + qty + price), exactly like <code>WorkOrderMaterialItem</code> &mdash; which already has the <code>recalculateTotal</code> hook and the proven combined-upsert sync. The 3-level <code>MaterialOrder/Record/RecordValue</code> tree models spec-area breakdowns we don&rsquo;t need here. One difference from <code>WorkOrderMaterialItem</code>: <strong>no <code>costPrice</code>/<code>unitPrice</code> split</strong> &mdash; a PO line price <em>is</em> the buy cost, so one <code>unitPrice</code>.</div>
 
-Use existing email infrastructure to send PO PDF to supplier contact. Entry point: "Send to Supplier" button on PO detail page.
+<hr>
 
----
+<h2>Step 2 &mdash; Migration: additive + backfill <code>type</code></h2>
+<div class="step-meta">
+    <div>Goal</div><div>Create the enums &amp; columns, the new table, and default existing rows to <code>CustomerPO</code>.</div>
+    <div>Files</div><div>new <code>prisma/migrations/&lt;ts&gt;_supplier_purchase_orders/migration.sql</code></div>
+</div>
+<pre><code>cd apps/api
+pnpm run prisma:migrate supplier_purchase_orders</code></pre>
+<p>Prisma emits the <code>CREATE TABLE PurchaseOrderLineItem</code>, the <code>ALTER TABLE PurchaseOrder</code> for the new columns + FKs (incl. <code>statusId</code> &rarr; <code>PropertyValue</code>), the <code>PurchaseOrderType</code> enum DDL, and the three <code>Instance</code> anchor columns. The <code>type</code> column ships with <code>DEFAULT 'CustomerPO'</code>; make the backfill explicit and idempotent:</p>
+<pre><code>-- existing PurchaseOrder rows are all customer POs
+UPDATE `PurchaseOrder` SET `type` = 'CustomerPO' WHERE `type` IS NULL OR `type` = '';</code></pre>
+<h4>Seed the status PropertyValues + Instance anchors (per instance)</h4>
+<p>Follow the existing status-seed pattern (how <code>job-status</code>/<code>rfi-status</code> values and the <code>rfiDefaultStatusId</code>-style anchors are created). For <strong>each</strong> instance, insert four <code>PropertyValue</code> rows in the <code>purchase-order-status</code> group, then point the new anchor columns at them:</p>
+<pre><code>-- ids: LEFT(md5(uuid()), 21) is the repo's id-generation standard for VarChar(21) ids.
+-- No session variables (unreliable in CI/CD) — generate ids inline, then resolve the
+-- anchor FKs by the UNIQUE slug instead of carrying the generated id forward.
+INSERT INTO `PropertyValue` (id, propertyName, propertyNameLabel, label, slug, color, orderNo, workflowState)
+VALUES
+  (LEFT(md5(uuid()), 21), 'purchase-order-status','Purchase Order Status','Draft',    'purchase-order-status-draft',     '#94a3b8', 0, 'todo'),
+  (LEFT(md5(uuid()), 21), 'purchase-order-status','Purchase Order Status','Issued',   'purchase-order-status-issued',    '#16a34a', 1, 'inprogress'),
+  (LEFT(md5(uuid()), 21), 'purchase-order-status','Purchase Order Status','Closed',   'purchase-order-status-closed',    '#475569', 2, 'done'),
+  (LEFT(md5(uuid()), 21), 'purchase-order-status','Purchase Order Status','Cancelled','purchase-order-status-cancelled', '#dc2626', 3, 'done');
 
-## Step 6: Supplier PO Tab on Company Detail
+UPDATE `Instance` SET
+  `purchaseOrderDefaultStatusId`   = (SELECT id FROM `PropertyValue` WHERE slug = 'purchase-order-status-draft'),
+  `purchaseOrderIssuedStatusId`    = (SELECT id FROM `PropertyValue` WHERE slug = 'purchase-order-status-issued'),
+  `purchaseOrderCancelledStatusId` = (SELECT id FROM `PropertyValue` WHERE slug = 'purchase-order-status-cancelled');</code></pre>
+<p style="font-size:13px; color:#64748b;">The anchor subqueries key off <code>slug</code> (which is <code>@unique</code>), so they resolve the just-inserted ids deterministically without session state. MySQL allows selecting from <code>PropertyValue</code> while updating <code>Instance</code> (different table). If the repo&rsquo;s seed mechanism is a TS script rather than raw SQL, create the values through the model and set the anchors from the returned ids &mdash; same result, no slug lookup needed.</p>
+<div class="callout warn"><strong>Match the repo&rsquo;s real seeding mechanism.</strong> Confirm whether status PropertyValues are seeded in the SQL migration, in a TS seed script, or in the new-instance bootstrap &mdash; and seed in the SAME place(s) so both <em>existing</em> instances (this migration) and <em>future</em> instances (bootstrap) get the <code>purchase-order-status</code> group + anchors. <code>slug</code> is <code>@unique</code> &mdash; per-instance-scope the slugs the way the existing groups do. <code>orderNo</code>/<code>color</code> are display only.</div>
+<p>Run <code>pnpm run prisma:deploy &amp;&amp; pnpm run prisma:generate</code>. <strong>No data migration for line items</strong> (new table). The migration directory name carries no MAT identifier.</p>
 
-Add Supplier PO list on Company detail page for Supplier-type companies. Shows all Supplier POs issued to this vendor.
+<hr>
 
----
+<h2>Step 3 &mdash; Types &amp; enums</h2>
+<div class="step-meta">
+    <div>Goal</div><div>Single-source the enums; add the line-item interface; extend <code>IPurchaseOrder</code>.</div>
+    <div>Files</div><div><code>apps/api/src/types/PurchaseOrder.types.ts</code></div>
+</div>
+<pre><code>export const purchaseOrderTypes = ["CustomerPO", "SupplierPO"] as const;
+export type PurchaseOrderType = (typeof purchaseOrderTypes)[number];
 
-## Verification Checklist
+// NOTE: status is a PropertyValue (customizable per instance) — no enum/const here. statusId is a string FK.
 
-- [ ] Create Supplier PO from: Material Requests (batch by distributor), manually, or from Material Orders
-- [ ] Pick distributor → line items show ManufacturerProducts → auto-pricing from DistributorPrice with MAT-9 discounts
-- [ ] Auto-populate distributor SKU + manufacturer SKU on line items
-- [ ] Generate PDF with company branding, line items, terms, delivery address
-- [ ] Email PO to supplier contact
-- [ ] PO status lifecycle: Draft → Sent → PartiallyReceived → FullyReceived → Closed
-- [ ] Supplier PO tab on Company detail page
-- [ ] SPO-#### auto-sequenced numbering
-- [ ] PO list page with type filter (Customer PO / Supplier PO / All)
+export interface IPurchaseOrder {
+    // ... existing + MAT-1 fields
+    type: PurchaseOrderType;
+    statusId?: string | null;
+    deliveryLocationId?: string | null;
+    shippingMethod?: string | null;
+    expectedDeliveryDate?: Date | null;
+}
 
----
+export interface IPurchaseOrderLineItem {
+    id: string;
+    purchaseOrderId: string;
+    materialId?: string | null;
+    materialAttributePriceId?: string | null;
+    description?: string | null;
+    quantity?: number | null;
+    unitPrice?: number | null;
+    total?: number | null;
+    orderNo: number;
+    isDeleted: boolean;
+    isArchived: boolean;
+    createdAt: Date;
+    updatedAt: Date;
+}</code></pre>
+<p>The <code>const</code> arrays are imported into the model&rsquo;s <code>modelFields</code> (<code>enums: [...purchaseOrderTypes]</code>) and joined into the GraphQL SDL &mdash; one source of truth, per the repo enum convention.</p>
 
-## Files Summary
+<hr>
 
-| Action | File | What to do |
-|--------|------|------------|
-| MODIFY | `apps/api/prisma/schema.prisma` | Add supplier-specific fields to PurchaseOrder + PurchaseOrderLineItem |
-| CREATE | `apps/api/prisma/migrations/.../migration.sql` | ALTER TABLE statements |
-| MODIFY | `apps/api/src/models/PurchaseOrder.ts` | Add SPO numbering, supplier-specific methods |
-| MODIFY | `apps/api/src/graphql/models/PurchaseOrder.ts` | Extend type + mutations for Supplier PO |
-| CREATE | `apps/frontend/.../SupplierPOForm/` | Supplier PO form components |
-| CREATE | `apps/frontend/src/pages/purchase-orders/index.tsx` | PO list page |
-| CREATE | `apps/frontend/.../SupplierPO.tsx` | PDF generation |
-| MODIFY | `apps/frontend/.../CompanyDetailsPage/index.tsx` | Add Supplier PO tab |
-</script>
-<script>
-(function() {
-    var md = document.getElementById('plan-md').textContent;
-    var target = document.getElementById('rendered');
-    var html = md
-        .replace(/```(\w*)\n([\s\S]*?)```/g, function(_, lang, code) {
-            return '<pre><code>' + code.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</code></pre>';
-        })
-        .replace(/`([^`\n]+)`/g, '<code>$1</code>')
-        .replace(/^#### (.+)$/gm, '<h4>$1</h4>')
-        .replace(/^### (.+)$/gm, '<h3>$1</h3>')
-        .replace(/^## (.+)$/gm, '<h2>$1</h2>')
-        .replace(/^# (.+)$/gm, '<h1>$1</h1>')
-        .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-        .replace(/\*(.+?)\*/g, '<em>$1</em>')
-        .replace(/^---$/gm, '<hr>');
-    html = html.replace(/^- \[ \] (.+)$/gm, '<div class="check-item"><div class="check-box"></div><span>$1</span></div>');
-    html = html.replace(/(\|.+\|\n)+/g, function(table) {
-        var rows = table.trim().split('\n');
-        if (rows.length < 2) return table;
-        var headers = rows[0].split('|').filter(function(c) { return c.trim(); });
-        var isSep = /^[\s|:\-]+$/.test(rows[1]);
-        var start = isSep ? 2 : 1;
-        var out = '<table><thead><tr>';
-        headers.forEach(function(h) { out += '<th>' + h.trim() + '</th>'; });
-        out += '</tr></thead><tbody>';
-        for (var i = start; i < rows.length; i++) {
-            var cells = rows[i].split('|').filter(function(c) { return c.trim(); });
-            out += '<tr>'; cells.forEach(function(c) { out += '<td>' + c.trim() + '</td>'; }); out += '</tr>';
-        }
-        out += '</tbody></table>';
-        return out;
+<h2>Step 4 &mdash; <code>PurchaseOrderLineItem</code> model</h2>
+<div class="step-meta">
+    <div>Goal</div><div>New <code>BaseModel</code> subclass with the <code>recalculateTotal</code> hook &mdash; a <code>WorkOrderMaterialItem</code> clone.</div>
+    <div>Files</div><div>new <code>apps/api/src/models/PurchaseOrderLineItem.ts</code></div>
+</div>
+<pre><code>import { BaseModel } from "./base/_BaseModel";
+import { IPurchaseOrderLineItem, IField } from "../types";
+import prisma from "./_prismaClient";
+
+class PurchaseOrderLineItemModel extends BaseModel&lt;IPurchaseOrderLineItem&gt; {
+    public name = "PurchaseOrderLineItem";
+    name_plural = "PurchaseOrderLineItems";
+    protected prisma = prisma.purchaseOrderLineItem;
+
+    protected modelFields: IField&lt;IPurchaseOrderLineItem&gt;[] = [
+        { name: "purchaseOrderId", type: "string", options: { isRequiredOnCreate: true, canCreate: true } },
+        { name: "materialId", type: "string", options: { canCreate: true, canEdit: true } },
+        { name: "materialAttributePriceId", type: "string", options: { canCreate: true, canEdit: true } },
+        { name: "description", type: "string", options: { canCreate: true, canEdit: true } },
+        { name: "quantity", type: "float", options: { canCreate: true, canEdit: true } },
+        { name: "unitPrice", type: "float", options: { canCreate: true, canEdit: true } },
+        { name: "orderNo", type: "int", options: { canCreate: true, canEdit: true } }
+        // `total` is derived — not user-writable
+    ];
+
+    protected async afterCreate(record: IPurchaseOrderLineItem) { await this.recalculateTotal(record.id); }
+    protected async afterEdit(record: IPurchaseOrderLineItem) { await this.recalculateTotal(record.id); }
+
+    public async recalculateTotal(id: string): Promise&lt;void&gt; {
+        const item = await prisma.purchaseOrderLineItem.findUnique({ where: { id } });
+        if (!item) return;
+        const qty = Number(item.quantity ?? 0);
+        const unit = Number(item.unitPrice ?? 0);
+        await prisma.purchaseOrderLineItem.update({ where: { id }, data: { total: qty * unit } });
+    }
+}
+
+export { PurchaseOrderLineItemModel };</code></pre>
+<div class="callout"><strong>Match the real <code>WorkOrderMaterialItem</code> base.</strong> Confirm whether it extends <code>BaseModel</code> or a soft-delete variant, and copy the same abstract-method obligations (if any). Keep <code>recalculateTotal</code> byte-for-byte equivalent so the two line-item families behave identically.</div>
+
+<hr>
+
+<h2>Step 5 &mdash; <code>PurchaseOrderModel</code>: numbering, upsert, lifecycle</h2>
+<div class="step-meta">
+    <div>Goal</div><div>Add SPO numbering, the combined supplier upsert (header + line-item sync), issue/cancel, and the send-link entry point. Add <code>type</code>/<code>statusId</code>/supplier cols to <code>modelFields</code>.</div>
+    <div>Files</div><div><code>apps/api/src/models/PurchaseOrder.ts</code></div>
+</div>
+
+<h3>5.1 Declare the new fields</h3>
+<p>Append to the MAT-1 <code>modelFields</code> array: <code>type</code> (<code>enums: [...purchaseOrderTypes]</code>), <code>statusId</code> (string FK &mdash; plain string, NOT an enum, since the status is a <code>PropertyValue</code>), <code>deliveryLocationId</code>/<code>shippingMethod</code> (string), <code>expectedDeliveryDate</code> (datetime). All <code>canCreate</code>/<code>canEdit</code>.</p>
+
+<h3>5.1b Resolve the instance default status</h3>
+<p>Mirror RFI&rsquo;s <code>getDefaultStatusId</code> (<code>RequestForInformation.ts:134&ndash;140</code>):</p>
+<pre><code>private async getDefaultPoStatusId(): Promise&lt;string | null&gt; {
+    const instance = await prisma.instance.findFirst({ select: { purchaseOrderDefaultStatusId: true } });
+    return instance?.purchaseOrderDefaultStatusId ?? null;
+}</code></pre>
+
+<h3>5.2 SPO numbering (global, RFI precedent)</h3>
+<pre><code>public async getNextSpoNumber(): Promise&lt;string&gt; {
+    const result = await prisma.$queryRaw&lt;[{ maxNum: bigint | null }]&gt;`
+        SELECT MAX(CAST(SUBSTRING(poNumber, 5) AS UNSIGNED)) as maxNum
+        FROM PurchaseOrder
+        WHERE type = 'SupplierPO'
+        AND isDeleted = false
+        AND poNumber REGEXP '^SPO-[0-9]+$'
+    `;
+    const next = Number(result[0]?.maxNum ?? 0) + 1;
+    return `SPO-${String(next).padStart(4, "0")}`;
+}</code></pre>
+<p>Global (no <code>jobId</code> filter) because supplier POs are company-wide procurement docs. Customer-PO numbering is untouched.</p>
+
+<h3>5.3 Combined upsert (header + line-item sync)</h3>
+<p>Model the sync on <code>upsertWorkOrderLineItems</code> (<code>graphql/models/WorkOrderLineItems.ts:23&ndash;98</code>): create-or-edit the header, then for line items &mdash; load existing for this PO, delete those not in the payload, create the id-less ones, edit the rest. Pre-fill <code>unitPrice</code> from <code>bestAvailableCost</code> when omitted on a catalog line. Recompute the header <code>amount</code> from the line totals at the end.</p>
+<pre><code>public async upsertSupplier(input: IUpsertSupplierPOInput, userId: string): Promise&lt;IPurchaseOrder&gt; {
+    const { id, lineItems, jobId, ...header } = input;
+
+    // 1) header
+    const po = id
+        ? await this.editItem(id, { ...header, type: "SupplierPO" }, userId)
+        : await this.createItem(
+              { ...header, type: "SupplierPO", statusId: header.statusId ?? await this.getDefaultPoStatusId(), poNumber: await this.getNextSpoNumber() },
+              userId
+          );
+
+    // 2) optional job linkage via the existing assignment path (create only)
+    if (!id && jobId) await this.assignToEntity(po.id, "Job", jobId);
+
+    // 3) line-item sync
+    const lineModel = new PurchaseOrderLineItemModel();
+    const existing = await prisma.purchaseOrderLineItem.findMany({ where: { purchaseOrderId: po.id, isDeleted: false } });
+    const submittedIds = new Set(lineItems.filter(l => l.id).map(l => l.id));
+    for (const ex of existing) if (!submittedIds.has(ex.id)) await lineModel.deleteItem(ex.id, userId);
+
+    for (const line of lineItems) {
+        const unitPrice = line.unitPrice ?? (line.materialId ? Number(await bestAvailableCost(line.materialId) ?? 0) : 0);
+        const data = { ...line, unitPrice, purchaseOrderId: po.id };
+        if (line.id) await lineModel.editItem(line.id, data, userId);
+        else await lineModel.createItem(data, userId);   // afterCreate → recalculateTotal
+    }
+
+    // 4) roll the line totals into the header amount
+    const agg = await prisma.purchaseOrderLineItem.aggregate({
+        where: { purchaseOrderId: po.id, isDeleted: false }, _sum: { total: true }
     });
-    html = html.replace(/^- (.+)$/gm, '<li>$1</li>');
-    html = html.replace(/(<li>[\s\S]*?<\/li>\n?)+/g, function(m) { return '<ul>' + m + '</ul>'; });
-    html = html.replace(/^(?!<[hultdps\/<]|<\/|<code|<pre|<hr|<div|<strong|<em)(.+)$/gm, '<p>$1</p>');
-    target.innerHTML = html;
-})();
-</script>
+    return this.editItem(po.id, { amount: Number(agg._sum.total ?? 0) }, userId);
+}</code></pre>
+<div class="callout warn"><strong>MAT-9 discount on the buy side.</strong> When MAT-9 has landed, the pre-fill should be the discounted distributor cost, not the raw cost. Resolve it through the same <code>bestAvailableCost</code> hook (MAT-0 wires the cheapest/preferred <em>discounted</em> source into it &mdash; signature unchanged), so this call site does not change. Until then, <code>bestAvailableCost</code> returns the house cost and the user adjusts manually.</div>
+
+<h3>5.4 Lifecycle (resolve target status via the Instance anchor)</h3>
+<pre><code>public async issueSupplier(id: string, userId: string) {
+    const instance = await prisma.instance.findFirst({ select: { purchaseOrderIssuedStatusId: true } });
+    return this.editItem(id, { statusId: instance?.purchaseOrderIssuedStatusId ?? null, issuedDate: new Date() }, userId);
+}
+public async cancelSupplier(id: string, userId: string) {
+    const instance = await prisma.instance.findFirst({ select: { purchaseOrderCancelledStatusId: true } });
+    return this.editItem(id, { statusId: instance?.purchaseOrderCancelledStatusId ?? null }, userId);
+}</code></pre>
+<p>Transitions stay linear (<code>Draft &rarr; Issued &rarr; Closed/Cancelled</code>) but read the per-semantic <code>PropertyValue</code> id from the <code>Instance</code> anchor, never a literal label &mdash; so a renamed/recolored status still works. MAT-6 inserts the Received values (its own seed + anchors) between Issued and Closed. Optionally guard line-item edits once the status is past the default/Draft value (compare <code>statusId</code> to <code>purchaseOrderDefaultStatusId</code>) &mdash; decide with the user; not required for MVP.</p>
+
+<hr>
+
+<h2>Step 6 &mdash; Permission: <code>supplierPurchaseOrder</code> (resolver-enforced)</h2>
+<div class="step-meta">
+    <div>Goal</div><div>Seed a new permission and enforce it at the supplier-PO resolvers &mdash; without adding <code>PurchaseOrder</code> to the model permission map.</div>
+    <div>Files</div><div>permission seed / <code>apps/api/src/derived.ts</code> (regenerated); resolvers (Step 7)</div>
+</div>
+<div class="callout"><strong>Why NOT the model map.</strong> <code>checkPermissions</code> only enforces for models present in <code>permissionsByReferenceModel</code>; absent ones pass through to the parent (<code>_DbModelBase.ts:1181&ndash;1205</code>). MAT-1 deliberately left <code>PurchaseOrder</code> out so customer POs stay governed by Job/ECO/JobBill. Adding <code>PurchaseOrder</code> now would suddenly gate <em>customer</em>-PO writes too &mdash; a regression. Supplier POs are created directly (no parent flow), so we enforce their own permission <strong>at the resolver layer</strong> instead, leaving the model map untouched.</div>
+<ul>
+    <li>Add a <code>supplierPurchaseOrder</code> permission with actions <code>view</code> / <code>create</code> / <code>edit</code> / <code>delete</code> / <code>issue</code> (mirror the action shape of <code>MaterialOrder</code> in <code>derived.ts ~466&ndash;474</code>; add <code>issue</code> as the privileged action). Follow the repo&rsquo;s permission-seed mechanism, then regenerate <code>derived.ts</code> (<code>derived.ts</code> is generated &mdash; do not hand-edit the output).</li>
+    <li>Default the role grants to whoever can manage procurement today (confirm with the user). <code>view</code>/<code>create</code>/<code>edit</code> for procurement roles; <code>issue</code> for the same or a narrower approver set.</li>
+    <li>This permission does NOT touch customer POs &mdash; it is checked only inside the supplier-PO resolvers.</li>
+</ul>
+
+<hr>
+
+<h2>Step 7 &mdash; GraphQL surface</h2>
+<div class="step-meta">
+    <div>Goal</div><div>Add the supplier types, queries, mutations, and field resolvers to the existing <code>PurchaseOrderResolvers</code> (already registered).</div>
+    <div>Files</div><div><code>apps/api/src/graphql/models/PurchaseOrder.ts</code></div>
+</div>
+<ul>
+    <li>Extend the <code>PurchaseOrder</code> type with <code>type</code>/<code>statusId</code> + <code>status: PropertyValue</code>/<code>deliveryLocationId</code> + <code>DeliveryLocation</code>/<code>shippingMethod</code>/<code>expectedDeliveryDate</code>/<code>PurchaseOrderLineItems</code>; add the <code>PurchaseOrderLineItem</code> type + the <code>UpsertSupplierPOInput</code>/<code>SupplierPOLineItemInput</code> inputs (see spec §5). The input carries <code>statusId</code> (a <code>PropertyValue</code> id), not a status string.</li>
+    <li>Add field resolvers: <code>status</code> (resolve the <code>PropertyValue</code> by <code>statusId</code> &mdash; gives the frontend label/color), <code>PurchaseOrderLineItems</code> (by <code>purchaseOrderId</code>, <code>orderBy orderNo</code>), <code>DeliveryLocation</code> (by <code>deliveryLocationId</code>), and on the line type <code>Material</code> / <code>MaterialAttributePrice</code> by id. Expose <code>supplierPurchaseOrderStatuses</code> (the <code>purchase-order-status</code> PropertyValue group) for the filter/status dropdowns.</li>
+    <li>Queries: <code>supplierPurchaseOrders(options)</code> (force <code>type=SupplierPO</code> into the filter), <code>supplierPurchaseOrder(id)</code>; reuse MAT-1&rsquo;s <code>purchaseOrdersForCompany</code> for the Company tab (filter to <code>SupplierPO</code>).</li>
+    <li>Mutations gate on the new permission, then delegate to the model:</li>
+</ul>
+<pre><code>const assertCan = (ctx, action) =&gt; {
+    if (!canUserPerformActionOnModel(ctx.userId, "supplierPurchaseOrder", action))
+        throw new ForbiddenError("Not permitted");   // match the repo's error class
+};
+
+Mutation: {
+    upsertSupplierPurchaseOrder: async (_, { input }, ctx) =&gt; {
+        assertCan(ctx, input.id ? "edit" : "create");
+        return new PurchaseOrderModel().upsertSupplier(input, ctx.userId);
+    },
+    issueSupplierPurchaseOrder: async (_, { id }, ctx) =&gt; {
+        assertCan(ctx, "issue");
+        return new PurchaseOrderModel().issueSupplier(id, ctx.userId);
+    },
+    cancelSupplierPurchaseOrder: async (_, { id }, ctx) =&gt; {
+        assertCan(ctx, "edit");
+        return new PurchaseOrderModel().cancelSupplier(id, ctx.userId);
+    },
+    sendSupplierPurchaseOrderLink: async (_, { id, recipientEmail, message }, ctx) =&gt; {
+        assertCan(ctx, "view");
+        return new PurchaseOrderModel().sendSupplierLink(id, recipientEmail, message, ctx.userId);
+    }
+}</code></pre>
+<div class="callout"><strong>No registration step</strong> &mdash; <code>graphql/schema.ts</code> already spreads <code>PurchaseOrderResolvers.{typeDef,Resolvers,Query,Mutation}</code> (MAT-1). Confirm the context user-id key (<code>ctx.userId</code> vs <code>ctx.user.id</code>) and the exact <code>canUserPerformActionOnModel</code> signature/error class against a neighbouring resolver. Also confirm the <code>RESTRICT_MATERIAL</code> env guard is applied where other material mutations apply it.</div>
+
+<hr>
+
+<h2>Step 8 &mdash; PDF (HTML/Tailwind &rarr; pdf-export)</h2>
+<div class="step-meta">
+    <div>Goal</div><div>A Supplier-PO PDF template + a <code>reportType</code> case. Download via the existing pipeline.</div>
+    <div>Files</div><div>new <code>apps/frontend/src/components/DownloadablePDF/SupplierPurchaseOrder/SupplierPurchaseOrderPDF.tsx</code>; <code>apps/frontend/src/pages/api/pdf-export.ts</code></div>
+</div>
+<ul>
+    <li><strong>Template</strong> &mdash; clone <code>DownloadablePDF/MaterialOrder/MaterialOrder.tsx</code>: a React FC with inline styles, <code>PDFHeader</code> for company logo/address, a supplier block + ship-to block, the itemized table (description / qty / unit price / total), subtotal / tax / grand total, the terms text, and a signature line. Rendered to an HTML string via <code>ReactDOMServer.renderToString</code> (the existing pattern).</li>
+    <li><strong>Dispatch</strong> &mdash; add <code>case "supplierPO":</code> to the <code>switch(reportType)</code> in <code>pages/api/pdf-export.ts</code> (model on the <code>"materialOrder"</code> case ~1092): fetch the PO via a <code>GET_SUPPLIER_PO</code> GraphQL query (header + line items + supplier Company + <code>DeliveryLocation</code> for the ship-to block + instance settings/logo), call <code>generateSupplierPurchaseOrderPdfDoc(po, settings)</code>, append the HTML + Tailwind <code>pdf-styles.css</code> + fonts to the FormData, POST to <code>api.nutrient.io/build</code> with <code>PSPDFKIT_API_KEY</code>, stream back the PDF.</li>
+    <li><strong>Download</strong> &mdash; the detail page&rsquo;s Download button POSTs <code>{ reportType: "supplierPO", id }</code> to <code>/api/pdf-export</code> and saves the blob (same helper other documents use).</li>
+</ul>
+
+<hr>
+
+<h2>Step 9 &mdash; Send a download link (no attachment)</h2>
+<div class="step-meta">
+    <div>Goal</div><div>Email the supplier contact a JWT link that streams the PDF; reuse the emailAction pipeline.</div>
+    <div>Files</div><div>new <code>apps/frontend/src/pages/api/po-download/[token].ts</code>; emailAction handler (PR #7385); <code>PurchaseOrderModel.sendSupplierLink</code></div>
+</div>
+<ul>
+    <li><strong>Token + email</strong> &mdash; preferred path: register a <code>supplierPO</code> handler in the PR #7385 emailAction registry and trigger it from <code>sendSupplierLink</code> (frontend uses <code>SendActionLinkModal</code> / <code>useEmailAction</code>). The handler signs a short-lived JWT carrying <code>{ purchaseOrderId, recipientEmail }</code> and emails the link via <code>EmailService.sendMail</code> (link in the body, expiry notice, refresh-on-expiry &mdash; the <code>_buildAndSendFormEmail</code> shape in <code>Feedback.ts:2004&ndash;2379</code>). <em>Fallback if #7385 is unmerged:</em> copy <code>generateFormDownloadToken</code> (<code>PDFDownloadTokenHelper.ts:129&ndash;153</code>) into a <code>generatePoDownloadToken</code> and hand-roll the email.</li>
+    <li><strong>Public route</strong> &mdash; new <code>pages/api/po-download/[token].ts</code>, modeled on <code>rfi-download/[token].ts:15&ndash;156</code>: verify the JWT against <code>PUBLIC_LINK_SECRET</code>, build a mock POST to the pdf-export handler (<code>reportType: "supplierPO"</code>, the PO id, an app token), set <code>Content-Disposition: attachment</code>, stream the PDF. On <code>TokenExpiredError</code> redirect (302) to an expiry page; on a bad token return 401. This route is unauthenticated by design (the JWT is the auth).</li>
+</ul>
+<div class="callout warn"><strong>Security.</strong> The token must encode the exact PO id and nothing client-controlled should widen access. Short expiry (30d like forms), no listing endpoint, and the route only ever serves that one PO&rsquo;s PDF. Don&rsquo;t leak cost/margin the supplier shouldn&rsquo;t see &mdash; the PO PDF shows <em>buy</em> prices (intended for the supplier), so that&rsquo;s fine, but do not reuse this template for any internal margin view.</div>
+
+<hr>
+
+<h2>Step 10 &mdash; Frontend: form, list, detail, company tab</h2>
+<div class="step-meta">
+    <div>Goal</div><div>Create/edit form, a supplier-PO list, the detail page actions, and the Company tab &mdash; all behind <code>RESTRICT_MATERIAL</code> + the new permission.</div>
+    <div>Files</div><div>new <code>components/PurchaseOrder/SupplierPOForm.tsx</code>; supplier-PO list page; extend the MAT-1 PO detail page + Company PO tab</div>
+</div>
+<div class="callout"><strong>Build with existing shared components.</strong> Reuse the material catalog picker (the same combobox + axis selectors the WO <code>MaterialItemEditor</code> uses) for catalog line items, <code>ListTable</code> for the list + line-item table, the shared detail-page shell + tabs (MAT-1 already added the PO detail page), and <code>SendActionLinkModal</code> for the send-link action. Match the surrounding patterns; do not hand-roll table/form primitives.</div>
+<ul>
+    <li><strong>Form</strong> &mdash; supplier (Company) picker, optional Job link, the delivery <code>Location</code> picker (reuse the existing address/Location selector that Company/Job forms use) + shipping method + expected date, a line-item editor (catalog XOR free-text rows, qty, pre-filled editable unit price, computed total), and footer actions: <em>Save Draft</em> (upsert, status stays Draft), <em>Issue</em> (upsert then <code>issueSupplierPurchaseOrder</code>). One <code>upsertSupplierPurchaseOrder</code> call carries header + lines.</li>
+    <li><strong>List</strong> &mdash; <code>supplierPurchaseOrders</code> with status + supplier filters; rows link to the detail page. (Customer POs are reached via their job/company as before &mdash; this list is supplier-only.)</li>
+    <li><strong>Detail</strong> &mdash; extend MAT-1&rsquo;s <code>/purchase-orders/[id]</code>: when <code>type=SupplierPO</code>, show the line-item table + status, a <em>Download PDF</em> button, and a <em>Send to supplier</em> button (opens <code>SendActionLinkModal</code>).</li>
+    <li><strong>Company tab</strong> &mdash; MAT-1 added a Purchase Orders tab; add a Supplier-PO view (or a sub-filter) using <code>purchaseOrdersForCompany</code> filtered to <code>SupplierPO</code>. Gate the tab on <code>supplierPurchaseOrder: view</code>.</li>
+</ul>
+
+<hr>
+
+<h2>Step 11 &mdash; End-to-end smoke test</h2>
+<ol>
+    <li>Migration: existing customer POs all read <code>type=CustomerPO</code>; their number, assignments, roll-up, and estimate/invoice dropdowns are unchanged.</li>
+    <li>Create a supplier PO: pick a supplier, add a catalog line (price pre-fills from cost) + a free-text line, save Draft &rarr; it gets <code>SPO-0001</code>; line <code>total</code> and header <code>amount</code> are correct.</li>
+    <li>Edit: remove a line, add another, change a qty &rarr; the sync deletes/creates/edits correctly and <code>amount</code> re-rolls.</li>
+    <li>Issue &rarr; <code>statusId</code> moves to the instance&rsquo;s Issued <code>PropertyValue</code> (anchor), <code>issuedDate</code> set; rename the &ldquo;Issued&rdquo; value in settings and the transition still lands on it. Download the PDF &rarr; logo, supplier + ship-to blocks, itemized table, totals, terms, signature line all render.</li>
+    <li>Send to supplier &rarr; recipient gets an email with a link (no attachment); opening it streams the PDF; an expired token redirects to the refresh page.</li>
+    <li>Permissions: a user without <code>supplierPurchaseOrder.create</code> cannot create; <code>issue</code> is blocked without the issue grant. A user who can create/edit a <em>customer</em> PO (via a job) is unaffected by the new permission.</li>
+    <li>Env: with <code>RESTRICT_MATERIAL</code> off, the supplier-PO surfaces are hidden.</li>
+</ol>
+
+<hr>
+
+<h2>Downstream impacts (for awareness, NOT this PR)</h2>
+<ul>
+    <li><strong>MAT-6 (Receiving)</strong> seeds <code>Received</code>/<code>PartiallyReceived</code> <code>PropertyValue</code>s in the <code>purchase-order-status</code> group (+ its own <code>Instance</code> anchors) and a receipt entity that draws down <code>PurchaseOrderLineItem</code> quantities; it consumes this model directly.</li>
+    <li><strong>Committed-cost follow-up</strong> &mdash; a new &ldquo;committed&rdquo; figure in <code>JobFinancialSummaryService</code> aggregating issued-supplier-PO line totals per Job (via <code>PurchaseOrderAssignment</code>). Its own slice.</li>
+    <li><strong>MAT-0/MAT-9</strong> &mdash; once merged, the line-item pre-fill silently improves (cheapest/discounted distributor source) with no call-site change, because it flows through <code>bestAvailableCost</code>.</li>
+</ul>
+
+<hr>
+
+<h2>Acceptance Checklist</h2>
+<ul class="criteria-list">
+    <li><div class="check-box"></div><span><code>PurchaseOrder</code> gains <code>type</code> (enum) + <code>statusId</code> (FK&rarr;<code>PropertyValue</code>) + 3 supplier columns + <code>PurchaseOrderLineItems</code>; migration backfills <code>type=CustomerPO</code>, seeds the <code>purchase-order-status</code> values + <code>Instance</code> anchors; customer-PO behaviour unchanged.</span></li>
+    <li><div class="check-box"></div><span><code>PurchaseOrderLineItem</code> exists (<code>BaseModel</code> clone of <code>WorkOrderMaterialItem</code>) with <code>recalculateTotal</code>; collapsed to one <code>materialAttributePriceId</code> FK.</span></li>
+    <li><div class="check-box"></div><span><code>SPO-####</code> auto-numbers globally (RFI precedent); customer <code>poNumber</code> stays user-entered.</span></li>
+    <li><div class="check-box"></div><span><code>upsertSupplierPurchaseOrder</code> saves header + syncs line items (delete-unlisted / create / edit) and re-rolls <code>amount</code>; catalog lines pre-fill cost from <code>bestAvailableCost</code>, editable.</span></li>
+    <li><div class="check-box"></div><span>Status is a customizable <code>PropertyValue</code> (group <code>purchase-order-status</code>); create/issue/cancel resolve their target via <code>Instance</code> anchors, never a literal label; transitions are <code>Draft &rarr; Issued &rarr; Closed/Cancelled</code> (Received = MAT-6).</span></li>
+    <li><div class="check-box"></div><span>PDF renders through <code>pdf-export</code>/PSPDFKit (new template + <code>reportType</code> case) and downloads.</span></li>
+    <li><div class="check-box"></div><span>Send-to-supplier emails a JWT download link (no attachment) via the emailAction pipeline; public <code>po-download/[token]</code> route streams the PDF; expiry handled.</span></li>
+    <li><div class="check-box"></div><span>New <code>supplierPurchaseOrder</code> permission enforced at the resolver; <code>PurchaseOrder</code> NOT added to <code>permissionsByReferenceModel</code>; surfaces gated by <code>RESTRICT_MATERIAL</code>.</span></li>
+    <li><div class="check-box"></div><span>Supplier-PO list + detail + Company tab; no committed-cost roll-up (deferred); no <code>instanceId</code>; no MAT identifiers in the migration name or code comments.</span></li>
+</ul>
+
+</div>
 </body>
 </html>

@@ -119,17 +119,29 @@ pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
         <div class="uis-badges">
             <span class="uis-badge badge-q">MAT-5</span>
             <span class="uis-badge badge-lane">Procurement</span>
-            <span class="uis-badge badge-status">Draft</span>
+            <span class="uis-badge badge-status" style="background:#dbeafe; color:#1e40af;">Reconciled</span>
             <span class="uis-badge badge-priority">P0</span>
-            <span class="uis-badge badge-child">Child of Release 1.34</span>
+            <span class="uis-badge badge-child">Child of Release 1.33</span>
         </div>
         <h1 class="uis-h1">Supplier Purchase Orders</h1>
-        <p class="uis-sub">Outbound POs to suppliers with auto-pricing from the supply chain model, PDF generation, and email transmission. Uses the shared PurchaseOrder model with <code>type=SupplierPO</code>.</p>
+        <p class="uis-sub">Outbound POs to suppliers built on the shared <code>PurchaseOrder</code> model with a <code>type=SupplierPO</code> discriminator: auto-numbered <code>SPO-####</code>, a new <code>PurchaseOrderLineItem</code> child table, line-item cost pulled from the supply chain model, an HTML/Tailwind PDF via the <code>pdf-export</code> endpoint, and a JWT email-link to download (no PDF attachments).</p>
         <div class="uis-meta">
-            <span><strong>Parent:</strong> Release 1.34</span>
+            <span><strong>Parent:</strong> Release 1.33</span>
             <span><strong>Slice:</strong> MAT-5</span>
-            <span><strong>Est:</strong> 5&ndash;7 days</span>
+            <span><strong>Est:</strong> 7&ndash;9 days</span>
         </div>
+    </div>
+
+    <div class="uis-section" style="border-color:#bfdbfe; background:#eff6ff;">
+        <h2 style="border-bottom-color:#bfdbfe; color:#1e3a8a;">Reconciliation Note (grounded against <code>repo-2</code> / Release-v1.33.0)</h2>
+        <p style="color:#1e40af;">The original CEO draft assumed a greenfield model, a <code>PurchaseOrderLineItem</code> that already existed, and dead supply-chain entities. Grounding against the live backend reshaped this spec:</p>
+        <ul style="color:#1e40af;">
+            <li><strong>Builds on MAT-1's shared model, not a new one.</strong> MAT-1 brought <code>PurchaseOrder</code> into <code>BaseAuditableModel</code> and <em>deferred</em> <code>type</code> / <code>status</code> / <code>PurchaseOrderLineItem</code> / <code>SPO-####</code> here. MAT-5 adds exactly those. Existing customer-PO rows default to <code>type=CustomerPO</code>; supplier POs get <code>type=SupplierPO</code> on the same table.</li>
+            <li><strong>Dead FKs collapsed.</strong> The line item's <code>manufacturerProductId</code> + <code>distributorPriceId</code> (both deleted in the MAT-0 collapse) become a single <code>materialAttributePriceId</code> FK &mdash; the MAT-0 source row that locks variant + cost + SKU at PO time. The line item mirrors the live <code>WorkOrderMaterialItem</code> exactly (catalog XOR free-text, stored cost snapshot, <code>recalculateTotal</code>).</li>
+            <li><strong>No PDF attachments emailed (anti-spam).</strong> PDF generation is the normal HTML+Tailwind &rarr; <code>pdf-export</code> &rarr; PSPDFKit flow (a new <code>DownloadablePDF</code> React template + a <code>reportType</code> case). The "send to supplier" path emails a <strong>JWT link to download</strong>, reusing the generic <code>emailAction</code> pipeline (PR #7385, Q21030-11893) &mdash; with <code>rfi-download</code>/<code>form-download</code> as the existing token-route precedent.</li>
+            <li><strong>Dedicated supplier-PO permission, resolver-enforced.</strong> <code>PurchaseOrder</code> stays OUT of <code>permissionsByReferenceModel</code> (adding it would regress customer-PO parent-authorization). Supplier-PO mutations gate on a new <code>supplierPurchaseOrder</code> permission checked explicitly at the resolver.</li>
+            <li><strong>Committed-cost visibility deferred.</strong> <code>JobFinancialSummaryService</code> has no "committed cost" concept today; the roll-up of issued-PO totals is split into a follow-up MAT task, not built here.</li>
+        </ul>
     </div>
 
     <div class="uis-toc">
@@ -174,22 +186,22 @@ pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
                 <div class="value-card">
                     <div class="v-icon">📄</div>
                     <div class="v-title">Supplier-Facing Documents</div>
-                    <div class="v-detail">Formal PO documents with company branding, line items, and terms &mdash; sent directly to supplier contacts.</div>
+                    <div class="v-detail">Formal PO documents with company branding, line items, and terms &mdash; downloaded as PDF or sent to supplier contacts as a JWT download link.</div>
                 </div>
                 <div class="value-card">
                     <div class="v-icon">⚡</div>
                     <div class="v-title">Auto-Pricing</div>
-                    <div class="v-detail">Line item prices pulled from DistributorPrice + discount schedules (MAT-9) &mdash; no manual price lookups.</div>
+                    <div class="v-detail">Line-item cost pre-fills from the supply chain model (MAT-0 source rows via <code>bestAvailableCost</code>, MAT-9 discounts) &mdash; editable, no manual lookups.</div>
                 </div>
                 <div class="value-card">
                     <div class="v-icon">🖨️</div>
                     <div class="v-title">PDF Generation</div>
-                    <div class="v-detail">Professional PDF output with company logo, supplier address block, itemized table, and signature line.</div>
+                    <div class="v-detail">HTML+Tailwind template rendered through the existing <code>pdf-export</code> / PSPDFKit pipeline &mdash; company logo, supplier address block, itemized table, totals, signature line.</div>
                 </div>
                 <div class="value-card">
                     <div class="v-icon">💰</div>
                     <div class="v-title">Committed Cost Visibility</div>
-                    <div class="v-detail">Issued POs create committed costs visible in the Job Financial Summary before materials arrive.</div>
+                    <div class="v-detail">Issued POs represent committed spend before materials arrive. Roll-up into the Job Financial Summary is a <em>follow-up</em> task (see Scope).</div>
                 </div>
             </div>
 
@@ -231,21 +243,27 @@ pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
         <div class="collapsible-body open">
             <h3>In Scope</h3>
             <ul>
-                <li><span class="scope-tag scope-in">IN</span> Extend <code>PurchaseOrder</code> model for supplier-specific fields (<code>deliveryAddress</code>, <code>shippingMethod</code>, <code>expectedDeliveryDate</code>)</li>
-                <li><span class="scope-tag scope-in">IN</span> <code>SPO-####</code> auto-numbering sequence for Supplier POs</li>
-                <li><span class="scope-tag scope-in">IN</span> Supplier PO form with distributor picker + product browser</li>
-                <li><span class="scope-tag scope-in">IN</span> PO list page with filters (type, status, supplier)</li>
-                <li><span class="scope-tag scope-in">IN</span> PDF template with company branding, line items, totals, terms, and signature line</li>
-                <li><span class="scope-tag scope-in">IN</span> Email PO to supplier contact</li>
+                <li><span class="scope-tag scope-in">IN</span> Add <code>type</code> enum (<code>CustomerPO</code>&nbsp;|&nbsp;<code>SupplierPO</code>, system discriminator) + a <strong>customizable</strong> <code>statusId</code> &rarr; <code>PropertyValue</code> (like <code>jobStatusId</code>; default values <code>Draft</code>&nbsp;&rarr;&nbsp;<code>Issued</code>&nbsp;&rarr;&nbsp;<code>Closed</code>&nbsp;/&nbsp;<code>Cancelled</code> seeded per instance) to the shared <code>PurchaseOrder</code>; migration defaults existing rows to <code>type=CustomerPO</code></li>
+                <li><span class="scope-tag scope-in">IN</span> Supplier-specific columns: <code>deliveryLocationId</code> (FK &rarr; <code>Location</code>), <code>shippingMethod</code>, <code>expectedDeliveryDate</code> (supplier <code>companyId</code> / <code>contactId</code> / <code>issuedDate</code> / <code>amount</code> / <code>terms</code> reuse MAT-1's columns)</li>
+                <li><span class="scope-tag scope-in">IN</span> New <code>PurchaseOrderLineItem</code> child table (mirrors <code>WorkOrderMaterialItem</code>: catalog XOR free-text, <code>materialAttributePriceId</code>, stored cost snapshot, <code>recalculateTotal</code>)</li>
+                <li><span class="scope-tag scope-in">IN</span> <code>SPO-####</code> auto-numbering for Supplier POs (global sequence, <code>RFI-##</code> precedent); customer <code>poNumber</code> stays user-entered</li>
+                <li><span class="scope-tag scope-in">IN</span> Combined upsert mutation (header + line items, delete-unlisted / create-or-edit sync &mdash; <code>upsertWorkOrderLineItems</code> precedent)</li>
+                <li><span class="scope-tag scope-in">IN</span> Line-item cost pre-fill from the supply chain model (<code>bestAvailableCost</code> / MAT-0 source row, MAT-9 discount), editable</li>
+                <li><span class="scope-tag scope-in">IN</span> Supplier PO form with supplier (Company) picker + material catalog line items</li>
+                <li><span class="scope-tag scope-in">IN</span> PO list page filtered to <code>type=SupplierPO</code> with status + supplier filters; PO detail page</li>
+                <li><span class="scope-tag scope-in">IN</span> Supplier-PO PDF: new <code>DownloadablePDF</code> React template + a <code>"supplierPO"</code> <code>reportType</code> case; download via <code>pdf-export</code></li>
+                <li><span class="scope-tag scope-in">IN</span> Email a JWT <strong>download link</strong> to the supplier contact (reuse the <code>emailAction</code> pipeline / PR #7385; token-route precedent <code>rfi-download</code>)</li>
                 <li><span class="scope-tag scope-in">IN</span> Supplier PO tab on Company detail page</li>
+                <li><span class="scope-tag scope-in">IN</span> New <code>supplierPurchaseOrder</code> permission, enforced at the resolver; gated by env <code>RESTRICT_MATERIAL</code></li>
             </ul>
 
             <h3>Out of Scope</h3>
             <ul>
-                <li><span class="scope-tag scope-out">OUT</span> Auto-PO generation from material requests</li>
-                <li><span class="scope-tag scope-out">OUT</span> EDI/API transmission to suppliers</li>
-                <li><span class="scope-tag scope-out">OUT</span> PO approval workflow</li>
-                <li><span class="scope-tag scope-out">OUT</span> Mobile PO creation</li>
+                <li><span class="scope-tag scope-out">OUT</span> <strong>Committed-cost roll-up into the Job Financial Summary</strong> &mdash; no "committed" concept exists in <code>JobFinancialSummaryService</code> today; split to a follow-up MAT task</li>
+                <li><span class="scope-tag scope-out">OUT</span> <strong>Receiving + Partially/Fully-Received statuses</strong> &mdash; those statuses and the receipt flow are MAT-6</li>
+                <li><span class="scope-tag scope-out">OUT</span> Emailing the PDF as an <strong>attachment</strong> (anti-spam &mdash; link-to-download only)</li>
+                <li><span class="scope-tag scope-out">OUT</span> Auto-PO generation from material requests (grouping MAT-4 requests into POs)</li>
+                <li><span class="scope-tag scope-out">OUT</span> EDI/API transmission to suppliers; PO approval workflow; mobile PO creation</li>
             </ul>
         </div>
     </div>
@@ -291,9 +309,9 @@ pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
                         <div class="mockup-cell" style="flex:0.5; font-weight:600;">$210.00</div>
                         <div style="width:30px; color:#ef4444; cursor:pointer;">&#x2715;</div>
                     </div>
-                    <div style="margin:12px 0;"><span class="mockup-btn mockup-btn-outline">+ Add Item from Catalog</span></div>
+                    <div style="margin:12px 0;"><span class="mockup-btn mockup-btn-outline">+ Add Item from Catalog</span> <span style="font-size:11px; color:#94a3b8;">unit price pre-fills from supply-chain cost &mdash; editable</span></div>
                     <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:16px;">
-                        <div><div style="font-size:11px; font-weight:600; color:#64748b; margin-bottom:4px;">Delivery Address</div><div class="mockup-input" style="width:100%;">123 Job Site Rd&hellip;</div></div>
+                        <div><div style="font-size:11px; font-weight:600; color:#64748b; margin-bottom:4px;">Delivery Location</div><div class="mockup-input" style="width:100%;">Select location&hellip; <span style="color:#cbd5e1;">(saved address)</span></div></div>
                         <div><div style="font-size:11px; font-weight:600; color:#64748b; margin-bottom:4px;">Expected Delivery</div><div class="mockup-input" style="width:100%;">2026-05-15</div></div>
                     </div>
                     <div style="margin-top:12px;"><div style="font-size:11px; font-weight:600; color:#64748b; margin-bottom:4px;">Notes / Terms</div><div class="mockup-input" style="width:100%; min-height:40px;">Net 30. Deliver to loading dock.</div></div>
@@ -347,7 +365,7 @@ pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
                         <div class="mockup-cell" style="font-weight:600; color:#3b82f6;">SPO-0003</div>
                         <div class="mockup-cell">Noble Trade</div>
                         <div class="mockup-cell">DM-2026-041</div>
-                        <div class="mockup-cell" style="flex:0.6;"><span class="mockup-badge" style="background:#eff6ff; color:#1d4ed8;">Partially Received</span></div>
+                        <div class="mockup-cell" style="flex:0.6;"><span class="mockup-badge" style="background:#f1f5f9; color:#475569;">Closed</span></div>
                         <div class="mockup-cell" style="flex:0.5; font-weight:600;">$7,120.00</div>
                         <div class="mockup-cell" style="flex:0.6;">Mar 28, 2026</div>
                     </div>
@@ -418,6 +436,30 @@ pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
                 </div>
             </div>
 
+            <h3>3.4 &mdash; Send to Supplier (email a download link)</h3>
+            <p style="font-size:13px; color:#64748b;">No PDF attachment is emailed (deliverability). The supplier receives a short email with a JWT link that lands on a public page and streams the PDF &mdash; reusing the generic <code>emailAction</code> pipeline (<code>SendActionLinkModal</code> / <code>useEmailAction</code>, PR #7385). The same PDF is always available via a direct <strong>Download</strong> button.</p>
+            <div class="mockup-container" id="mockup-4">
+                <div class="mockup-bar">
+                    <div class="mockup-dots"><div class="mockup-dot mockup-dot-r"></div><div class="mockup-dot mockup-dot-y"></div><div class="mockup-dot mockup-dot-g"></div></div>
+                    Send SPO-0001 to Supplier
+                </div>
+                <div class="mockup-body">
+                    <div style="max-width:440px; margin:0 auto; background:#fff; border:1px solid #e2e8f0; border-radius:10px; padding:20px;">
+                        <div style="font-weight:700; font-size:15px; margin-bottom:4px;">Email purchase order link</div>
+                        <div style="font-size:12px; color:#64748b; margin-bottom:14px;">Sends a secure download link &mdash; no attachment.</div>
+                        <div style="font-size:11px; font-weight:600; color:#64748b; margin-bottom:4px;">Recipient</div>
+                        <div class="mockup-input" style="width:100%; margin-bottom:12px;">orders@wolseley.ca &nbsp;<span style="color:#cbd5e1;">(supplier contact)</span></div>
+                        <div style="font-size:11px; font-weight:600; color:#64748b; margin-bottom:4px;">Message (optional)</div>
+                        <div class="mockup-input" style="width:100%; min-height:48px; margin-bottom:8px;">Please confirm availability and lead time. Thanks.</div>
+                        <div style="font-size:11px; color:#94a3b8; margin-bottom:14px;">🔒 Link expires in 30 days &middot; recipient can request a fresh one.</div>
+                        <div style="display:flex; gap:8px; justify-content:flex-end;">
+                            <span class="mockup-btn mockup-btn-outline">⬇ Download instead</span>
+                            <span class="mockup-btn mockup-btn-primary">Send Link</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
         </div>
     </div>
 
@@ -428,30 +470,41 @@ pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
             <span class="toggle-icon">&#9660;</span>
         </h2>
         <div class="collapsible-body open">
-            <h3>PurchaseOrder Extensions (type = SupplierPO)</h3>
-            <p>The existing <code>PurchaseOrder</code> model (MAT-1) is extended with supplier-specific fields. The <code>type</code> discriminator distinguishes <code>CustomerPO</code> from <code>SupplierPO</code>.</p>
+            <h3>PurchaseOrder &mdash; new columns (MAT-5)</h3>
+            <p>MAT-1 brought <code>PurchaseOrder</code> into <code>BaseAuditableModel</code> and added <code>companyId</code> / <code>contactId</code> / <code>issuedDate</code> / <code>amount</code> / <code>terms</code> / <code>description</code>. MAT-5 adds the discriminator, the supplier lifecycle, and three supplier-specific columns. For a Supplier PO, the reused MAT-1 columns mean: <code>companyId</code> = the <strong>supplier</strong> Company, <code>contactId</code> = the supplier contact, <code>amount</code> = the line-item total.</p>
             <table class="schema-table">
                 <thead><tr><th>Field</th><th>Type</th><th>Notes</th></tr></thead>
                 <tbody>
-                    <tr><td><code>deliveryAddress</code></td><td><code>String? @db.Text</code></td><td>Job site or warehouse address for delivery</td></tr>
+                    <tr><td><code>type</code></td><td><code>PurchaseOrderType @default(CustomerPO)</code></td><td>Hardcoded enum <code>CustomerPO</code>&nbsp;|&nbsp;<code>SupplierPO</code> (a system discriminator, not user-facing). Migration backfills existing rows &rarr; <code>CustomerPO</code>.</td></tr>
+                    <tr><td><code>statusId</code></td><td><code>String? @db.VarChar(21)</code></td><td>FK &rarr; <code>PropertyValue</code> (<code>@relation("purchaseOrderStatus")</code>) &mdash; <strong>customizable per instance</strong>, exactly like <code>jobStatusId</code>. Default values seeded (<code>Draft</code>/<code>Issued</code>/<code>Closed</code>/<code>Cancelled</code>, group <code>propertyName="purchase-order-status"</code>). Supplier POs only (null for customer POs). <code>Received</code> values are MAT-6.</td></tr>
+                    <tr><td><code>deliveryLocationId</code></td><td><code>String? @db.VarChar(21)</code></td><td>FK &rarr; <code>Location</code> (the structured-address model used by Company / Job / Contact) &mdash; the job-site or warehouse delivery address</td></tr>
                     <tr><td><code>shippingMethod</code></td><td><code>String? @db.VarChar(100)</code></td><td>e.g. &ldquo;Will Call&rdquo;, &ldquo;Freight&rdquo;, &ldquo;Courier&rdquo;</td></tr>
                     <tr><td><code>expectedDeliveryDate</code></td><td><code>DateTime?</code></td><td>Requested or promised delivery date</td></tr>
+                    <tr><td><code>PurchaseOrderLineItems</code></td><td><code>PurchaseOrderLineItem[]</code></td><td>New back-relation (below)</td></tr>
                 </tbody>
             </table>
+            <p style="font-size:12px; color:#64748b; margin-top:4px;">Only <code>type</code> is a Prisma enum (repo convention: enum + <code>const</code> array/type in <code>types/</code>, imported into the model and GraphQL SDL). <strong><code>status</code> is a <code>PropertyValue</code></strong> so instances can rename/recolor/reorder their PO statuses &mdash; the same machinery as <code>jobStatus</code>/<code>rfiStatus</code>. Because labels are customizable, the lifecycle code can&rsquo;t hardcode them: it resolves specific states through new <strong><code>Instance</code> anchor FKs</strong> &mdash; <code>purchaseOrderDefaultStatusId</code> (create), <code>purchaseOrderIssuedStatusId</code> (issue), <code>purchaseOrderCancelledStatusId</code> (cancel) &mdash; mirroring <code>rfiDefaultStatusId</code>/<code>rfiSentStatusId</code>. Job linkage stays via the polymorphic <code>PurchaseOrderAssignment</code> (no direct <code>jobId</code> FK), so a supplier PO rolls up under a Job like customer POs do.</p>
 
-            <h3>PurchaseOrderLineItem Extensions</h3>
+            <h3>PurchaseOrderLineItem &mdash; new child model</h3>
+            <p>New table; mirrors the live <code>WorkOrderMaterialItem</code> (catalog XOR free-text, stored cost snapshot, <code>recalculateTotal</code>). The dead-entity FKs from the CEO draft (<code>manufacturerProductId</code>, <code>distributorPriceId</code>) <strong>collapse to a single <code>materialAttributePriceId</code></strong> &mdash; the MAT-0 source row that pins the variant, distributor cost, and SKU at PO time.</p>
             <table class="schema-table">
                 <thead><tr><th>Field</th><th>Type</th><th>Notes</th></tr></thead>
                 <tbody>
-                    <tr><td><code>materialId</code></td><td><code>String? @db.VarChar(21)</code></td><td>FK &rarr; Material (from supply chain catalog)</td></tr>
-                    <tr><td><code>manufacturerProductId</code></td><td><code>String? @db.VarChar(21)</code></td><td>FK &rarr; ManufacturerProduct (specific product variant)</td></tr>
-                    <tr><td><code>distributorPriceId</code></td><td><code>String? @db.VarChar(21)</code></td><td>FK &rarr; DistributorPrice (locks in price at PO creation)</td></tr>
+                    <tr><td><code>id</code> / <code>isDeleted</code> / <code>isArchived</code> / <code>createdAt</code> / <code>updatedAt</code></td><td>&mdash;</td><td>Standard base columns</td></tr>
+                    <tr><td><code>purchaseOrderId</code></td><td><code>String @db.VarChar(21)</code></td><td>FK &rarr; PurchaseOrder (the parent)</td></tr>
+                    <tr><td><code>materialId</code></td><td><code>String? @db.VarChar(21)</code></td><td>FK &rarr; Material (catalog mode); null for free-text lines</td></tr>
+                    <tr><td><code>materialAttributePriceId</code></td><td><code>String? @db.VarChar(21)</code></td><td>FK &rarr; MaterialAttributePrice &mdash; the chosen variant / MAT-0 source row; locks cost + SKU</td></tr>
+                    <tr><td><code>description</code></td><td><code>String? @db.VarChar(500)</code></td><td>Free-text line description (XOR catalog)</td></tr>
+                    <tr><td><code>quantity</code></td><td><code>Decimal?</code></td><td>Ordered quantity</td></tr>
+                    <tr><td><code>unitPrice</code></td><td><code>Decimal? @db.Decimal(10, 2)</code></td><td>Cost per unit, locked at PO time (pre-filled from <code>bestAvailableCost</code> &minus; MAT-9 discount, editable)</td></tr>
+                    <tr><td><code>total</code></td><td><code>Decimal? @db.Decimal(10, 2)</code></td><td>Computed <code>quantity &times; unitPrice</code> via <code>afterCreate</code>/<code>afterEdit</code> &rarr; <code>recalculateTotal</code></td></tr>
+                    <tr><td><code>orderNo</code></td><td><code>Int @default(0)</code></td><td>Row ordering within the PO</td></tr>
                 </tbody>
             </table>
-            <p style="font-size:12px; color:#64748b; margin-top:4px;">Line item <code>total</code> is computed: <code>quantity &times; unitPrice</code>. Pricing auto-populates from <code>DistributorPrice.price</code> minus any applicable discount (MAT-9).</p>
+            <p style="font-size:12px; color:#64748b; margin-top:4px;">No <code>costPrice</code>/<code>unitPrice</code> split as on <code>WorkOrderMaterialItem</code> &mdash; a PO line <em>is</em> the buy price, so one <code>unitPrice</code> (cost) suffices. <code>instanceId</code> intentionally omitted (single-instance app).</p>
 
             <h3>Numbering</h3>
-            <p><code>SPO-####</code> &mdash; auto-sequenced per instance. Follows the same counter pattern as existing entity numbering (Job, Invoice, etc.).</p>
+            <p><code>SPO-####</code> for Supplier POs &mdash; a <strong>global</strong> sequence (company-wide procurement docs, not job-scoped). Generated on create with the <code>RFI-##</code> precedent: <code>SELECT MAX(CAST(SUBSTRING(poNumber, 5) AS UNSIGNED)) &hellip; WHERE type = 'SupplierPO' AND poNumber REGEXP '^SPO-[0-9]+$'</code>, then <code>SPO-${padStart(4)}</code>. Customer <code>poNumber</code> remains user-entered.</p>
         </div>
     </div>
 
@@ -462,64 +515,75 @@ pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
             <span class="toggle-icon">&#9660;</span>
         </h2>
         <div class="collapsible-body open">
-            <h3>Extended PurchaseOrder Type</h3>
+            <p>Added to the <strong>existing</strong> <code>PurchaseOrderResolvers</code> object (already spread into <code>graphql/schema.ts</code> &mdash; no new registration). Mutations gate on the new <code>supplierPurchaseOrder</code> permission at the resolver.</p>
+            <h3>Extended Types</h3>
             <pre>extend type PurchaseOrder {
-  deliveryAddress: String
+  type: String                    # CustomerPO | SupplierPO (enum)
+  statusId: String                # FK → PropertyValue (customizable)
+  status: PropertyValue           # resolved value (label / color / orderNo)
+  deliveryLocationId: String
+  DeliveryLocation: Location
   shippingMethod: String
   expectedDeliveryDate: DateTime
+  PurchaseOrderLineItems: [PurchaseOrderLineItem!]
 }
 
-extend type PurchaseOrderLineItem {
+type PurchaseOrderLineItem {
+  id: ID!
+  purchaseOrderId: String!
   materialId: String
   Material: Material
-  manufacturerProductId: String
-  ManufacturerProduct: ManufacturerProduct
-  distributorPriceId: String
-  DistributorPrice: DistributorPrice
+  materialAttributePriceId: String
+  MaterialAttributePrice: MaterialAttributePrice
+  description: String
+  quantity: Float
+  unitPrice: Float
+  total: Float
+  orderNo: Int
 }</pre>
 
             <h3>Input Types</h3>
-            <pre>input CreateSupplierPOInput {
-  supplierId: String!
-  jobId: String!
-  deliveryAddress: String
+            <p>One combined upsert (header + line items) following the <code>upsertWorkOrderLineItems</code> sync pattern: delete line items not in the payload, create those without an id, edit the rest; totals recompute in <code>afterCreate</code>/<code>afterEdit</code>.</p>
+            <pre>input UpsertSupplierPOInput {
+  id: ID                          # null = create (assigns SPO-####)
+  companyId: String!              # supplier
+  contactId: String
+  jobId: String                   # optional — links via PurchaseOrderAssignment
+  statusId: String                # PropertyValue id; omitted → instance default (Draft)
+  issuedDate: DateTime
+  deliveryLocationId: String       # FK → Location
   shippingMethod: String
   expectedDeliveryDate: DateTime
-  notes: String
+  terms: String
+  description: String
   lineItems: [SupplierPOLineItemInput!]!
 }
 
 input SupplierPOLineItemInput {
+  id: ID                          # null = new line
   materialId: String
-  manufacturerProductId: String
-  distributorPriceId: String
-  description: String
+  materialAttributePriceId: String
+  description: String             # XOR catalog
   quantity: Float!
-  unitPrice: Float
-}
-
-input UpdateSupplierPOInput {
-  id: ID!
-  deliveryAddress: String
-  shippingMethod: String
-  expectedDeliveryDate: DateTime
-  notes: String
-  lineItems: [SupplierPOLineItemInput!]
+  unitPrice: Float                # omitted → resolved from bestAvailableCost
+  orderNo: Int
 }</pre>
 
             <h3>Queries &amp; Mutations</h3>
-            <pre>type Query {
-  supplierPurchaseOrders(options: GetListOptions): GetListResult!
+            <pre>extend type Query {
+  supplierPurchaseOrders(options: GetListOptions): GetListResult!   # type=SupplierPO
   supplierPurchaseOrder(id: ID!): PurchaseOrder!
+  purchaseOrdersForCompany(companyId: ID!): [PurchaseOrder]         # MAT-1 query, reused for the supplier tab
 }
 
-type Mutation {
-  createSupplierPO(input: CreateSupplierPOInput!): PurchaseOrder!
-  updateSupplierPO(input: UpdateSupplierPOInput!): PurchaseOrder!
-  issueSupplierPO(id: ID!): PurchaseOrder!
-  generatePurchaseOrderPdf(id: ID!): String!
-  sendPurchaseOrderEmail(id: ID!, recipientEmail: String!): Boolean!
+extend type Mutation {
+  upsertSupplierPurchaseOrder(input: UpsertSupplierPOInput!): PurchaseOrder!
+  issueSupplierPurchaseOrder(id: ID!): PurchaseOrder!              # Draft → Issued
+  cancelSupplierPurchaseOrder(id: ID!): PurchaseOrder!
+  # Email a JWT download link (no attachment) — reuses the emailAction pipeline (PR #7385)
+  sendSupplierPurchaseOrderLink(id: ID!, recipientEmail: String!, message: String): Boolean!
 }</pre>
+            <p style="font-size:12px; color:#64748b; margin-top:4px;">PDF generation itself is <strong>not</strong> a GraphQL mutation &mdash; the frontend POSTs <code>{ reportType: "supplierPO", id }</code> to <code>/api/pdf-export</code> and downloads the returned blob (same as every other document). The public token route (<code>/api/po-download/[token]</code>, modeled on <code>rfi-download</code>) validates the JWT and streams that same PDF for emailed links.</p>
         </div>
     </div>
 
@@ -533,15 +597,15 @@ type Mutation {
             <div class="blast-summary">
                 <div class="blast-row">
                     <span class="blast-label">New Files</span>
-                    <span class="blast-value">3</span>
+                    <span class="blast-value">5</span>
                 </div>
                 <div class="blast-row">
                     <span class="blast-label">Modified Files</span>
-                    <span class="blast-value">4</span>
+                    <span class="blast-value">8</span>
                 </div>
                 <div class="blast-row">
                     <span class="blast-label">Total Touched</span>
-                    <span class="blast-value">7</span>
+                    <span class="blast-value">13</span>
                 </div>
             </div>
 
@@ -552,38 +616,68 @@ type Mutation {
                 <tbody>
                     <tr>
                         <td><span class="action-new">NEW</span></td>
-                        <td><code>apps/frontend/src/pages/purchase-orders/index.tsx</code></td>
-                        <td>PO list page with type/status/supplier filters and Create PO button</td>
+                        <td><code>apps/api/src/models/PurchaseOrderLineItem.ts</code></td>
+                        <td>Child model (<code>extends BaseModel</code>): <code>afterCreate</code>/<code>afterEdit</code> &rarr; <code>recalculateTotal</code> (<code>WorkOrderMaterialItem</code> clone)</td>
+                    </tr>
+                    <tr>
+                        <td><span class="action-new">NEW</span></td>
+                        <td><code>prisma/migrations/&lt;ts&gt;_supplier_purchase_orders/migration.sql</code></td>
+                        <td>Additive cols + <code>type</code> enum on PurchaseOrder; new PurchaseOrderLineItem table; Instance anchor cols; backfill <code>type='CustomerPO'</code> + seed <code>purchase-order-status</code> PropertyValues &amp; anchors</td>
+                    </tr>
+                    <tr>
+                        <td><span class="action-new">NEW</span></td>
+                        <td><code>apps/frontend/src/components/DownloadablePDF/SupplierPurchaseOrder/SupplierPurchaseOrderPDF.tsx</code></td>
+                        <td>HTML/Tailwind React template (inline styles, <code>renderToString</code>) &mdash; <code>MaterialOrder</code> PDF precedent</td>
                     </tr>
                     <tr>
                         <td><span class="action-new">NEW</span></td>
                         <td><code>apps/frontend/src/components/PurchaseOrder/SupplierPOForm.tsx</code></td>
-                        <td>Create/edit form with distributor picker, product browser, line item table</td>
+                        <td>Create/edit form: supplier (Company) picker, material catalog line items, status actions</td>
                     </tr>
                     <tr>
                         <td><span class="action-new">NEW</span></td>
-                        <td><code>apps/api/src/templates/SupplierPO.pdf.ts</code></td>
-                        <td>PDF template with company branding, supplier address, line items, totals, signature line</td>
+                        <td><code>apps/frontend/src/pages/api/po-download/[token].ts</code></td>
+                        <td>Public JWT-validated route that streams the PO PDF for emailed links (<code>rfi-download</code> precedent)</td>
                     </tr>
                     <tr>
                         <td><span class="action-mod">MOD</span></td>
                         <td><code>apps/api/prisma/schema.prisma</code></td>
-                        <td>Add supplier-specific fields to PurchaseOrder + FK fields to PurchaseOrderLineItem</td>
+                        <td>Add <code>type</code> enum + <code>statusId</code> (FK&rarr;PropertyValue) + 3 supplier cols + relations to PurchaseOrder; 3 Instance status-anchor FKs; PropertyValue back-relations; define PurchaseOrderLineItem</td>
                     </tr>
                     <tr>
                         <td><span class="action-mod">MOD</span></td>
                         <td><code>apps/api/src/models/PurchaseOrder.ts</code></td>
-                        <td>Add supplier PO creation, issuance, and auto-pricing logic</td>
+                        <td>SPO-#### numbering; <code>upsertSupplierPurchaseOrder</code> (header + line-item sync); issue/cancel; send-link</td>
+                    </tr>
+                    <tr>
+                        <td><span class="action-mod">MOD</span></td>
+                        <td><code>apps/api/src/types/PurchaseOrder.types.ts</code></td>
+                        <td><code>PurchaseOrderType</code> const-array + type (status is a PropertyValue, no enum); <code>statusId</code> on <code>IPurchaseOrder</code>; <code>IPurchaseOrderLineItem</code></td>
                     </tr>
                     <tr>
                         <td><span class="action-mod">MOD</span></td>
                         <td><code>apps/api/src/graphql/models/PurchaseOrder.ts</code></td>
-                        <td>Add supplier PO queries, mutations, PDF generation, email sending</td>
+                        <td>Supplier queries/mutations + line-item type &amp; field resolvers (object already registered in <code>schema.ts</code>)</td>
                     </tr>
                     <tr>
                         <td><span class="action-mod">MOD</span></td>
-                        <td><code>apps/api/src/graphql/schema.ts</code></td>
-                        <td>Register extended PO types, queries, and mutations</td>
+                        <td><code>apps/frontend/src/pages/api/pdf-export.ts</code></td>
+                        <td>Add <code>case "supplierPO"</code>: fetch PO, render template, POST to PSPDFKit</td>
+                    </tr>
+                    <tr>
+                        <td><span class="action-mod">MOD</span></td>
+                        <td><code>apps/api/src/derived.ts</code> (+ permission seed)</td>
+                        <td>New <code>supplierPurchaseOrder</code> permission (view/create/edit/delete/issue); regenerate</td>
+                    </tr>
+                    <tr>
+                        <td><span class="action-mod">MOD</span></td>
+                        <td>emailAction handler registry (PR #7385)</td>
+                        <td>Register a <code>supplierPO</code> action handler for the send-link flow + <code>SendActionLinkModal</code> wiring</td>
+                    </tr>
+                    <tr>
+                        <td><span class="action-mod">MOD</span></td>
+                        <td>new-instance bootstrap seed (where <code>job-status</code>/<code>rfi-status</code> are seeded)</td>
+                        <td>Seed the <code>purchase-order-status</code> PropertyValues + set the 3 <code>Instance</code> anchors so future instances get them too</td>
                     </tr>
                 </tbody>
             </table>
@@ -598,21 +692,20 @@ type Mutation {
         </h2>
         <div class="collapsible-body open">
             <ul class="criteria-list">
-                <li><div class="criteria-check"></div>A Supplier PO can be created by selecting a distributor and a job</li>
-                <li><div class="criteria-check"></div>Line items auto-price from <code>DistributorPrice</code> when a product is selected from the catalog</li>
-                <li><div class="criteria-check"></div>Discounts from MAT-9 discount schedules are applied to line item pricing</li>
-                <li><div class="criteria-check"></div>PDF generates with company logo, PO number, supplier address, line items, subtotal/tax/total, terms, and signature line</li>
-                <li><div class="criteria-check"></div>Email sends the generated PDF to the supplier contact&rsquo;s email address</li>
-                <li><div class="criteria-check"></div>PO status lifecycle: Draft &rarr; Issued &rarr; Partially Received &rarr; Fully Received &rarr; Closed</li>
-                <li><div class="criteria-check"></div>SPO numbering auto-sequences (<code>SPO-0001</code>, <code>SPO-0002</code>, &hellip;) per instance</li>
-                <li><div class="criteria-check"></div>Supplier PO tab appears on Company detail page showing all POs for that supplier</li>
-                <li><div class="criteria-check"></div>Permission checks enforce <code>materialorder.create</code> for PO creation and <code>materialorder.edit</code> for issuance</li>
-                <li><div class="criteria-check"></div>Validation: supplier is required, at least 1 line item required, quantity must be &gt; 0</li>
-                <li><div class="criteria-check"></div>Committed costs from issued POs appear in the Job Financial Summary</li>
-                <li><div class="criteria-check"></div>PO list page supports filtering by type (Supplier PO), status, and supplier</li>
-                <li><div class="criteria-check"></div>Line item total computes correctly as <code>quantity &times; unitPrice</code></li>
-                <li><div class="criteria-check"></div>PO detail page shows all line items with subtotals and grand total</li>
+                <li><div class="criteria-check"></div>Existing <code>PurchaseOrder</code> rows are backfilled to <code>type=CustomerPO</code> by the migration; customer-PO behaviour (number, assignments, roll-up, dropdowns) is unchanged</li>
+                <li><div class="criteria-check"></div>A Supplier PO can be created by selecting a supplier (Company) and adding line items; saving assigns the next <code>SPO-####</code></li>
+                <li><div class="criteria-check"></div>Catalog line items pre-fill <code>unitPrice</code> from <code>bestAvailableCost</code> (MAT-0 source row, less any MAT-9 discount); the price is editable and free-text lines accept a manual price</li>
+                <li><div class="criteria-check"></div>Line-item <code>total</code> computes as <code>quantity &times; unitPrice</code> via <code>recalculateTotal</code>; the PO <code>amount</code> reflects the line-item sum</li>
+                <li><div class="criteria-check"></div>The combined upsert syncs line items (deletes omitted, creates new, edits the rest) in one mutation</li>
+                <li><div class="criteria-check"></div>Statuses are customizable <code>PropertyValue</code>s (group <code>purchase-order-status</code>), seeded per instance as <code>Draft</code> / <code>Issued</code> / <code>Closed</code> / <code>Cancelled</code>; create/issue/cancel resolve their target value via the new <code>Instance</code> anchor FKs (Received values are MAT-6)</li>
+                <li><div class="criteria-check"></div>PDF generates through <code>pdf-export</code> with company logo, PO number, supplier + ship-to address blocks, itemized table, subtotal/tax/total, terms, signature line; downloadable via the Download button</li>
+                <li><div class="criteria-check"></div>"Send to supplier" emails a JWT <strong>download link</strong> (no attachment) to the supplier contact; the public token route streams the PDF; expired links can be refreshed</li>
+                <li><div class="criteria-check"></div>A dedicated <code>supplierPurchaseOrder</code> permission is enforced at the resolver for create/edit/issue; <code>PurchaseOrder</code> is NOT added to <code>permissionsByReferenceModel</code> (customer-PO passthrough preserved); surfaces gated by env <code>RESTRICT_MATERIAL</code></li>
+                <li><div class="criteria-check"></div>Validation: supplier required, &ge;1 line item, quantity &gt; 0, catalog XOR free-text per line</li>
+                <li><div class="criteria-check"></div>PO list page filters to <code>type=SupplierPO</code> with status + supplier filters; detail page shows line items with subtotal and grand total</li>
+                <li><div class="criteria-check"></div>Supplier PO tab on the Company detail page lists that supplier&rsquo;s POs (reuses <code>purchaseOrdersForCompany</code>, filtered to <code>SupplierPO</code>)</li>
             </ul>
+            <p style="font-size:12px; color:#64748b; margin-top:8px;"><strong>Deferred (follow-up MAT task):</strong> committed-cost roll-up of issued supplier POs into the Job Financial Summary &mdash; requires a new "committed" notion in <code>JobFinancialSummaryService</code>.</p>
         </div>
     </div>
 
@@ -625,26 +718,29 @@ type Mutation {
         <div class="collapsible-body open">
             <h3>Requires</h3>
             <p>
-                <a class="dep-tag dep-requires" href="release-1.34-timeline.html#item-MAT-0" target="_top">MAT-0: Supply Chain Model</a>
-                <a class="dep-tag dep-requires" href="release-1.34-timeline.html#item-MAT-1" target="_top">MAT-1: PurchaseOrder Model</a>
-                <span class="dep-tag dep-requires">MAT-9: Discount Schedules</span>
+                <a class="dep-tag dep-requires" href="release-1.33-timeline.html#item-MAT-1" target="_top">MAT-1: PurchaseOrder &rarr; BaseAuditableModel</a>
+                <a class="dep-tag dep-requires" href="release-1.33-timeline.html#item-MAT-0" target="_top">MAT-0: Supply Chain Model</a>
+                <a class="dep-tag dep-requires" href="release-1.33-timeline.html#item-MAT-9" target="_top">MAT-9: Discount Management</a>
+                <a class="dep-tag dep-requires" href="release-1.33-timeline.html#item-MAT-10" target="_top">MAT-10: Material&ndash;Company FK</a>
             </p>
+            <p style="font-size:12px; color:#64748b;"><strong>Hard:</strong> MAT-1 (this extends its converted model). <strong>Soft:</strong> MAT-0/9/10 feed line-item auto-pricing and supplier filtering &mdash; without them, lines still work with manual prices (graceful). <strong>Reuses (not blocking):</strong> the <code>emailAction</code> pipeline from PR #7385 (Q21030-11893) for the send-link flow; if unmerged, fall back to the <code>rfi-download</code> / <code>generateFormDownloadToken</code> pattern.</p>
 
             <h3>Enables</h3>
             <p>
-                <a class="dep-tag dep-enables" href="release-1.34-timeline.html#item-MAT-6" target="_top">MAT-6: Receiving + Three-Way Match</a>
+                <a class="dep-tag dep-enables" href="release-1.33-timeline.html#item-MAT-6" target="_top">MAT-6: Receiving (adds Received statuses + receipt against PO lines)</a>
+                <span class="dep-tag dep-enables">Follow-up: Committed-cost roll-up in Job Financial Summary</span>
             </p>
 
             <h3>Siblings</h3>
             <p><em>None</em></p>
 
             <h3>Parent</h3>
-            <p><span class="dep-tag dep-none">Release 1.34</span></p>
+            <p><span class="dep-tag dep-none">Release 1.33</span></p>
         </div>
     </div>
 
     <div class="uis-footer">
-        MAT-5 &middot; Supplier Purchase Orders &middot; Generated for <span>Release 1.34</span>
+        MAT-5 &middot; Supplier Purchase Orders &middot; Generated for <span>Release 1.33</span>
     </div>
 </div>
 

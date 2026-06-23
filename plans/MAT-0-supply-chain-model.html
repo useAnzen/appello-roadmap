@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MAT-0: Three-Level Supply Chain Model — Implementation Plan</title>
+    <title>MAT-0: Supply Chain Foundation &mdash; Per-Source Material Pricing &mdash; Implementation Plan</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
 .in-iframe .top-nav { display: none !important; }
@@ -13,17 +13,17 @@
 .top-nav .nav-logo { font-size: 11px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: #475569; padding-right: 18px; margin-right: 4px; border-right: 1px solid #1e293b; }
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body { font-family: 'Inter', -apple-system, sans-serif; background: #f8fafc; color: #0f172a; }
-.plan-wrap { max-width: 880px; margin: 0 auto; padding: 40px 24px 80px; }
-h1 { font-size: 24px; font-weight: 800; margin: 0 0 16px; }
-h2 { font-size: 18px; font-weight: 700; margin: 28px 0 12px; padding-bottom: 8px; border-bottom: 2px solid #e2e8f0; }
-h3 { font-size: 15px; font-weight: 700; margin: 20px 0 8px; padding-top: 10px; border-top: 1px solid #f1f5f9; }
-h4 { font-size: 14px; font-weight: 700; margin: 14px 0 6px; }
+.plan-wrap { max-width: 920px; margin: 0 auto; padding: 40px 24px 80px; }
+h1 { font-size: 24px; font-weight: 800; color: #0f172a; margin: 0 0 16px; letter-spacing: -0.01em; }
+h2 { font-size: 18px; font-weight: 700; color: #0f172a; margin: 28px 0 12px; padding-bottom: 8px; border-bottom: 2px solid #e2e8f0; }
+h3 { font-size: 15px; font-weight: 700; color: #0f172a; margin: 20px 0 8px; padding-top: 10px; border-top: 1px solid #f1f5f9; }
+h4 { font-size: 14px; font-weight: 700; color: #0f172a; margin: 14px 0 6px; }
 p { font-size: 14px; color: #334155; line-height: 1.7; margin: 6px 0; }
 ul, ol { padding-left: 20px; margin: 8px 0; }
 li { font-size: 14px; color: #334155; line-height: 1.7; margin: 3px 0; }
 strong { color: #0f172a; }
 code { font-family: 'SF Mono', monospace; background: #f1f5f9; padding: 1px 6px; border-radius: 4px; font-size: 12px; color: #7c3aed; }
-pre { background: #0f172a; color: #f8fafc; border-radius: 8px; padding: 16px; overflow-x: auto; font-size: 13px; line-height: 1.6; margin: 12px 0; font-family: 'SF Mono', monospace; }
+pre { background: #0f172a; color: #f8fafc; border-radius: 8px; padding: 16px; overflow-x: auto; font-size: 12.5px; line-height: 1.55; margin: 12px 0; font-family: 'SF Mono', monospace; }
 pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
 hr { border: none; border-top: 1px solid #e2e8f0; margin: 24px 0; }
 table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 12px 0; }
@@ -31,8 +31,19 @@ th { text-align: left; padding: 8px 12px; background: #f1f5f9; border-bottom: 2p
 td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
 .check-item { display: flex; gap: 8px; align-items: flex-start; padding: 5px 0; }
 .check-box { width: 16px; height: 16px; border: 2px solid #cbd5e1; border-radius: 3px; flex-shrink: 0; margin-top: 2px; }
+.criteria-list { list-style: none; padding: 0; }
+.criteria-list li { padding: 8px 0; border-bottom: 1px solid #f1f5f9; display: flex; gap: 10px; align-items: flex-start; font-size: 14px; color: #334155; }
 .callout { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 14px 18px; margin: 14px 0; font-size: 13px; color: #1e40af; }
 .callout strong { color: #1e3a8a; }
+.callout.warn { background: #fffbeb; border-color: #fde68a; color: #92400e; }
+.callout.warn strong { color: #78350f; }
+.callout.green { background: #f0fdf4; border-color: #bbf7d0; color: #166534; }
+.callout.green strong { color: #14532d; }
+.callout.flag { background: #faf5ff; border-color: #d8b4fe; color: #6b21a8; }
+.callout.flag strong { color: #581c87; }
+.step-meta { display: grid; grid-template-columns: 110px 1fr; gap: 6px 12px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 16px; margin: 10px 0 14px; font-size: 13px; }
+.step-meta div:nth-child(odd) { font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.5px; font-size: 11px; padding-top: 2px; }
+.step-meta div:nth-child(even) { color: #334155; }
     </style>
 </head>
 <body>
@@ -45,310 +56,607 @@ td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
     <a href="../release-1.34-timeline.html">Release 1.34</a>
     <a href="../master-spec-reconciliation.html">Spec Reconciliation</a>
     <a href="../cross-release-continuity-audit.html">Continuity Audit</a>
-    <a href="ui-interface-library.html">UI Library</a>
+    <a href="../ui-interface-library.html">UI Library</a>
 </nav>
-<div class="plan-wrap" id="rendered"></div>
-<script type="text/plain" id="plan-md">
-# MAT-0: Three-Level Supply Chain Model — Implementation Plan
+<div class="plan-wrap">
 
-## Overview
+<h1>MAT-0: Supply Chain Foundation &mdash; Per-Source Material Pricing (Implementation Plan)</h1>
 
-Create the foundational three-level supply chain data model that connects manufacturers and distributors to products. Without this, Price Book Import, Supplier POs, and supplier-aware pricing cannot function.
+<p style="font-size:14px; color:#475569;">Self-contained execution plan. Another agent should be able to pick this up cold, run the steps in order, and ship a PR. Every file path is relative to the monorepo root (<code>apps/api</code>, <code>apps/frontend</code>). Read the <strong>Pre-flight</strong> section first. Companion spec: <a href="../uis-MAT-0-supply-chain-model.html">uis-MAT-0-supply-chain-model.html</a> (this file is the <em>plan</em>; that is the <em>spec</em> + decision log). Code blocks below are drop-in starting points grounded in the named precedents on <code>Release-v1.33.0</code> &mdash; match surrounding style, don&rsquo;t reformat neighbours.</p>
 
-**Estimated effort:** 5-7 days
-**Risk:** Medium — 2 new models, new Company type seed, frontend tabs on Company + Material detail pages
-**Deps:** None (ROOT — enables everything downstream)
+<h2>Overview &amp; Outcome</h2>
+<p>Give every material cost a <strong>source</strong> by extending the existing per-cell cost grid (<code>MaterialAttributePrice</code>, &ldquo;MAP&rdquo;) &mdash; no new top-level models. After this lands:</p>
+<ul>
+    <li>A MAP row can carry a <strong>(distributor + manufacturer) source</strong> (two nullable <code>Company</code> FKs), a <code>sku</code>, and procurement metadata (list/discount/effective dates/min qty/lead time/packaging/preferred/in-stock). A source-less row (both FKs null) is the <strong>&ldquo;house&rdquo; row</strong> &mdash; today&rsquo;s behaviour, now also the variant&rsquo;s catalogue record (own <code>sku</code>/<code>barcode</code>/<code>weight</code>).</li>
+    <li>The <strong>0-axis price moves from <code>Material.unitCost</code> into an all-axes-null MAP house row</strong> (migrated), so single-SKU materials carry sources exactly like dimensional cells. <code>unitCost</code> becomes a transitional read-fallback.</li>
+    <li><code>MaterialPricingService.bestAvailableCost()</code> &mdash; the hook LEM-3a reserved for MAT-0 &mdash; resolves the <strong>cheapest/preferred active source</strong> first, then the house row, then legacy <code>unitCost</code>. <strong>Signature unchanged</strong>, so every WO/IE/LEM sell-price consumer benefits automatically. The <code>resolvedSellPrice</code> TableFeed SQL mirror is updated to match.</li>
+    <li>A source&rsquo;s distributor/manufacturer is <strong>gated against MAT-10&rsquo;s <code>MaterialCompany</code></strong> (role-aware): you can only price a company that is a declared supplier of that material.</li>
+    <li>Company detail gains Products / Products&nbsp;&amp;&nbsp;Pricing tabs (by join-existence); Material detail shows per-source pricing with a &ldquo;Best&rdquo; marker.</li>
+</ul>
 
----
+<div class="callout flag">
+    <strong>Decisions &mdash; build against the spec leans, confirm before merge (spec &sect;10).</strong> CTO is out; the spec is in review. None of these block building; all are cheap to flip.
+    <ul style="margin-top:6px;">
+        <li><strong>Q-c (cost basis):</strong> <em>preferred-wins-when-set, else lowest <code>effectivePrice</code></em>. Used in both the service and the SQL mirror below.</li>
+        <li><strong>Q-d (SKU columns):</strong> ship <code>sku</code> + optional <code>manufacturerSku</code> + <code>upc</code> (cheap reference cols, Shopify-forward).</li>
+        <li><strong>Q-e (delete of a referenced MaterialCompany):</strong> <em>block while referenced</em> by live source rows. Enforced in MAT-10&rsquo;s <code>MaterialCompany</code> delete path (see Step 3.4) &mdash; coordinate the one-line guard there.</li>
+        <li><strong>Q-b (generic vs brand Materials):</strong> CEO/users; schema works either way &mdash; no code impact.</li>
+    </ul>
+</div>
 
-## Step 1: Prisma Schema — 2 New Models + Seed
+<hr>
 
-### 1a. ManufacturerProduct
+<h2>Pre-flight (do this first)</h2>
 
-**File:** `apps/api/prisma/schema.prisma`
+<h3>Repo</h3>
+<ul>
+    <li>Working repo: the Appello monorepo (pnpm + turbo). Grounded against the <code>~/Documents/git-repos/appello/patch</code> checkout on <code>Release-v1.33.0</code> &mdash; line numbers below are accurate as of that checkout (schema ~6361 lines; <code>MaterialPricingService.ts</code> present).</li>
+    <li>Branch off the active &ldquo;Release 1.33&rdquo; integration branch. <strong>Confirm with the user</strong> &mdash; do not assume <code>main</code>.</li>
+    <li><strong>MAT-0 sequences after MAT-10</strong> (which builds <code>MaterialCompany</code>) and after LEM-3a (the pricing hook, already in 1.33). Both must be merged first &mdash; see the hard prerequisite below.</li>
+</ul>
 
-```prisma
-model ManufacturerProduct {
-  id                String   @id @db.VarChar(21)
-  isDeleted         Boolean  @default(false)
-  isArchived        Boolean  @default(false)
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @default(now()) @updatedAt
+<div class="callout warn"><strong>HARD PREREQUISITE &mdash; MAT-10 must be merged.</strong> The source membership gate (Step 3.3) reads <code>prisma.materialCompany</code>, and <code>MaterialCompany</code> <strong>does not exist on <code>Release-v1.33.0</code></strong> yet (verified: no <code>model MaterialCompany</code> in schema, no <code>models/MaterialCompany.ts</code>). Do not start MAT-0 until MAT-10 has landed its <code>MaterialCompany</code> model + <code>MaterialCompanyRole {Manufacturer, Distributor}</code> enum. If MAT-10 is not yet merged, stop and flag it.</div>
 
-  materialId        String   @db.VarChar(21)
-  Material          Material @relation(fields: [materialId], references: [id])
+<h3>This is an EXTENSION of one existing table &mdash; not a new model</h3>
+<p><code>MaterialAttributePrice</code> already exists (<code>schema.prisma:2906</code>), with a model class (<code>models/MaterialAttributePrice.ts</code>), a resolver (<code>graphql/models/MaterialAttributePrice.ts</code>), and MCP tools (<code>mcp/tools/materialAttributePriceTools.ts</code>). MAT-0 <strong>adds columns + methods to these existing files</strong>. Do <strong>not</strong> scaffold a new model and do <strong>not</strong> use <code>new-data-model</code> &mdash; this is an extension, not a new entity. The axis columns are <strong>already nullable</strong> (PR #7211) and the <code>@@unique</code> already spans all four axis columns &mdash; so the change is additive: new columns + a relaxed unique that includes the source.</p>
 
-  manufacturerId    String   @db.VarChar(21)
-  Manufacturer      Company  @relation("ManufacturerProducts", fields: [manufacturerId], references: [id])
+<h3>Reference precedents &mdash; read before writing anything</h3>
+<table>
+    <thead><tr><th>For</th><th>Read (verbatim, on Release-v1.33.0)</th></tr></thead>
+    <tbody>
+        <tr><td>The hook to upgrade</td><td><code>apps/api/src/services/MaterialPricingService.ts:30&ndash;64</code> &mdash; <code>bestAvailableCost()</code>; its header comment names the MAT-0 upgrade and the &ldquo;signature must not change&rdquo; rule. <code>resolveMaterialSellPrice</code> (82&ndash;129) calls it.</td></tr>
+        <tr><td>The grid we extend + the upsert dedup pattern</td><td><code>apps/api/src/models/MaterialAttributePrice.ts</code> &mdash; esp. <code>upsertManyItems()</code> (214&ndash;258): the undefined&rarr;null coercion + live-row <code>findFirst</code> match that already enforces one-row-per-cell.</td></tr>
+        <tr><td>SQL mirror to keep honest</td><td><code>apps/api/src/graphql/models/TableFeed/ConfigureColumnsData/material.ts:306&ndash;345</code> &mdash; the <code>resolvedSellPrice</code> column (single + batch SQL).</td></tr>
+        <tr><td>Resolver + inputs to extend</td><td><code>apps/api/src/graphql/models/MaterialAttributePrice.ts</code> &mdash; <code>typeDef</code> (10&ndash;87), field resolvers (89&ndash;185), Query/Mutation (186&ndash;286).</td></tr>
+        <tr><td>MCP tools to extend</td><td><code>apps/api/src/mcp/tools/materialAttributePriceTools.ts</code> &mdash; <code>priceRowInput</code> (40&ndash;68), <code>upsert_</code>/<code>bulk_upsert_</code>/<code>edit_</code>.</td></tr>
+        <tr><td>The gate dependency (from MAT-10)</td><td><code>apps/api/src/models/MaterialCompany.ts</code> &mdash; <code>companiesForRole(materialId, role)</code> / <code>forMaterial()</code> (exists only after MAT-10 merges).</td></tr>
+        <tr><td>Enum convention (if ever needed)</td><td><code>ApprovalStatus</code> in <code>apps/api/src/types/Timesheet.types.ts</code> &mdash; Prisma enum + const-array + GraphQL interpolation, PascalCase. (MAT-0 adds no enum &mdash; only booleans + free text.)</td></tr>
+    </tbody>
+</table>
 
-  manufacturerSku   String   @db.VarChar(255)
-  msrp              Decimal? @db.Decimal(10, 2)
-  upc               String?  @db.VarChar(50)
-  description       String?  @db.Text
-  packageQty        Decimal? @db.Decimal(10, 2)
-  packageUnit       String?  @db.VarChar(50)
-  isActive          Boolean  @default(true)
+<h3>Hard constants</h3>
+<table>
+    <thead><tr><th>What</th><th>Value</th></tr></thead>
+    <tbody>
+        <tr><td>Table extended</td><td><code>MaterialAttributePrice</code> (<code>schema.prisma:2906</code>) &mdash; no new top-level model</td></tr>
+        <tr><td>Source FK columns</td><td><code>distributorId</code>, <code>manufacturerId</code> &mdash; both <code>String? @db.VarChar(21)</code>, FK&rarr;<code>Company.id</code>. <strong>Point at <code>Company</code>, NOT <code>MaterialCompany</code></strong> (spec &sect;4.3).</td></tr>
+        <tr><td>House row</td><td><code>distributorId IS NULL AND manufacturerId IS NULL</code> &mdash; one per cell; the variant&rsquo;s catalogue record</td></tr>
+        <tr><td>Relation names</td><td><code>@relation("DistributorPrices")</code> / <code>@relation("ManufacturerPrices")</code> on both MAP and Company</td></tr>
+        <tr><td>0-axis detection</td><td>MaterialGroup has <em>no</em> pricing axis: <code>pricingXMaterialAttributeId</code> &amp; Y &amp; Z all <code>NULL</code></td></tr>
+        <tr><td>effectivePrice</td><td>row&rsquo;s <code>Discount</code> applied to <code>listPrice</code> (<code>Percent</code>&rarr;<code>&times;(1&minus;value/100)</code>, <code>FixedAmount</code>&rarr;<code>&minus;value</code>), else <code>value</code>. Blanket category/global cascade = MAT-9.</td></tr>
+        <tr><td>Cost basis (Q-c)</td><td>active source: <code>isPreferred</code> DESC, then <code>effectivePrice</code> ASC, LIMIT 1 &rarr; else house row &rarr; else <code>Material.unitCost</code></td></tr>
+        <tr><td>&ldquo;Active&rdquo; source</td><td><code>isDeleted=0 AND isArchived=0</code>, <code>(effectiveFrom IS NULL OR &le; NOW())</code>, <code>(effectiveTo IS NULL OR &ge; NOW())</code></td></tr>
+        <tr><td>SQL id generation</td><td><code>LEFT(MD5(UUID()), 21)</code></td></tr>
+        <tr><td>Schema indent</td><td>schema.prisma uses <strong>2 spaces</strong>; migration SQL uses 4 spaces, newline at EOF</td></tr>
+    </tbody>
+</table>
 
-  DistributorPrices DistributorPrice[]
+<h3>Local DB workflow</h3>
+<ul>
+    <li>From <code>apps/api</code>: <code>pnpm run prisma:migrate &lt;name&gt;</code> scaffolds <code>prisma/migrations/&lt;ts&gt;_&lt;name&gt;/migration.sql</code> (create-only; you hand-edit it).</li>
+    <li><code>pnpm run prisma:deploy</code> applies pending migrations <strong>and</strong> runs <code>prisma:updateViews</code> (re-executes every <code>prisma/views/*.sql</code>). <code>pnpm run prisma:generate</code> regenerates the client.</li>
+</ul>
 
-  @@unique([materialId, manufacturerId, manufacturerSku])
-  @@index([materialId, isDeleted])
-  @@index([manufacturerId, isDeleted])
+<h3>What you are NOT doing in this PR</h3>
+<ul>
+    <li><strong>No new top-level models</strong> &mdash; MAT-0 is purely an extension of <code>MaterialAttributePrice</code>. (You will see two table names, <code>DistributorPrice</code> and <code>ManufacturerProduct</code>, in the existing <code>bestAvailableCost()</code> header comment &mdash; they describe an <em>earlier, rejected</em> design and <strong>were never built</strong>. Do not create them; Step 4 rewrites that stale comment to match the model you&rsquo;re actually shipping.)</li>
+    <li>No blanket discount cascade and no <code>direction</code>/<code>distributorId</code> on Discount &mdash; MAT-0 ships only the per-cell <code>discountId</code> FK and resolves that single linked discount; the category/global tiers are MAT-9.</li>
+    <li>No bulk price-book import (MAT-3); no supplier POs (MAT-5).</li>
+    <li>No Shopify sync, no <code>isPublishedToShopify</code> (forward-compat mapping only &mdash; spec &sect;7). Images stay on <code>AssetReference</code> (<code>referenceTable = "Material"</code>).</li>
+    <li>No removal of <code>Material.unitCost</code> &mdash; it stays as a transitional read-fallback; deprecate in a later cleanup once nothing reads it.</li>
+    <li>No new enum (only booleans + free-text SKU added).</li>
+</ul>
+
+<hr>
+
+<h2>Step 1 &mdash; Schema: extend MaterialAttributePrice + Company relations</h2>
+<div class="step-meta">
+    <div>Goal</div><div>Source FKs + SKU + catalogue + procurement columns on MAP; relaxed unique includes the source; back-relations on Company.</div>
+    <div>Files</div><div><code>apps/api/prisma/schema.prisma</code></div>
+    <div>Validate</div><div><code>pnpm run prisma:validate</code> passes.</div>
+</div>
+<p>Add the new columns to <code>model MaterialAttributePrice</code> (<code>schema.prisma:2906</code>) and <strong>replace</strong> the existing <code>@@unique</code> (line 2923) so it spans the source. Existing columns/relations elided:</p>
+<pre><code>model MaterialAttributePrice {
+  // ...existing: id, isArchived, isDeleted, createdAt, updatedAt, value,
+  //    materialId, selectedXValueId, selectedYValueId, selectedZValueId,
+  //    SelectedXValue/Y/Z, Material, WorkOrderMaterialItems...
+
+  // NEW — source dimension (both null = the "house" row = the variant itself)
+  distributorId          String?  @db.VarChar(21)
+  manufacturerId         String?  @db.VarChar(21)
+
+  // NEW — SKU (HOUSE row = the variant's own SKU; SOURCE row = the distributor's SKU)
+  sku                    String?  @db.VarChar(100)
+  manufacturerSku        String?  @db.VarChar(100)
+  upc                    String?  @db.VarChar(64)
+
+  // NEW — variant-intrinsic catalogue identity (set on the HOUSE row = Shopify variant)
+  barcode                String?  @db.VarChar(64)
+  weight                 Decimal? @db.Decimal(10, 3)
+  weightUnit             String?  @db.VarChar(8)
+
+  // NEW — procurement metadata (per SOURCE row)
+  listPrice              Decimal?  @db.Decimal(10, 2)
+  discountId             String?   @db.VarChar(21)   // per-cell discount = FK to the Discount value object
+  effectiveFrom          DateTime?
+  effectiveTo            DateTime?
+  minQty                 Int?
+  leadTimeDays           Int?
+  packageQty             Decimal?  @db.Decimal(10, 2)
+  packageUnit            String?   @db.VarChar(50)
+  isPreferred            Boolean   @default(false)
+  isInStock              Boolean?
+
+  Distributor            Company?  @relation("DistributorPrices", fields: [distributorId], references: [id], map: "FK_attrPriceDistributor")
+  Manufacturer           Company?  @relation("ManufacturerPrices", fields: [manufacturerId], references: [id], map: "FK_attrPriceManufacturer")
+  Discount               Discount? @relation(fields: [discountId], references: [id], map: "FK_attrPriceDiscount")
+
+  // was: @@unique([materialId, selectedXValueId, selectedYValueId, selectedZValueId])
+  @@unique([materialId, selectedXValueId, selectedYValueId, selectedZValueId, distributorId, manufacturerId])
+  @@index([distributorId], map: "FK_attrPriceDistributor")
+  @@index([manufacturerId], map: "FK_attrPriceManufacturer")
+  @@index([discountId], map: "FK_attrPriceDiscount")
+  // ...existing axis indexes unchanged...
+}</code></pre>
+<p>Add the two back-relations to <code>model Company</code> (<code>schema.prisma:795</code>), alongside the other one-to-many back-relations (~line 829, before the <code>@@index</code> block):</p>
+<pre><code>  DistributorPrices    MaterialAttributePrice[]  @relation("DistributorPrices")
+  ManufacturerPrices   MaterialAttributePrice[]  @relation("ManufacturerPrices")</code></pre>
+<p>And the inverse back-relation on <code>model Discount</code> (<code>schema.prisma:6209</code>), alongside its existing <code>DiscountAssignments</code>:</p>
+<pre><code>  MaterialAttributePrices  MaterialAttributePrice[]</code></pre>
+<p><strong><code>Material</code> is unchanged</strong> &mdash; no catalogue columns added there (the variant fields live on the house row). <code>unitCost</code> stays as-is (legacy fallback).</p>
+<div class="callout warn"><strong>MySQL nullable-unique caveat &mdash; the unique index alone is NOT enough.</strong> MySQL treats <code>NULL</code> as distinct in a unique index, so <code>@@unique([&hellip;, distributorId, manufacturerId])</code> will <em>not</em> stop two house rows (both source FKs null) for one cell, nor two all-null rows for a 0-axis material. The model layer enforces &ldquo;one row per (cell, source)&rdquo; and &ldquo;one house row per cell&rdquo; (Step 3.2) &mdash; the unique index is a backstop for the source-set case only.</div>
+
+<hr>
+
+<h2>Step 2 &mdash; Migration: add columns + relax unique + backfill unitCost &rarr; house rows</h2>
+<div class="step-meta">
+    <div>Goal</div><div>Add the columns + FKs, swap the unique index, and backfill 0-axis <code>unitCost</code> into an all-null MAP house row.</div>
+    <div>Files</div><div>new <code>prisma/migrations/&lt;ts&gt;_material_attribute_price_sources/migration.sql</code></div>
+    <div>Precedent</div><div><code>20260504000000_lem_3a_material_billable_rates</code> (multi-part + <code>LEFT(MD5(UUID()),21)</code>)</div>
+</div>
+
+<h3>2.1 Scaffold</h3>
+<pre><code>cd apps/api
+pnpm run prisma:migrate material_attribute_price_sources</code></pre>
+<p>Prisma emits the <code>ALTER TABLE</code> (add columns + FKs), <code>DROP INDEX</code> on the old unique, and <code>CREATE UNIQUE INDEX</code> for the new one. Confirm it adds the columns from Step 1, drops the old <code>materialId_selectedXValueId_selectedYValueId_selectedZValueId</code> unique (check the generated name against the current DB), and creates the 6-column unique + the three FK indexes (distributor, manufacturer, discount).</p>
+
+<h3>2.2 Append the backfill (PART B) after the generated DDL</h3>
+<p>Move every 0-axis material&rsquo;s <code>unitCost</code> into an all-axes-null, source-less MAP row &mdash; only when one doesn&rsquo;t already exist. Dimensional materials are untouched (their per-cell house rows already exist as today&rsquo;s MAP rows).</p>
+<pre><code>-- PART B: backfill 0-axis price (Material.unitCost) into an all-null MAP house row.
+-- 0-axis = the material's group declares no pricing axis attribute.
+INSERT INTO `MaterialAttributePrice`
+    (`id`, `value`, `materialId`, `isArchived`, `isDeleted`, `createdAt`, `updatedAt`)
+SELECT
+    LEFT(MD5(UUID()), 21), m.unitCost, m.id, 0, 0, NOW(), NOW()
+FROM `Material` m
+JOIN `MaterialGroup` mg ON mg.id = m.materialGroupId
+WHERE m.isDeleted = 0
+  AND m.unitCost IS NOT NULL
+  AND mg.pricingXMaterialAttributeId IS NULL
+  AND mg.pricingYMaterialAttributeId IS NULL
+  AND mg.pricingZMaterialAttributeId IS NULL
+  AND NOT EXISTS (
+      SELECT 1 FROM `MaterialAttributePrice` p
+       WHERE p.materialId = m.id AND p.isDeleted = 0
+         AND p.selectedXValueId IS NULL AND p.selectedYValueId IS NULL AND p.selectedZValueId IS NULL
+         AND p.distributorId IS NULL AND p.manufacturerId IS NULL
+  )
+;</code></pre>
+<p>Then <code>pnpm run prisma:deploy &amp;&amp; pnpm run prisma:generate</code>. The new source/SKU/procurement columns default to <code>NULL</code>/<code>false</code> on every existing row, so existing house rows (dimensional cells) become valid house rows with no further work.</p>
+<div class="callout"><strong>Why not also backfill <code>unitCost</code> for dimensional materials?</strong> Their priced cells are already MAP rows; <code>unitCost</code> on a dimensional material is unused by <code>bestAvailableCost</code> today and stays a no-op fallback. Backfilling it would create a spurious all-null row that the cheapest-source/house resolution could pick up. Keep PART B 0-axis-only.</div>
+
+<hr>
+
+<h2>Step 3 &mdash; Model class: sources, effectivePrice, dedup, membership gate</h2>
+<div class="step-meta">
+    <div>Goal</div><div>Accept source/SKU/procurement fields; compute <code>effectivePrice</code>; resolve cheapest/preferred; enforce one-row-per-(cell,source) + one-house-row-per-cell; gate the source against MaterialCompany.</div>
+    <div>Files</div><div><code>apps/api/src/models/MaterialAttributePrice.ts</code>; <code>apps/api/src/types/Material.types.ts</code></div>
+</div>
+
+<h3>3.1 Extend the type + modelFields</h3>
+<p><code>IMaterialAttributePrice</code> is currently minimal (<code>types/Material.types.ts:55&ndash;61</code>: <code>value, materialId, selectedX/Y/ZValueId</code>). Extend it:</p>
+<pre><code>// apps/api/src/types/Material.types.ts
+export interface IMaterialAttributePrice {
+    value: number;
+    materialId: string;
+    selectedXValueId?: string | null;
+    selectedYValueId?: string | null;
+    selectedZValueId?: string | null;
+    // source dimension (both null = house row)
+    distributorId?: string | null;
+    manufacturerId?: string | null;
+    sku?: string | null;
+    manufacturerSku?: string | null;
+    upc?: string | null;
+    barcode?: string | null;
+    weight?: number | null;
+    weightUnit?: string | null;
+    listPrice?: number | null;
+    discountId?: string | null;
+    effectiveFrom?: Date | string | null;
+    effectiveTo?: Date | string | null;
+    minQty?: number | null;
+    leadTimeDays?: number | null;
+    packageQty?: number | null;
+    packageUnit?: string | null;
+    isPreferred?: boolean;
+    isInStock?: boolean | null;
+}</code></pre>
+<p>In <code>models/MaterialAttributePrice.ts</code> append the new fields to <code>modelFields</code> (after the existing axis entries, ~line 172). The axis-validation closures stay untouched; the new fields are plain (no per-field validation here &mdash; the source gate is a payload-level check, 3.3):</p>
+<pre><code>{ name: "distributorId",   type: "string",  options: { isNullable: true } },
+{ name: "manufacturerId",  type: "string",  options: { isNullable: true } },
+{ name: "sku",             type: "string",  options: { isNullable: true } },
+{ name: "manufacturerSku", type: "string",  options: { isNullable: true } },
+{ name: "upc",             type: "string",  options: { isNullable: true } },
+{ name: "barcode",         type: "string",  options: { isNullable: true } },
+{ name: "weight",          type: "float",   options: { isNullable: true } },
+{ name: "weightUnit",      type: "string",  options: { isNullable: true } },
+{ name: "listPrice",       type: "float",   options: { isNullable: true } },
+{ name: "discountId",      type: "string",  options: { isNullable: true } },
+{ name: "effectiveFrom",   type: "date",    options: { isNullable: true } },
+{ name: "effectiveTo",     type: "date",    options: { isNullable: true } },
+{ name: "minQty",          type: "number",  options: { isNullable: true } },
+{ name: "leadTimeDays",    type: "number",  options: { isNullable: true } },
+{ name: "packageQty",      type: "float",   options: { isNullable: true } },
+{ name: "packageUnit",     type: "string",  options: { isNullable: true } },
+{ name: "isPreferred",     type: "boolean", options: { isNullable: true } },
+{ name: "isInStock",       type: "boolean", options: { isNullable: true } }</code></pre>
+
+<h3>3.2 One-row-per-(cell, source) + one-house-row-per-cell &mdash; extend the existing dedup</h3>
+<p><code>upsertManyItems()</code> (214&ndash;258) already coerces <code>undefined &rarr; null</code> and <code>findFirst</code>s a live row on <code>(materialId, x, y, z)</code> to choose edit-vs-create. <strong>Add the two source columns to that coercion and that <code>where</code></strong> &mdash; this single change gives both invariants for free:</p>
+<pre><code>const xValueId = record.selectedXValueId ?? null;
+const yValueId = record.selectedYValueId ?? null;
+const zValueId = record.selectedZValueId ?? null;
+const distributorId  = record.distributorId  ?? null;   // NEW
+const manufacturerId = record.manufacturerId ?? null;   // NEW
+
+const current = await prisma.materialAttributePrice.findFirst({
+    where: {
+        materialId: record.materialId,
+        selectedXValueId: xValueId,
+        selectedYValueId: yValueId,
+        selectedZValueId: zValueId,
+        distributorId,            // NEW — null matches the house row; set matches that source
+        manufacturerId,           // NEW
+        isDeleted: false
+    }
+});
+// ...unchanged: if (current) editItem(...) else createItem(record)</code></pre>
+<p>With both null this matches the single house row per cell (one-house-row-per-cell); with a source set it matches that exact (cell, source) tuple. Creates that bypass <code>upsert</code> go through <code>createItem</code> &mdash; the gate (3.3) runs there too, so a direct create can&rsquo;t smuggle in an ungated source.</p>
+
+<h3>3.3 The source membership gate (role-aware) &mdash; <code>validatePayload</code></h3>
+<p>Add a payload-level check so <em>every</em> write path (GraphQL create/edit/upsert, MCP, direct) is gated. Override <code>validatePayload</code> (the BaseModel hook the create/edit pipeline already calls) on <code>MaterialAttributePrice</code>:</p>
+<pre><code>public async validatePayload(input: Partial&lt;IMaterialAttributePrice&gt;): Promise&lt;void&gt; {
+    await super.validatePayload?.(input);
+    const materialId = input.materialId;
+
+    // A source FK is only valid if the company is a declared MaterialCompany
+    // of the MATCHING role for this material. Reject otherwise.
+    if (input.manufacturerId) {
+        const ok = await prisma.materialCompany.findFirst({
+            where: { materialId, companyId: input.manufacturerId, role: "Manufacturer", isDeleted: false },
+            select: { id: true }
+        });
+        if (!ok) throw new BadRequestError(
+            `Company ${input.manufacturerId} is not a Manufacturer of material ${materialId}. ` +
+            `Link it via MaterialCompany first.`);
+    }
+    if (input.distributorId) {
+        const ok = await prisma.materialCompany.findFirst({
+            where: { materialId, companyId: input.distributorId, role: "Distributor", isDeleted: false },
+            select: { id: true }
+        });
+        if (!ok) throw new BadRequestError(
+            `Company ${input.distributorId} is not a Distributor of material ${materialId}. ` +
+            `Link it via MaterialCompany first.`);
+    }
+}</code></pre>
+<p>Import <code>BadRequestError</code> from <code>../errors</code> (precedent: <code>DiscountAssignment.ts</code>). The role string literals (<code>"Manufacturer"</code>/<code>"Distributor"</code>) are MAT-10&rsquo;s <code>MaterialCompanyRole</code> values &mdash; import that const-array/type from <code>../types</code> once MAT-10 has landed it, rather than re-typing.</p>
+<div class="callout"><strong>&ldquo;Confirm-then-add&rdquo; lives at the edge, not here.</strong> The model is the hard backstop &mdash; it rejects an unlinked source. The friendly &ldquo;search company &rarr; confirm &rarr; create the <code>MaterialCompany</code> link + the price row&rdquo; flow (spec &sect;4.3) is implemented in the MCP tool (Step 7) and the UI (Step 8), both of which call MAT-10&rsquo;s <code>MaterialCompany.attachOrRevive</code> before writing the price row.</div>
+
+<h3>3.4 Coordinate the Q-e delete guard in MaterialCompany (MAT-10 file)</h3>
+<p>To keep the gate consistent both ways (spec Q-e lean = <em>block while referenced</em>), add a guard to MAT-10&rsquo;s <code>MaterialCompany.deleteItem</code> path: refuse to delete a link while a live MAP row still references that company on that material in the matching role.</p>
+<pre><code>// in the MaterialCompany delete path — before the soft-delete
+const col = role === "Manufacturer" ? "manufacturerId" : "distributorId";
+const referenced = await prisma.materialAttributePrice.findFirst({
+    where: { materialId, [col]: companyId, isDeleted: false }, select: { id: true }
+});
+if (referenced) throw new BadRequestError(
+    `Cannot remove this supplier: it is still used on a price row. Remove the source price first.`);</code></pre>
+<div class="callout flag"><strong>Cross-PR touch:</strong> this edits a MAT-10-owned file. If MAT-10 is already merged, include it in the MAT-0 PR. If MAT-0 and MAT-10 land together, fold it into MAT-10. Confirm Q-e (block vs cascade vs allow) before merge.</div>
+
+<h3>3.5 Computed helpers: effectivePrice + cheapest/preferred</h3>
+<pre><code>import { Decimal } from "@prisma/client/runtime/library";
+
+// effectivePrice for one row (the cost basis used by the cascade).
+// Resolves only the row's own linked Discount (the per-cell tier). A later
+// slice generalises this into resolveBuyDiscount(distributor, material, cell)
+// that ALSO walks the material/category/global blanket tiers — same seam.
+public static effectivePrice(
+    row: {
+        value: Decimal | null;
+        listPrice: Decimal | null;
+        Discount: { type: string; value: Decimal } | null;
+    }
+): Decimal | null {
+    const base = row.listPrice ?? row.value;
+    if (base == null) return null;
+    const d = row.Discount;
+    if (!d) return base;
+    return d.type === "Percent"
+        ? base.mul(new Decimal(1).minus(d.value.div(100)))
+        : Decimal.max(new Decimal(0), base.minus(d.value));   // FixedAmount
 }
-```
 
-### 1b. DistributorPrice
-
-```prisma
-model DistributorPrice {
-  id                      String              @id @db.VarChar(21)
-  isDeleted               Boolean             @default(false)
-  isArchived              Boolean             @default(false)
-  createdAt               DateTime            @default(now())
-  updatedAt               DateTime            @default(now()) @updatedAt
-
-  manufacturerProductId   String              @db.VarChar(21)
-  ManufacturerProduct     ManufacturerProduct @relation(fields: [manufacturerProductId], references: [id])
-
-  distributorId           String              @db.VarChar(21)
-  Distributor             Company             @relation("DistributorPrices", fields: [distributorId], references: [id])
-
-  distributorSku          String              @db.VarChar(255)
-  unitPrice               Decimal             @db.Decimal(10, 2)
-  listPrice               Decimal?            @db.Decimal(10, 2)
-  discountPercent         Decimal?            @db.Decimal(5, 2)
-  effectiveFrom           DateTime?
-  effectiveTo             DateTime?
-  minQty                  Int?
-  leadTimeDays            Int?
-  isPreferred             Boolean             @default(false)
-  isInStock               Boolean?
-  notes                   String?             @db.Text
-
-  @@unique([manufacturerProductId, distributorId, distributorSku])
-  @@index([distributorId, isDeleted])
-  @@index([manufacturerProductId, isDeleted])
-}
-```
-
-### 1c. Seed: "Manufacturer" Company Type
-
-```sql
-INSERT INTO PropertyValue (id, propertyName, propertyNameLabel, label, slug, orderNo, isDeleted, isArchived, createdAt, updatedAt)
-VALUES (nanoid(), 'company type', 'Company Type', 'Manufacturer', 'company-type-manufacturer', 5, false, false, NOW(), NOW());
-
-INSERT INTO CompanyPayableType (propertyValueId, AccountPayable, AccountReceivable)
-VALUES (<manufacturer_pv_id>, false, false);
-```
-
-### 1d. Relations on existing models
-
-```prisma
-// On Company:
-ManufacturerProducts    ManufacturerProduct[]  @relation("ManufacturerProducts")
-DistributorPrices       DistributorPrice[]     @relation("DistributorPrices")
-
-// On Material:
-ManufacturerProducts    ManufacturerProduct[]
-
-// On MaterialOrder (optional FKs):
-distributorId           String?  @db.VarChar(21)
-Distributor             Company? @relation("MaterialOrderDistributor", fields: [distributorId], references: [id])
-```
-
-### 1e. Migration
-
-Create migration with `pnpm --filter api prisma:migrate` named `add_supply_chain_model`.
-
----
-
-## Step 2: Model Classes
-
-### 2a. ManufacturerProduct Model
-
-**Create file:** `apps/api/src/models/ManufacturerProduct.ts`
-
-Standard BaseModel with modelFields: `materialId` (required, filterable), `manufacturerId` (required, filterable), `manufacturerSku` (required), `msrp` (float), `upc`, `description`, `packageQty` (float), `packageUnit`, `isActive` (boolean).
-
-### 2b. DistributorPrice Model
-
-**Create file:** `apps/api/src/models/DistributorPrice.ts`
-
-Standard BaseModel with modelFields: `manufacturerProductId` (required, filterable), `distributorId` (required, filterable), `distributorSku` (required), `unitPrice` (float, required), `listPrice` (float), `discountPercent` (float), `effectiveFrom` (date), `effectiveTo` (date), `minQty` (int), `leadTimeDays` (int), `isPreferred` (boolean), `isInStock` (boolean), `notes`.
-
----
-
-## Step 3: GraphQL Resolvers
-
-### 3a. ManufacturerProduct Resolver
-
-**Create file:** `apps/api/src/graphql/models/ManufacturerProduct.ts`
-
-```graphql
-type ManufacturerProduct {
-    id: ID!
-    materialId: String!
-    Material: Material
-    manufacturerId: String!
-    Manufacturer: Company
-    manufacturerSku: String!
-    msrp: Float
-    upc: String
-    description: String
-    packageQty: Float
-    packageUnit: String
-    isActive: Boolean!
-    DistributorPrices: [DistributorPrice!]
-}
-
-input CreateManufacturerProductInput {
-    materialId: String!
-    manufacturerId: String!
-    manufacturerSku: String!
-    msrp: Float
-    upc: String
-    description: String
-    packageQty: Float
-    packageUnit: String
-}
-
-extend type Query {
-    manufacturerProducts(materialId: String, manufacturerId: String): [ManufacturerProduct!]!
-    manufacturerProduct(id: ID!): ManufacturerProduct
-}
-
-extend type Mutation {
-    createManufacturerProduct(input: CreateManufacturerProductInput!): ManufacturerProduct!
-    editManufacturerProduct(id: ID!, input: CreateManufacturerProductInput!): ManufacturerProduct!
-    deleteManufacturerProduct(id: ID!): Boolean!
-}
-```
-
-### 3b. DistributorPrice Resolver
-
-**Create file:** `apps/api/src/graphql/models/DistributorPrice.ts`
-
-Similar pattern with type, inputs, queries (by manufacturerProductId, by distributorId), and CRUD mutations.
-
-### 3c. Register in schema.ts
-
-**File:** `apps/api/src/graphql/schema.ts`
-
-Add both resolvers: import, type resolvers, Query, Mutation, typeDefs.
-
----
-
-## Step 4: Frontend — Company Detail Tabs
-
-### 4a. Manufacturer Products Tab
-
-**Create file:** `apps/frontend/src/components/DetailsPage/CompanyDetailsPage/Tabs/ManufacturerProducts.tsx`
-
-Table of ManufacturerProduct rows where `manufacturerId` = this company.
-Columns: Material (link), Manufacturer SKU, MSRP, Package Qty, Active.
-Actions: Link Product (Material catalog picker), Edit, Deactivate.
-
-### 4b. Distributor Pricing Tab
-
-**Create file:** `apps/frontend/src/components/DetailsPage/CompanyDetailsPage/Tabs/DistributorPricing.tsx`
-
-Table of DistributorPrice rows where `distributorId` = this company.
-Columns: Material, Manufacturer, Mfg SKU, Dist SKU, Unit Price, List Price, Discount %, Lead Time, Preferred, Effective Dates.
-Actions: Add Product, Import Price Book, Edit, Remove.
-
-### 4c. Register tabs conditionally
-
-**File:** `apps/frontend/src/components/DetailsPage/CompanyDetailsPage/index.tsx`
-
-Show "Products" tab for Manufacturer-type companies, "Products & Pricing" tab for Supplier-type companies. Use company type from `companyTypeId` PropertyValue lookup.
-
----
-
-## Step 5: Frontend — Material Detail Enhancement
-
-### 5a. Supply Chain Section
-
-**File:** `apps/frontend/src/pages/materials/[id]/index.tsx` (or Material detail component)
-
-Add a "Supply Chain" section below existing price grid:
-- Manufacturers sub-table: ManufacturerProduct rows for this material
-- Distributor Pricing sub-table: DistributorPrice rows grouped by manufacturer
-- "Best price" highlight across distributors
-- Quick-add flows for linking manufacturers and distributor pricing
-
----
-
-## Verification Checklist
-
-- [ ] `ManufacturerProduct` and `DistributorPrice` tables created with unique constraints and indexes
-- [ ] "Manufacturer" company type seeded in PropertyValue with CompanyPayableType (AP=false, AR=false)
-- [ ] Company creation form shows "Manufacturer" as a type option
-- [ ] Manufacturer company detail shows "Products" tab with ManufacturerProduct table
-- [ ] Supplier company detail shows "Products & Pricing" tab with DistributorPrice table
-- [ ] Material detail page shows "Supply Chain" section with Manufacturers + Distributor Pricing
-- [ ] Quick-add: link manufacturer to material, link distributor pricing to manufacturer product
-- [ ] "Best price" indicator across distributors for same manufacturer product
-- [ ] MaterialOrder can optionally reference distributor Company
-- [ ] GraphQL queries: `manufacturerProducts(materialId)`, `distributorPrices(distributorId)`
-- [ ] Relations resolve correctly (Material, Manufacturer, Distributor, ManufacturerProduct)
-- [ ] No regression on existing Material catalog, Company pages, or MaterialOrder functionality
-
----
-
-## Files Summary
-
-| Action | File | What to do |
-|--------|------|------------|
-| MODIFY | `apps/api/prisma/schema.prisma` | Add 2 models + relations on Company, Material, MaterialOrder |
-| CREATE | `apps/api/prisma/migrations/.../migration.sql` | CREATE TABLE x2, seed Manufacturer type, ALTER MaterialOrder |
-| CREATE | `apps/api/src/models/ManufacturerProduct.ts` | Model class with modelFields |
-| CREATE | `apps/api/src/models/DistributorPrice.ts` | Model class with modelFields |
-| CREATE | `apps/api/src/graphql/models/ManufacturerProduct.ts` | GraphQL resolver + type + CRUD |
-| CREATE | `apps/api/src/graphql/models/DistributorPrice.ts` | GraphQL resolver + type + CRUD |
-| MODIFY | `apps/api/src/graphql/schema.ts` | Register 2 new resolvers |
-| CREATE | `apps/frontend/.../Tabs/ManufacturerProducts.tsx` | Products tab for Manufacturer companies |
-| CREATE | `apps/frontend/.../Tabs/DistributorPricing.tsx` | Products & Pricing tab for Supplier companies |
-| MODIFY | `apps/frontend/.../CompanyDetailsPage/index.tsx` | Conditional tab registration by company type |
-| MODIFY | `apps/frontend/src/pages/materials/[id]/index.tsx` | Add Supply Chain section |
-</script>
-<script>
-(function() {
-    var md = document.getElementById('plan-md').textContent;
-    var target = document.getElementById('rendered');
-    var html = md
-        .replace(/```(\w*)\n([\s\S]*?)```/g, function(_, lang, code) {
-            return '<pre><code>' + code.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</code></pre>';
-        })
-        .replace(/`([^`\n]+)`/g, '<code>$1</code>')
-        .replace(/^#### (.+)$/gm, '<h4>$1</h4>')
-        .replace(/^### (.+)$/gm, '<h3>$1</h3>')
-        .replace(/^## (.+)$/gm, '<h2>$1</h2>')
-        .replace(/^# (.+)$/gm, '<h1>$1</h1>')
-        .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-        .replace(/\*(.+?)\*/g, '<em>$1</em>')
-        .replace(/^---$/gm, '<hr>');
-    html = html.replace(/^- \[ \] (.+)$/gm, '<div class="check-item"><div class="check-box"></div><span>$1</span></div>');
-    html = html.replace(/(\|.+\|\n)+/g, function(table) {
-        var rows = table.trim().split('\n');
-        if (rows.length < 2) return table;
-        var headers = rows[0].split('|').filter(function(c) { return c.trim(); });
-        var isSep = /^[\s|:\-]+$/.test(rows[1]);
-        var start = isSep ? 2 : 1;
-        var out = '<table><thead><tr>';
-        headers.forEach(function(h) { out += '<th>' + h.trim() + '</th>'; });
-        out += '</tr></thead><tbody>';
-        for (var i = start; i < rows.length; i++) {
-            var cells = rows[i].split('|').filter(function(c) { return c.trim(); });
-            out += '<tr>'; cells.forEach(function(c) { out += '<td>' + c.trim() + '</td>'; }); out += '</tr>';
+// Cheapest/preferred ACTIVE source cost across all of a material's cells (any-cell).
+// Q-c: preferred wins when set, else lowest effectivePrice. Returns null if no active source.
+public async cheapestSourceCostForMaterial(materialId: string): Promise&lt;Decimal | null&gt; {
+    const now = new Date();
+    const rows = await prisma.materialAttributePrice.findMany({
+        where: {
+            materialId, isDeleted: false, isArchived: false,
+            OR: [{ distributorId: { not: null } }, { manufacturerId: { not: null } }],
+            AND: [
+                { OR: [{ effectiveFrom: null }, { effectiveFrom: { lte: now } }] },
+                { OR: [{ effectiveTo: null }, { effectiveTo: { gte: now } }] }
+            ]
+        },
+        select: {
+            value: true, listPrice: true, isPreferred: true,
+            Discount: { select: { type: true, value: true } }
         }
-        out += '</tbody></table>';
-        return out;
     });
-    html = html.replace(/^- (.+)$/gm, '<li>$1</li>');
-    html = html.replace(/(<li>[\s\S]*?<\/li>\n?)+/g, function(m) { return '<ul>' + m + '</ul>'; });
-    html = html.replace(/^(?!<[hultdps\/<]|<\/|<code|<pre|<hr|<div|<strong|<em)(.+)$/gm, '<p>$1</p>');
-    target.innerHTML = html;
-})();
-</script>
+    const priced = rows
+        .map((r) =&gt; ({ ep: MaterialAttributePrice.effectivePrice(r), isPreferred: r.isPreferred }))
+        .filter((r): r is { ep: Decimal; isPreferred: boolean } =&gt; r.ep != null);
+    if (!priced.length) return null;
+    const preferred = priced.filter((r) =&gt; r.isPreferred);
+    const pool = preferred.length ? preferred : priced;
+    return pool.reduce((min, r) =&gt; (r.ep.lt(min) ? r.ep : min), pool[0].ep);
+}</code></pre>
+<p>(Material-level / any-cell, matching <code>bestAvailableCost</code>&rsquo;s documented contract. A caller needing a specific cell&rsquo;s cheapest source filters the same query by the cell&rsquo;s <code>selectedX/Y/ZValueId</code> and passes the result as <code>costPrice</code> to <code>resolveMaterialSellPrice</code>.)</p>
+
+<hr>
+
+<h2>Step 4 &mdash; The <code>bestAvailableCost()</code> upgrade (signature unchanged)</h2>
+<div class="step-meta">
+    <div>Goal</div><div>Resolve cheapest/preferred source &rarr; house row &rarr; legacy unitCost. Rework the <code>hasAxis</code> branch so 0-axis reads from MAP.</div>
+    <div>Files</div><div><code>apps/api/src/services/MaterialPricingService.ts</code></div>
+</div>
+<p>Replace the body of <code>bestAvailableCost</code> (30&ndash;64) &mdash; <strong>keep the exported signature <code>(materialId: string) =&gt; Promise&lt;Decimal | null&gt;</code></strong> and rewrite the header comment (drop the <code>DistributorPrice.effectivePrice</code>/<code>ManufacturerProduct</code> wording &mdash; those models don&rsquo;t exist; describe the collapsed model):</p>
+<pre><code>// Resolves a material's any-cell cost basis, cheapest-source-first:
+//   1. cheapest/preferred ACTIVE source effectivePrice across the material's cells
+//   2. the source-less "house" row (incl. the 0-axis all-axes-null row)
+//   3. Material.unitCost — legacy transitional fallback only
+// Signature must not change (LEM-3a contract). For a SPECIFIC (X,Y[,Z]) cell the
+// caller resolves that cell's cheapest source and passes it as `costPrice` to
+// resolveMaterialSellPrice — this is the any-cell / 0-axis fallback path.
+export const bestAvailableCost = async (materialId: string): Promise&lt;Decimal | null&gt; =&gt; {
+    // 1. cheapest/preferred active source
+    const sourceCost = await new MaterialAttributePrice().cheapestSourceCostForMaterial(materialId);
+    if (sourceCost != null) return sourceCost;
+
+    // 2. latest source-less house row (axis cells AND the 0-axis all-null row)
+    const house = await prisma.materialAttributePrice.findFirst({
+        where: {
+            materialId, isDeleted: false, isArchived: false,
+            distributorId: null, manufacturerId: null
+        },
+        orderBy: { updatedAt: "desc" },
+        select: { value: true }
+    });
+    if (house?.value != null) return house.value;
+
+    // 3. legacy fallback
+    const material = await prisma.material.findUnique({ where: { id: materialId }, select: { unitCost: true } });
+    return material?.unitCost ?? null;
+};</code></pre>
+<div class="callout green"><strong>Why the <code>hasAxis</code> gate goes away.</strong> Today it routed 0-axis to <code>unitCost</code> and skipped MAP &ldquo;so a stale row doesn&rsquo;t shadow unitCost.&rdquo; After Step 2 the 0-axis price <em>is</em> the all-null MAP house row, so reading the source-less house row is correct for both 0-axis and dimensional (any-cell) materials. <code>unitCost</code> only answers when no MAP row exists at all (pre-backfill stragglers / new 0-axis materials not yet priced).</div>
+<p>Import the model at the top: <code>import { MaterialAttributePrice } from "../models/MaterialAttributePrice";</code>. <code>resolveMaterialSellPrice</code> (82&ndash;129) is unchanged &mdash; it already calls <code>bestAvailableCost</code> when no <code>costPrice</code> is supplied.</p>
+
+<hr>
+
+<h2>Step 5 &mdash; Keep the SQL mirror honest (<code>resolvedSellPrice</code>)</h2>
+<div class="step-meta">
+    <div>Goal</div><div>The TableFeed sell-price column reads the same cheapest/preferred source cost basis as the service.</div>
+    <div>Files</div><div><code>apps/api/src/graphql/models/TableFeed/ConfigureColumnsData/material.ts</code> (306&ndash;345)</div>
+</div>
+<p>The current SQL uses <code>m.unitCost</code> as the cost basis in three places (the two markup branches + the <code>ELSE</code>). Replace that basis with a <code>LATERAL</code>-derived <code>costBasis.cost</code> that mirrors Q-c. Single-record version (apply the identical change to the batch <code>selectBatchRecordSet</code>, keying on <code>m.id IN (${Prisma.join(recordIds)})</code> and selecting <code>m.id AS recordId</code>):</p>
+<pre><code>selectRecordSet: (record) =&gt; Prisma.sql`
+    SELECT (
+        CASE
+            WHEN m.sellPriceOverride IS NOT NULL THEN m.sellPriceOverride
+            WHEN m.markupPercentOverride IS NOT NULL
+                THEN costBasis.cost * (1 + m.markupPercentOverride / 100)
+            WHEN mg.defaultMarkupPercent IS NOT NULL
+                THEN costBasis.cost * (1 + mg.defaultMarkupPercent / 100)
+            ELSE costBasis.cost
+        END
+    ) AS value
+    FROM Material m
+    LEFT JOIN MaterialGroup mg ON mg.id = m.materialGroupId
+    LEFT JOIN LATERAL (
+        SELECT COALESCE(
+            -- 1. cheapest/preferred ACTIVE source effectivePrice (row's own linked Discount)
+            (SELECT (CASE
+                        WHEN d.id IS NULL THEN map.value
+                        WHEN d.type = 'Percent'
+                            THEN COALESCE(map.listPrice, map.value) * (1 - d.value / 100)
+                        ELSE GREATEST(COALESCE(map.listPrice, map.value) - d.value, 0)
+                     END)
+               FROM MaterialAttributePrice map
+               LEFT JOIN Discount d
+                      ON d.id = map.discountId AND d.isDeleted = 0 AND d.isArchived = 0
+              WHERE map.materialId = m.id AND map.isDeleted = 0 AND map.isArchived = 0
+                AND (map.distributorId IS NOT NULL OR map.manufacturerId IS NOT NULL)
+                AND (map.effectiveFrom IS NULL OR map.effectiveFrom &lt;= NOW())
+                AND (map.effectiveTo   IS NULL OR map.effectiveTo   &gt;= NOW())
+              ORDER BY map.isPreferred DESC,
+                       (CASE
+                          WHEN d.id IS NULL THEN map.value
+                          WHEN d.type = 'Percent'
+                              THEN COALESCE(map.listPrice, map.value) * (1 - d.value / 100)
+                          ELSE GREATEST(COALESCE(map.listPrice, map.value) - d.value, 0)
+                        END) ASC
+              LIMIT 1),
+            -- 2. latest source-less house row (incl. the 0-axis all-null row)
+            (SELECT h.value FROM MaterialAttributePrice h
+              WHERE h.materialId = m.id AND h.isDeleted = 0 AND h.isArchived = 0
+                AND h.distributorId IS NULL AND h.manufacturerId IS NULL
+              ORDER BY h.updatedAt DESC LIMIT 1),
+            -- 3. legacy fallback
+            m.unitCost
+        ) AS cost
+    ) costBasis ON TRUE
+    WHERE m.id = ${record.id}
+`,</code></pre>
+<div class="callout warn"><strong>MySQL version:</strong> <code>LATERAL</code> needs MySQL 8.0.14+. If the target is older, inline the same <code>COALESCE(&hellip;)</code> expression directly into each of the three <code>CASE</code> branches (verbose but identical semantics) instead of the join. Verify against the engine the rest of <code>prisma/views</code> targets.</div>
+<p>The <code>ORDER BY isPreferred DESC, effectivePrice ASC LIMIT 1</code> exactly mirrors the service&rsquo;s preferred-wins-then-lowest (Q-c) &mdash; no divergence between list view and resolver.</p>
+<div class="callout flag"><strong>MAT-9 extends this:</strong> MAT-0&rsquo;s subquery applies only the row&rsquo;s own <code>discountId</code>. MAT-9 generalises the effectivePrice expression (both here and in the service&rsquo;s <code>effectivePrice</code> helper) to the full cascade &mdash; row <code>discountId</code> &rsaquo; per-material &rsaquo; category &rsaquo; distributor-global, joined from <code>DiscountAssignment</code> filtered to <code>direction='Buy'</code>. Keep the two in lockstep then, exactly as now.</div>
+
+<hr>
+
+<h2>Step 6 &mdash; GraphQL surface</h2>
+<div class="step-meta">
+    <div>Goal</div><div>Expose source/SKU/procurement fields + computed <code>effectivePrice</code> on the type; accept them on inputs; add <code>Material.bestDistributorCost</code>.</div>
+    <div>Files</div><div><code>apps/api/src/graphql/models/MaterialAttributePrice.ts</code>; <code>graphql/models/Material.ts</code></div>
+</div>
+<p>In <code>graphql/models/MaterialAttributePrice.ts</code> extend the <code>type</code> + both inputs (<code>CreateMaterialAttributePrice</code> 38&ndash;44, <code>EditMaterialAttributePrice</code> 46&ndash;53). The mutations (<code>create</code>/<code>edit</code>/<code>upsert</code>/<code>upsertMany</code>) already pass <code>data</code> straight to the model, so no mutation wiring changes &mdash; only the schema + two field resolvers:</p>
+<pre><code>type MaterialAttributePrice {
+    # ...existing fields...
+    distributorId: String
+    manufacturerId: String
+    Distributor: Company
+    Manufacturer: Company
+    sku: String
+    manufacturerSku: String
+    upc: String
+    barcode: String
+    weight: Float
+    weightUnit: String
+    listPrice: Float
+    discountId: String
+    Discount: Discount
+    effectiveFrom: DateTime
+    effectiveTo: DateTime
+    minQty: Int
+    leadTimeDays: Int
+    packageQty: Float
+    packageUnit: String
+    isPreferred: Boolean
+    isInStock: Boolean
+    effectivePrice: Float          # computed
+}
+# add the SAME new scalar fields — including discountId (NOT the Discount
+# relation / computed effectivePrice) — to input CreateMaterialAttributePrice
+# and input EditMaterialAttributePrice</code></pre>
+<p>Field resolvers (mirror the existing <code>Material</code>/<code>SelectedXValue</code> resolvers at 89&ndash;94):</p>
+<pre><code>Distributor:  ({ distributorId })  =&gt; distributorId  ? prisma.company.findFirst({ where: { id: distributorId,  isDeleted: false } }) : null,
+Manufacturer: ({ manufacturerId }) =&gt; manufacturerId ? prisma.company.findFirst({ where: { id: manufacturerId, isDeleted: false } }) : null,
+Discount:     ({ discountId })     =&gt; discountId     ? prisma.discount.findFirst({ where: { id: discountId,     isDeleted: false } }) : null,
+effectivePrice: async (row) =&gt; {
+    const Discount = row.discountId
+        ? await prisma.discount.findFirst({
+            where: { id: row.discountId, isDeleted: false, isArchived: false },
+            select: { type: true, value: true }
+          })
+        : null;
+    const ep = MaterialAttributePrice.effectivePrice({ ...row, Discount } as any);
+    return ep != null ? Number(ep) : null;
+},</code></pre>
+<p>In <code>graphql/models/Material.ts</code> add <code>bestDistributorCost: Float</code> to the <code>Material</code> type with a resolver delegating to the model (null when no active source):</p>
+<pre><code>bestDistributorCost: async ({ id }) =&gt; {
+    const c = await new MaterialAttributePrice().cheapestSourceCostForMaterial(id);
+    return c != null ? Number(c) : null;
+},</code></pre>
+<p>No <code>schema.ts</code> registration changes &mdash; <code>MaterialAttributePrice</code> and <code>Material</code> resolvers are already registered. Re-run codegen if the frontend consumes the new fields.</p>
+
+<hr>
+
+<h2>Step 7 &mdash; MCP tools</h2>
+<div class="step-meta">
+    <div>Goal</div><div>Let the pricing tools set a source + SKU + procurement on a row; expose &ldquo;sources for a material&rdquo;; do confirm-then-create for an unlinked supplier.</div>
+    <div>Files</div><div><code>apps/api/src/mcp/tools/materialAttributePriceTools.ts</code></div>
+</div>
+<p>Extend <code>priceRowInput</code> (40&ndash;68) &mdash; used by <code>upsert_material_attribute_price</code> and <code>bulk_upsert_material_attribute_prices</code>. Note the existing X/Y are <em>required</em>; keep them required for dimensional cells, but the source fields are optional (a house-row upsert sets none):</p>
+<pre><code>// add to priceRowInput (all optional)
+distributorId:   z.string().max(21).nullable().optional().describe("Company id of the distributor (seller). Must be a MaterialCompany Distributor of this material."),
+manufacturerId:  z.string().max(21).nullable().optional().describe("Company id of the manufacturer. Must be a MaterialCompany Manufacturer of this material."),
+sku:             z.string().max(100).nullable().optional(),
+manufacturerSku: z.string().max(100).nullable().optional(),
+upc:             z.string().max(64).nullable().optional(),
+listPrice:       z.number().min(0).nullable().optional(),
+discountId:      z.string().max(21).nullable().optional().describe("Discount id for the per-cell discount on this source row."),
+effectiveFrom:   z.string().datetime().nullable().optional(),
+effectiveTo:     z.string().datetime().nullable().optional(),
+minQty:          z.number().int().min(0).nullable().optional(),
+leadTimeDays:    z.number().int().min(0).nullable().optional(),
+packageQty:      z.number().min(0).nullable().optional(),
+packageUnit:     z.string().max(50).nullable().optional(),
+isPreferred:     z.boolean().optional(),
+isInStock:       z.boolean().nullable().optional(),</code></pre>
+<p>These pass straight to <code>upsertItem</code>/<code>upsertManyItems</code> (Step 3.2), which now matches on the source and runs the gate (3.3). Two additions:</p>
+<ul>
+    <li><strong>New read tool <code>list_material_sources</code></strong> &mdash; clone <code>search_material_attribute_prices</code> (72&ndash;162), filtered to rows where <code>distributorId</code> or <code>manufacturerId</code> is set, including the <code>Distributor</code>/<code>Manufacturer</code> companies and <code>effectivePrice</code>. (&ldquo;sources for a material&rdquo;, spec &sect;8.)</li>
+    <li><strong>Confirm-then-create</strong> (when a tool is given a company <em>name</em> not yet linked): reuse MAT-10&rsquo;s <code>companyTools.search_companies</code> &rarr; if an exact live match, call <code>MaterialCompany.attachOrRevive({materialId, companyId, role})</code> then write the price row; if no match, <strong>return a prompt, do not auto-create</strong> (mirror MAT-10 Step 7). The model gate (3.3) is the backstop if a caller skips this.</li>
+</ul>
+
+<hr>
+
+<h2>Step 8 &mdash; Frontend: Company tabs + Material source pricing + catalogue fields</h2>
+<div class="step-meta">
+    <div>Goal</div><div>Company Products / Products &amp; Pricing tabs (join-existence); per-source pricing on Material detail with a &ldquo;Best&rdquo; badge; variant catalogue fields on the price grid.</div>
+    <div>Files</div><div><code>apps/frontend/src/components/DetailsPage/CompanyDetailsPage/index.tsx</code>; Material detail pricing + <code>MaterialPriceSheetForm</code></div>
+</div>
+<ul>
+    <li><strong>Company tabs</strong> &mdash; add two entries to <code>allTabOptions</code> (<code>CompanyDetailsPage/index.tsx:24&ndash;96</code>; each entry is <code>{ label, component, param, permission }</code>). A <strong>Products</strong> tab (company appears as <code>manufacturerId</code> on any source row &rarr; materials it makes + SKUs) and a <strong>Products &amp; Pricing</strong> tab (company appears as <code>distributorId</code> &rarr; material / price / lead time / preferred). Gate with <code>hasPermissions({ material: { view: true } }, permissions)</code>. Visibility is by join-existence (does the company have any such source row), <strong>not</strong> company type (spec &sect;4.4).</li>
+    <li><strong>Material detail &mdash; pricing</strong> &mdash; keep the existing X/Y/Z grid for the house cost; add a Sources view (or per-cell expansion) listing each (distributor, manufacturer) offering: SKU, unit/list, discount, lead time, with the cheapest/preferred row badged <em>&ldquo;Best&rdquo;</em> (drive the badge off <code>bestDistributorCost</code> / <code>effectivePrice</code> from Step 6).</li>
+    <li><strong>Catalogue fields</strong> &mdash; the variant&rsquo;s own <code>sku</code>/<code>barcode</code>/<code>weight</code>/<code>weightUnit</code> are edited per-cell on the <strong>house row</strong> in the price grid (for a 0-axis material that&rsquo;s the single all-null row). No <code>Material</code>-level fields.</li>
+    <li>Re-run GraphQL codegen for the new MAP fields + <code>Material.bestDistributorCost</code>.</li>
+</ul>
+<div class="callout">Frontend fidelity here matches MAT-10&rsquo;s plan: named files + approach, not full TSX. The pricing/service layer (Steps 3&ndash;5) is the load-bearing part of MAT-0; the UI is a read/edit surface over it.</div>
+
+<hr>
+
+<h2>Step 9 &mdash; End-to-end smoke test</h2>
+<ul>
+    <li><strong>Migration:</strong> apply on a seeded DB; confirm every 0-axis material with <code>unitCost</code> now has exactly one all-null MAP house row with that value, and dimensional materials are untouched. Re-running the migration is a no-op (the <code>NOT EXISTS</code> guard).</li>
+    <li><strong>Gate:</strong> setting <code>distributorId</code> to a company NOT linked as a Distributor of the material is rejected; linking it (MaterialCompany) then setting it succeeds; a company linked only as Distributor is rejected as <code>manufacturerId</code>.</li>
+    <li><strong>Dedup:</strong> upserting the same (cell, source) twice edits one row; two house-row upserts for one cell resolve to one row; one distributor + two manufacturers on one cell = two rows at different prices/SKUs.</li>
+    <li><strong>Cost resolution:</strong> with a cheaper non-preferred source and a dearer preferred source, <code>bestAvailableCost</code> returns the <em>preferred</em>; with no preferred, the lowest; expired/archived sources excluded; falls through to house then <code>unitCost</code>.</li>
+    <li><strong>SQL mirror:</strong> <code>resolvedSellPrice</code> in a material list matches <code>resolveMaterialSellPrice</code> for the same material (preferred-wins-then-lowest, then house, then unitCost).</li>
+    <li><strong>0-axis:</strong> a 0-axis material reads its cost from the all-null MAP row, and can carry distributor/manufacturer sources like a dimensional cell.</li>
+    <li><strong>Delete guard (Q-e):</strong> removing a MaterialCompany still referenced by a live source row is blocked with a clear error.</li>
+    <li><strong>Build gates:</strong> <code>pnpm --filter api build</code> green. (The user runs the dev server / TS + prettier checks &mdash; do not run <code>tsc</code>/prettier yourself per their workflow.)</li>
+</ul>
+
+<hr>
+
+<h2>Downstream impacts (for awareness, NOT this PR)</h2>
+<ul>
+    <li><strong>MAT-9</strong> (Discounts): cascades onto MAP <em>source rows</em>; Product scope keys on (material + manufacturer), not a dead <code>manufacturerProductId</code>.</li>
+    <li><strong>MAT-5</strong> (Supplier PO): a PO line FKs the MAP source row (replaces <code>manufacturerProductId</code> + <code>distributorPriceId</code>); uses <code>packageQty</code>/<code>packageUnit</code>.</li>
+    <li><strong>MAT-3</strong> (Price-book import, 1.34): imports into MAP source rows; the hard part is matching an import line to (material, cell).</li>
+    <li><strong>MAT-7</strong> (Inventory): cells = variants, so inventory is naturally per-variant (Shopify <code>InventoryItem</code> shape).</li>
+    <li><strong>Shopify (future, PR #7394):</strong> house row &rarr; Variant SKU/barcode/weight; resolved cost &rarr; <code>InventoryItem.cost</code>; source rows are ERP-only, never synced.</li>
+</ul>
+
+<h2>Acceptance Checklist</h2>
+<ul class="criteria-list">
+    <li><div class="check-box"></div><code>MaterialAttributePrice</code> carries <code>distributorId</code>/<code>manufacturerId</code> (FK&rarr;Company) + <code>sku</code>/<code>manufacturerSku</code>/<code>upc</code> + catalogue (<code>barcode</code>/<code>weight</code>/<code>weightUnit</code>) + procurement metadata; unique spans the source; Company has the two back-relations.</li>
+    <li><div class="check-box"></div>Migration backfills 0-axis <code>Material.unitCost</code> into an all-axes-null MAP house row (idempotent); dimensional rows untouched; <code>unitCost</code> retained as fallback.</li>
+    <li><div class="check-box"></div>One distributor holds two rows for one cell under different <code>manufacturerId</code>s at different prices/SKUs; one house row per cell and one row per (cell, source) enforced in the model (nullable-unique caveat covered).</li>
+    <li><div class="check-box"></div><code>effectivePrice</code> = <code>listPrice&times;(1&minus;discount/100)</code> when both present else <code>value</code>; readable from GraphQL + model.</li>
+    <li><div class="check-box"></div><code>bestAvailableCost()</code> returns cheapest/preferred active source &rarr; house row &rarr; legacy <code>unitCost</code>; <strong>signature unchanged</strong>; 0-axis resolves from MAP; expired/archived excluded; header comment no longer names ManufacturerProduct/DistributorPrice.</li>
+    <li><div class="check-box"></div><code>resolvedSellPrice</code> TableFeed SQL uses the same cheapest/preferred (Q-c) cost basis &mdash; list view matches the service.</li>
+    <li><div class="check-box"></div>A source&rsquo;s <code>distributorId</code>/<code>manufacturerId</code> is rejected unless it is a live <code>MaterialCompany</code> of the matching role (model-layer, all write paths); unlinked supplier added via confirm-then-create; referenced-link removal blocked (Q-e).</li>
+    <li><div class="check-box"></div>GraphQL type/inputs expose the new fields + <code>effectivePrice</code> + <code>Material.bestDistributorCost</code>; MCP pricing tools accept source/SKU/procurement; <code>list_material_sources</code> added.</li>
+    <li><div class="check-box"></div>Company Products / Products &amp; Pricing tabs show by join-existence; Material detail shows per-source pricing with a Best marker; catalogue fields edited on the house row.</li>
+    <li><div class="check-box"></div>No new top-level models created (MAT-0 is an extension of <code>MaterialAttributePrice</code>); no <code>isPublishedToShopify</code>; the <code>bestAvailableCost()</code> header comment no longer references the dropped tables; <code>pnpm --filter api build</code> passes.</li>
+</ul>
+
+<div class="callout flag"><strong>Before merge:</strong> confirm the spec decisions still pending CTO/CEO review (Q-c cost basis, Q-d SKU columns, Q-e delete behaviour, Q-b generic-vs-brand). All are built to the spec leans; each is cheap to flip. And confirm <strong>MAT-10 is merged</strong> &mdash; the membership gate hard-depends on its <code>MaterialCompany</code> model.</div>
+
+</div>
 </body>
 </html>

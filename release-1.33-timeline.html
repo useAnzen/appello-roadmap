@@ -780,8 +780,8 @@ h1 { font-size: 30px; font-weight: 800; color: #0f172a; margin: 0 0 8px; letter-
             Backend Infrastructure &mdash; Material Supply Chain
             <span class="phase-planning-banner">IN PLANNING</span>
         </h2>
-        <p class="phase-desc"><strong>Pulled forward into 1.33 &mdash; now in planning.</strong> Builds the database models, GraphQL resolvers, and services for the material supply chain. Each MAT spec is being reviewed against the live <code>Release-v1.33.0</code> schema and rewritten into a dev-grade plan, one item at a time in dependency order. Grounding against the real schema has already surfaced significant reconciliation work the original specs assumed away: an existing <code>MaterialOrder</code> request system (overlaps MAT-4), an existing polymorphic <code>PurchaseOrder</code> reference model that collides by name with the first-class PO that MAT-1/MAT-5 want, and the already-shipped LEM-3a material pricing cascade that MAT-0/MAT-9 must slot a distributor cost tier beneath. <strong>MAT-10 (Material&rarr;Company FK, <a href="#phase-7-rival-followups" style="color:#3b82f6;font-weight:600;">Phase 7</a>) is the gating prerequisite.</strong></p>
-        <p class="phase-desc" style="margin-top:8px;">Working order: <strong>MAT-10 &rarr; MAT-0 &rarr; MAT-1 / MAT-9 &rarr; MAT-5 &rarr; MAT-6 &rarr; MAT-7 &rarr; MAT-8</strong>, with MAT-2a/2b, MAT-3, and MAT-4 slotting in parallel off the foundation. Each row links its reviewed spec and dev-grade plan as the item is completed. <strong>Note:</strong> MAT-0 was hardened into a <strong>collapsed model</strong> &mdash; per-source cost on the existing <code>MaterialAttributePrice</code> grid, with <strong>no <code>ManufacturerProduct</code>/<code>DistributorPrice</code> models</strong>. Downstream items that referenced those entities (MAT-9, MAT-5, MAT-3, MAT-2a) must reconcile to MAT-0 source rows when hardened &mdash; do not build against the dead entities.</p>
+        <p class="phase-desc"><strong>Pulled forward into 1.33 &mdash; now in planning.</strong> Builds the database models, GraphQL resolvers, and services for the material supply chain. Each MAT spec is being reviewed against the live <code>Release-v1.33.0</code> schema and rewritten into a dev-grade plan, one item at a time in dependency order. Grounding against the real schema has already surfaced significant reconciliation work the original specs assumed away: an existing <code>MaterialOrder</code> request system (now <em>reused</em> by MAT-4), an existing polymorphic <code>PurchaseOrder</code> reference model that collides by name with the first-class PO that MAT-1/MAT-5 want, and the already-shipped LEM-3a material pricing cascade that MAT-0/MAT-9 must slot a distributor cost tier beneath. <strong>MAT-10 (Material&rarr;Company FK, <a href="#phase-7-rival-followups" style="color:#3b82f6;font-weight:600;">Phase 7</a>) is the gating prerequisite.</strong></p>
+        <p class="phase-desc" style="margin-top:8px;">Working order: <strong>MAT-10 &rarr; MAT-0 &rarr; MAT-1 / MAT-9 &rarr; MAT-5 &rarr; MAT-6 &rarr; MAT-7 &rarr; MAT-11 / MAT-12 &rarr; MAT-8</strong>, with MAT-2a/2b, MAT-3, and MAT-4 slotting in parallel off the foundation. <strong>MAT-8 (Vendor Credits) was resequenced to the end:</strong> it captures a credit balance but has no consumer until AP (MAT-11) and committed cost (MAT-12) exist, so it ships as the terminus that closes their loop rather than a write-only record built first. The financial cluster (MAT-8/11/12) is a candidate to <strong>defer as a group</strong> while inventory/material settles &mdash; pending confirmation. Each row links its reviewed spec and dev-grade plan as the item is completed. <strong>Note:</strong> MAT-0 was hardened into a <strong>collapsed model</strong> &mdash; per-source cost on the existing <code>MaterialAttributePrice</code> grid, with <strong>no <code>ManufacturerProduct</code>/<code>DistributorPrice</code> models</strong>. Downstream items that referenced those entities (MAT-5, MAT-3, MAT-2a) must reconcile to MAT-0 source rows when hardened &mdash; do not build against the dead entities. <strong>MAT-9 is done</strong> &mdash; resolved by extending the existing <code>Discount</code>/<code>DiscountAssignment</code> system for buy-side (not a new model), which reopened MAT-0 to swap the source row&rsquo;s flat <code>discountPercent</code> for a <code>discountId</code> FK. <strong>MAT-4 is done</strong> &mdash; resolved by <strong>reusing the existing <code>MaterialOrder</code> engine</strong> (a field request <em>is</em> a MaterialOrder in a <em>Requested</em> status) plus a flat <code>MaterialOrderLineItem</code> catalog/free-text line; the structured spec-grid wrong-spec guard is deferred to a future slice. <strong>MAT-6 is reconciled</strong> &mdash; ships as <strong>two-way match</strong> (Ordered vs Received) + back-order, with status as new <code>purchase-order-status</code> PropertyValues driven by Instance anchors (reusing the MAT-5 pattern). Its two cut pieces are tracked as new slices so they aren&rsquo;t lost: <strong>MAT-11</strong> (Supplier Invoices &mdash; the Invoiced leg / true three-way match, blocked on a net-new AP entity) and <strong>MAT-12</strong> (PO committed cost into <code>JobFinancialSummaryService</code>).</p>
 
         <div class="header-row">
             <span></span>
@@ -803,7 +803,7 @@ h1 { font-size: 30px; font-weight: 800; color: #0f172a; margin: 0 0 8px; letter-
                 </div>
                 <div class="item-detail"></div>
             </div>
-            <div class="item-row planning" data-spec="uis-MAT-0-supply-chain-model.html">
+            <div class="item-row planning" data-spec="uis-MAT-0-supply-chain-model.html" data-plan="plans/MAT-0-supply-chain-model.html" data-mockup="mockups/MAT-0-material-pricing.html">
                 <div class="item-header">
                     <span class="item-chevron">&#9654;</span>
                     <span class="item-id">MAT-0</span>
@@ -814,7 +814,7 @@ h1 { font-size: 30px; font-weight: 800; color: #0f172a; margin: 0 0 8px; letter-
                 </div>
                 <div class="item-detail"></div>
             </div>
-            <div class="item-row planning no-expand">
+            <div class="item-row planning" data-spec="uis-MAT-1-customer-po-entity.html" data-plan="plans/MAT-1-customer-po-entity.html">
                 <div class="item-header">
                     <span class="item-chevron">&#9654;</span>
                     <span class="item-id">MAT-1</span>
@@ -823,86 +823,126 @@ h1 { font-size: 30px; font-weight: 800; color: #0f172a; margin: 0 0 8px; letter-
                     <span class="item-status"><span class="status-tag status-planning">PLANNING</span></span>
                     <span class="item-dep">MAT-0</span>
                 </div>
+                <div class="item-detail"></div>
             </div>
-            <div class="item-row planning no-expand">
+            <div class="item-row planning" data-spec="uis-MAT-9-discount-management.html" data-plan="plans/MAT-9-discount-management.html">
                 <div class="item-header">
                     <span class="item-chevron">&#9654;</span>
                     <span class="item-id">MAT-9</span>
-                    <span class="item-name"><span class="planning-banner">PLANNING</span>Discount Management &mdash; DistributorDiscount cascade (Global/Category/Product). <strong>Reconcile to collapsed MAT-0:</strong> cascade onto <code>MaterialAttributePrice</code> source rows; Product scope keys on (material+manufacturer), not <code>manufacturerProductId</code>.</span>
-                    <span class="item-est">0.5 day</span>
+                    <span class="item-name"><span class="planning-banner">PLANNING</span>Discount Management &mdash; <strong>extend the existing <code>Discount</code> + <code>DiscountAssignment</code> system</strong> for buy-side (new <code>direction</code> + <code>distributorId</code>; tier = <code>referenceModel</code>: per-cell&rsaquo;Material&rsaquo;MaterialGroup&rsaquo;global). Drops the redundant <code>DistributorDiscount</code> model. <strong>Reopens MAT-0</strong> (<code>discountPercent</code>&rarr;<code>discountId</code> FK).</span>
+                    <span class="item-est">3&ndash;4 days</span>
                     <span class="item-status"><span class="status-tag status-planning">PLANNING</span></span>
-                    <span class="item-dep">MAT-0 (||)</span>
+                    <span class="item-dep">MAT-0, MAT-10</span>
                 </div>
+                <div class="item-detail"></div>
             </div>
-            <div class="item-row planning no-expand">
+            <div class="item-row planning" data-spec="uis-MAT-4-mobile-material-requests.html" data-plan="plans/MAT-4-mobile-material-requests.html">
                 <div class="item-header">
                     <span class="item-chevron">&#9654;</span>
                     <span class="item-id">MAT-4</span>
-                    <span class="item-name"><span class="planning-banner">PLANNING</span>Material Requests &mdash; MaterialRequest + MaterialRequestItem models</span>
-                    <span class="item-est">0.5 day</span>
+                    <span class="item-name"><span class="planning-banner">PLANNING</span>Mobile Material Requests &mdash; field front door. <strong>Reuses the existing <code>MaterialOrder</code> engine</strong> (a request <em>is</em> a MaterialOrder in a <em>Requested</em> status); adds a flat catalog/free-text <code>MaterialOrderLineItem</code> line + a mobile submit. Structured spec-grid wizard deferred to a future slice.</span>
+                    <span class="item-est">4&ndash;6 days</span>
                     <span class="item-status"><span class="status-tag status-planning">PLANNING</span></span>
-                    <span class="item-dep">MAT-0 (||)</span>
+                    <span class="item-dep">Independent (||)</span>
                 </div>
+                <div class="item-detail"></div>
             </div>
-            <div class="item-row planning no-expand">
+            <div class="item-row deferred" data-spec="uis-MAT-3-price-book-import.html" data-plan="plans/MAT-3-price-book-import.html">
+                <div class="item-header">
+                    <span class="item-chevron">&#9654;</span>
+                    <span class="item-id">MAT-3</span>
+                    <span class="item-name"><span class="deferred-banner">DEFERRED</span>Price Book Import &mdash; <strong>deferred: importing via MCP tooling is working well for now</strong>, so the in-app importer isn&rsquo;t needed yet. Spec/plan kept (reconciled to collapsed MAT-0: writes <code>MaterialAttributePrice</code> source rows, discounts &rarr; MAT-9, distributor link gated by MAT-10) &mdash; revive when self-serve bulk load is wanted.</span>
+                    <span class="item-est">5&ndash;6 days (when revived)</span>
+                    <span class="item-status"><span class="status-tag status-deferred">DEFERRED</span></span>
+                    <span class="item-dep">MAT-0, MAT-9, MAT-10 (||)</span>
+                </div>
+                <div class="item-detail"></div>
+            </div>
+            <div class="item-row planning" data-spec="uis-MAT-2a-lem-consumption-desktop.html" data-plan="plans/MAT-2a-lem-consumption-desktop.html">
                 <div class="item-header">
                     <span class="item-chevron">&#9654;</span>
                     <span class="item-id">MAT-2a</span>
-                    <span class="item-name"><span class="planning-banner">PLANNING</span>Material Consumption &mdash; MaterialConsumptionEntry model, LEMReport query</span>
-                    <span class="item-est">0.5 day</span>
+                    <span class="item-name"><span class="planning-banner">PLANNING</span>Material Consumption &mdash; Desktop. <strong>Promotes the existing <code>WorkOrderMaterialItem</code></strong> into a structured, approvable pricing record (the material peer of Timesheet &amp; Equipment Time): +workDate, +<code>ApprovalStatus</code>&nbsp;+&nbsp;audit, +free-text UoM, + a per-line <code>WorkOrderMaterialItemCostCode</code> join. Daily LEM report from the three structured-tier records. No <code>MaterialConsumptionEntry</code>.</span>
+                    <span class="item-est">5&ndash;7 days</span>
                     <span class="item-status"><span class="status-tag status-planning">PLANNING</span></span>
-                    <span class="item-dep">LEM-3a (||)</span>
+                    <span class="item-dep">MAT-0, LEM-1/2/3, WO line-items (||)</span>
                 </div>
+                <div class="item-detail"></div>
             </div>
-            <div class="item-row planning no-expand">
+            <div class="item-row planning" data-spec="uis-MAT-2b-lem-consumption-mobile.html" data-plan="plans/MAT-2b-lem-consumption-mobile.html">
                 <div class="item-header">
                     <span class="item-chevron">&#9654;</span>
                     <span class="item-id">MAT-2b</span>
-                    <span class="item-name"><span class="planning-banner">PLANNING</span>Material Consumption &mdash; Mobile. Field-worker form to log consumption; reuses MAT-2a's model (no new backend)</span>
-                    <span class="item-est">TBD</span>
+                    <span class="item-name"><span class="planning-banner">PLANNING</span>Material Consumption &mdash; Mobile. Field-worker flyout that <strong>reuses the WO <code>MaterialItemEditor</code></strong> (catalog/variant/pricing) over the MAT-2a backend; adds work-date + cost-code split + submit&rarr;InReview, a history list, and a &ldquo;Material&rdquo; tab in <code>SimplifiedJobTasks</code>. No new backend, no new picker.</span>
+                    <span class="item-est">3&ndash;4 days</span>
                     <span class="item-status"><span class="status-tag status-planning">PLANNING</span></span>
                     <span class="item-dep">MAT-2a</span>
                 </div>
+                <div class="item-detail"></div>
             </div>
-            <div class="item-row planning no-expand">
+            <div class="item-row planning" data-spec="uis-MAT-5-supplier-po.html" data-plan="plans/MAT-5-supplier-po.html">
                 <div class="item-header">
                     <span class="item-chevron">&#9654;</span>
                     <span class="item-id">MAT-5</span>
-                    <span class="item-name"><span class="planning-banner">PLANNING</span>Supplier PO &mdash; Extend PurchaseOrder with delivery/shipping fields. <strong>Reconcile to collapsed MAT-0:</strong> PO line FKs the <code>MaterialAttributePrice</code> source row (replaces <code>manufacturerProductId</code> + <code>distributorPriceId</code>); uses <code>packageQty</code>/<code>Unit</code>.</span>
-                    <span class="item-est">0.5 day</span>
+                    <span class="item-name"><span class="planning-banner">PLANNING</span>Supplier PO &mdash; add <code>type</code>/<code>status</code> + new <code>PurchaseOrderLineItem</code> on MAT-1&rsquo;s shared <code>PurchaseOrder</code> (<code>SPO-####</code>, line FKs the <code>MaterialAttributePrice</code> source row). HTML/PSPDFKit PDF + JWT download-link (no attachment); dedicated resolver-enforced permission. Committed-cost roll-up deferred.</span>
+                    <span class="item-est">7&ndash;9 days</span>
                     <span class="item-status"><span class="status-tag status-planning">PLANNING</span></span>
-                    <span class="item-dep">MAT-1</span>
+                    <span class="item-dep">MAT-1 (MAT-0/9/10 soft)</span>
                 </div>
+                <div class="item-detail"></div>
             </div>
-            <div class="item-row planning no-expand">
+            <div class="item-row planning" data-spec="uis-MAT-6-receiving-workflow.html" data-plan="plans/MAT-6-receiving-workflow.html">
                 <div class="item-header">
                     <span class="item-chevron">&#9654;</span>
                     <span class="item-id">MAT-6</span>
-                    <span class="item-name"><span class="planning-banner">PLANNING</span>Receiving &mdash; PurchaseOrderReceipt + ReceiptLineItem models</span>
-                    <span class="item-est">0.5 day</span>
+                    <span class="item-name"><span class="planning-banner">PLANNING</span>Receiving + Two-Way Match &mdash; new <code>PurchaseOrderReceipt</code>/<code>ReceiptLineItem</code> draw down MAT-5 PO lines; <strong>Ordered vs Received</strong> + back-order. Status auto-advances via two new <code>purchase-order-status</code> PropertyValues (<code>Partially Received</code>/<code>Received</code>) + Instance anchors. Gated by the <code>supplierPurchaseOrder</code> permission. Invoiced leg &rarr; MAT-11, committed cost &rarr; MAT-12.</span>
+                    <span class="item-est">4&ndash;5 days</span>
                     <span class="item-status"><span class="status-tag status-planning">PLANNING</span></span>
                     <span class="item-dep">MAT-5</span>
                 </div>
+                <div class="item-detail"></div>
             </div>
-            <div class="item-row planning no-expand">
+            <div class="item-row planning" data-spec="uis-MAT-7-inventory-management.html" data-plan="plans/MAT-7-inventory-management.html">
                 <div class="item-header">
                     <span class="item-chevron">&#9654;</span>
                     <span class="item-id">MAT-7</span>
-                    <span class="item-name"><span class="planning-banner">PLANNING</span>Inventory &mdash; InventoryLocation + InventoryItem + InventoryMovement models</span>
-                    <span class="item-est">1 day</span>
+                    <span class="item-name"><span class="planning-banner">PLANNING</span>Inventory &mdash; InventoryLocation + InventoryLevel + InventoryMovement models (Shopify-aligned)</span>
+                    <span class="item-est">8&ndash;10 days</span>
                     <span class="item-status"><span class="status-tag status-planning">PLANNING</span></span>
                     <span class="item-dep">MAT-6</span>
+                </div>
+                <div class="item-detail"></div>
+            </div>
+            <div class="item-row planning no-expand">
+                <div class="item-header">
+                    <span class="item-chevron">&#9654;</span>
+                    <span class="item-id">MAT-11</span>
+                    <span class="item-name"><span class="planning-banner">PLANNING</span>Supplier Invoices + Three-Way Match &mdash; net-new supplier-invoice (AP) entity matched to PO + receipts; adds the <strong>Invoiced</strong> leg MAT-6 can&rsquo;t (no invoice entity exists today). Completes Ordered&nbsp;vs&nbsp;Received&nbsp;vs&nbsp;Invoiced.</span>
+                    <span class="item-est">TBD</span>
+                    <span class="item-status"><span class="status-tag status-planning">PLANNING</span></span>
+                    <span class="item-dep">MAT-5, MAT-6</span>
                 </div>
             </div>
             <div class="item-row planning no-expand">
                 <div class="item-header">
                     <span class="item-chevron">&#9654;</span>
-                    <span class="item-id">MAT-8</span>
-                    <span class="item-name"><span class="planning-banner">PLANNING</span>Vendor Credits &mdash; VendorCredit + VendorCreditLineItem models</span>
-                    <span class="item-est">0.5 day</span>
+                    <span class="item-id">MAT-12</span>
+                    <span class="item-name"><span class="planning-banner">PLANNING</span>PO Committed Cost in Job P&amp;L &mdash; surface issued/open supplier-PO totals as a net-new &ldquo;committed&rdquo; concept in <code>JobFinancialSummaryService</code> (today: forecast + actuals only). Deferred out of MAT-5 and MAT-6.</span>
+                    <span class="item-est">TBD</span>
                     <span class="item-status"><span class="status-tag status-planning">PLANNING</span></span>
-                    <span class="item-dep">MAT-6 (||)</span>
+                    <span class="item-dep">MAT-5 (MAT-6 ||)</span>
                 </div>
+            </div>
+            <div class="item-row planning" data-spec="uis-MAT-8-vendor-credits.html">
+                <div class="item-header">
+                    <span class="item-chevron">&#9654;</span>
+                    <span class="item-id">MAT-8</span>
+                    <span class="item-name"><span class="planning-banner">PLANNING</span>Vendor Credits &mdash; <code>VendorCredit</code> + <code>VendorCreditLineItem</code>; <strong>chain terminus</strong> that closes the financial loop MAT-11 (AP/credit balance) and MAT-12 (committed cost) open. No financial consumer exists before them, so it ships last. Status = <code>ApprovalStatus</code> enum; dedicated <code>vendorCredit</code> permission.</span>
+                    <span class="item-est">4&ndash;5 days</span>
+                    <span class="item-status"><span class="status-tag status-planning">PLANNING</span></span>
+                    <span class="item-dep">MAT-11, MAT-12</span>
+                </div>
+                <div class="item-detail"></div>
             </div>
             <div class="item-row planning no-expand">
                 <div class="item-header">
@@ -1487,10 +1527,11 @@ function ensureIframeLoaded(content) {
 }
 
 // Build the detail panel with tabs
-function buildDetailPanel(detail, specPath, planPath) {
+function buildDetailPanel(detail, specPath, planPath, mockupPath) {
     var hasSpec = !!specPath;
     var hasPlan = !!planPath;
-    var defaultTab = hasSpec ? 'spec' : (hasPlan ? 'plan' : 'spec');
+    var hasMockup = !!mockupPath;
+    var defaultTab = hasSpec ? 'spec' : (hasPlan ? 'plan' : (hasMockup ? 'mockup' : 'spec'));
 
     // Tab bar
     var tabBar = document.createElement('div');
@@ -1508,6 +1549,15 @@ function buildDetailPanel(detail, specPath, planPath) {
 
     tabBar.appendChild(specTab);
     tabBar.appendChild(planTab);
+
+    // Mockups tab — only when the row links a mockup (no "pending" placeholder)
+    if (hasMockup) {
+        var mockupTab = document.createElement('div');
+        mockupTab.className = 'detail-tab' + (defaultTab === 'mockup' ? ' active' : '');
+        mockupTab.textContent = 'Mockups';
+        mockupTab.dataset.tab = 'mockup';
+        tabBar.appendChild(mockupTab);
+    }
     detail.appendChild(tabBar);
 
     // Tab content panels
@@ -1515,10 +1565,12 @@ function buildDetailPanel(detail, specPath, planPath) {
     var planContent = createTabContent('plan', planPath, defaultTab === 'plan');
     detail.appendChild(specContent);
     detail.appendChild(planContent);
+    if (hasMockup) {
+        detail.appendChild(createTabContent('mockup', mockupPath, defaultTab === 'mockup'));
+    }
 
     // Load the default tab's iframe immediately
-    var activeContent = defaultTab === 'spec' ? specContent : planContent;
-    ensureIframeLoaded(activeContent);
+    ensureIframeLoaded(detail.querySelector('.detail-tab-content.active'));
 
     // Tab switching
     tabBar.querySelectorAll('.detail-tab:not(.disabled)').forEach(function(tab) {
@@ -1539,6 +1591,7 @@ document.querySelectorAll('.item-row:not(.no-expand)').forEach(function(row) {
     var detail = row.querySelector('.item-detail');
     var specPath = resolvePath(row.dataset.spec);
     var planPath = resolvePath(row.dataset.plan);
+    var mockupPath = resolvePath(row.dataset.mockup);
 
     header.addEventListener('click', function() {
         var wasExpanded = row.classList.contains('expanded');
@@ -1555,7 +1608,7 @@ document.querySelectorAll('.item-row:not(.no-expand)').forEach(function(row) {
 
             // Build detail panel on first expand
             if (!detail.querySelector('.detail-tabs')) {
-                buildDetailPanel(detail, specPath, planPath);
+                buildDetailPanel(detail, specPath, planPath, mockupPath);
             }
 
             setTimeout(function() {
@@ -1575,11 +1628,15 @@ document.querySelectorAll('.item-row:not(.no-expand)').forEach(function(row) {
     if (!hash) return;
 
     var wantPlan = false;
+    var wantMockups = false;
     var mockupAnchor = null;
     var rowId = hash;
     if (hash.endsWith('-plan')) {
         wantPlan = true;
         rowId = hash.replace(/-plan$/, '');
+    } else if (hash.endsWith('-mockups')) {
+        wantMockups = true;
+        rowId = hash.replace(/-mockups$/, '');
     } else {
         var mm = hash.match(/^(.*?)-(mockup-\d+)$/);
         if (mm) { rowId = mm[1]; mockupAnchor = mm[2]; }
@@ -1591,13 +1648,18 @@ document.querySelectorAll('.item-row:not(.no-expand)').forEach(function(row) {
     var detail = target.querySelector('.item-detail');
     var specPath = resolvePath(target.dataset.spec);
     var planPath = resolvePath(target.dataset.plan);
+    var mockupPath = resolvePath(target.dataset.mockup);
     if (mockupAnchor && specPath) specPath += '#' + mockupAnchor;
     if (detail && !detail.querySelector('.detail-tabs')) {
-        buildDetailPanel(detail, specPath, planPath);
+        buildDetailPanel(detail, specPath, planPath, mockupPath);
     }
     if (wantPlan && planPath) {
         var planTab = detail.querySelector('.detail-tab[data-tab="plan"]');
         if (planTab && !planTab.classList.contains('disabled')) planTab.click();
+    }
+    if (wantMockups && mockupPath) {
+        var mockupTab = detail.querySelector('.detail-tab[data-tab="mockup"]');
+        if (mockupTab) mockupTab.click();
     }
     setTimeout(function() { target.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 200);
 })();

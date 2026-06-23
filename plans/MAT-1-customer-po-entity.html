@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MAT-1: Customer PO Entity — Implementation Plan</title>
+    <title>MAT-1: Customer PO Entity &mdash; Implementation Plan</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
 .in-iframe .top-nav { display: none !important; }
@@ -13,17 +13,17 @@
 .top-nav .nav-logo { font-size: 11px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: #475569; padding-right: 18px; margin-right: 4px; border-right: 1px solid #1e293b; }
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body { font-family: 'Inter', -apple-system, sans-serif; background: #f8fafc; color: #0f172a; }
-.plan-wrap { max-width: 880px; margin: 0 auto; padding: 40px 24px 80px; }
-h1 { font-size: 24px; font-weight: 800; margin: 0 0 16px; }
-h2 { font-size: 18px; font-weight: 700; margin: 28px 0 12px; padding-bottom: 8px; border-bottom: 2px solid #e2e8f0; }
-h3 { font-size: 15px; font-weight: 700; margin: 20px 0 8px; padding-top: 10px; border-top: 1px solid #f1f5f9; }
-h4 { font-size: 14px; font-weight: 700; margin: 14px 0 6px; }
+.plan-wrap { max-width: 920px; margin: 0 auto; padding: 40px 24px 80px; }
+h1 { font-size: 24px; font-weight: 800; color: #0f172a; margin: 0 0 16px; letter-spacing: -0.01em; }
+h2 { font-size: 18px; font-weight: 700; color: #0f172a; margin: 28px 0 12px; padding-bottom: 8px; border-bottom: 2px solid #e2e8f0; }
+h3 { font-size: 15px; font-weight: 700; color: #0f172a; margin: 20px 0 8px; padding-top: 10px; border-top: 1px solid #f1f5f9; }
+h4 { font-size: 14px; font-weight: 700; color: #0f172a; margin: 14px 0 6px; }
 p { font-size: 14px; color: #334155; line-height: 1.7; margin: 6px 0; }
 ul, ol { padding-left: 20px; margin: 8px 0; }
 li { font-size: 14px; color: #334155; line-height: 1.7; margin: 3px 0; }
 strong { color: #0f172a; }
 code { font-family: 'SF Mono', monospace; background: #f1f5f9; padding: 1px 6px; border-radius: 4px; font-size: 12px; color: #7c3aed; }
-pre { background: #0f172a; color: #f8fafc; border-radius: 8px; padding: 16px; overflow-x: auto; font-size: 13px; line-height: 1.6; margin: 12px 0; font-family: 'SF Mono', monospace; }
+pre { background: #0f172a; color: #f8fafc; border-radius: 8px; padding: 16px; overflow-x: auto; font-size: 12.5px; line-height: 1.55; margin: 12px 0; font-family: 'SF Mono', monospace; }
 pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
 hr { border: none; border-top: 1px solid #e2e8f0; margin: 24px 0; }
 table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 12px 0; }
@@ -31,8 +31,19 @@ th { text-align: left; padding: 8px 12px; background: #f1f5f9; border-bottom: 2p
 td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
 .check-item { display: flex; gap: 8px; align-items: flex-start; padding: 5px 0; }
 .check-box { width: 16px; height: 16px; border: 2px solid #cbd5e1; border-radius: 3px; flex-shrink: 0; margin-top: 2px; }
+.criteria-list { list-style: none; padding: 0; }
+.criteria-list li { padding: 8px 0; border-bottom: 1px solid #f1f5f9; display: flex; gap: 10px; align-items: flex-start; font-size: 14px; color: #334155; }
 .callout { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 14px 18px; margin: 14px 0; font-size: 13px; color: #1e40af; }
 .callout strong { color: #1e3a8a; }
+.callout.warn { background: #fffbeb; border-color: #fde68a; color: #92400e; }
+.callout.warn strong { color: #78350f; }
+.callout.green { background: #f0fdf4; border-color: #bbf7d0; color: #166534; }
+.callout.green strong { color: #14532d; }
+.callout.flag { background: #faf5ff; border-color: #d8b4fe; color: #6b21a8; }
+.callout.flag strong { color: #581c87; }
+.step-meta { display: grid; grid-template-columns: 110px 1fr; gap: 6px 12px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 16px; margin: 10px 0 14px; font-size: 13px; }
+.step-meta div:nth-child(odd) { font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.5px; font-size: 11px; padding-top: 2px; }
+.step-meta div:nth-child(even) { color: #334155; }
     </style>
 </head>
 <body>
@@ -45,228 +56,399 @@ td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
     <a href="../release-1.34-timeline.html">Release 1.34</a>
     <a href="../master-spec-reconciliation.html">Spec Reconciliation</a>
     <a href="../cross-release-continuity-audit.html">Continuity Audit</a>
-    <a href="ui-interface-library.html">UI Library</a>
+    <a href="../ui-interface-library.html">UI Library</a>
 </nav>
-<div class="plan-wrap" id="rendered"></div>
-<script type="text/plain" id="plan-md">
-# MAT-1: Customer PO Entity — Implementation Plan
+<div class="plan-wrap">
 
-## Overview
+<h1>MAT-1: Customer PO Entity (Implementation Plan)</h1>
 
-Replace the `Job.purchaseOrder` string field with a first-class `PurchaseOrder` model. Supports multiple POs per job, PO-aware invoicing, and a PO detail page with tabs. The PurchaseOrder model is shared between Customer POs (MAT-1) and Supplier POs (MAT-5).
+<p style="font-size:14px; color:#475569;">Self-contained execution plan. Another agent should be able to pick this up cold, run the steps in order, and ship a PR. Every file path is relative to the monorepo root (<code>apps/api</code>, <code>apps/frontend</code>). Read the <strong>Pre-flight</strong> section first. Companion spec: <a href="../uis-MAT-1-customer-po-entity.html">uis-MAT-1-customer-po-entity.html</a> (this file is the <em>plan</em>; that is the <em>spec</em> + decision log). Code blocks are drop-in starting points grounded in the named precedents on <code>Release-v1.33.0</code> &mdash; match surrounding style, don&rsquo;t reformat neighbours.</p>
 
-**Estimated effort:** 5-7 days
-**Risk:** Medium — migration of existing string data to new model, FK changes on EstimateChangeOrderRecord and JobBill
-**Deps:** None (ROOT — parallel with MAT-0)
+<h2>Overview &amp; Outcome</h2>
+<p>The customer PO is <strong>already</strong> a first-class entity: <code>PurchaseOrder</code> (a deduplicated PO number) + a polymorphic <code>PurchaseOrderAssignment</code> join that ties it to Jobs / EstimateChangeOrderRecords / JobBills, all wired into the shipped multi-PO roll-up and invoice dropdowns. MAT-1 <strong>enriches</strong> that entity &mdash; it does not rebuild it. After this lands:</p>
+<ul>
+    <li><code>PurchaseOrder</code> carries metadata: <code>companyId</code> (the customer who issued it), <code>contactId</code>, <code>issuedDate</code>, <code>amount</code>, <code>terms</code>, <code>description</code> &mdash; additive columns, no data backfill.</li>
+    <li><code>PurchaseOrderModel</code> is <strong>brought into the <code>BaseAuditableModel</code> framework</strong> (it is a bespoke class today) so the new fields get standard validation + permissions, and <code>terms</code> / <code>description</code> are declared <code>type: "wysiwyg"</code>. All existing bespoke methods (<code>getAllForJob</code>, <code>handleCreate/EditPOSync</code>, &hellip;) are preserved verbatim &mdash; existing consumers are unaffected.</li>
+    <li>A <strong>PO detail page</strong> at <code>/purchase-orders/[id]</code> with tabs: <strong>Overview</strong> (metadata), <strong>Linked Records</strong> (read from <code>PurchaseOrderAssignment</code> &mdash; Job / Estimate / CO / Invoice), <strong>Files</strong> (the customer&rsquo;s signed PO PDF via <code>Asset</code> / <code>AssetReference</code>).</li>
+    <li>A <strong>Purchase Orders tab</strong> on the Company detail page, filtered by the new <code>companyId</code>.</li>
+</ul>
 
----
+<div class="callout flag">
+    <strong>Decisions baked into this plan (settled with the user; see spec).</strong>
+    <ul style="margin-top:6px;">
+        <li><strong>Enrich, don&rsquo;t rebuild:</strong> extend the live <code>PurchaseOrder</code> + keep <code>PurchaseOrderAssignment</code>. No direct <code>jobId</code> FK (job linkage stays via assignments).</li>
+        <li><strong>Deferred to MAT-5</strong> (supplier PO): <code>type</code> (CustomerPO/SupplierPO), <code>status</code> lifecycle, <code>PurchaseOrderLineItem</code>, and <code>SPO-####</code> auto-numbering. <code>poNumber</code> stays <strong>user-entered</strong> (a customer PO number comes from the customer).</li>
+        <li><strong>No <code>instanceId</code></strong> &mdash; Appello is single-instance; models do not carry one (the live <code>PurchaseOrder</code> has none). Do not add it.</li>
+        <li><strong>No custom fields</strong> (the <code>DocumentAttribute</code> system) &mdash; PO fields are few and stable; fixed columns are correct.</li>
+        <li><strong>No standalone global <code>/purchase-orders</code> index list</strong> &mdash; reach a PO via its job, the company tab, or a linked record.</li>
+    </ul>
+</div>
 
-## Step 1: Prisma Schema — New Models
+<hr>
 
-### 1a. PurchaseOrder
+<h2>Pre-flight (do this first)</h2>
 
-**File:** `apps/api/prisma/schema.prisma`
+<h3>Repo</h3>
+<ul>
+    <li>Working repo: the Appello monorepo (pnpm + turbo). API grounded against <code>~/Documents/git-repos/appello/patch</code> on <code>Release-v1.33.0</code>; frontend against <code>~/Documents/git-repos/appello/application-mono-repo</code>. Line numbers below are accurate as of those checkouts.</li>
+    <li>Branch off the active &ldquo;Release 1.33&rdquo; integration branch. <strong>Confirm with the user</strong> &mdash; do not assume <code>main</code>.</li>
+    <li>MAT-1 is a <strong>root</strong> item (no MAT-10 / MAT-0 dependency) &mdash; it builds only on the already-shipped PO system. It can land in parallel with MAT-0.</li>
+</ul>
 
-```prisma
-model PurchaseOrder {
-  id              String    @id @db.VarChar(21)
-  isDeleted       Boolean   @default(false)
-  isArchived      Boolean   @default(false)
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @default(now()) @updatedAt
+<h3>This is an EXTENSION + a framework conversion &mdash; not a new model</h3>
+<p>Everything already exists: <code>model PurchaseOrder</code> + <code>model PurchaseOrderAssignment</code> (<code>schema.prisma:5566&ndash;5590</code>), the model class <code>apps/api/src/models/PurchaseOrder.ts</code>, the resolver <code>apps/api/src/graphql/models/PurchaseOrder.ts</code> (registered in <code>graphql/schema.ts</code>), and the type <code>apps/api/src/types/PurchaseOrder.types.ts</code>. <strong>Do not scaffold a new model and do not run <code>new-data-model</code>.</strong> MAT-1 adds columns + methods to these files. The one structural change is that <code>PurchaseOrderModel</code> is a plain hand-rolled class today and must become a <code>BaseAuditableModel</code> subclass (Step 3) to declare fields the standard way &mdash; this is how <code>type: "wysiwyg"</code> is even expressible.</p>
 
-  type            String    @db.VarChar(50)
-  poNumber        String    @db.VarChar(100)
-  companyId       String?   @db.VarChar(21)
-  Company         Company?  @relation(fields: [companyId], references: [id])
-  jobId           String?   @db.VarChar(21)
-  Job             Job?      @relation(fields: [jobId], references: [id])
-  contactId       String?   @db.VarChar(21)
-  status          String    @db.VarChar(50)
-  issuedDate      DateTime?
-  amount          Decimal?  @db.Decimal(12, 2)
-  description     String?   @db.Text
-  terms           String?   @db.Text
+<div class="callout"><strong>Why the conversion is safe.</strong> <code>BaseAuditableModel</code> needs no specific audit columns &mdash; <code>DbModelBase.createItem</code> only writes <code>createdById</code> <em>if the model declares it</em> (<code>_DbModelBase.ts:1350</code>), and <code>MaterialAttributePrice</code> and <code>Note</code> both extend it with <strong>no</strong> <code>createdById</code>/<code>updatedById</code> columns. The four abstract methods can be no-ops (as in <code>MaterialAttributePrice</code>). Existing consumers call the bespoke methods (<code>getAllForJob</code>, <code>handleCreate/EditPOSync</code>, <code>assignExistingPOToEntity</code>, &hellip;), which you keep unchanged &mdash; the conversion <em>adds</em> base methods, it does not alter the existing ones.</div>
 
-  LineItems       PurchaseOrderLineItem[]
+<h3>Reference precedents &mdash; read before writing anything</h3>
+<table>
+    <thead><tr><th>For</th><th>Read (verbatim, on Release-v1.33.0)</th></tr></thead>
+    <tbody>
+        <tr><td>The model to convert + preserve</td><td><code>apps/api/src/models/PurchaseOrder.ts</code> (304 lines) &mdash; bespoke class; every method here stays. Note <code>findOrCreateForJob</code> creates via <code>prisma.purchaseOrder.create</code> (bypasses base validation &mdash; fine, it only sets <code>poNumber</code>).</td></tr>
+        <tr><td>Conversion pattern (minimal)</td><td><code>apps/api/src/models/MaterialAttributePrice.ts</code> &mdash; <code>extends BaseAuditableModel</code> with <code>modelFields</code> + four no-op abstract methods, no audit columns.</td></tr>
+        <tr><td>wysiwyg field + Asset attach/detach</td><td><code>apps/api/src/models/Note.ts</code> &mdash; <code>body</code> as <code>type: "wysiwyg"</code> (<code>maxLength: 8600</code>); <code>connectAssets</code>/<code>disconnectAssets</code>/<code>getAssets</code> via <code>new Asset().addReferencesToAsset</code> / <code>removeReferencesFromAsset</code> with <code>referenceTable</code>.</td></tr>
+        <tr><td>What wysiwyg does</td><td><code>apps/api/src/models/base/validateData.ts:175&ndash;210</code> &mdash; validated as a string; default <code>maxLength</code> 8600; also signals the frontend rich-text editor.</td></tr>
+        <tr><td>Resolver to extend (already registered)</td><td><code>apps/api/src/graphql/models/PurchaseOrder.ts</code> &mdash; <code>IModelResolverConfig</code> with <code>typeDef</code> / <code>Resolvers</code> / <code>Query</code> / <code>Mutation</code> / <code>PurchaseOrderAssignmentResolvers</code>. Spread into <code>graphql/schema.ts</code> at lines 162, 435, 632, 833, 1037 &mdash; <strong>adding fields/queries/mutations to the object flows through automatically</strong>; no new registration.</td></tr>
+        <tr><td>Asset reference API</td><td><code>apps/api/src/models/Asset.ts</code> &mdash; <code>addReferencesToAsset(references, assetId)</code> (333), <code>removeReferencesFromAsset([{referenceTable, referenceId}], assetId)</code> (360).</td></tr>
+        <tr><td>Company detail tab pattern</td><td><code>apps/frontend/src/components/DetailsPage/CompanyDetailsPage/index.tsx</code> &mdash; tab array of <code>IDetailsPageTab</code> <code>{label, component, param, permission}</code>; tab components in <code>./Tabs/</code>, re-exported from <code>./Tabs/index.ts</code>.</td></tr>
+    </tbody>
+</table>
 
-  @@index([jobId, isDeleted])
-  @@index([companyId, isDeleted])
-  @@index([type, isDeleted])
+<h3>Hard constants</h3>
+<table>
+    <thead><tr><th>What</th><th>Value</th></tr></thead>
+    <tbody>
+        <tr><td>Table extended</td><td><code>PurchaseOrder</code> (<code>schema.prisma:5566</code>) &mdash; no new top-level model</td></tr>
+        <tr><td>New columns</td><td><code>companyId</code> / <code>contactId</code> (<code>String? @db.VarChar(21)</code>, FK&rarr;Company/Contact), <code>issuedDate</code> (<code>DateTime?</code>), <code>amount</code> (<code>Decimal? @db.Decimal(10,2)</code>), <code>terms</code> / <code>description</code> (<code>String? @db.Text</code>)</td></tr>
+        <tr><td>wysiwyg fields</td><td><code>terms</code>, <code>description</code> &mdash; <code>type: "wysiwyg"</code> in <code>modelFields</code> (default <code>maxLength</code> 8600)</td></tr>
+        <tr><td>Files</td><td><code>Asset</code> / <code>AssetReference</code> with <code>referenceTable = "PurchaseOrder"</code>, <code>referenceId = po.id</code> &mdash; no schema change</td></tr>
+        <tr><td>Job/Estimate/Invoice linkage</td><td>stays via <code>PurchaseOrderAssignment</code> (<code>referenceModel</code> &isin; {Job, EstimateChangeOrderRecord, JobBill}) &mdash; no direct <code>jobId</code> FK</td></tr>
+        <tr><td>No <code>instanceId</code></td><td>single-instance app; do not add it</td></tr>
+        <tr><td>Schema indent</td><td>schema.prisma uses <strong>2 spaces</strong>; migration SQL 4 spaces, newline at EOF</td></tr>
+    </tbody>
+</table>
+
+<h3>Local DB workflow</h3>
+<ul>
+    <li>From <code>apps/api</code>: <code>pnpm run prisma:migrate &lt;name&gt;</code> scaffolds <code>prisma/migrations/&lt;ts&gt;_&lt;name&gt;/migration.sql</code> (create-only; hand-edit if needed).</li>
+    <li><code>pnpm run prisma:deploy</code> applies pending migrations; <code>pnpm run prisma:generate</code> regenerates the client.</li>
+</ul>
+
+<h3>What you are NOT doing in this PR</h3>
+<ul>
+    <li><strong>Not rebuilding</strong> anything that ships: the <code>Job.purchaseOrder</code> string&rarr;entity migration (done &mdash; the column no longer exists), the multi-PO-per-job roll-up (<code>getAllForJob</code>), and the estimate / CO / invoice PO dropdowns + auto-populate. Do not touch <code>JobBill</code>, <code>EstimateChangeOrderRecord</code>, or <code>Job</code> PO sync.</li>
+    <li>No <code>type</code> / <code>status</code> / <code>PurchaseOrderLineItem</code> / auto-numbering &mdash; all MAT-5. (MAT-5 will add <code>type</code> defaulting existing rows to <code>CustomerPO</code>.)</li>
+    <li>No global <code>/purchase-orders</code> list, no <code>DocumentAttribute</code> custom fields, no approval workflow, no mobile, no <code>instanceId</code>.</li>
+</ul>
+
+<hr>
+
+<h2>Step 1 &mdash; Schema: metadata columns + Company / Contact relations</h2>
+<div class="step-meta">
+    <div>Goal</div><div>Add 6 nullable columns + Company/Contact FKs to <code>PurchaseOrder</code>; add back-relations on Company &amp; Contact.</div>
+    <div>Files</div><div><code>apps/api/prisma/schema.prisma</code></div>
+    <div>Validate</div><div><code>pnpm run prisma:validate</code> passes.</div>
+</div>
+<p>Add the new columns to <code>model PurchaseOrder</code> (<code>schema.prisma:5566</code>). Existing fields unchanged:</p>
+<pre><code>model PurchaseOrder {
+  id         String   @id @db.VarChar(21)
+  isDeleted  Boolean  @default(false)
+  isArchived Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @default(now()) @updatedAt
+  poNumber   String   @db.VarChar(191)
+
+  // NEW (MAT-1) — customer PO metadata
+  companyId   String?   @db.VarChar(21)
+  contactId   String?   @db.VarChar(21)
+  issuedDate  DateTime?
+  amount      Decimal?  @db.Decimal(10, 2)
+  terms       String?   @db.Text
+  description String?   @db.Text
+
+  Company  Company? @relation("CompanyPurchaseOrders", fields: [companyId], references: [id], map: "FK_purchaseOrderCompany")
+  Contact  Contact? @relation("ContactPurchaseOrders", fields: [contactId], references: [id], map: "FK_purchaseOrderContact")
+
+  PurchaseOrderAssignments PurchaseOrderAssignment[]
+
+  @@index([poNumber])
+  @@index([companyId], map: "FK_purchaseOrderCompany")
+  @@index([contactId], map: "FK_purchaseOrderContact")
+}</code></pre>
+<p>Add the back-relations to <code>model Company</code> (<code>schema.prisma:795</code>) and <code>model Contact</code> (<code>schema.prisma:737</code>), alongside their other one-to-many back-relations:</p>
+<pre><code>  // model Company
+  CompanyPurchaseOrders   PurchaseOrder[]  @relation("CompanyPurchaseOrders")
+
+  // model Contact
+  ContactPurchaseOrders   PurchaseOrder[]  @relation("ContactPurchaseOrders")</code></pre>
+
+<hr>
+
+<h2>Step 2 &mdash; Migration: additive columns only (no backfill)</h2>
+<div class="step-meta">
+    <div>Goal</div><div>ALTER TABLE PurchaseOrder &mdash; add the 6 columns + 2 FKs + 2 indexes.</div>
+    <div>Files</div><div>new <code>prisma/migrations/&lt;ts&gt;_mat1_purchase_order_metadata/migration.sql</code></div>
+</div>
+<pre><code>cd apps/api
+pnpm run prisma:migrate mat1_purchase_order_metadata</code></pre>
+<p>Prisma emits the <code>ALTER TABLE PurchaseOrder ADD COLUMN &hellip;</code> for the six columns, the two foreign keys to <code>Company</code> / <code>Contact</code>, and the two FK indexes. <strong>No data migration</strong> &mdash; all new columns are nullable and the string&rarr;entity migration shipped long ago. Run <code>pnpm run prisma:deploy &amp;&amp; pnpm run prisma:generate</code>.</p>
+<div class="callout"><strong>No backfill, by design.</strong> Existing <code>PurchaseOrder</code> rows simply gain <code>NULL</code> metadata. The poNumber and all assignments are already correct. (When MAT-5 adds <code>type</code>, <em>that</em> migration defaults existing rows to <code>CustomerPO</code> &mdash; not this one.)</div>
+
+<hr>
+
+<h2>Step 3 &mdash; Model: convert to BaseAuditableModel; add fields + methods</h2>
+<div class="step-meta">
+    <div>Goal</div><div>Convert <code>PurchaseOrderModel</code> to <code>BaseAuditableModel</code>; declare <code>modelFields</code> (terms/description = wysiwyg); add metadata + file methods. Preserve every existing method.</div>
+    <div>Files</div><div><code>apps/api/src/models/PurchaseOrder.ts</code>; <code>apps/api/src/types/PurchaseOrder.types.ts</code></div>
+</div>
+
+<h3>3.1 Extend the type</h3>
+<p><code>IPurchaseOrder</code> (<code>types/PurchaseOrder.types.ts:1&ndash;8</code>) is minimal. Add the metadata fields:</p>
+<pre><code>export interface IPurchaseOrder {
+    id: string;
+    poNumber: string;
+    isDeleted: boolean;
+    isArchived: boolean;
+    createdAt: Date;
+    updatedAt: Date;
+    // MAT-1 — metadata
+    companyId?: string | null;
+    contactId?: string | null;
+    issuedDate?: Date | null;
+    amount?: number | null;
+    terms?: string | null;
+    description?: string | null;
+}</code></pre>
+
+<h3>3.2 Convert the class &mdash; add the framework scaffold, keep every existing method</h3>
+<p>Change the class declaration from a bare <code>class PurchaseOrderModel { &hellip; }</code> to a <code>BaseAuditableModel</code> subclass, and add the required members at the top. <strong>Do not delete or alter the existing methods</strong> (<code>getForEntity</code>, <code>getAllForJob</code>, <code>checkForPoForEntity</code>, <code>findOrCreateForJob</code>, <code>assignToEntity</code>, <code>removeAssignmentsForEntity</code>, <code>cleanupOrphanedPurchaseOrders</code>, <code>syncEntityPurchaseOrders</code>, <code>assignExistingPOToEntity</code>, <code>transferECOPurchaseOrdersToJob</code>, <code>handleCreatePOSync</code>, <code>handleEditPOSync</code>) &mdash; they stay verbatim below the new scaffold.</p>
+<pre><code>import { BaseAuditableModel } from "./base/_BaseAuditableModel";
+import { FullModel, IField, IPurchaseOrder } from "../types";
+import prisma from "./_prismaClient";
+import { nanoid } from "nanoid";
+import { Asset } from "./Asset";
+
+class PurchaseOrderModel extends BaseAuditableModel&lt;IPurchaseOrder&gt; {
+    public name = "PurchaseOrder";
+    name_plural = "PurchaseOrders";
+
+    protected prisma = prisma.purchaseOrder;
+
+    protected modelFields: IField&lt;IPurchaseOrder&gt;[] = [
+        {
+            name: "poNumber",
+            type: "string",
+            options: {
+                isRequiredOnCreate: true,
+                canCreate: true,
+                canEdit: true,
+                isFilterable: true,
+                isSortable: true,
+                isSelectable: true
+            }
+        },
+        { name: "companyId", type: "string", options: { canCreate: true, canEdit: true, isFilterable: true } },
+        { name: "contactId", type: "string", options: { canCreate: true, canEdit: true } },
+        { name: "issuedDate", type: "datetime", options: { canCreate: true, canEdit: true, isSortable: true } },
+        { name: "amount", type: "float", options: { canCreate: true, canEdit: true } },
+        { name: "terms", type: "wysiwyg", options: { canCreate: true, canEdit: true } },
+        { name: "description", type: "wysiwyg", options: { canCreate: true, canEdit: true } }
+    ];
+
+    // Required abstract members — no cascade (assignments are managed by the bespoke
+    // methods below; an orphaned PO is already soft-deleted via cleanupOrphanedPurchaseOrders).
+    public archiveChildren(): Promise&lt;void&gt; { return Promise.resolve(); }
+    public restoreChildren(): Promise&lt;void&gt; { return Promise.resolve(); }
+    public async getRelatedDeleteCount(): Promise&lt;Record&lt;string, number&gt;&gt; { return {}; }
+    public async deleteChildren(): Promise&lt;void&gt; { return Promise.resolve(); }
+
+    // ===== existing bespoke methods stay here, unchanged =====
+    // getForEntity, getAllForJob, checkForPoForEntity, findOrCreateForJob,
+    // assignToEntity, removeAssignmentsForEntity, cleanupOrphanedPurchaseOrders,
+    // syncEntityPurchaseOrders, assignExistingPOToEntity, transferECOPurchaseOrdersToJob,
+    // handleCreatePOSync, handleEditPOSync
+</code></pre>
+<div class="callout"><strong>Permissions &mdash; no new PO permission; governance stays with the parent.</strong> The base only enforces a permission check for models registered in <code>permissionsByReferenceModel</code> &mdash; <em>&ldquo;child/detail models without their own permission mapping are allowed through; their parent resolver is responsible for authorization&rdquo;</em> (<code>_DbModelBase.ts:1181&ndash;1205</code>). <code>MaterialAttributePrice</code> converts the same way with no permission of its own. So <strong>do NOT seed a <code>purchaseOrder</code> permission and do NOT add <code>PurchaseOrder</code> to <code>permissionsByReferenceModel</code></strong> &mdash; base <code>create</code>/<code>edit</code>/<code>delete</code> pass straight through, and PO creation/sync stays governed by the Job / ECO / JobBill flows exactly as today (a PO is only ever born through one of those). The only surfaces that need a gate are the new <em>direct-access</em> ones (detail page + Company tab) &mdash; they reuse an existing permission (see Step 5), not a new one.</div>
+
+<h3>3.3 New methods &mdash; only what the base doesn&rsquo;t already give you</h3>
+<div class="callout"><strong>No custom create / edit / getById.</strong> The six metadata fields are plain <code>modelFields</code> (3.1&ndash;3.2), so the base methods handle them directly: <code>createItem(data, userId)</code> and <code>editItem(id, data, userId)</code> validate + persist them (that is the entire point of declaring them), and <code>getItem(id, userId)</code> returns the record by id. The detail page&rsquo;s nested data (Company, Contact, Files, linked records) is populated by the GraphQL <em>field</em> resolvers (Step 4), so no eager-include fetch is needed either. Wire the GraphQL Query/Mutation straight to the base methods (Step 4).</div>
+<p>Add only the two things the base genuinely doesn&rsquo;t cover &mdash; a company-filtered list and the Asset file helpers (same pattern as <code>Note</code>):</p>
+<pre><code>// Company PO tab.
+public async getForCompany(companyId: string): Promise&lt;IPurchaseOrder[]&gt; {
+    return prisma.purchaseOrder.findMany({
+        where: { companyId, isDeleted: false },
+        orderBy: { issuedDate: "desc" }
+    }) as Promise&lt;IPurchaseOrder[]&gt;;
 }
-```
 
-Const-based status types:
-```typescript
-export const PURCHASE_ORDER_TYPES = ["CustomerPO", "SupplierPO"] as const;
-export const PURCHASE_ORDER_STATUSES = ["Draft", "Issued", "Sent", "PartiallyReceived", "FullyReceived", "Closed"] as const;
-```
-
-### 1b. PurchaseOrderLineItem
-
-```prisma
-model PurchaseOrderLineItem {
-  id                String        @id @db.VarChar(21)
-  isDeleted         Boolean       @default(false)
-  createdAt         DateTime      @default(now())
-  updatedAt         DateTime      @default(now()) @updatedAt
-
-  purchaseOrderId   String        @db.VarChar(21)
-  PurchaseOrder     PurchaseOrder @relation(fields: [purchaseOrderId], references: [id])
-
-  description       String?       @db.VarChar(500)
-  quantity          Decimal?      @db.Decimal(10, 4)
-  unitPrice         Decimal?      @db.Decimal(10, 2)
-  accountItemId     String?       @db.VarChar(21)
-  costCodeId        String?       @db.VarChar(21)
-
-  @@index([purchaseOrderId, isDeleted])
+// Files — reuse the Asset reference API.
+public async attachFile(purchaseOrderId: string, assetId: string): Promise&lt;void&gt; {
+    await new Asset().addReferencesToAsset(
+        [{ referenceTable: "PurchaseOrder", referenceId: purchaseOrderId }],
+        assetId
+    );
 }
-```
-
-**Note:** `total` is computed (quantity x unitPrice) at query time, not stored.
-
-### 1c. Migration + Data Migration
-
-```sql
--- Create tables
-CREATE TABLE PurchaseOrder (...);
-CREATE TABLE PurchaseOrderLineItem (...);
-
--- Migrate existing Job.purchaseOrder strings
-INSERT INTO PurchaseOrder (id, type, poNumber, jobId, status, createdAt, updatedAt)
-SELECT nanoid(), 'CustomerPO', purchaseOrder, id, 'Issued', NOW(), NOW()
-FROM Job
-WHERE purchaseOrder IS NOT NULL AND purchaseOrder != '';
-```
-
----
-
-## Step 2: Model Class
-
-**Create file:** `apps/api/src/models/PurchaseOrder.ts`
-
-Standard BaseModel. Key methods:
-- `getNextPoNumber(type)`: Auto-sequence CPO-#### or SPO-#### per instance
-- `getByJob(jobId)`: Get all POs for a job
-- `getByCompany(companyId)`: Get all POs for a company
-
----
-
-## Step 3: GraphQL Resolver
-
-**Create file:** `apps/api/src/graphql/models/PurchaseOrder.ts`
-
-Type definition with `total` as computed resolver on `PurchaseOrderLineItem`:
-```typescript
-PurchaseOrderLineItem: {
-    total: (parent) => {
-        if (parent.quantity && parent.unitPrice) {
-            return Number(parent.quantity) * Number(parent.unitPrice);
+public async detachFile(purchaseOrderId: string, assetId: string): Promise&lt;void&gt; {
+    await new Asset().removeReferencesFromAsset(
+        [{ referenceTable: "PurchaseOrder", referenceId: purchaseOrderId }],
+        assetId
+    );
+}
+public async getFiles(purchaseOrderId: string) {
+    return prisma.asset.findMany({
+        where: {
+            References: { some: { referenceTable: "PurchaseOrder", referenceId: purchaseOrderId } },
+            isDeleted: false
         }
-        return null;
-    }
-}
-```
-
----
-
-## Step 4: Frontend — PO Detail Page
-
-**Create file:** `apps/frontend/src/pages/purchase-orders/[id]/index.tsx`
-
-Tabs: Overview, Line Items, Invoices, Estimates, Files.
-
-### 4a. PO tab on Company detail page
-
-Add PurchaseOrders tab to Company detail showing all POs for that company.
-
-### 4b. PO tab on Job detail page
-
-Add PurchaseOrders section showing all POs linked to that job.
-
-### 4c. Estimate/Invoice PO dropdown
-
-Replace free-text `purchaseOrder` input on estimate and invoice forms with a PO dropdown selector.
-
----
-
-## Step 5: Route + Navigation
-
-**File:** `apps/frontend/src/lib/routes.ts`
-
-Add route for `/purchase-orders` and `/purchase-orders/[id]`.
-
----
-
-## Verification Checklist
-
-- [ ] PurchaseOrder and PurchaseOrderLineItem tables created
-- [ ] Existing Job.purchaseOrder strings migrated to PurchaseOrder records
-- [ ] Multiple POs per job supported
-- [ ] PO detail page with Overview, Line Items, Invoices, Estimates, Files tabs
-- [ ] PO tab on Company detail page
-- [ ] PO numbering: CPO-#### auto-sequenced per instance
-- [ ] Estimates and Invoices have PO dropdown selector (replacing free-text)
-- [ ] PurchaseOrderLineItem.total computed at query time
-- [ ] Search Core indexed for PO lookup
-- [ ] No regression on existing estimate/invoice PO references
-
----
-
-## Files Summary
-
-| Action | File | What to do |
-|--------|------|------------|
-| MODIFY | `apps/api/prisma/schema.prisma` | Add PurchaseOrder + PurchaseOrderLineItem models |
-| CREATE | `apps/api/prisma/migrations/.../migration.sql` | CREATE TABLE x2 + data migration |
-| CREATE | `apps/api/src/models/PurchaseOrder.ts` | Model class with auto-numbering |
-| CREATE | `apps/api/src/graphql/models/PurchaseOrder.ts` | GraphQL resolver with computed total |
-| MODIFY | `apps/api/src/graphql/schema.ts` | Register new resolver |
-| CREATE | `apps/frontend/src/pages/purchase-orders/[id]/index.tsx` | PO detail page |
-| MODIFY | `apps/frontend/.../CompanyDetailsPage/index.tsx` | Add PO tab |
-| MODIFY | `apps/frontend/.../JobDetailsPage/index.tsx` | Add PO section |
-| MODIFY | Estimate/Invoice forms | Replace string input with PO dropdown |
-| MODIFY | `apps/frontend/src/lib/routes.ts` | Add PO routes |
-</script>
-<script>
-(function() {
-    var md = document.getElementById('plan-md').textContent;
-    var target = document.getElementById('rendered');
-    var html = md
-        .replace(/```(\w*)\n([\s\S]*?)```/g, function(_, lang, code) {
-            return '<pre><code>' + code.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</code></pre>';
-        })
-        .replace(/`([^`\n]+)`/g, '<code>$1</code>')
-        .replace(/^#### (.+)$/gm, '<h4>$1</h4>')
-        .replace(/^### (.+)$/gm, '<h3>$1</h3>')
-        .replace(/^## (.+)$/gm, '<h2>$1</h2>')
-        .replace(/^# (.+)$/gm, '<h1>$1</h1>')
-        .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-        .replace(/\*(.+?)\*/g, '<em>$1</em>')
-        .replace(/^---$/gm, '<hr>');
-    html = html.replace(/^- \[ \] (.+)$/gm, '<div class="check-item"><div class="check-box"></div><span>$1</span></div>');
-    html = html.replace(/(\|.+\|\n)+/g, function(table) {
-        var rows = table.trim().split('\n');
-        if (rows.length < 2) return table;
-        var headers = rows[0].split('|').filter(function(c) { return c.trim(); });
-        var isSep = /^[\s|:\-]+$/.test(rows[1]);
-        var start = isSep ? 2 : 1;
-        var out = '<table><thead><tr>';
-        headers.forEach(function(h) { out += '<th>' + h.trim() + '</th>'; });
-        out += '</tr></thead><tbody>';
-        for (var i = start; i < rows.length; i++) {
-            var cells = rows[i].split('|').filter(function(c) { return c.trim(); });
-            out += '<tr>'; cells.forEach(function(c) { out += '<td>' + c.trim() + '</td>'; }); out += '</tr>';
-        }
-        out += '</tbody></table>';
-        return out;
     });
-    html = html.replace(/^- (.+)$/gm, '<li>$1</li>');
-    html = html.replace(/(<li>[\s\S]*?<\/li>\n?)+/g, function(m) { return '<ul>' + m + '</ul>'; });
-    html = html.replace(/^(?!<[hultdps\/<]|<\/|<code|<pre|<hr|<div|<strong|<em)(.+)$/gm, '<p>$1</p>');
-    target.innerHTML = html;
-})();
-</script>
+}</code></pre>
+<div class="callout"><strong>The bespoke in-context create paths are unchanged.</strong> <code>findOrCreateForJob</code> and <code>handleCreate/EditPOSync</code> still call <code>prisma.purchaseOrder.create</code> directly (they only set <code>poNumber</code>) &mdash; a PO born by typing a number on a job/estimate/invoice needs no metadata. Metadata is added later by editing the PO (base <code>editItem</code>) from the detail page.</div>
+
+<hr>
+
+<h2>Step 4 &mdash; GraphQL surface</h2>
+<div class="step-meta">
+    <div>Goal</div><div>Expose the new fields + Files + Company/Contact resolvers; add detail + company queries and metadata/file mutations.</div>
+    <div>Files</div><div><code>apps/api/src/graphql/models/PurchaseOrder.ts</code> (extend the existing <code>PurchaseOrderResolvers</code> object &mdash; already registered in <code>schema.ts</code>)</div>
+</div>
+<p>Extend the existing <code>typeDef</code> &mdash; add fields to the <code>PurchaseOrder</code> type and the new query/mutation/input:</p>
+<pre><code>type PurchaseOrder {
+    id: ID!
+    poNumber: String!
+    isArchived: Boolean
+    createdAt: DateTime
+    updatedAt: DateTime
+    PurchaseOrderAssignments: [PurchaseOrderAssignment]   # Linked Records (existing)
+    # --- NEW (MAT-1) ---
+    companyId: String
+    Company: Company
+    contactId: String
+    Contact: Contact
+    issuedDate: DateTime
+    amount: Float
+    terms: String
+    description: String
+    Files: [Asset!]
+}
+
+input CustomerPurchaseOrderInput {
+    poNumber: String!
+    companyId: String
+    contactId: String
+    jobId: String
+    issuedDate: DateTime
+    amount: Float
+    terms: String
+    description: String
+}
+
+extend type Query {
+    purchaseOrder(id: ID!): PurchaseOrder
+    purchaseOrdersForCompany(companyId: ID!): [PurchaseOrder]
+    # existing, unchanged: purchaseOrdersForJob(jobId), checkForPoForEntity(...)
+}
+
+extend type Mutation {
+    createCustomerPurchaseOrder(input: CustomerPurchaseOrderInput!): PurchaseOrder!
+    editCustomerPurchaseOrder(id: ID!, input: CustomerPurchaseOrderInput!): PurchaseOrder!
+    attachFileToPurchaseOrder(purchaseOrderId: ID!, assetId: ID!): Boolean!
+    detachFileFromPurchaseOrder(purchaseOrderId: ID!, assetId: ID!): Boolean!
+}</code></pre>
+<p>Add the field resolvers to <code>Resolvers</code> (alongside the existing <code>PurchaseOrderAssignments</code> resolver) and wire Query/Mutation to the model. <code>Company</code> / <code>Contact</code> resolve by id; <code>Files</code> calls <code>getFiles</code>:</p>
+<pre><code>Resolvers: {
+    PurchaseOrderAssignments: async ({ id }) => /* existing */,
+    Company: async ({ companyId }) =&gt; companyId ? prisma.company.findUnique({ where: { id: companyId } }) : null,
+    Contact: async ({ contactId }) =&gt; contactId ? prisma.contact.findUnique({ where: { id: contactId } }) : null,
+    Files: async ({ id }) =&gt; new PurchaseOrderModel().getFiles(id)
+},
+Query: {
+    // existing purchaseOrdersForJob, checkForPoForEntity ...
+    purchaseOrder: async (_, { id }, ctx) =&gt; new PurchaseOrderModel().getItem(id, ctx.userId),
+    purchaseOrdersForCompany: async (_, { companyId }) =&gt; new PurchaseOrderModel().getForCompany(companyId)
+},
+Mutation: {
+    // metadata are plain fields — base createItem/editItem handle them. jobId (create only)
+    // is not a model field, so strip it and use the existing assignment path.
+    createCustomerPurchaseOrder: async (_, { input }, ctx) =&gt; {
+        const { jobId, ...data } = input;
+        const model = new PurchaseOrderModel();
+        const po = await model.createItem(data, ctx.userId);
+        if (jobId) await model.assignToEntity(po.id, "Job", jobId);
+        return po;
+    },
+    editCustomerPurchaseOrder: async (_, { id, input }, ctx) =&gt; {
+        const { jobId, ...data } = input;   // jobId not editable here — assignment lives in the in-context flows
+        return new PurchaseOrderModel().editItem(id, data, ctx.userId);
+    },
+    attachFileToPurchaseOrder: async (_, { purchaseOrderId, assetId }) =&gt;
+        new PurchaseOrderModel().attachFile(purchaseOrderId, assetId).then(() =&gt; true),
+    detachFileFromPurchaseOrder: async (_, { purchaseOrderId, assetId }) =&gt;
+        new PurchaseOrderModel().detachFile(purchaseOrderId, assetId).then(() =&gt; true)
+}</code></pre>
+<div class="callout"><strong>Why <code>createItem</code>/<code>editItem</code> directly.</strong> The metadata are declared <code>modelFields</code>, so the base methods validate (incl. wysiwyg length) and persist them with no custom wrapper. <code>createItem</code> must receive only model fields &mdash; strip the create-only <code>jobId</code> first and route it through the existing <code>assignToEntity</code>. <strong>No registration step:</strong> <code>graphql/schema.ts</code> already spreads <code>PurchaseOrderResolvers.{Resolvers,Query,Mutation,typeDef}</code> (lines 435, 632, 833, 1037). Confirm the context key for the current user id (<code>ctx.userId</code> vs <code>ctx.user.id</code>) against a neighbouring mutation.</div>
+
+<hr>
+
+<h2>Step 5 &mdash; Frontend: detail page + Company tab + route</h2>
+<div class="step-meta">
+    <div>Goal</div><div>PO detail page at <code>/purchase-orders/[id]</code> (Overview / Linked Records / Files); a Purchase Orders tab on Company detail; the route.</div>
+    <div>Files</div><div>new <code>apps/frontend/src/pages/purchase-orders/[id]/index.tsx</code>; new <code>&hellip;/CompanyDetailsPage/Tabs/PurchaseOrders.tsx</code> (+ export in <code>Tabs/index.ts</code>); <code>&hellip;/CompanyDetailsPage/index.tsx</code>; route config</div>
+</div>
+<div class="callout"><strong>Build with existing shared components &mdash; do not hand-roll.</strong> Reuse the established building blocks: the shared <strong>detail-page shell + <code>DetailsPageTabs</code></strong> (same wrapper the Company/Job detail pages use) for the page chrome and tabs; <strong><code>ListTable</code></strong> for the Linked Records, Files, and Company-PO-tab lists (sortable columns, row links, empty states &mdash; match how a neighbouring tab like <code>Tabs/Jobs.tsx</code> wires it); the shared <strong>WYSIWYG editor</strong> for <code>terms</code>/<code>description</code>; and the existing <strong>asset-upload</strong> component for Files. Match the surrounding patterns rather than introducing new table/form primitives.</div>
+<ul>
+    <li><strong>Detail page</strong> &mdash; query <code>purchaseOrder(id)</code>. Three tabs:
+        <ul>
+            <li><strong>Overview</strong>: poNumber, Company, Contact, issuedDate, amount, terms, description. <code>terms</code> / <code>description</code> render + edit through the shared WYSIWYG editor (they are <code>wysiwyg</code> fields). Edit via <code>editCustomerPurchaseOrder</code>.</li>
+            <li><strong>Linked Records</strong>: map <code>PurchaseOrderAssignments</code> &mdash; group/label by <code>referenceType</code>, link each row to its Job / Estimate / CO / Invoice using the existing <code>displayLabel</code>.</li>
+            <li><strong>Files</strong>: list <code>Files</code>; upload via the existing asset-upload component, then <code>attachFileToPurchaseOrder</code>; remove via <code>detachFileFromPurchaseOrder</code>.</li>
+        </ul>
+    </li>
+    <li><strong>Company tab</strong> &mdash; add a tab object to the array in <code>CompanyDetailsPage/index.tsx</code>, mirroring the existing entries:
+<pre><code>{
+    label: "Purchase Orders",
+    component: &lt;PurchaseOrdersTab /&gt;,
+    param: "purchase-orders",
+    permission: hasPermissions({ job: { view: true } }, permissions)
+}</code></pre>
+        New <code>Tabs/PurchaseOrders.tsx</code> queries <code>purchaseOrdersForCompany(companyId)</code> and lists PO number / linked job / issued date / amount, each row linking to the detail page. Re-export it from <code>Tabs/index.ts</code>.</li>
+    <li><strong>Route</strong> &mdash; register <code>/purchase-orders/[id]</code> in the frontend route config (follow how an existing detail route like <code>jobs/[id]</code> is registered).</li>
+</ul>
+<div class="callout"><strong>Gating reuses an existing permission &mdash; never invent a PO one.</strong> The detail page route and the metadata create/edit mutations gate on the same <code>job</code> permission as the tab (<code>job: view</code> to open/read, <code>job: edit</code> to change metadata / attach files). A customer PO is a job-billing artifact, so anyone who can see/edit the job&rsquo;s billing can see/edit its POs &mdash; consistent with creation already living in the Job/ECO/JobBill flows. Confirm the exact slug with the user if <code>job</code> isn&rsquo;t the right umbrella.</div>
+
+<hr>
+
+<h2>Step 6 &mdash; End-to-end smoke test</h2>
+<ol>
+    <li>On a Job with an existing PO (created the legacy way), open the PO detail page &mdash; the Linked Records tab shows the Job (and any Estimate/CO/Invoice it&rsquo;s assigned to). Confirms the assignment read works on pre-existing data.</li>
+    <li>Edit Overview: set Company, Contact, amount, issued date, and rich-text terms + description; reload &mdash; values persist; the wysiwyg fields keep formatting.</li>
+    <li>Upload a PDF on the Files tab; reload &mdash; it lists; remove it &mdash; it disappears (and the <code>AssetReference</code> row is gone).</li>
+    <li>Open the company&rsquo;s Purchase Orders tab &mdash; the PO appears; clicking it opens the detail page.</li>
+    <li>Regression: create a PO the legacy way (type a PO number on an invoice/estimate) &mdash; still works; the multi-PO roll-up on the Job is unchanged.</li>
+</ol>
+
+<hr>
+
+<h2>Downstream impacts (for awareness, NOT this PR)</h2>
+<ul>
+    <li><strong>MAT-5 (Supplier PO)</strong> reuses this exact model. Because MAT-1 already brought <code>PurchaseOrder</code> into <code>BaseAuditableModel</code>, MAT-5 just adds fields to <code>modelFields</code>: a <code>type</code> column (migration defaults existing rows &rarr; <code>CustomerPO</code>), a <code>status</code> lifecycle, a new <code>PurchaseOrderLineItem</code> child model, and <code>SPO-####</code> auto-numbering (follow the <code>RFI-##</code> / <code>PR-##</code> max-plus-one precedent in <code>RequestForInformation.ts</code> / <code>ProgressReport.ts</code>).</li>
+    <li><strong>MAT-6 (Receiving)</strong> consumes the supplier PO + its line items &mdash; not affected by MAT-1.</li>
+</ul>
+
+<hr>
+
+<h2>Acceptance Checklist</h2>
+<ul class="criteria-list">
+    <li><div class="check-box"></div><span><code>PurchaseOrder</code> has <code>companyId</code>, <code>contactId</code>, <code>issuedDate</code>, <code>amount</code>, <code>terms</code>, <code>description</code> + Company/Contact relations &mdash; additive migration, no backfill, no <code>instanceId</code>.</span></li>
+    <li><div class="check-box"></div><span><code>PurchaseOrderModel</code> extends <code>BaseAuditableModel</code>; <code>terms</code> &amp; <code>description</code> are <code>type: "wysiwyg"</code>; all pre-existing bespoke methods preserved and still called by JobBill / ECO / Job / MCP.</span></li>
+    <li><div class="check-box"></div><span>Detail page at <code>/purchase-orders/[id]</code> with Overview, Linked Records (from <code>PurchaseOrderAssignment</code>), and Files tabs.</span></li>
+    <li><div class="check-box"></div><span>Files attach / list / remove via <code>Asset</code> / <code>AssetReference</code> (<code>referenceTable = "PurchaseOrder"</code>).</span></li>
+    <li><div class="check-box"></div><span>Company detail page shows a Purchase Orders tab filtered by <code>companyId</code>.</span></li>
+    <li><div class="check-box"></div><span><code>poNumber</code> stays user-entered (no auto-numbering); required on create.</span></li>
+    <li><div class="check-box"></div><span>No new PO permission &mdash; <code>PurchaseOrder</code> stays out of <code>permissionsByReferenceModel</code> (base passes through); creation/sync still governed by Job/ECO/JobBill. The detail page + Company tab gate on an existing permission (<code>job: view</code>).</span></li>
+    <li><div class="check-box"></div><span>No regression: legacy PO creation, multi-PO roll-up, and estimate/invoice dropdowns unchanged.</span></li>
+    <li><div class="check-box"></div><span>No <code>type</code> / <code>status</code> / line items / auto-numbering introduced (all deferred to MAT-5).</span></li>
+</ul>
+
+</div>
 </body>
 </html>

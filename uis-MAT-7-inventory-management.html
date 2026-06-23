@@ -119,17 +119,21 @@ pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
         <div class="uis-badges">
             <span class="uis-badge badge-q">MAT-7</span>
             <span class="uis-badge badge-lane">Operations</span>
-            <span class="uis-badge badge-status">Draft</span>
+            <span class="uis-badge badge-status">Reconciled</span>
             <span class="uis-badge badge-priority">P0</span>
-            <span class="uis-badge badge-child">Child of Release 1.34</span>
+            <span class="uis-badge badge-child">Child of Release 1.33</span>
         </div>
         <h1 class="uis-h1">Inventory Management</h1>
-        <p class="uis-sub">Stock tracking by location with receiving intake, job checkout, inter-location transfer, physical count adjustments, movement ledger, and min/max alerts. The operational backbone for material visibility.</p>
+        <p class="uis-sub">Stock tracking by location with receiving intake, job checkout, inter-location transfer, physical count adjustments, movement ledger, and min/max alerts. The operational backbone for material visibility &mdash; built polymorphically so it tracks materials today and equipment next.</p>
         <div class="uis-meta">
-            <span><strong>Parent:</strong> Release 1.34</span>
+            <span><strong>Parent:</strong> Release 1.33</span>
             <span><strong>Slice:</strong> MAT-7</span>
             <span><strong>Est:</strong> 8&ndash;10 days</span>
         </div>
+    </div>
+
+    <div class="customer-quote" style="background:#eff6ff; border-left-color:#3b82f6; color:#1e3a5f; font-style:normal;">
+        <strong>Reconciled to live schema (repo-2) + aligned to Shopify's inventory model</strong> (for the future PR&nbsp;#7394 integration). Shopify's shape: a catalog <em>thing</em> (their <code>InventoryItem</code>) &times; a <code>Location</code> = an <code>InventoryLevel</code> row holding per-location quantities, with adjustments carrying a <code>referenceDocumentUri</code> audit pointer. MAT-7 mirrors this 1:1: <strong>(1)</strong> <code>InventoryLocation</code> &rarr; required <code>Location</code> FK (<code>inventoryLocationId</code> is reserved for the FK <em>to</em> InventoryLocation); <strong>(2)</strong> <code>typeId</code> is a <code>PropertyValue</code> category (the <code>jobType</code>/<code>companyType</code> precedent); <strong>(3)</strong> notes use polymorphic <code>Note</code> + <code>NoteReferences</code> (threaded comments + assets); <strong>(4)</strong> <strong><code>InventoryLevel</code></strong> (renamed from the draft&rsquo;s &ldquo;InventoryItem&rdquo;) is the per-location balance &mdash; polymorphic <code>referenceModel</code>+<code>referenceId</code> = the stocked thing (<code>Material</code> now, <code>Equipment</code> later), with <code>quantityOnHand</code> + computed <code>quantityAvailable</code>; <strong>(5)</strong> <code>InventoryMovement</code> moves a thing between <code>fromInventoryLocationId</code> and <code>toInventoryLocationId</code> (explicit point&nbsp;A&rarr;point&nbsp;B), and the engine updates the two <code>InventoryLevel</code> balances; <strong>(6)</strong> <code>referenceModel</code>/<code>referenceId</code> on a movement = the thing moved (same meaning as on the level); the originating-document backlink (Shopify&rsquo;s <code>referenceDocumentUri</code>) is left out of v1; <strong>(7)</strong> <code>performedByUserId</code> FKs <code>User</code>.
     </div>
 
     <div class="uis-toc">
@@ -233,8 +237,12 @@ pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
         <div class="collapsible-body open">
             <h3>In Scope</h3>
             <ul>
-                <li><span class="scope-tag scope-in">IN</span> <code>InventoryLocation</code>, <code>InventoryItem</code>, <code>InventoryMovement</code> Prisma models</li>
-                <li><span class="scope-tag scope-in">IN</span> <code>InventoryStockLevel</code> SQL view (aggregates movements per location per material)</li>
+                <li><span class="scope-tag scope-in">IN</span> <code>InventoryLocation</code>, <code>InventoryLevel</code>, <code>InventoryMovement</code> Prisma models (Shopify-aligned shape)</li>
+                <li><span class="scope-tag scope-in">IN</span> <code>InventoryLocation</code> &rarr; <strong>required</strong> <code>Location</code> FK (geocoded address) + <code>typeId</code> <code>PropertyValue</code> category</li>
+                <li><span class="scope-tag scope-in">IN</span> Polymorphic <code>InventoryLevel</code> (<code>referenceModel</code>+<code>referenceId</code>) per location per thing &mdash; <code>Material</code> wired now, <code>Equipment</code> shape-ready</li>
+                <li><span class="scope-tag scope-in">IN</span> <code>quantityOnHand</code> (stored, from the ledger) + computed <code>quantityAvailable</code> (on-hand &minus; open MAT-4 reservations)</li>
+                <li><span class="scope-tag scope-in">IN</span> <code>Note</code> + <code>NoteReferences</code> on locations and movements (threaded comments + assets)</li>
+                <li><span class="scope-tag scope-in">IN</span> <code>ReferenceModel</code> seed rows for the three new models (enables notes/tags/audit)</li>
                 <li><span class="scope-tag scope-in">IN</span> Receiving auto-creates inventory (from MAT-6 Supplier PO Receiving)</li>
                 <li><span class="scope-tag scope-in">IN</span> Job checkout with cost code assignment</li>
                 <li><span class="scope-tag scope-in">IN</span> Transfer between locations</li>
@@ -253,6 +261,8 @@ pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
                 <li><span class="scope-tag scope-out">OUT</span> Lot/serial number tracking</li>
                 <li><span class="scope-tag scope-out">OUT</span> Automated reorder PO generation</li>
                 <li><span class="scope-tag scope-out">OUT</span> Bin/shelf sub-locations</li>
+                <li><span class="scope-tag scope-out">OUT</span> Equipment stocking UI &mdash; the polymorphic shape is built now; wiring <code>Equipment</code> as a stocked item is a follow-up. Anticipates the coming <strong>bulk-equipment</strong> requirement (a single &ldquo;angle bracket&rdquo; record + a count, vs today&rsquo;s one-record-per-asset): the per-location count is exactly <code>InventoryLevel(referenceModel = "Equipment")</code>.</li>
+                <li><span class="scope-tag scope-out">OUT</span> Shopify&rsquo;s full state set (<code>committed</code>/<code>reserved</code>/<code>damaged</code>/<code>safety_stock</code>/<code>quality_control</code>) &mdash; only <code>on_hand</code>+<code>available</code> in v1; the level row is structured to add the rest</li>
             </ul>
         </div>
     </div>
@@ -286,8 +296,8 @@ pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
                             <div style="font-size: 11px; color: #64748b; margin-top: 4px;">Items Below Min</div>
                         </div>
                         <div style="background: #eff6ff; border-radius: 8px; padding: 14px; text-align: center;">
-                            <div style="font-size: 24px; font-weight: 800; color: #3b82f6;">14</div>
-                            <div style="font-size: 11px; color: #64748b; margin-top: 4px;">Items on Order</div>
+                            <div style="font-size: 24px; font-weight: 800; color: #3b82f6;">$248K</div>
+                            <div style="font-size: 11px; color: #64748b; margin-top: 4px;">Inventory Value</div>
                         </div>
                     </div>
                     <div style="font-weight: 700; margin-bottom: 10px;">Locations</div>
@@ -331,14 +341,15 @@ pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
                         </div>
                     </div>
                     <table class="schema-table">
-                        <thead><tr><th>Material</th><th>On Hand</th><th>Min</th><th>Max</th><th>Status</th></tr></thead>
+                        <thead><tr><th>Material</th><th>On Hand</th><th>Avail</th><th>Min</th><th>Max</th><th>Status</th></tr></thead>
                         <tbody>
-                            <tr><td>3/4" Copper Pipe (10ft)</td><td>120</td><td>50</td><td>200</td><td><span class="mockup-badge" style="background:#dcfce7;color:#166534;">OK</span></td></tr>
-                            <tr><td>1" Fiberglass Insulation (R-30)</td><td>45</td><td>100</td><td>500</td><td><span class="mockup-badge" style="background:#fee2e2;color:#dc2626;">LOW</span></td></tr>
-                            <tr><td>PVC Elbow 90&deg; 2"</td><td>8</td><td>25</td><td>100</td><td><span class="mockup-badge" style="background:#fef3c7;color:#92400e;">REORDER</span></td></tr>
-                            <tr><td>Sheet Metal 26ga 4x10</td><td>64</td><td>20</td><td>80</td><td><span class="mockup-badge" style="background:#dcfce7;color:#166534;">OK</span></td></tr>
+                            <tr><td>3/4" Copper Pipe (10ft)</td><td>120</td><td>95</td><td>50</td><td>200</td><td><span class="mockup-badge" style="background:#dcfce7;color:#166534;">OK</span></td></tr>
+                            <tr><td>1" Fiberglass Insulation (R-30)</td><td>45</td><td>45</td><td>100</td><td>500</td><td><span class="mockup-badge" style="background:#fee2e2;color:#dc2626;">LOW</span></td></tr>
+                            <tr><td>PVC Elbow 90&deg; 2"</td><td>8</td><td>8</td><td>25</td><td>100</td><td><span class="mockup-badge" style="background:#fee2e2;color:#dc2626;">LOW</span></td></tr>
+                            <tr><td>Sheet Metal 26ga 4x10</td><td>95</td><td>95</td><td>20</td><td>80</td><td><span class="mockup-badge" style="background:#fef3c7;color:#92400e;">OVER</span></td></tr>
                         </tbody>
                     </table>
+                    <div style="font-size:11px; color:#94a3b8; margin-top:6px;">Avail = on-hand &minus; open reservations (Copper has 25 reserved by a material request)</div>
                 </div>
             </div>
 
@@ -390,12 +401,12 @@ pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
                 </div>
                 <div class="mockup-body">
                     <table class="schema-table">
-                        <thead><tr><th>Date</th><th>Type</th><th>Material</th><th>Qty</th><th>From</th><th>To</th><th>By</th><th>Reference</th></tr></thead>
+                        <thead><tr><th>Date</th><th>Type</th><th>Material</th><th>Qty</th><th>From</th><th>To</th><th>By</th><th>Job</th></tr></thead>
                         <tbody>
-                            <tr><td>Apr 7</td><td><span class="mockup-badge" style="background:#dcfce7;color:#166534;">Receive</span></td><td>3/4" Copper Pipe</td><td style="color:#16a34a;">+50</td><td>&mdash;</td><td>Warehouse A</td><td>M. Torres</td><td>PO-0042</td></tr>
+                            <tr><td>Apr 7</td><td><span class="mockup-badge" style="background:#dcfce7;color:#166534;">Receive</span></td><td>3/4" Copper Pipe</td><td style="color:#16a34a;">+50</td><td>&mdash;</td><td>Warehouse A</td><td>M. Torres</td><td>&mdash;</td></tr>
                             <tr><td>Apr 6</td><td><span class="mockup-badge" style="background:#fee2e2;color:#dc2626;">Checkout</span></td><td>Sheet Metal 26ga</td><td style="color:#dc2626;">&minus;12</td><td>Warehouse A</td><td>&mdash;</td><td>J. Kim</td><td>J-1042</td></tr>
                             <tr><td>Apr 5</td><td><span class="mockup-badge" style="background:#eff6ff;color:#1d4ed8;">Transfer</span></td><td>PVC Elbow 90&deg;</td><td style="color:#64748b;">15</td><td>Warehouse B</td><td>Job Trailer</td><td>R. Singh</td><td>&mdash;</td></tr>
-                            <tr><td>Apr 4</td><td><span class="mockup-badge" style="background:#fef3c7;color:#92400e;">Adjust</span></td><td>1" Fiberglass</td><td style="color:#dc2626;">&minus;5</td><td>Warehouse A</td><td>&mdash;</td><td>S. Patel</td><td>Count #3</td></tr>
+                            <tr><td>Apr 4</td><td><span class="mockup-badge" style="background:#fef3c7;color:#92400e;">Adjust</span></td><td>1" Fiberglass</td><td style="color:#dc2626;">&minus;5</td><td>Warehouse A</td><td>&mdash;</td><td>S. Patel</td><td>&mdash;</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -411,63 +422,92 @@ pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
             <span class="toggle-icon">&#9660;</span>
         </h2>
         <div class="collapsible-body open">
+            <h3>Shopify mapping</h3>
+            <p>The shape mirrors Shopify&rsquo;s inventory objects so the future PR&nbsp;#7394 integration is a near-direct field map:</p>
+            <table class="schema-table">
+                <thead><tr><th>Shopify</th><th>MAT-7</th><th>Role</th></tr></thead>
+                <tbody>
+                    <tr><td><code>InventoryItem</code> (per variant)</td><td><code>Material</code> / <code>Equipment</code></td><td>The catalog <em>thing</em> &mdash; already exists, referenced polymorphically</td></tr>
+                    <tr><td><code>Location</code></td><td><code>InventoryLocation</code> &rarr; <code>Location</code></td><td>Physical place that holds stock</td></tr>
+                    <tr><td><code>InventoryLevel</code></td><td><code>InventoryLevel</code></td><td>Per-location balance (thing &times; location) with quantities</td></tr>
+                    <tr><td>quantity states (<code>on_hand</code>/<code>available</code>)</td><td><code>quantityOnHand</code> / <code>quantityAvailable</code></td><td>v1 carries two of Shopify&rsquo;s eight states</td></tr>
+                    <tr><td><code>inventoryAdjust</code> mutations</td><td><code>InventoryMovement</code></td><td>The change ledger (Shopify&rsquo;s <code>referenceDocumentUri</code> audit backlink is a future add)</td></tr>
+                </tbody>
+            </table>
+
             <h3>InventoryLocation</h3>
+            <p>Its own model (not folded into <code>Location</code>) &mdash; <code>Location</code> is a shared address-book entity (Jobs, Companies, Contacts point at it) and an inventory location carries its own concerns (type, the levels relation, QR identity). It references a <strong>required</strong> <code>Location</code> for the address: stock is always stored <em>somewhere</em>, even a van has a home base. <code>typeId</code> is a <code>PropertyValue</code> category (Warehouse / Staging / Job Trailer / Vehicle) &mdash; the <code>jobType</code>/<code>companyType</code> precedent, a plain category with <strong>no Instance anchors</strong>. Notes attach via <code>NoteReferences</code> (no freetext column).</p>
             <pre>model InventoryLocation {
-  id          String    @id @db.VarChar(21)
-  isDeleted   Boolean   @default(false)
-  isArchived  Boolean   @default(false)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @default(now()) @updatedAt
-  name        String    @db.VarChar(255)
-  typeId      String?   @db.VarChar(21)
-  address     String?   @db.Text
-  notes       String?   @db.Text
-  Items       InventoryItem[]
+  id            String    @id @db.VarChar(21)
+  isDeleted     Boolean   @default(false)
+  isArchived    Boolean   @default(false)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @default(now()) @updatedAt
+  name          String    @db.VarChar(255)
+  typeId        String?   @db.VarChar(21)
+  Type          PropertyValue? @relation("inventoryLocationType", fields: [typeId], references: [id])
+  locationId    String    @db.VarChar(21)        // required — the geocoded address
+  Location      Location  @relation(fields: [locationId], references: [id])
+  InventoryLevels InventoryLevel[]
+  FromMovements InventoryMovement[] @relation("InventoryMovementFromLocation")
+  ToMovements   InventoryMovement[] @relation("InventoryMovementToLocation")
   @@index([isDeleted])
+  @@index([typeId])
+  @@index([locationId])
 }</pre>
 
-            <h3>InventoryItem</h3>
-            <pre>model InventoryItem {
-  id                String    @id @db.VarChar(21)
-  isDeleted         Boolean   @default(false)
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @default(now()) @updatedAt
-  locationId        String    @db.VarChar(21)
-  Location          InventoryLocation @relation(fields: [locationId], references: [id])
-  materialId        String    @db.VarChar(21)
-  Material          Material  @relation(fields: [materialId], references: [id])
-  quantityOnHand    Decimal   @db.Decimal(10, 2)
-  minQuantity       Decimal?  @db.Decimal(10, 2)
-  maxQuantity       Decimal?  @db.Decimal(10, 2)
-  unitCost          Decimal?  @db.Decimal(10, 2)   // weighted average cost at this location
-  // Note: sell price for inventory valuation is resolved via LEM-3 cascade
-  // (resolveMaterialSellPrice) at query time — not stored on InventoryItem
-  @@unique([locationId, materialId])
-  @@index([locationId, isDeleted])
-  @@index([materialId, isDeleted])
+            <h3>InventoryLevel</h3>
+            <p>The per-location balance &mdash; Shopify&rsquo;s <code>InventoryLevel</code>. One row per <code>(inventoryLocation, thing)</code>; the <code>@@unique</code> enforces it. <strong>This is how per-location stock is tracked</strong>: 2000 brackets at A, 1000 at B, 2000 at C = three rows, company total = their sum. <code>referenceModel</code> (FK &rarr; <code>ReferenceModel.model</code>) + <code>referenceId</code> = the stocked thing (<code>Material</code> now, <code>Equipment</code> later), mirroring the <code>NoteReferences</code>/<code>TagReferences</code> polymorphic convention. <code>quantityOnHand</code> is the stored running balance the <code>InventoryMovement</code> ledger keeps in sync; <code>quantityAvailable</code> is <strong>computed</strong> (= on-hand &minus; open MAT-4 reservations against this level; equals on-hand until that link lands).</p>
+            <pre>model InventoryLevel {
+  id                 String    @id @db.VarChar(21)
+  isDeleted          Boolean   @default(false)
+  isArchived         Boolean   @default(false)
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @default(now()) @updatedAt
+  inventoryLocationId String   @db.VarChar(21)
+  InventoryLocation  InventoryLocation @relation(fields: [inventoryLocationId], references: [id])
+  referenceModel     String        // "Material" now; "Equipment" later
+  referenceId        String    @db.VarChar(21)
+  ReferenceModel     ReferenceModel @relation(fields: [referenceModel], references: [model])
+  quantityOnHand     Decimal   @db.Decimal(10, 2) @default(0)
+  minQuantity        Decimal?  @db.Decimal(10, 2)
+  maxQuantity        Decimal?  @db.Decimal(10, 2)
+  unitCost           Decimal?  @db.Decimal(10, 2)   // weighted average cost at this location
+  // quantityAvailable is computed at query time; sell price resolves via the LEM-3 cascade
+  @@unique([inventoryLocationId, referenceModel, referenceId])
+  @@index([inventoryLocationId, isDeleted])
+  @@index([referenceModel, referenceId])
 }</pre>
 
             <h3>InventoryMovement</h3>
+            <p>Append-only ledger line: &ldquo;move <code>quantity</code> of <em>thing</em> from point&nbsp;A to point&nbsp;B.&rdquo; It references the two <strong>locations</strong> directly (<code>fromInventoryLocationId</code>/<code>toInventoryLocationId</code>) and the thing (<code>referenceModel</code>/<code>referenceId</code>, same meaning as on the level); the engine updates the matching <code>InventoryLevel</code> balances. Receive = <code>to</code> only; Checkout = <code>from</code> only; Transfer = both (and <code>from</code> &ne; <code>to</code>); Adjustment = one (<code>to</code> to increase, <code>from</code> to decrease). Both columns are <strong>nullable</strong> &mdash; every type nulls at least one side &mdash; so the per-type requiredness, the &ldquo;at least one set&rdquo; guard, and <code>quantity &gt; 0</code> (direction is encoded by <em>which</em> side is populated, not a signed number) are enforced at the <strong>model layer</strong>, not as DB constraints. <code>jobId</code>/<code>costCodeId</code> are the checkout cost target (read by <code>JobFinancialSummaryService</code>). Notes attach via <code>NoteReferences</code>. <em>(An optional originating-document backlink &mdash; which receipt/credit/count session produced the movement, Shopify&rsquo;s <code>referenceDocumentUri</code> &mdash; can be added later; left out of v1.)</em></p>
             <pre>model InventoryMovement {
-  id            String    @id @db.VarChar(21)
-  isDeleted     Boolean   @default(false)
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @default(now()) @updatedAt
-  type          String    @db.VarChar(50)
-  materialId    String    @db.VarChar(21)
-  quantity      Decimal   @db.Decimal(10, 2)
-  fromLocationId String?  @db.VarChar(21)
-  toLocationId  String?   @db.VarChar(21)
-  jobId         String?   @db.VarChar(21)
-  costCodeId    String?   @db.VarChar(21)
-  referenceId   String?   @db.VarChar(21)
-  referenceType String?   @db.VarChar(50)
-  performedById String    @db.VarChar(21)
-  notes         String?   @db.Text
-  @@index([materialId, isDeleted])
-  @@index([fromLocationId, isDeleted])
-  @@index([toLocationId, isDeleted])
+  id                   String    @id @db.VarChar(21)
+  isDeleted            Boolean   @default(false)
+  isArchived           Boolean   @default(false)
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @default(now()) @updatedAt
+  type                 String    @db.VarChar(50)
+  referenceModel       String        // the thing moved: "Material" | "Equipment"
+  referenceId          String    @db.VarChar(21)
+  ReferenceModel       ReferenceModel @relation(fields: [referenceModel], references: [model])
+  quantity             Decimal   @db.Decimal(10, 2)
+  fromInventoryLocationId String? @db.VarChar(21)
+  toInventoryLocationId  String? @db.VarChar(21)
+  FromLocation         InventoryLocation? @relation("InventoryMovementFromLocation", fields: [fromInventoryLocationId], references: [id])
+  ToLocation           InventoryLocation? @relation("InventoryMovementToLocation", fields: [toInventoryLocationId], references: [id])
+  jobId                String?   @db.VarChar(21)
+  costCodeId           String?   @db.VarChar(21)
+  performedByUserId    String    @db.VarChar(21)
+  PerformedBy          User      @relation("InventoryMovementPerformedBy", fields: [performedByUserId], references: [id])
+  @@index([referenceModel, referenceId])
+  @@index([fromInventoryLocationId, isDeleted])
+  @@index([toInventoryLocationId, isDeleted])
+  @@index([jobId])
 }</pre>
+
+            <h3>ReferenceModel + Note wiring</h3>
+            <p>The migration seeds three <code>ReferenceModel</code> rows (<code>InventoryLocation</code>, <code>InventoryLevel</code>, <code>InventoryMovement</code>) so <code>NoteReferences</code>, <code>TagReferences</code>, and <code>Audit</code> FKs resolve. Notes are created through the existing notes system and linked via <code>NoteReferences</code> (<code>referenceModel</code> + <code>referenceId</code>) &mdash; giving threaded comments, assets, and subscriptions on both locations and movements for free.</p>
 
             <h3>Movement Type Constants</h3>
             <table class="schema-table">
@@ -481,8 +521,8 @@ pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
                 </tbody>
             </table>
 
-            <h3>InventoryStockLevel SQL View</h3>
-            <p>Aggregates <code>InventoryMovement</code> records per location per material to produce a real-time <code>quantityOnHand</code>. Receives sum to location; checkouts subtract from location; transfers subtract from source and add to destination; adjustments apply directly.</p>
+            <h3>Reconciliation view</h3>
+            <p>An <code>InventoryLevelReconciliation</code> SQL view sums <code>InventoryMovement</code> per <code>(inventoryLocation, thing)</code> &mdash; <code>+quantity</code> where <code>toInventoryLocationId</code> matches, <code>&minus;quantity</code> where <code>fromInventoryLocationId</code> matches &mdash; and compares it to the stored <code>InventoryLevel.quantityOnHand</code>. The stored balance is the fast read; the ledger is the audit source of truth; the view flags any drift between them.</p>
         </div>
     </div>
 
@@ -498,25 +538,32 @@ pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
   id: ID!
   name: String!
   typeId: String
-  address: String
-  notes: String
-  Items: [InventoryItem!]
+  Type: PropertyValue
+  locationId: String
+  Location: Location
+  InventoryLevels: [InventoryLevel!]
+  Notes: [Note!]            # via NoteReferences
   isDeleted: Boolean!
   isArchived: Boolean!
   createdAt: DateTime!
   updatedAt: DateTime!
 }
 
-type InventoryItem {
+type InventoryLevel {
   id: ID!
-  locationId: String!
-  Location: InventoryLocation!
-  materialId: String!
-  Material: Material!
+  inventoryLocationId: String!
+  InventoryLocation: InventoryLocation!
+  referenceModel: String!   # "Material" | "Equipment"
+  referenceId: String!
+  Material: Material         # resolved when referenceModel = "Material"
+  Equipment: Equipment       # resolved when referenceModel = "Equipment"
   quantityOnHand: Float!
+  quantityAvailable: Float!  # computed: on-hand − open MAT-4 reservations
   minQuantity: Float
   maxQuantity: Float
   unitCost: Float
+  status: String!            # computed: OK | LOW (< min) | OVER (> max)
+  deficit: Float             # computed: minQuantity − quantityOnHand when below min
   isDeleted: Boolean!
   createdAt: DateTime!
   updatedAt: DateTime!
@@ -525,106 +572,90 @@ type InventoryItem {
 type InventoryMovement {
   id: ID!
   type: String!
-  materialId: String!
+  referenceModel: String!    # the thing moved
+  referenceId: String!
+  Material: Material
+  Equipment: Equipment
   quantity: Float!
-  fromLocationId: String
-  toLocationId: String
+  fromInventoryLocationId: String
+  toInventoryLocationId: String
+  FromLocation: InventoryLocation
+  ToLocation: InventoryLocation
   jobId: String
   costCodeId: String
-  referenceId: String
-  referenceType: String
-  performedById: String!
-  notes: String
+  performedByUserId: String!
+  PerformedBy: User!
+  Notes: [Note!]            # via NoteReferences
   isDeleted: Boolean!
   createdAt: DateTime!
   updatedAt: DateTime!
-}
-
-type InventoryStockLevel {
-  locationId: String!
-  Location: InventoryLocation!
-  materialId: String!
-  Material: Material!
-  quantityOnHand: Float!
-  minQuantity: Float
-  maxQuantity: Float
-  status: String!
-}
-
-type LowStockAlert {
-  locationId: String!
-  Location: InventoryLocation!
-  materialId: String!
-  Material: Material!
-  quantityOnHand: Float!
-  minQuantity: Float!
-  deficit: Float!
 }</pre>
 
             <h3>Input Types</h3>
             <pre>input CreateInventoryLocationInput {
   name: String!
   typeId: String
-  address: String
-  notes: String
+  locationId: String!      # required Location (geocoded address)
 }
 
 input UpdateInventoryLocationInput {
   id: ID!
   name: String
   typeId: String
-  address: String
-  notes: String
+  locationId: String
 }
 
-input UpsertInventoryItemInput {
+input UpsertInventoryLevelInput {
   id: ID
-  locationId: String!
-  materialId: String!
+  inventoryLocationId: String!
+  referenceModel: String!   # "Material" | "Equipment"
+  referenceId: String!
   minQuantity: Float
   maxQuantity: Float
   unitCost: Float
 }
 
 input CheckoutInput {
-  locationId: String!
-  materialId: String!
+  inventoryLocationId: String!
+  referenceModel: String!
+  referenceId: String!
   quantity: Float!
   jobId: String!
   costCodeId: String
-  notes: String
+  note: String             # creates an initial Note via NoteReferences
 }
 
 input TransferInput {
-  fromLocationId: String!
-  toLocationId: String!
-  materialId: String!
+  fromInventoryLocationId: String!
+  toInventoryLocationId: String!
+  referenceModel: String!
+  referenceId: String!
   quantity: Float!
-  notes: String
+  note: String
 }
 
 input AdjustmentInput {
-  locationId: String!
-  materialId: String!
+  inventoryLocationId: String!
+  referenceModel: String!
+  referenceId: String!
   quantity: Float!
-  notes: String
+  note: String             # required for adjustments — reason for the count correction
 }</pre>
 
             <h3>Queries &amp; Mutations</h3>
             <pre>type Query {
   inventoryLocations(options: GetListOptions): [InventoryLocation!]!
   inventoryLocation(id: ID!): InventoryLocation
-  inventoryItems(locationId: String!): [InventoryItem!]!
-  stockLevels(locationId: String): [InventoryStockLevel!]!
-  lowStockAlerts: [LowStockAlert!]!
-  inventoryMovements(locationId: String, materialId: String): [InventoryMovement!]!
+  inventoryLevels(inventoryLocationId: String): [InventoryLevel!]!   # filter by status via field
+  lowStockLevels: [InventoryLevel!]!                                # levels below minQuantity
+  inventoryMovements(inventoryLocationId: String, referenceId: String): [InventoryMovement!]!
 }
 
 type Mutation {
   createInventoryLocation(input: CreateInventoryLocationInput!): InventoryLocation!
   updateInventoryLocation(input: UpdateInventoryLocationInput!): InventoryLocation!
   deleteInventoryLocation(id: ID!): Boolean!
-  upsertInventoryItem(input: UpsertInventoryItemInput!): InventoryItem!
+  upsertInventoryLevel(input: UpsertInventoryLevelInput!): InventoryLevel!
   checkoutToJob(input: CheckoutInput!): InventoryMovement!
   transferBetweenLocations(input: TransferInput!): InventoryMovement!
   adjustInventory(input: AdjustmentInput!): InventoryMovement!
@@ -682,6 +713,10 @@ type Mutation {
             </div>
             <div class="mockup-body" style="max-width:480px; margin:0 auto;">
                 <h3 style="font-size:16px; font-weight:700; margin:0 0 16px;">Physical Count Adjustment</h3>
+                <div style="margin-bottom:12px;">
+                    <div style="font-size:11px; font-weight:600; color:#64748b; margin-bottom:4px;">Location</div>
+                    <div style="border:1px solid #e2e8f0; border-radius:6px; padding:8px 12px; font-size:12px; background:#f8fafc; color:#64748b;">Warehouse A (pre-filled)</div>
+                </div>
                 <div style="margin-bottom:12px;">
                     <div style="font-size:11px; font-weight:600; color:#64748b; margin-bottom:4px;">Material *</div>
                     <div style="border:1px solid #cbd5e1; border-radius:6px; padding:8px 12px; font-size:12px;">3/4" Copper Pipe 10'</div>
@@ -756,7 +791,7 @@ type Mutation {
             <div class="blast-summary">
                 <div class="blast-row">
                     <span class="blast-label">New Files</span>
-                    <span class="blast-value">11</span>
+                    <span class="blast-value">15</span>
                 </div>
                 <div class="blast-row">
                     <span class="blast-label">Modified Files</span>
@@ -764,7 +799,7 @@ type Mutation {
                 </div>
                 <div class="blast-row">
                     <span class="blast-label">Total Touched</span>
-                    <span class="blast-value">15</span>
+                    <span class="blast-value">19</span>
                 </div>
             </div>
 
@@ -776,7 +811,7 @@ type Mutation {
                     <tr>
                         <td><span class="action-new">NEW</span></td>
                         <td><code>apps/api/prisma/migrations/&hellip;_add_inventory/migration.sql</code></td>
-                        <td>Create InventoryLocation, InventoryItem, InventoryMovement tables with indexes and unique constraints</td>
+                        <td>Create the three tables (indexes + unique constraints); seed 3 <code>ReferenceModel</code> rows; seed the location-type <code>PropertyValue</code> group + default values (hardcoded ids + <code>INSERT IGNORE</code>, RFI precedent)</td>
                     </tr>
                     <tr>
                         <td><span class="action-new">NEW</span></td>
@@ -785,8 +820,8 @@ type Mutation {
                     </tr>
                     <tr>
                         <td><span class="action-new">NEW</span></td>
-                        <td><code>apps/api/src/models/InventoryItem.ts</code></td>
-                        <td>CRUD for inventory items with min/max threshold management</td>
+                        <td><code>apps/api/src/models/InventoryLevel.ts</code></td>
+                        <td>CRUD for per-location stock levels with min/max threshold management; movement writes recompute <code>quantityOnHand</code> here</td>
                     </tr>
                     <tr>
                         <td><span class="action-new">NEW</span></td>
@@ -795,13 +830,23 @@ type Mutation {
                     </tr>
                     <tr>
                         <td><span class="action-new">NEW</span></td>
-                        <td><code>apps/api/src/graphql/models/Inventory.ts</code></td>
-                        <td>GraphQL resolver: types, queries (stockLevels, lowStockAlerts, movements), mutations (checkout, transfer, adjust)</td>
+                        <td><code>apps/api/src/graphql/models/InventoryLocation.ts</code></td>
+                        <td>GraphQL: InventoryLocation type + <code>Type</code>/<code>Location</code>/<code>Notes</code> resolvers, location queries + CRUD mutations</td>
                     </tr>
                     <tr>
                         <td><span class="action-new">NEW</span></td>
-                        <td><code>apps/api/prisma/views/InventoryStockLevel.sql</code></td>
-                        <td>SQL view aggregating movements per location per material</td>
+                        <td><code>apps/api/src/graphql/models/InventoryLevel.ts</code></td>
+                        <td>GraphQL: InventoryLevel type + polymorphic <code>Material</code>/<code>Equipment</code> + computed <code>quantityAvailable</code>/<code>status</code>/<code>deficit</code> resolvers, <code>inventoryLevels</code>/<code>lowStockLevels</code> queries, <code>upsertInventoryLevel</code></td>
+                    </tr>
+                    <tr>
+                        <td><span class="action-new">NEW</span></td>
+                        <td><code>apps/api/src/graphql/models/InventoryMovement.ts</code></td>
+                        <td>GraphQL: InventoryMovement type + <code>FromLocation</code>/<code>ToLocation</code>/<code>Material</code>/<code>Equipment</code>/<code>PerformedBy</code>/<code>Notes</code> resolvers, movements query, <code>checkoutToJob</code>/<code>transferBetweenLocations</code>/<code>adjustInventory</code> mutations</td>
+                    </tr>
+                    <tr>
+                        <td><span class="action-new">NEW</span></td>
+                        <td><code>apps/api/prisma/views/InventoryLevelReconciliation.sql</code></td>
+                        <td>Reconciliation view summing movements per location per thing vs the stored <code>quantityOnHand</code></td>
                     </tr>
                     <tr>
                         <td><span class="action-new">NEW</span></td>
@@ -816,7 +861,7 @@ type Mutation {
                     <tr>
                         <td><span class="action-new">NEW</span></td>
                         <td><code>apps/frontend/src/components/Inventory/StockLevelTable.tsx</code></td>
-                        <td>Stock level table component with status badges (OK/Low/Reorder)</td>
+                        <td>Stock level table component with on-hand/available columns + status badges (OK/Low/Over)</td>
                     </tr>
                     <tr>
                         <td><span class="action-new">NEW</span></td>
@@ -841,12 +886,12 @@ type Mutation {
                     <tr>
                         <td><span class="action-mod">MOD</span></td>
                         <td><code>apps/api/prisma/schema.prisma</code></td>
-                        <td>Add 3 new model definitions + relations on Material</td>
+                        <td>Add 3 model definitions + back-relations on <code>Location</code>, <code>PropertyValue</code>, <code>User</code>, <code>ReferenceModel</code> (<code>Material</code>/<code>Equipment</code> are polymorphic, no FK back-relation)</td>
                     </tr>
                     <tr>
                         <td><span class="action-mod">MOD</span></td>
                         <td><code>apps/api/src/graphql/schema.ts</code></td>
-                        <td>Register Inventory resolver (import, typeDef, Query, Mutation)</td>
+                        <td>Register the three Inventory resolvers (one <code>Resolvers</code> per type, wired by type name)</td>
                     </tr>
                     <tr>
                         <td><span class="action-mod">MOD</span></td>
@@ -873,20 +918,26 @@ type Mutation {
             <ul class="criteria-list">
                 <li><div class="criteria-check"></div>Receiving a supplier PO (MAT-6) auto-creates an <code>InventoryMovement</code> of type <code>Receive</code> and updates stock at the destination location</li>
                 <li><div class="criteria-check"></div>Checkout deducts quantity from the source location and creates a <code>Checkout</code> movement linked to a job and cost code</li>
-                <li><div class="criteria-check"></div>Transfer creates two linked movements: outbound from source and inbound to destination, both referencing each other</li>
-                <li><div class="criteria-check"></div>Physical count adjustment creates an <code>Adjustment</code> movement with signed quantity (positive or negative) and updates <code>quantityOnHand</code></li>
-                <li><div class="criteria-check"></div>Min/max alerts trigger when <code>quantityOnHand</code> falls below <code>minQuantity</code> on any <code>InventoryItem</code></li>
-                <li><div class="criteria-check"></div>The <code>lowStockAlerts</code> query returns all items below their minimum threshold with deficit amounts</li>
+                <li><div class="criteria-check"></div>Transfer creates one movement with both <code>fromInventoryLocationId</code> and <code>toInventoryLocationId</code> set, decrementing the source <code>InventoryLevel</code> and incrementing the destination</li>
+                <li><div class="criteria-check"></div>Physical count adjustment creates an <code>Adjustment</code> movement (positive <code>quantity</code>; <code>to</code> set to increase, <code>from</code> set to decrease) and updates the level&rsquo;s <code>quantityOnHand</code></li>
+                <li><div class="criteria-check"></div>Model-layer validation enforces per-type from/to requiredness: at least one side set, both set &amp; distinct for transfers, <code>quantity &gt; 0</code></li>
+                <li><div class="criteria-check"></div>Per-location stock is one <code>InventoryLevel</code> row per <code>(location, thing)</code>; company-wide on-hand is the sum across rows</li>
+                <li><div class="criteria-check"></div><code>quantityAvailable</code> resolves as on-hand minus open MAT-4 reservations (equals on-hand until that link lands)</li>
+                <li><div class="criteria-check"></div>Min/max alerts trigger when <code>quantityOnHand</code> falls below <code>minQuantity</code> on any <code>InventoryLevel</code></li>
+                <li><div class="criteria-check"></div>The <code>lowStockLevels</code> query returns all levels below their minimum threshold with computed <code>deficit</code></li>
                 <li><div class="criteria-check"></div>Movement ledger is append-only &mdash; movements are never edited or hard-deleted, only soft-deleted</li>
                 <li><div class="criteria-check"></div>Stock levels dashboard shows all locations with item counts and below-min counts</li>
-                <li><div class="criteria-check"></div>Location detail page shows all items at that location with on-hand, min, max, and status</li>
+                <li><div class="criteria-check"></div>Location detail page shows all levels at that location with on-hand, available, min, max, and status</li>
                 <li><div class="criteria-check"></div>Checkout assigns cost code to the movement and is reflected in <code>JobFinancialSummaryService</code></li>
                 <li><div class="criteria-check"></div>Mobile QR stock check allows scanning a location QR code to view stock levels (UIS-15E pattern)</li>
                 <li><div class="criteria-check"></div>Checkout quantity cannot exceed <code>quantityOnHand</code> at the source location (server-side validation)</li>
                 <li><div class="criteria-check"></div>Transfer quantity cannot exceed <code>quantityOnHand</code> at the source location (server-side validation)</li>
                 <li><div class="criteria-check"></div>Permission checks enforced: <code>inventory.view</code>, <code>inventory.create</code>, <code>inventory.edit</code>, <code>inventory.delete</code></li>
-                <li><div class="criteria-check"></div>All movements record <code>performedById</code> from the authenticated user context</li>
-                <li><div class="criteria-check"></div><code>InventoryStockLevel</code> SQL view correctly aggregates all movement types to produce accurate on-hand quantities</li>
+                <li><div class="criteria-check"></div>All movements record <code>performedByUserId</code> (FK &rarr; <code>User</code>) from the authenticated user context</li>
+                <li><div class="criteria-check"></div><code>InventoryLevel</code> is polymorphic (<code>referenceModel</code>+<code>referenceId</code>); <code>Material</code> resolves today and the same shape accepts <code>Equipment</code></li>
+                <li><div class="criteria-check"></div>Notes on locations and movements persist through <code>Note</code> + <code>NoteReferences</code> (threaded comments + assets), not a freetext column; the three models are seeded into <code>ReferenceModel</code></li>
+                <li><div class="criteria-check"></div><code>InventoryLocation.typeId</code> resolves to a <code>PropertyValue</code> category and <code>locationId</code> resolves a required <code>Location</code> address</li>
+                <li><div class="criteria-check"></div>The reconciliation view flags any drift between summed movements and the stored <code>quantityOnHand</code></li>
             </ul>
         </div>
     </div>
@@ -908,12 +959,12 @@ type Mutation {
             <p><em>None</em></p>
 
             <h3>Parent</h3>
-            <p><span class="dep-tag dep-none">Release 1.34</span></p>
+            <p><span class="dep-tag dep-none">Release 1.33</span></p>
         </div>
     </div>
 
     <div class="uis-footer">
-        MAT-7 &middot; Inventory Management &middot; Release 1.34
+        MAT-7 &middot; Inventory Management &middot; Release 1.33
     </div>
 </div>
 

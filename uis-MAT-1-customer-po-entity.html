@@ -19,9 +19,9 @@ body { font-family: 'Inter', -apple-system, sans-serif; background: #f1f5f9; col
 .uis-badge { font-size: 11px; font-weight: 700; padding: 4px 12px; border-radius: 6px; display: inline-flex; align-items: center; gap: 5px; }
 .badge-q { background: #0f172a; color: #fff; }
 .badge-lane { background: #10b981; color: #fff; }
-.badge-status { background: #fef3c7; color: #92400e; }
+.badge-status { background: #dcfce7; color: #166534; }
 .badge-priority { background: #fee2e2; color: #dc2626; }
-.badge-child { background: #7c3aed; color: #fff; }
+.badge-child { background: #3b82f6; color: #fff; }
 .uis-h1 { font-size: 30px; font-weight: 800; color: #0f172a; margin: 0 0 8px; letter-spacing: -0.01em; }
 .uis-sub { font-size: 15px; color: #64748b; line-height: 1.5; margin: 0; }
 .uis-meta { display: flex; gap: 24px; flex-wrap: wrap; margin-top: 14px; font-size: 13px; color: #64748b; }
@@ -38,6 +38,12 @@ body { font-family: 'Inter', -apple-system, sans-serif; background: #f1f5f9; col
 .uis-section ul, .uis-section ol { padding-left: 20px; margin: 8px 0; }
 .customer-quote { background: #fef3c7; border-left: 3px solid #f59e0b; padding: 12px 16px; border-radius: 0 8px 8px 0; margin: 14px 0; font-style: italic; font-size: 14px; color: #92400e; }
 .customer-quote .attribution { font-style: normal; font-weight: 600; display: block; margin-top: 6px; }
+.reconcile-box { background: #eff6ff; border: 1px solid #bfdbfe; border-left: 4px solid #3b82f6; border-radius: 0 10px 10px 0; padding: 16px 20px; margin: 16px 0; }
+.reconcile-box h4 { font-size: 13px; font-weight: 700; color: #1d4ed8; margin: 0 0 8px; text-transform: uppercase; letter-spacing: 0.5px; }
+.reconcile-box p, .reconcile-box li { font-size: 13px; color: #1e3a8a; line-height: 1.6; }
+.defer-box { background: #faf5ff; border: 1px solid #e9d5ff; border-left: 4px solid #7c3aed; border-radius: 0 10px 10px 0; padding: 16px 20px; margin: 16px 0; }
+.defer-box h4 { font-size: 13px; font-weight: 700; color: #6b21a8; margin: 0 0 8px; text-transform: uppercase; letter-spacing: 0.5px; }
+.defer-box p, .defer-box li { font-size: 13px; color: #581c87; line-height: 1.6; }
 .competitor-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin: 12px 0; }
 .competitor-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px; }
 .competitor-card strong { font-size: 14px; color: #0f172a; display: block; margin-bottom: 4px; }
@@ -81,6 +87,7 @@ pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
 .blast-value { font-size: 13px; font-weight: 700; color: #0f172a; }
 .action-new { background: #dcfce7; color: #166534; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 4px; }
 .action-mod { background: #fef3c7; color: #92400e; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 4px; }
+.action-none { background: #e2e8f0; color: #475569; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 4px; }
 .criteria-list { list-style: none; padding: 0; }
 .criteria-list li { padding: 8px 0; border-bottom: 1px solid #f1f5f9; display: flex; gap: 10px; align-items: flex-start; font-size: 14px; color: #334155; }
 .criteria-list li:last-child { border-bottom: none; }
@@ -121,17 +128,24 @@ pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
         <div class="uis-badges">
             <span class="uis-badge badge-q">MAT-1</span>
             <span class="uis-badge badge-lane">Financial</span>
-            <span class="uis-badge badge-status">Draft</span>
+            <span class="uis-badge badge-status">Hardened &mdash; pending review</span>
             <span class="uis-badge badge-priority">P0</span>
-            <span class="uis-badge badge-child">Child of Release 1.34</span>
+            <span class="uis-badge badge-child">Release 1.33</span>
         </div>
         <h1 class="uis-h1">Customer PO Entity</h1>
-        <p class="uis-sub">Replace the legacy Job.purchaseOrder string with a first-class PurchaseOrder model supporting multiple POs per job, a PO detail page, and PO-aware invoicing across estimates, change orders, and invoices.</p>
+        <p class="uis-sub">Enrich the customer purchase order &mdash; already a first-class, multi-PO, polymorphically-linked entity in the live schema &mdash; with company / contact / amount / terms metadata, a detail page that surfaces every record the PO ties to, and file attachments. Purely additive on the shipped PO system.</p>
         <div class="uis-meta">
-            <span><strong>Parent:</strong> Release 1.34</span>
+            <span><strong>Parent:</strong> Release 1.33 &mdash; Material Supply Chain</span>
             <span><strong>Slice:</strong> MAT-1</span>
-            <span><strong>Est:</strong> 5&ndash;7 days</span>
+            <span><strong>Est:</strong> 2&ndash;3 days (backend + UI)</span>
         </div>
+    </div>
+
+    <!-- Reconciliation callout -->
+    <div class="reconcile-box">
+        <h4>&#9888; Hardened against the live schema &mdash; read first</h4>
+        <p>The original draft of this spec assumed the customer PO was still a free-text string on the Job and proposed building <code>PurchaseOrder</code> + <code>PurchaseOrderLineItem</code> from scratch. <strong>That refactor already shipped.</strong> The live schema has a working <code>PurchaseOrder</code> + polymorphic <code>PurchaseOrderAssignment</code> system that already delivers the three headline asks: first-class entity (not a string), multiple POs per job, and PO-aware invoicing.</p>
+        <p style="margin-top:8px;">So MAT-1 has been re-scoped from &ldquo;build it&rdquo; to <strong>&ldquo;enrich it&rdquo;</strong>: add metadata columns, a detail page, and file attachments &mdash; nothing more. Supplier-PO concepts that had leaked into the draft (a <code>type</code> discriminator, a status lifecycle, line items, and <code>CPO-####</code> auto-numbering) are deferred to <strong>MAT-5</strong>, where they actually gain meaning. See &sect;4 and the deferral box in &sect;2.</p>
     </div>
 
     <!-- TOC -->
@@ -156,44 +170,41 @@ pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
             <span class="toggle-icon">&#9660;</span>
         </h2>
         <div class="collapsible-body open">
-            <p>Purchase orders are the contractual backbone connecting estimates to invoicing. Today, the customer PO is a free-text string on the Job &mdash; no uniqueness, no multi-PO support, no detail page. When a job has multiple POs (one per change order), the system can&rsquo;t track which PO applies to which invoice. This creates manual reconciliation work for every PM.</p>
+            <p>A <strong>customer PO</strong> is the customer&rsquo;s authorization to bill: they issue you a PO number, you reference it on the estimate / change order / invoice it covers. A single job often accumulates several &mdash; one per change order. Appello already tracks these as real records, deduplicated per job and rolled up from won estimates / COs; what&rsquo;s missing is a place to <em>see</em> a PO and the few facts that travel with it (who issued it, for how much, on what terms) plus the signed PO document itself.</p>
 
             <div class="customer-quote">
-                &ldquo;We need to figure out what we&rsquo;re doing with the job model refactor, because right now, purchase order is a piece of data in a table attached to the estimate.&rdquo;
-                <span class="attribution">&mdash; Internal Architecture Discussion (March 2026)</span>
+                &ldquo;Some jobs have three POs &mdash; it&rsquo;s O-1, O-2, O-3 &hellip; we can absolutely pull that into the invoice.&rdquo;
+                <span class="attribution">&mdash; Stacey Needham / Corey Shelson, Sage50 Q&amp;A (May 2024) &mdash; action item: &ldquo;add customer PO number field to invoices&rdquo;</span>
             </div>
 
             <div class="customer-quote">
-                &ldquo;If only one PO on a job, auto-populate in invoices; if multiple, prompt user to select.&rdquo;
-                <span class="attribution">&mdash; Corey Shelson (Feb 2025 design session)</span>
+                &ldquo;Jobs should derive their P.O. number from the Won Estimates and Change Orders &hellip; a list of won PO Numbers that can be utilized on List Tables and Detail Pages, linking to their respective Estimate / Change Order. In invoices, include the Job PO# by default if there is only one; if more than one, ask the user to select.&rdquo;
+                <span class="attribution">&mdash; Q21030-6953, &ldquo;Add PO# as a Default Property for Jobs&rdquo;</span>
             </div>
 
-            <div class="customer-quote">
-                &ldquo;PO Number Management &mdash; dedicated Job Purchase Order entity, PO dropdown in invoices, migration to backfill existing PO strings.&rdquo;
-                <span class="attribution">&mdash; Jira Q21030-9356</span>
-            </div>
+            <p style="margin-top:4px;"><strong>All of the above already ships</strong> via <code>PurchaseOrderModel.getAllForJob()</code> (direct + child ECO/Bill roll-up) and the PO sync wired into estimates, change orders, and invoices. MAT-1 does not rebuild any of it.</p>
 
-            <h3>Value Proposition</h3>
+            <h3>Value Proposition (the net-new)</h3>
             <div class="value-cards">
                 <div class="value-card">
-                    <div class="v-icon">&#128279;</div>
-                    <div class="v-title">Multi-PO Support</div>
-                    <div class="v-detail">Jobs with change orders often accumulate multiple POs from the same customer. Each needs independent tracking.</div>
-                </div>
-                <div class="value-card">
                     <div class="v-icon">&#128203;</div>
-                    <div class="v-title">PO-Aware Invoicing</div>
-                    <div class="v-detail">Auto-populate PO in invoices when single PO; prompt selection when multiple.</div>
+                    <div class="v-title">PO Detail Page</div>
+                    <div class="v-detail">One place to open a PO and see every record it ties to &mdash; job, estimates / COs, and invoices &mdash; read straight from the existing assignment join.</div>
                 </div>
                 <div class="value-card">
-                    <div class="v-icon">&#128269;</div>
-                    <div class="v-title">Audit Trail</div>
-                    <div class="v-detail">PO history, files, and notes on a dedicated detail page with tabs.</div>
+                    <div class="v-icon">&#127991;</div>
+                    <div class="v-title">PO Metadata</div>
+                    <div class="v-detail">Capture the customer (company), contact, issued date, amount, and terms against the PO &mdash; today it&rsquo;s just a bare number.</div>
                 </div>
                 <div class="value-card">
-                    <div class="v-icon">&#128260;</div>
-                    <div class="v-title">Data Migration</div>
-                    <div class="v-detail">Existing purchaseOrder strings migrated to PurchaseOrder records &mdash; zero data loss.</div>
+                    <div class="v-icon">&#128206;</div>
+                    <div class="v-title">File Attachments</div>
+                    <div class="v-detail">Attach the customer&rsquo;s signed PO PDF, via Appello&rsquo;s existing <code>Asset</code> / <code>AssetReference</code> mechanism &mdash; no schema cost.</div>
+                </div>
+                <div class="value-card">
+                    <div class="v-icon">&#127970;</div>
+                    <div class="v-title">Company PO Tab</div>
+                    <div class="v-detail">List a company&rsquo;s POs on its detail page, filtered by the new <code>companyId</code>.</div>
                 </div>
             </div>
 
@@ -202,7 +213,7 @@ pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
                 <div class="competitor-card">
                     <span class="comp-status comp-has">HAS</span>
                     <strong>Procore</strong>
-                    <span>PO entity with line items, approval workflow</span>
+                    <span>PO entity with detail view + documents</span>
                 </div>
                 <div class="competitor-card">
                     <span class="comp-status comp-has">HAS</span>
@@ -210,22 +221,18 @@ pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
                     <span>Full PO lifecycle with AP integration</span>
                 </div>
                 <div class="competitor-card">
-                    <span class="comp-status comp-has">HAS</span>
-                    <strong>Buildertrend</strong>
-                    <span>PO management with change order tracking</span>
-                </div>
-                <div class="competitor-card">
                     <span class="comp-status comp-partial">PARTIAL</span>
-                    <strong>Appello</strong>
-                    <span>String field on Job &mdash; no entity, no multi-PO, no detail page</span>
+                    <strong>Appello (today)</strong>
+                    <span>Multi-PO tracking + invoicing ship; no detail page, no metadata, no document</span>
                 </div>
             </div>
 
             <h3>Jira References</h3>
             <p>
                 <span class="jira-chip">Q21030-9356</span>
-                <span class="jira-chip">Q21030-7334</span>
                 <span class="jira-chip">Q21030-6953</span>
+                <span class="jira-chip">Q21030-7334</span>
+                <span class="jira-chip">Q21030-7738</span>
             </p>
         </div>
     </div>
@@ -239,27 +246,34 @@ pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
         <div class="collapsible-body open">
             <h3><span class="scope-tag scope-in">IN SCOPE</span></h3>
             <ul>
-                <li><code>PurchaseOrder</code> and <code>PurchaseOrderLineItem</code> Prisma models</li>
-                <li>Const-based types: <code>CustomerPO</code> / <code>SupplierPO</code>; statuses: <code>Draft</code> / <code>Issued</code> / <code>Sent</code> / <code>PartiallyReceived</code> / <code>FullyReceived</code> / <code>Closed</code></li>
-                <li>Data migration of existing <code>Job.purchaseOrder</code> strings to PurchaseOrder records</li>
-                <li>Auto-sequenced PO numbering: <code>CPO-####</code> for customer, <code>SPO-####</code> for supplier</li>
-                <li>PO detail page with tabs: Overview, Line Items, Invoices, Estimates, Files</li>
-                <li>PO tab on Company detail page</li>
-                <li>PO section on Job detail page</li>
-                <li>PO dropdown selector on Estimate and Invoice forms (replacing free-text input)</li>
-                <li><code>PurchaseOrderLineItem.total</code> computed at query time (<code>quantity &times; unitPrice</code>)</li>
-                <li>Search Core indexing for PO lookup</li>
-                <li>Route configuration for <code>/purchase-orders</code> and <code>/purchase-orders/[id]</code></li>
+                <li>Additive columns on the existing <code>PurchaseOrder</code> model: <code>companyId</code>, <code>contactId</code>, <code>issuedDate</code>, <code>amount</code>, <code>terms</code>, <code>description</code> (+ <code>Company</code> / <code>Contact</code> relations)</li>
+                <li>Customer PO <strong>detail page</strong> at <code>/purchase-orders/[id]</code> &mdash; tabs: <strong>Overview</strong>, <strong>Linked Records</strong>, <strong>Files</strong></li>
+                <li><strong>Linked Records</strong> tab reads the existing <code>PurchaseOrderAssignment</code> rows (Job, Estimate / CO, Invoice) &mdash; reuses the resolver&rsquo;s <code>displayLabel</code> / <code>referenceType</code></li>
+                <li><strong>Files</strong> tab via <code>Asset</code> / <code>AssetReference</code> with <code>referenceTable = "PurchaseOrder"</code> (no schema change to attach)</li>
+                <li>PO tab on the Company detail page (filtered by <code>companyId</code>)</li>
+                <li>GraphQL: extend the existing <code>PurchaseOrder</code> type with the new fields + <code>Files</code> resolver; add <code>purchaseOrder(id)</code> and <code>purchaseOrdersForCompany(companyId)</code> queries; add metadata create/edit + attach/detach-file mutations</li>
+                <li>Model-layer methods on <code>PurchaseOrderModel</code> for metadata create/edit and file attach/detach (existing CRUD/sync methods untouched)</li>
+                <li>Route configuration for <code>/purchase-orders/[id]</code></li>
             </ul>
 
             <h3><span class="scope-tag scope-out">OUT OF SCOPE</span></h3>
             <ul>
-                <li>Supplier PO CRUD and PDF generation (deferred to MAT-5)</li>
-                <li>Receiving against PO (deferred to MAT-6)</li>
-                <li>PO approval workflow</li>
-                <li>PO-to-PO linking (e.g., amendment tracking)</li>
-                <li>Mobile PO management</li>
+                <li><strong>Already shipped</strong> &mdash; not touched: the <code>Job.purchaseOrder</code> string &rarr; entity migration, multi-PO-per-job roll-up, the invoice / estimate / CO PO dropdowns and auto-populate behavior</li>
+                <li>A standalone global <code>/purchase-orders</code> index list (no customer demand; reach a PO via its job, the company tab, or a linked record)</li>
+                <li>Custom / configurable fields on POs (the <code>DocumentAttribute</code> system) &mdash; PO fields are few and stable; fixed columns are the right call</li>
+                <li>PO approval workflow, PO-to-PO linking, mobile PO management</li>
             </ul>
+
+            <div class="defer-box">
+                <h4>&#10141; Deferred to MAT-5 (Supplier PO) &mdash; not customer-PO concepts</h4>
+                <p>These appeared in the original draft but belong to the supplier PO, where <em>you</em> issue the document and receive against it:</p>
+                <ul style="margin-top:6px;">
+                    <li><strong><code>type</code> discriminator</strong> (<code>CustomerPO</code> / <code>SupplierPO</code>) &mdash; every PO today is implicitly a customer PO; the column does nothing until MAT-5 adds the second value (it will default existing rows &rarr; <code>CustomerPO</code> then).</li>
+                    <li><strong>Status lifecycle</strong> (<code>Draft</code> / <code>Issued</code> / <code>Sent</code> / <code>PartiallyReceived</code> / <code>FullyReceived</code> / <code>Closed</code>) &mdash; you don&rsquo;t <em>receive</em> against a customer PO, you invoice against it. A lifecycle only matters supplier-side.</li>
+                    <li><strong><code>PurchaseOrderLineItem</code></strong> &mdash; a customer PO is the customer&rsquo;s number; you don&rsquo;t re-key their items. Line items are the things <em>you</em> order on a supplier PO (Ace Insulation onboarding, Jun 2025: &ldquo;hit new PO and enter your own line items&rdquo;).</li>
+                    <li><strong>Auto-numbering</strong> &mdash; a customer PO number <em>comes from the customer</em> (entered, as today). Minting (<code>SPO-####</code>) is supplier-side; MAT-5 will follow the existing <code>RFI-##</code> / <code>PR-##</code> max-plus-one precedent.</li>
+                </ul>
+            </div>
         </div>
     </div>
 
@@ -271,8 +285,8 @@ pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
         </h2>
         <div class="collapsible-body open">
 
-            <!-- Mockup 1: PO Detail Page -->
-            <div class="mockup-container">
+            <!-- Mockup 1: PO Detail — Overview -->
+            <div class="mockup-container" id="mockup-1">
                 <div class="mockup-bar">
                     <div class="mockup-dots">
                         <div class="mockup-dot mockup-dot-r"></div>
@@ -284,34 +298,31 @@ pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
                 <div class="mockup-body">
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
                         <div>
-                            <div style="font-size:18px; font-weight:700; color:#0f172a;">CPO-0001</div>
+                            <div style="font-size:18px; font-weight:700; color:#0f172a;">PO #4471-A</div>
                             <div style="font-size:12px; color:#64748b; margin-top:2px;">ACME Construction &middot; Riverside Tower</div>
                         </div>
                         <div style="display:flex; gap:8px; align-items:center;">
-                            <span class="mockup-badge" style="background:#dcfce7; color:#166534;">Issued</span>
                             <span class="mockup-btn mockup-btn-outline">Edit</span>
                             <span class="mockup-btn" style="background:#fee2e2; color:#dc2626; border:1px solid #fca5a5;">Archive</span>
                         </div>
                     </div>
                     <div style="display:flex; gap:4px; margin-bottom:16px; border-bottom:2px solid #e2e8f0; padding-bottom:8px;">
                         <span style="padding:6px 14px; font-size:12px; font-weight:600; color:#3b82f6; border-bottom:2px solid #3b82f6; margin-bottom:-10px;">Overview</span>
-                        <span style="padding:6px 14px; font-size:12px; color:#64748b;">Line Items</span>
-                        <span style="padding:6px 14px; font-size:12px; color:#64748b;">Invoices</span>
-                        <span style="padding:6px 14px; font-size:12px; color:#64748b;">Estimates</span>
+                        <span style="padding:6px 14px; font-size:12px; color:#64748b;">Linked Records</span>
                         <span style="padding:6px 14px; font-size:12px; color:#64748b;">Files</span>
                     </div>
                     <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
                         <div style="padding:10px; background:#f8fafc; border-radius:6px; border:1px solid #e2e8f0;">
                             <div style="font-size:11px; color:#64748b; margin-bottom:2px;">PO Number</div>
-                            <div style="font-size:13px; font-weight:600; color:#0f172a;">CPO-0001</div>
+                            <div style="font-size:13px; font-weight:600; color:#0f172a;">4471-A</div>
                         </div>
                         <div style="padding:10px; background:#f8fafc; border-radius:6px; border:1px solid #e2e8f0;">
-                            <div style="font-size:11px; color:#64748b; margin-bottom:2px;">Company</div>
+                            <div style="font-size:11px; color:#64748b; margin-bottom:2px;">Company (issued by)</div>
                             <div style="font-size:13px; font-weight:600; color:#0f172a;">ACME Construction</div>
                         </div>
                         <div style="padding:10px; background:#f8fafc; border-radius:6px; border:1px solid #e2e8f0;">
-                            <div style="font-size:11px; color:#64748b; margin-bottom:2px;">Job</div>
-                            <div style="font-size:13px; font-weight:600; color:#0f172a;">Riverside Tower</div>
+                            <div style="font-size:11px; color:#64748b; margin-bottom:2px;">Contact</div>
+                            <div style="font-size:13px; font-weight:600; color:#0f172a;">Dana Reyes</div>
                         </div>
                         <div style="padding:10px; background:#f8fafc; border-radius:6px; border:1px solid #e2e8f0;">
                             <div style="font-size:11px; color:#64748b; margin-bottom:2px;">Issued Date</div>
@@ -333,69 +344,109 @@ pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
                 </div>
             </div>
 
-            <!-- Mockup 2: Job Detail — PO Section -->
-            <div class="mockup-container">
+            <!-- Mockup 2: PO Detail — Linked Records -->
+            <div class="mockup-container" id="mockup-2">
                 <div class="mockup-bar">
                     <div class="mockup-dots">
                         <div class="mockup-dot mockup-dot-r"></div>
                         <div class="mockup-dot mockup-dot-y"></div>
                         <div class="mockup-dot mockup-dot-g"></div>
                     </div>
-                    Job Detail &mdash; Purchase Orders Section
+                    PO Detail Page &mdash; Linked Records Tab
                 </div>
                 <div class="mockup-body">
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-                        <div style="font-size:14px; font-weight:700; color:#0f172a;">Purchase Orders</div>
-                        <span class="mockup-btn mockup-btn-primary">+ Add PO</span>
+                    <div style="display:flex; gap:4px; margin-bottom:16px; border-bottom:2px solid #e2e8f0; padding-bottom:8px;">
+                        <span style="padding:6px 14px; font-size:12px; color:#64748b;">Overview</span>
+                        <span style="padding:6px 14px; font-size:12px; font-weight:600; color:#3b82f6; border-bottom:2px solid #3b82f6; margin-bottom:-10px;">Linked Records</span>
+                        <span style="padding:6px 14px; font-size:12px; color:#64748b;">Files</span>
                     </div>
+                    <p style="font-size:11px; color:#64748b; margin-bottom:10px; font-style:italic;">Every record this PO is assigned to &mdash; read from <code>PurchaseOrderAssignment</code>.</p>
                     <div class="mockup-row" style="font-weight:700; background:#f1f5f9; padding:8px; border-radius:4px;">
-                        <div class="mockup-cell">PO Number</div>
-                        <div class="mockup-cell">Company</div>
-                        <div class="mockup-cell">Status</div>
-                        <div class="mockup-cell">Issued Date</div>
-                        <div class="mockup-cell" style="text-align:right;">Amount</div>
+                        <div class="mockup-cell" style="flex:0 0 130px;">Type</div>
+                        <div class="mockup-cell">Record</div>
+                        <div class="mockup-cell" style="text-align:right;"></div>
                     </div>
                     <div class="mockup-row">
-                        <div class="mockup-cell" style="color:#3b82f6; font-weight:600;">CPO-0001</div>
-                        <div class="mockup-cell">ACME Construction</div>
-                        <div class="mockup-cell"><span class="mockup-badge" style="background:#dcfce7; color:#166534;">Issued</span></div>
-                        <div class="mockup-cell">2026-03-15</div>
-                        <div class="mockup-cell" style="text-align:right; font-weight:600;">$185,000.00</div>
+                        <div class="mockup-cell" style="flex:0 0 130px;"><span class="mockup-badge" style="background:#dbeafe; color:#1d4ed8;">Job</span></div>
+                        <div class="mockup-cell" style="color:#3b82f6; font-weight:600;">Riverside Tower</div>
+                        <div class="mockup-cell" style="text-align:right; color:#94a3b8; font-size:11px;">view &rsaquo;</div>
                     </div>
                     <div class="mockup-row">
-                        <div class="mockup-cell" style="color:#3b82f6; font-weight:600;">CPO-0002</div>
-                        <div class="mockup-cell">ACME Construction</div>
-                        <div class="mockup-cell"><span class="mockup-badge" style="background:#fef3c7; color:#92400e;">Draft</span></div>
-                        <div class="mockup-cell">2026-04-01</div>
-                        <div class="mockup-cell" style="text-align:right; font-weight:600;">$25,000.00</div>
+                        <div class="mockup-cell" style="flex:0 0 130px;"><span class="mockup-badge" style="background:#dcfce7; color:#166534;">Estimate</span></div>
+                        <div class="mockup-cell" style="color:#3b82f6; font-weight:600;">EST-001 &mdash; Won</div>
+                        <div class="mockup-cell" style="text-align:right; color:#94a3b8; font-size:11px;">view &rsaquo;</div>
+                    </div>
+                    <div class="mockup-row">
+                        <div class="mockup-cell" style="flex:0 0 130px;"><span class="mockup-badge" style="background:#dcfce7; color:#166534;">Change Order</span></div>
+                        <div class="mockup-cell" style="color:#3b82f6; font-weight:600;">CO-042 &mdash; Won</div>
+                        <div class="mockup-cell" style="text-align:right; color:#94a3b8; font-size:11px;">view &rsaquo;</div>
+                    </div>
+                    <div class="mockup-row">
+                        <div class="mockup-cell" style="flex:0 0 130px;"><span class="mockup-badge" style="background:#fef3c7; color:#92400e;">Invoice</span></div>
+                        <div class="mockup-cell" style="color:#3b82f6; font-weight:600;">INV-2024-0089 &mdash; Paid</div>
+                        <div class="mockup-cell" style="text-align:right; color:#94a3b8; font-size:11px;">view &rsaquo;</div>
                     </div>
                 </div>
             </div>
 
-            <!-- Mockup 3: Invoice Form — PO Dropdown -->
-            <div class="mockup-container">
+            <!-- Mockup 3: PO Detail — Files -->
+            <div class="mockup-container" id="mockup-3">
                 <div class="mockup-bar">
                     <div class="mockup-dots">
                         <div class="mockup-dot mockup-dot-r"></div>
                         <div class="mockup-dot mockup-dot-y"></div>
                         <div class="mockup-dot mockup-dot-g"></div>
                     </div>
-                    Invoice Form &mdash; PO Dropdown
+                    PO Detail Page &mdash; Files Tab
                 </div>
                 <div class="mockup-body">
-                    <div style="max-width:400px;">
-                        <div style="font-size:12px; font-weight:600; color:#334155; margin-bottom:6px;">Purchase Order</div>
-                        <div style="border:1px solid #3b82f6; border-radius:6px; overflow:hidden; box-shadow:0 4px 12px rgba(59,130,246,0.15);">
-                            <div style="padding:8px 12px; background:#fff; display:flex; justify-content:space-between; align-items:center;">
-                                <span style="font-size:13px; color:#0f172a;">Select Purchase Order&hellip;</span>
-                                <span style="font-size:10px; color:#94a3b8;">&#9660;</span>
-                            </div>
-                            <div style="border-top:1px solid #e2e8f0;">
-                                <div style="padding:8px 12px; background:#eff6ff; font-size:13px; color:#1d4ed8; font-weight:600; cursor:pointer;">CPO-0001 &mdash; $185,000.00</div>
-                                <div style="padding:8px 12px; background:#fff; font-size:13px; color:#334155; cursor:pointer; border-top:1px solid #f1f5f9;">CPO-0002 &mdash; $25,000.00</div>
-                            </div>
+                    <div style="display:flex; gap:4px; margin-bottom:16px; border-bottom:2px solid #e2e8f0; padding-bottom:8px;">
+                        <span style="padding:6px 14px; font-size:12px; color:#64748b;">Overview</span>
+                        <span style="padding:6px 14px; font-size:12px; color:#64748b;">Linked Records</span>
+                        <span style="padding:6px 14px; font-size:12px; font-weight:600; color:#3b82f6; border-bottom:2px solid #3b82f6; margin-bottom:-10px;">Files</span>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+                        <span style="font-size:12px; color:#64748b;">1 file attached</span>
+                        <div style="background:#3b82f6; color:#fff; border-radius:6px; padding:8px 16px; font-size:12px; font-weight:600;">+ Upload File</div>
+                    </div>
+                    <div style="border:1px solid #e2e8f0; border-radius:8px; padding:12px; display:flex; justify-content:space-between; align-items:center;">
+                        <div style="display:flex; align-items:center; gap:10px;">
+                            <div style="width:36px; height:36px; background:#fee2e2; border-radius:6px; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:700; color:#dc2626;">PDF</div>
+                            <div><div style="font-size:13px; font-weight:600;">ACME-PO-4471-A-Signed.pdf</div><div style="font-size:11px; color:#64748b;">Uploaded Mar 15, 2026 &middot; 2.4 MB</div></div>
                         </div>
-                        <div style="font-size:11px; color:#64748b; margin-top:6px; font-style:italic;">Auto-selected when job has single PO</div>
+                        <div style="display:flex; gap:8px;"><span style="color:#3b82f6; font-size:12px; cursor:pointer;">Download</span><span style="color:#dc2626; font-size:12px; cursor:pointer;">Remove</span></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Mockup 4: Company Detail — PO Tab -->
+            <div class="mockup-container" id="mockup-4">
+                <div class="mockup-bar">
+                    <div class="mockup-dots">
+                        <div class="mockup-dot mockup-dot-r"></div>
+                        <div class="mockup-dot mockup-dot-y"></div>
+                        <div class="mockup-dot mockup-dot-g"></div>
+                    </div>
+                    Company Detail &mdash; Purchase Orders Tab
+                </div>
+                <div class="mockup-body">
+                    <div class="mockup-row" style="font-weight:700; background:#f1f5f9; padding:8px; border-radius:4px;">
+                        <div class="mockup-cell">PO Number</div>
+                        <div class="mockup-cell">Job</div>
+                        <div class="mockup-cell">Issued Date</div>
+                        <div class="mockup-cell" style="text-align:right;">Amount</div>
+                    </div>
+                    <div class="mockup-row">
+                        <div class="mockup-cell" style="color:#3b82f6; font-weight:600;">4471-A</div>
+                        <div class="mockup-cell">Riverside Tower</div>
+                        <div class="mockup-cell">2026-03-15</div>
+                        <div class="mockup-cell" style="text-align:right; font-weight:600;">$185,000.00</div>
+                    </div>
+                    <div class="mockup-row">
+                        <div class="mockup-cell" style="color:#3b82f6; font-weight:600;">4471-B</div>
+                        <div class="mockup-cell">Riverside Tower</div>
+                        <div class="mockup-cell">2026-04-01</div>
+                        <div class="mockup-cell" style="text-align:right; font-weight:600;">$25,000.00</div>
                     </div>
                 </div>
             </div>
@@ -411,101 +462,64 @@ pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
         </h2>
         <div class="collapsible-body open">
 
-            <h3>Const-Based Type &amp; Status Definitions</h3>
-<pre>// PurchaseOrder types (const-based, not enum)
-export const PurchaseOrderType = {
-    CustomerPO: "CustomerPO",
-    SupplierPO: "SupplierPO"
-} as const;
-
-// PurchaseOrder statuses
-export const PurchaseOrderStatus = {
-    Draft: "Draft",
-    Issued: "Issued",
-    Sent: "Sent",
-    PartiallyReceived: "PartiallyReceived",
-    FullyReceived: "FullyReceived",
-    Closed: "Closed"
-} as const;</pre>
-
-            <h3>Prisma Schema &mdash; PurchaseOrder</h3>
+            <h3>Foundation &mdash; what already exists (live schema, unchanged)</h3>
+            <p>The customer PO is already a first-class, polymorphically-linked entity. MAT-1 adds columns to <code>PurchaseOrder</code> and touches nothing else here.</p>
 <pre>model PurchaseOrder {
-    id              String    @id @default(cuid()) @db.VarChar(21)
-    instanceId      String    @db.VarChar(21)
-    type            String    @db.VarChar(30)   // CustomerPO | SupplierPO
-    poNumber        String    @db.VarChar(50)
-    companyId       String?   @db.VarChar(21)
-    jobId           String?   @db.VarChar(21)
-    contactId       String?   @db.VarChar(21)
-    status          String    @default("Draft") @db.VarChar(30)
-    issuedDate      DateTime?
-    amount          Decimal?  @db.Decimal(10, 2)
-    description     String?   @db.Text
-    terms           String?   @db.VarChar(191)
-    isArchived      Boolean   @default(false)
-    isDeleted       Boolean   @default(false)
-    createdAt       DateTime  @default(now())
-    updatedAt       DateTime  @updatedAt
-    createdById     String?   @db.VarChar(21)
-    updatedById     String?   @db.VarChar(21)
+    id         String   @id @db.VarChar(21)
+    isDeleted  Boolean  @default(false)
+    isArchived Boolean  @default(false)
+    createdAt  DateTime @default(now())
+    updatedAt  DateTime @default(now()) @updatedAt
+    poNumber   String   @db.VarChar(191)          // user-entered (the customer's number)
+    PurchaseOrderAssignments PurchaseOrderAssignment[]
+    @@index([poNumber])
+}
 
-    Instance        Instance  @relation(fields: [instanceId], references: [id])
-    Company         Company?  @relation(fields: [companyId], references: [id])
-    Job             Job?      @relation(fields: [jobId], references: [id])
-    Contact         Contact?  @relation(fields: [contactId], references: [id])
-    CreatedBy       User?     @relation("PurchaseOrderCreatedBy", fields: [createdById], references: [id])
-    UpdatedBy       User?     @relation("PurchaseOrderUpdatedBy", fields: [updatedById], references: [id])
-    LineItems       PurchaseOrderLineItem[]
-
-    @@unique([instanceId, poNumber])
-    @@index([instanceId])
-    @@index([jobId])
-    @@index([companyId])
-    @@index([type])
-    @@index([status])
-}</pre>
-
-            <h3>Prisma Schema &mdash; PurchaseOrderLineItem</h3>
-<pre>model PurchaseOrderLineItem {
-    id                String         @id @default(cuid()) @db.VarChar(21)
-    purchaseOrderId   String         @db.VarChar(21)
-    description       String?        @db.Text
-    quantity          Decimal?       @db.Decimal(10, 4)
-    unitPrice         Decimal?       @db.Decimal(10, 2)
-    accountItemId     String?        @db.VarChar(21)
-    costCodeId        String?        @db.VarChar(21)
-    sortOrder         Int            @default(0)
-    isDeleted         Boolean        @default(false)
-    createdAt         DateTime       @default(now())
-    updatedAt         DateTime       @updatedAt
-
-    PurchaseOrder     PurchaseOrder  @relation(fields: [purchaseOrderId], references: [id])
-    AccountItem       AccountItem?   @relation(fields: [accountItemId], references: [id])
-    CostCode          CostCode?      @relation(fields: [costCodeId], references: [id])
-
+// Polymorphic link: one PO &rarr; many Jobs / EstimateChangeOrderRecords / JobBills (invoices)
+model PurchaseOrderAssignment {
+    id              String        @id @db.VarChar(21)
+    referenceModel  String        @db.VarChar(191)   // "Job" | "EstimateChangeOrderRecord" | "JobBill"
+    referenceId     String        @db.VarChar(21)
+    purchaseOrderId String        @db.VarChar(21)
+    PurchaseOrder   PurchaseOrder @relation(fields: [purchaseOrderId], references: [id])
+    @@unique([referenceModel, referenceId, purchaseOrderId])
+    @@index([referenceModel, referenceId])
     @@index([purchaseOrderId])
 }</pre>
 
-            <h3>Data Migration SQL</h3>
-<pre>-- Migrate existing Job.purchaseOrder strings to PurchaseOrder records
-INSERT INTO PurchaseOrder (
-    id, instanceId, type, poNumber, jobId, status,
-    issuedDate, createdAt, updatedAt
-)
-SELECT
-    SUBSTRING(MD5(CONCAT(j.id, '-po')), 1, 21),
-    j.instanceId,
-    'CustomerPO',
-    j.purchaseOrder,
-    j.id,
-    'Issued',
-    j.createdAt,
-    NOW(),
-    NOW()
-FROM Job j
-WHERE j.purchaseOrder IS NOT NULL
-  AND j.purchaseOrder != ''
-  AND j.isDeleted = 0;</pre>
+            <h3>The MAT-1 change &mdash; additive columns on <code>PurchaseOrder</code></h3>
+<pre>model PurchaseOrder {
+    // ...existing fields unchanged...
+
+    companyId   String?   @db.VarChar(21)     // NEW — the customer who issued the PO
+    contactId   String?   @db.VarChar(21)     // NEW
+    issuedDate  DateTime?                      // NEW
+    amount      Decimal?  @db.Decimal(10, 2)   // NEW
+    terms       String?   @db.Text             // NEW
+    description String?   @db.Text             // NEW
+
+    Company     Company?  @relation(fields: [companyId], references: [id])   // NEW
+    Contact     Contact?  @relation(fields: [contactId], references: [id])   // NEW
+
+    @@index([companyId])                       // NEW
+}</pre>
+            <p style="font-size:13px; color:#64748b;">No <code>instanceId</code> (Appello is single-instance). No <code>type</code> / <code>status</code> / line items / auto-numbering &mdash; all deferred to MAT-5. The reciprocal <code>PurchaseOrders</code> relation arrays are added to <code>Company</code> and <code>Contact</code>.</p>
+
+            <h3>Files &mdash; reuse <code>Asset</code> / <code>AssetReference</code> (no schema change)</h3>
+            <p>The existing polymorphic file join attaches any asset to any record via a plain string table name &mdash; the same shape as <code>PurchaseOrderAssignment</code>. Attaching the signed PO PDF is one <code>AssetReference</code> row:</p>
+<pre>// existing model — no change needed
+model AssetReference {
+    id             String @id @db.VarChar(21)
+    assetId        String @db.VarChar(21)
+    referenceTable String @db.VarChar(255)   // = "PurchaseOrder"
+    referenceId    String @db.VarChar(21)    // = purchaseOrder.id
+    // ...
+    @@unique([assetId, referenceTable, referenceId])
+    @@index([referenceTable, referenceId])
+}</pre>
+
+            <h3>Migration</h3>
+            <p><strong>Additive columns only</strong> &mdash; <code>CreateTable</code> is not needed (the tables exist), and the <code>Job.purchaseOrder</code> string &rarr; entity data migration <strong>already shipped</strong>. No data backfill. (When MAT-5 adds <code>type</code>, that migration will default existing rows to <code>CustomerPO</code>.)</p>
 
         </div>
     </div>
@@ -518,276 +532,71 @@ WHERE j.purchaseOrder IS NOT NULL
         </h2>
         <div class="collapsible-body open">
 
-            <h3>GraphQL SDL</h3>
+            <h3>GraphQL SDL &mdash; extends the existing <code>PurchaseOrder</code> type</h3>
 <pre>type PurchaseOrder {
     id: ID!
-    type: String!
     poNumber: String!
+    isArchived: Boolean
+    createdAt: DateTime
+    updatedAt: DateTime
+    # --- NEW (MAT-1) ---
     companyId: String
     Company: Company
-    jobId: String
-    Job: Job
     contactId: String
-    status: String!
+    Contact: Contact
     issuedDate: DateTime
     amount: Float
-    description: String
     terms: String
-    LineItems: [PurchaseOrderLineItem!]
-}
-
-type PurchaseOrderLineItem {
-    id: ID!
-    purchaseOrderId: String!
-    PurchaseOrder: PurchaseOrder
     description: String
-    quantity: Float
-    unitPrice: Float
-    total: Float
-    accountItemId: String
-    costCodeId: String
+    Files: [Asset!]                          # resolved from AssetReference
+    PurchaseOrderAssignments: [PurchaseOrderAssignment]   # Linked Records (existing)
 }
 
-input CreatePurchaseOrderInput {
-    type: String!
-    poNumber: String
+# PurchaseOrderAssignment already exposes displayLabel + referenceType
+# (used directly by the Linked Records tab — no new type needed)
+
+input CustomerPurchaseOrderInput {
+    poNumber: String!
     companyId: String
-    jobId: String
     contactId: String
-    status: String
+    jobId: String            # optional — assigns the PO to a Job on create
     issuedDate: DateTime
     amount: Float
-    description: String
     terms: String
-}
-
-input UpsertPurchaseOrderLineItemInput {
-    id: ID
     description: String
-    quantity: Float
-    unitPrice: Float
-    accountItemId: String
-    costCodeId: String
 }
 
 extend type Query {
-    purchaseOrders(jobId: String, companyId: String, type: String): [PurchaseOrder!]!
     purchaseOrder(id: ID!): PurchaseOrder
+    purchaseOrdersForCompany(companyId: ID!): [PurchaseOrder]
+    # existing, unchanged: purchaseOrdersForJob(jobId), checkForPoForEntity(...)
 }
 
 extend type Mutation {
-    createPurchaseOrder(input: CreatePurchaseOrderInput!): PurchaseOrder!
-    editPurchaseOrder(id: ID!, input: CreatePurchaseOrderInput!): PurchaseOrder!
-    deletePurchaseOrder(id: ID!): Boolean!
-    upsertPurchaseOrderLineItems(
-        purchaseOrderId: String!,
-        items: [UpsertPurchaseOrderLineItemInput!]!
-    ): [PurchaseOrderLineItem!]!
+    createCustomerPurchaseOrder(input: CustomerPurchaseOrderInput!): PurchaseOrder!
+    editCustomerPurchaseOrder(id: ID!, input: CustomerPurchaseOrderInput!): PurchaseOrder!
+    attachFileToPurchaseOrder(purchaseOrderId: ID!, assetId: ID!): Asset!
+    detachFileFromPurchaseOrder(purchaseOrderId: ID!, assetId: ID!): Boolean!
 }</pre>
 
-            <h3>Consumed Queries</h3>
+            <h3>Model layer &mdash; additions to <code>PurchaseOrderModel</code></h3>
+            <p>Existing methods (<code>getAllForJob</code>, <code>findOrCreateForJob</code>, <code>assignExistingPOToEntity</code>, <code>handleCreatePOSync</code> / <code>handleEditPOSync</code>, &hellip;) are <strong>untouched</strong>. New methods:</p>
             <table class="schema-table">
                 <thead>
-                    <tr>
-                        <th>Query</th>
-                        <th>Consumer</th>
-                        <th>Purpose</th>
-                    </tr>
+                    <tr><th>Method</th><th>Purpose</th></tr>
                 </thead>
                 <tbody>
-                    <tr>
-                        <td><code>companyDetail</code></td>
-                        <td>Company PO tab</td>
-                        <td>List all POs for a company</td>
-                    </tr>
-                    <tr>
-                        <td><code>jobDetail</code></td>
-                        <td>Job PO section</td>
-                        <td>List all POs linked to job</td>
-                    </tr>
-                    <tr>
-                        <td><code>estimateChangeOrders</code></td>
-                        <td>Estimate / Invoice forms</td>
-                        <td>PO dropdown selector</td>
-                    </tr>
+                    <tr><td><code>getById(id)</code></td><td>PO + assignments + attached assets for the detail page</td></tr>
+                    <tr><td><code>createWithMetadata(input)</code></td><td>Create PO with metadata; if <code>jobId</code> given, assign to the Job via the existing assignment path</td></tr>
+                    <tr><td><code>editMetadata(id, input)</code></td><td>Update the new metadata columns + <code>poNumber</code></td></tr>
+                    <tr><td><code>getForCompany(companyId)</code></td><td>POs filtered by <code>companyId</code> for the Company PO tab</td></tr>
+                    <tr><td><code>attachFile / detachFile(id, assetId)</code></td><td>Manage <code>AssetReference</code> rows (<code>referenceTable = "PurchaseOrder"</code>)</td></tr>
                 </tbody>
             </table>
 
-            <h3>Computed Fields</h3>
-            <p><code>PurchaseOrderLineItem.total</code> is resolved at query time as <code>quantity &times; unitPrice</code> &mdash; not persisted in the database. The GraphQL resolver computes it inline.</p>
+            <h3>Computed / resolved fields</h3>
+            <p><code>PurchaseOrder.Files</code> resolves <code>AssetReference</code> rows where <code>referenceTable = "PurchaseOrder"</code> and <code>referenceId = po.id</code>. The <strong>Linked Records</strong> tab reuses <code>PurchaseOrderAssignments</code> with its existing <code>displayLabel</code> / <code>referenceType</code> resolvers &mdash; no new query.</p>
 
-        </div>
-    </div>
-
-    <!-- Additional Tab Mockups -->
-    <div class="uis-section" id="s-additional-mockups">
-        <h2>Additional Tab Mockups</h2>
-
-        <h3>MAT-1-01: Line Items Tab</h3>
-        <div class="mockup-container" id="mockup-4">
-            <div class="mockup-bar">
-                <div class="mockup-dots"><div class="mockup-dot mockup-dot-r"></div><div class="mockup-dot mockup-dot-y"></div><div class="mockup-dot mockup-dot-g"></div></div>
-                Purchase Orders &rsaquo; PO-2024-0015 &rsaquo; <strong>Line Items</strong>
-            </div>
-            <div class="mockup-body">
-                <div style="display:flex; gap:0; margin-bottom:16px; border-bottom:2px solid #e2e8f0;">
-                    <div style="padding:8px 16px; font-size:13px; color:#94a3b8;">Overview</div>
-                    <div style="padding:8px 16px; font-size:13px; font-weight:600; border-bottom:2px solid #3b82f6; color:#3b82f6; margin-bottom:-2px;">Line Items</div>
-                    <div style="padding:8px 16px; font-size:13px; color:#94a3b8;">Invoices</div>
-                    <div style="padding:8px 16px; font-size:13px; color:#94a3b8;">Estimates</div>
-                    <div style="padding:8px 16px; font-size:13px; color:#94a3b8;">Files</div>
-                </div>
-                <table style="width:100%; border-collapse:collapse; font-size:12px;">
-                    <thead><tr style="border-bottom:2px solid #e2e8f0; text-align:left;">
-                        <th style="padding:8px 10px; width:30px;">&#9776;</th>
-                        <th style="padding:8px 10px; font-weight:600;">Description</th>
-                        <th style="padding:8px 10px; font-weight:600; text-align:right;">Qty</th>
-                        <th style="padding:8px 10px; font-weight:600; text-align:right;">Unit Price</th>
-                        <th style="padding:8px 10px; font-weight:600; text-align:right;">Total</th>
-                        <th style="padding:8px 10px; font-weight:600;">Account</th>
-                        <th style="padding:8px 10px; font-weight:600;">Cost Code</th>
-                        <th style="padding:8px 10px; width:60px;"></th>
-                    </tr></thead>
-                    <tbody>
-                        <tr style="border-bottom:1px solid #f1f5f9;">
-                            <td style="padding:8px 10px; color:#94a3b8; cursor:grab;">&#9776;</td>
-                            <td style="padding:8px 10px;"><input style="width:100%; border:1px solid #cbd5e1; border-radius:4px; padding:4px 8px; font-size:12px;" value="R-30 Batt Insulation 16&quot; OC" /></td>
-                            <td style="padding:8px 10px; text-align:right;"><input style="width:50px; border:1px solid #cbd5e1; border-radius:4px; padding:4px 8px; text-align:right; font-size:12px;" value="500" /></td>
-                            <td style="padding:8px 10px; text-align:right;"><input style="width:70px; border:1px solid #cbd5e1; border-radius:4px; padding:4px 8px; text-align:right; font-size:12px;" value="$1.25" /></td>
-                            <td style="padding:8px 10px; text-align:right; font-weight:600;">$625.00</td>
-                            <td style="padding:8px 10px; font-size:11px; color:#64748b;">Materials</td>
-                            <td style="padding:8px 10px; font-size:11px; color:#64748b;">05-100</td>
-                            <td style="padding:8px 10px; text-align:center;"><span style="color:#dc2626; cursor:pointer;">&#x2715;</span></td>
-                        </tr>
-                        <tr style="border-bottom:1px solid #f1f5f9;">
-                            <td style="padding:8px 10px; color:#94a3b8; cursor:grab;">&#9776;</td>
-                            <td style="padding:8px 10px;"><input style="width:100%; border:1px solid #cbd5e1; border-radius:4px; padding:4px 8px; font-size:12px;" value="3/4&quot; Copper Pipe 10'" /></td>
-                            <td style="padding:8px 10px; text-align:right;"><input style="width:50px; border:1px solid #cbd5e1; border-radius:4px; padding:4px 8px; text-align:right; font-size:12px;" value="200" /></td>
-                            <td style="padding:8px 10px; text-align:right;"><input style="width:70px; border:1px solid #cbd5e1; border-radius:4px; padding:4px 8px; text-align:right; font-size:12px;" value="$8.50" /></td>
-                            <td style="padding:8px 10px; text-align:right; font-weight:600;">$1,700.00</td>
-                            <td style="padding:8px 10px; font-size:11px; color:#64748b;">Materials</td>
-                            <td style="padding:8px 10px; font-size:11px; color:#64748b;">15-200</td>
-                            <td style="padding:8px 10px; text-align:center;"><span style="color:#dc2626; cursor:pointer;">&#x2715;</span></td>
-                        </tr>
-                    </tbody>
-                    <tfoot>
-                        <tr style="border-top:2px solid #e2e8f0;">
-                            <td colspan="4" style="padding:10px; font-weight:700;">Total</td>
-                            <td style="padding:10px; text-align:right; font-weight:700;">$2,325.00</td>
-                            <td colspan="3"></td>
-                        </tr>
-                    </tfoot>
-                </table>
-                <div style="margin-top:12px;"><div style="background:#3b82f6; color:#fff; border-radius:6px; padding:8px 16px; font-size:12px; font-weight:600; display:inline-block;">+ Add Line Item</div></div>
-            </div>
-        </div>
-
-        <h3>MAT-1-02: Invoices Tab</h3>
-        <div class="mockup-container" id="mockup-5">
-            <div class="mockup-bar">
-                <div class="mockup-dots"><div class="mockup-dot mockup-dot-r"></div><div class="mockup-dot mockup-dot-y"></div><div class="mockup-dot mockup-dot-g"></div></div>
-                Purchase Orders &rsaquo; PO-2024-0015 &rsaquo; <strong>Invoices</strong>
-            </div>
-            <div class="mockup-body">
-                <div style="display:flex; gap:0; margin-bottom:16px; border-bottom:2px solid #e2e8f0;">
-                    <div style="padding:8px 16px; font-size:13px; color:#94a3b8;">Overview</div>
-                    <div style="padding:8px 16px; font-size:13px; color:#94a3b8;">Line Items</div>
-                    <div style="padding:8px 16px; font-size:13px; font-weight:600; border-bottom:2px solid #3b82f6; color:#3b82f6; margin-bottom:-2px;">Invoices</div>
-                    <div style="padding:8px 16px; font-size:13px; color:#94a3b8;">Estimates</div>
-                    <div style="padding:8px 16px; font-size:13px; color:#94a3b8;">Files</div>
-                </div>
-                <table style="width:100%; border-collapse:collapse; font-size:12px;">
-                    <thead><tr style="border-bottom:2px solid #e2e8f0; text-align:left;">
-                        <th style="padding:8px 10px; font-weight:600;">Invoice #</th>
-                        <th style="padding:8px 10px; font-weight:600;">Date</th>
-                        <th style="padding:8px 10px; font-weight:600; text-align:right;">Amount</th>
-                        <th style="padding:8px 10px; font-weight:600;">Status</th>
-                    </tr></thead>
-                    <tbody>
-                        <tr style="border-bottom:1px solid #f1f5f9; cursor:pointer;">
-                            <td style="padding:8px 10px; font-weight:600; color:#3b82f6;">INV-2024-0089</td>
-                            <td style="padding:8px 10px;">Mar 29, 2026</td>
-                            <td style="padding:8px 10px; text-align:right; font-weight:600;">$2,325.00</td>
-                            <td style="padding:8px 10px;"><span style="padding:2px 8px; background:#dcfce7; border-radius:4px; font-size:10px; font-weight:600; color:#166534;">Paid</span></td>
-                        </tr>
-                    </tbody>
-                </table>
-                <div style="font-size:11px; color:#94a3b8; margin-top:12px; text-align:center;">1 invoice linked to this PO</div>
-            </div>
-        </div>
-
-        <h3>MAT-1-03: Estimates/COs Tab</h3>
-        <div class="mockup-container" id="mockup-6">
-            <div class="mockup-bar">
-                <div class="mockup-dots"><div class="mockup-dot mockup-dot-r"></div><div class="mockup-dot mockup-dot-y"></div><div class="mockup-dot mockup-dot-g"></div></div>
-                Purchase Orders &rsaquo; PO-2024-0015 &rsaquo; <strong>Estimates</strong>
-            </div>
-            <div class="mockup-body">
-                <div style="display:flex; gap:0; margin-bottom:16px; border-bottom:2px solid #e2e8f0;">
-                    <div style="padding:8px 16px; font-size:13px; color:#94a3b8;">Overview</div>
-                    <div style="padding:8px 16px; font-size:13px; color:#94a3b8;">Line Items</div>
-                    <div style="padding:8px 16px; font-size:13px; color:#94a3b8;">Invoices</div>
-                    <div style="padding:8px 16px; font-size:13px; font-weight:600; border-bottom:2px solid #3b82f6; color:#3b82f6; margin-bottom:-2px;">Estimates</div>
-                    <div style="padding:8px 16px; font-size:13px; color:#94a3b8;">Files</div>
-                </div>
-                <table style="width:100%; border-collapse:collapse; font-size:12px;">
-                    <thead><tr style="border-bottom:2px solid #e2e8f0; text-align:left;">
-                        <th style="padding:8px 10px; font-weight:600;">Estimate/CO #</th>
-                        <th style="padding:8px 10px; font-weight:600;">Job</th>
-                        <th style="padding:8px 10px; font-weight:600; text-align:right;">Amount</th>
-                        <th style="padding:8px 10px; font-weight:600;">Status</th>
-                    </tr></thead>
-                    <tbody>
-                        <tr style="border-bottom:1px solid #f1f5f9; cursor:pointer;">
-                            <td style="padding:8px 10px; font-weight:600; color:#3b82f6;">EST-001</td>
-                            <td style="padding:8px 10px;">Inovum Data Center</td>
-                            <td style="padding:8px 10px; text-align:right; font-weight:600;">$185,000.00</td>
-                            <td style="padding:8px 10px;"><span style="padding:2px 8px; background:#dcfce7; border-radius:4px; font-size:10px; font-weight:600; color:#166534;">Won</span></td>
-                        </tr>
-                        <tr style="border-bottom:1px solid #f1f5f9; cursor:pointer;">
-                            <td style="padding:8px 10px; font-weight:600; color:#3b82f6;">CO-042</td>
-                            <td style="padding:8px 10px;">Inovum Data Center</td>
-                            <td style="padding:8px 10px; text-align:right; font-weight:600;">$5,231.50</td>
-                            <td style="padding:8px 10px;"><span style="padding:2px 8px; background:#dcfce7; border-radius:4px; font-size:10px; font-weight:600; color:#166534;">Won</span></td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
-
-        <h3>MAT-1-04: Files Tab</h3>
-        <div class="mockup-container" id="mockup-7">
-            <div class="mockup-bar">
-                <div class="mockup-dots"><div class="mockup-dot mockup-dot-r"></div><div class="mockup-dot mockup-dot-y"></div><div class="mockup-dot mockup-dot-g"></div></div>
-                Purchase Orders &rsaquo; PO-2024-0015 &rsaquo; <strong>Files</strong>
-            </div>
-            <div class="mockup-body">
-                <div style="display:flex; gap:0; margin-bottom:16px; border-bottom:2px solid #e2e8f0;">
-                    <div style="padding:8px 16px; font-size:13px; color:#94a3b8;">Overview</div>
-                    <div style="padding:8px 16px; font-size:13px; color:#94a3b8;">Line Items</div>
-                    <div style="padding:8px 16px; font-size:13px; color:#94a3b8;">Invoices</div>
-                    <div style="padding:8px 16px; font-size:13px; color:#94a3b8;">Estimates</div>
-                    <div style="padding:8px 16px; font-size:13px; font-weight:600; border-bottom:2px solid #3b82f6; color:#3b82f6; margin-bottom:-2px;">Files</div>
-                </div>
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
-                    <span style="font-size:12px; color:#64748b;">2 files attached</span>
-                    <div style="background:#3b82f6; color:#fff; border-radius:6px; padding:8px 16px; font-size:12px; font-weight:600;">+ Upload File</div>
-                </div>
-                <div style="border:1px solid #e2e8f0; border-radius:8px; padding:12px; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center;">
-                    <div style="display:flex; align-items:center; gap:10px;">
-                        <div style="width:36px; height:36px; background:#fee2e2; border-radius:6px; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:700; color:#dc2626;">PDF</div>
-                        <div><div style="font-size:13px; font-weight:600;">PO-2024-0015-Signed.pdf</div><div style="font-size:11px; color:#64748b;">Uploaded Mar 15, 2026 &middot; 2.4 MB</div></div>
-                    </div>
-                    <div style="display:flex; gap:8px;"><span style="color:#3b82f6; font-size:12px; cursor:pointer;">Download</span><span style="color:#dc2626; font-size:12px; cursor:pointer;">Delete</span></div>
-                </div>
-                <div style="border:1px solid #e2e8f0; border-radius:8px; padding:12px; display:flex; justify-content:space-between; align-items:center;">
-                    <div style="display:flex; align-items:center; gap:10px;">
-                        <div style="width:36px; height:36px; background:#dbeafe; border-radius:6px; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:700; color:#1d4ed8;">DOC</div>
-                        <div><div style="font-size:13px; font-weight:600;">Contract-Addendum-A.docx</div><div style="font-size:11px; color:#64748b;">Uploaded Mar 16, 2026 &middot; 156 KB</div></div>
-                    </div>
-                    <div style="display:flex; gap:8px;"><span style="color:#3b82f6; font-size:12px; cursor:pointer;">Download</span><span style="color:#dc2626; font-size:12px; cursor:pointer;">Delete</span></div>
-                </div>
-            </div>
         </div>
     </div>
 
@@ -802,47 +611,33 @@ extend type Mutation {
             <div class="blast-summary">
                 <div class="blast-row">
                     <span class="blast-label">New files</span>
-                    <span class="blast-value">4</span>
+                    <span class="blast-value">2</span>
                 </div>
                 <div class="blast-row">
                     <span class="blast-label">Modified files</span>
-                    <span class="blast-value">5+</span>
+                    <span class="blast-value">5</span>
                 </div>
                 <div class="blast-row">
                     <span class="blast-label">Total blast radius</span>
-                    <span class="blast-value">9+</span>
+                    <span class="blast-value">7</span>
                 </div>
             </div>
 
             <h3>New Files</h3>
             <table class="schema-table">
                 <thead>
-                    <tr>
-                        <th>File</th>
-                        <th>Action</th>
-                        <th>Description</th>
-                    </tr>
+                    <tr><th>File</th><th>Action</th><th>Description</th></tr>
                 </thead>
                 <tbody>
                     <tr>
                         <td><code>apps/api/prisma/migrations/&hellip;/migration.sql</code></td>
                         <td><span class="action-new">NEW</span></td>
-                        <td>CreateTable + data migration for PurchaseOrder &amp; PurchaseOrderLineItem</td>
-                    </tr>
-                    <tr>
-                        <td><code>apps/api/src/models/PurchaseOrder.ts</code></td>
-                        <td><span class="action-new">NEW</span></td>
-                        <td>Model layer: CRUD, auto-numbering, permission checks</td>
-                    </tr>
-                    <tr>
-                        <td><code>apps/api/src/graphql/models/PurchaseOrder.ts</code></td>
-                        <td><span class="action-new">NEW</span></td>
-                        <td>GraphQL resolvers: queries, mutations, computed fields</td>
+                        <td>ALTER TABLE PurchaseOrder &mdash; add the 6 metadata columns + companyId index (additive only)</td>
                     </tr>
                     <tr>
                         <td><code>apps/frontend/src/pages/purchase-orders/[id]/index.tsx</code></td>
                         <td><span class="action-new">NEW</span></td>
-                        <td>PO detail page with tabbed layout</td>
+                        <td>PO detail page &mdash; Overview / Linked Records / Files tabs</td>
                     </tr>
                 </tbody>
             </table>
@@ -850,50 +645,37 @@ extend type Mutation {
             <h3>Modified Files</h3>
             <table class="schema-table">
                 <thead>
-                    <tr>
-                        <th>File</th>
-                        <th>Action</th>
-                        <th>Change</th>
-                    </tr>
+                    <tr><th>File</th><th>Action</th><th>Change</th></tr>
                 </thead>
                 <tbody>
                     <tr>
                         <td><code>apps/api/prisma/schema.prisma</code></td>
                         <td><span class="action-mod">MOD</span></td>
-                        <td>Add PurchaseOrder &amp; PurchaseOrderLineItem models; add relation on Job, Company, Contact</td>
+                        <td>Add 6 columns + Company/Contact relations to <code>PurchaseOrder</code>; add reciprocal <code>PurchaseOrders</code> arrays on Company &amp; Contact</td>
                     </tr>
                     <tr>
-                        <td><code>apps/api/src/graphql/schema.ts</code></td>
+                        <td><code>apps/api/src/models/PurchaseOrder.ts</code></td>
                         <td><span class="action-mod">MOD</span></td>
-                        <td>Register PurchaseOrder resolvers (typeDef, Query, Mutation, Resolvers)</td>
+                        <td>Add metadata + file methods (existing CRUD / sync methods untouched)</td>
+                    </tr>
+                    <tr>
+                        <td><code>apps/api/src/graphql/models/PurchaseOrder.ts</code></td>
+                        <td><span class="action-mod">MOD</span></td>
+                        <td>Extend type with new fields + <code>Files</code> resolver; add queries &amp; mutations</td>
                     </tr>
                     <tr>
                         <td><code>apps/frontend/src/pages/companies/[id]/index.tsx</code></td>
                         <td><span class="action-mod">MOD</span></td>
-                        <td>Add PO tab to Company detail page</td>
-                    </tr>
-                    <tr>
-                        <td><code>apps/frontend/src/pages/jobs/[id]/index.tsx</code></td>
-                        <td><span class="action-mod">MOD</span></td>
-                        <td>Add Purchase Orders section to Job detail page</td>
+                        <td>Add Purchase Orders tab (filtered by <code>companyId</code>)</td>
                     </tr>
                     <tr>
                         <td><code>apps/frontend/src/lib/routes.ts</code></td>
                         <td><span class="action-mod">MOD</span></td>
-                        <td>Add <code>/purchase-orders</code> and <code>/purchase-orders/[id]</code> routes</td>
-                    </tr>
-                    <tr>
-                        <td><code>Estimate form component(s)</code></td>
-                        <td><span class="action-mod">MOD</span></td>
-                        <td>Replace PO free-text input with PO dropdown selector</td>
-                    </tr>
-                    <tr>
-                        <td><code>Invoice form component(s)</code></td>
-                        <td><span class="action-mod">MOD</span></td>
-                        <td>Replace PO free-text input with PO dropdown; auto-select when single PO</td>
+                        <td>Add <code>/purchase-orders/[id]</code> route</td>
                     </tr>
                 </tbody>
             </table>
+            <p style="font-size:13px; color:#64748b;">Estimate / invoice PO dropdowns and the Job PO section are <strong>not</strong> modified &mdash; they already ship.</p>
 
         </div>
     </div>
@@ -906,21 +688,15 @@ extend type Mutation {
         </h2>
         <div class="collapsible-body open">
             <ul class="criteria-list">
-                <li><div class="criteria-check"></div><span><code>PurchaseOrder</code> and <code>PurchaseOrderLineItem</code> tables created with indexes</span></li>
-                <li><div class="criteria-check"></div><span>Existing <code>Job.purchaseOrder</code> strings migrated to PurchaseOrder records with <code>type=CustomerPO</code>, <code>status=Issued</code></span></li>
-                <li><div class="criteria-check"></div><span>Multiple POs per job supported &mdash; Job detail shows all linked POs</span></li>
-                <li><div class="criteria-check"></div><span>PO detail page accessible at <code>/purchase-orders/[id]</code> with Overview, Line Items, Invoices, Estimates, Files tabs</span></li>
-                <li><div class="criteria-check"></div><span>PO tab on Company detail page shows all POs for that company</span></li>
-                <li><div class="criteria-check"></div><span><code>CPO-####</code> auto-sequenced numbering per instance</span></li>
-                <li><div class="criteria-check"></div><span>Estimates and Invoices have PO dropdown selector replacing free-text input</span></li>
-                <li><div class="criteria-check"></div><span>When job has single PO, auto-selected in invoice form</span></li>
-                <li><div class="criteria-check"></div><span>When job has multiple POs, user prompted to select</span></li>
-                <li><div class="criteria-check"></div><span><code>PurchaseOrderLineItem.total</code> computed as <code>quantity &times; unitPrice</code> (not stored)</span></li>
-                <li><div class="criteria-check"></div><span>Search Core indexes POs for global search</span></li>
-                <li><div class="criteria-check"></div><span>No regression on existing estimate/invoice PO references after migration</span></li>
-                <li><div class="criteria-check"></div><span>Permission: users need appropriate permission to view/create/edit POs</span></li>
-                <li><div class="criteria-check"></div><span>Validation: <code>poNumber</code> required, <code>type</code> must be valid const value</span></li>
-                <li><div class="criteria-check"></div><span>Notification: none (POs are internal documents at this stage)</span></li>
+                <li><div class="criteria-check"></div><span><code>PurchaseOrder</code> gains <code>companyId</code>, <code>contactId</code>, <code>issuedDate</code>, <code>amount</code>, <code>terms</code>, <code>description</code> + Company / Contact relations &mdash; additive migration, no data backfill</span></li>
+                <li><div class="criteria-check"></div><span>PO detail page at <code>/purchase-orders/[id]</code> with Overview, Linked Records, and Files tabs</span></li>
+                <li><div class="criteria-check"></div><span>Linked Records tab lists every Job / Estimate / CO / Invoice the PO is assigned to, read from <code>PurchaseOrderAssignment</code></span></li>
+                <li><div class="criteria-check"></div><span>Files tab uploads / lists / removes attachments via <code>Asset</code> / <code>AssetReference</code> (<code>referenceTable = "PurchaseOrder"</code>)</span></li>
+                <li><div class="criteria-check"></div><span>Company detail page shows a Purchase Orders tab filtered by <code>companyId</code></span></li>
+                <li><div class="criteria-check"></div><span><code>poNumber</code> remains user-entered (no auto-numbering); <code>poNumber</code> required on create</span></li>
+                <li><div class="criteria-check"></div><span>No regression: existing multi-PO roll-up, invoice / estimate / CO PO dropdowns, and auto-populate behavior are unchanged</span></li>
+                <li><div class="criteria-check"></div><span>Permission: users need appropriate permission to view / create / edit POs and attach files</span></li>
+                <li><div class="criteria-check"></div><span>No <code>type</code>, <code>status</code>, line items, or auto-numbering introduced (all deferred to MAT-5)</span></li>
             </ul>
         </div>
     </div>
@@ -934,25 +710,25 @@ extend type Mutation {
         <div class="collapsible-body open">
 
             <h3>Requires</h3>
-            <p><span class="dep-tag dep-none">None &mdash; ROOT</span> Parallel with MAT-0</p>
+            <p><span class="dep-tag dep-none">None &mdash; ROOT</span> Builds on the already-shipped PurchaseOrder / PurchaseOrderAssignment system. Parallel with MAT-0.</p>
 
             <h3>Enables</h3>
-            <p><a class="dep-tag dep-enables" href="#">MAT-5</a> Supplier PO &mdash; shares PurchaseOrder model</p>
+            <p><span class="dep-tag dep-enables">MAT-5</span> Supplier PO &mdash; shares this model; adds <code>type</code>, <code>status</code> lifecycle, <code>PurchaseOrderLineItem</code>, and <code>SPO-####</code> auto-numbering on top.</p>
 
             <h3>Siblings (Parallel)</h3>
             <p>
                 <span class="dep-tag dep-none">MAT-0</span>
-                <span class="dep-tag dep-none">MAT-2a</span>
+                <span class="dep-tag dep-none">MAT-9</span>
             </p>
 
             <h3>Parent</h3>
-            <p><a class="dep-tag dep-none" href="release-1.34-timeline.html">Release 1.34 &mdash; Material Management &amp; Supply Chain</a></p>
+            <p><a class="dep-tag dep-none" href="release-1.33-timeline.html">Release 1.33 &mdash; Material Supply Chain</a></p>
 
         </div>
     </div>
 
     <div class="uis-footer">
-        MAT-1 &middot; Customer PO Entity &middot; Release 1.34 &mdash; Material Management &amp; Supply Chain
+        MAT-1 &middot; Customer PO Entity &middot; Release 1.33 &mdash; Material Supply Chain
     </div>
 </div>
 

@@ -120,16 +120,31 @@ pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
         <div class="uis-badges">
             <span class="uis-badge badge-q">MAT-8</span>
             <span class="uis-badge badge-lane">Operations</span>
-            <span class="uis-badge badge-status">Draft</span>
+            <span class="uis-badge badge-status">Draft &mdash; resequenced</span>
             <span class="uis-badge badge-priority">P1</span>
-            <span class="uis-badge badge-child">Child of Release 1.34</span>
+            <span class="uis-badge badge-child">Child of Release 1.33</span>
         </div>
         <h1 class="uis-h1">Vendor Credits &amp; Returns</h1>
-        <p class="uis-sub">Returns workflow with credit memo tracking, job cost adjustment, inventory return movements, and AP reconciliation. Closes the financial loop on material procurement.</p>
+        <p class="uis-sub">Captures a supplier credit balance and (when applicable) the inventory return that triggered it. Closes the financial loop on material procurement &mdash; once there is a loop to close.</p>
         <div class="uis-meta">
-            <span><strong>Parent:</strong> Release 1.34</span>
+            <span><strong>Parent:</strong> Release 1.33</span>
             <span><strong>Slice:</strong> MAT-8</span>
             <span><strong>Est:</strong> 4&ndash;5 days</span>
+        </div>
+    </div>
+
+    <div style="background:#eff6ff; border:1px solid #bfdbfe; border-left:4px solid #3b82f6; border-radius:0 10px 10px 0; padding:16px 20px; margin-bottom:24px; font-size:13.5px; color:#1e3a8a; line-height:1.6;">
+        <strong style="display:block; margin-bottom:6px; font-size:14px;">&#9888; Resequenced &mdash; not yet hardened</strong>
+        This was the CEO greenfield draft. Reconciling it against the rest of the epic surfaced that <strong>three of its four value props rest on foundations that don&rsquo;t exist in 1.33</strong>:
+        <ul style="margin:8px 0 8px 18px; padding:0;">
+            <li><strong>AP reconciliation</strong> &mdash; there is <em>no supplier-invoice / AP entity</em> in the schema (that&rsquo;s <strong>MAT-11</strong>). A credit has no AP balance to reconcile against and no future-PO to apply to (also OUT of scope here &mdash; internal contradiction).</li>
+            <li><strong>Job-cost adjustment &rarr; <code>JobFinancialSummaryService</code></strong> &mdash; JFSS today is forecast + actuals only, and material actuals come from EXPENSE line items, not POs. Wiring PO-side cost in is <strong>MAT-12</strong> (committed cost). A PO-line credit netting into a job actual also double-counts vs MAT-2a consumption.</li>
+            <li><strong>Inventory return movement</strong> &mdash; MAT-7 already ships this mechanism (an outbound <code>InventoryMovement</code>: <code>from = stock location, to = null</code>); it needs no <code>VendorCredit</code> to fire, and only applies when reason = Return <em>and</em> the material was actually stocked.</li>
+        </ul>
+        So MAT-8 adds one unique thing &mdash; the <strong>credit balance</strong> (&ldquo;the supplier owes you $3,000&rdquo;) &mdash; and its only consumers are MAT-11 (AP) and MAT-12 (committed cost). <strong>Decision (Jun 2026): MAT-8 is resequenced to <em>after</em> MAT-11 + MAT-12</strong> as the chain terminus that closes their loop, rather than a write-only record built first. The financial cluster (8/11/12) is a candidate to defer as a group while inventory/material settles &mdash; pending confirmation.
+        <div style="margin-top:10px; padding-top:10px; border-top:1px solid #bfdbfe;">
+            <strong>Decisions locked for the eventual harden:</strong>
+            <span style="display:inline-block; margin-left:4px;">status = <code>ApprovalStatus</code> enum (Draft/InReview/Approved &mdash; not a PropertyValue Kanban; drop &ldquo;Applied,&rdquo; which was defined purely via out-of-scope AP) &middot; dedicated <code>vendorCredit</code> permission (resolver-enforced, not in <code>permissionsByReferenceModel</code>) &middot; credits tie to <strong>supplier-type</strong> <code>PurchaseOrder</code> + MAT-5 <code>PurchaseOrderLineItem</code> &middot; <code>VC-####</code> via the global RFI/SPO/RCV counter &middot; PDF + email = MAT-5&rsquo;s HTML&rarr;PSPDFKit + JWT download-link (no attachment) &middot; models hand-written off <code>WorkOrderMaterialItem</code> (not new-data-model).</span>
         </div>
     </div>
 
@@ -761,25 +776,31 @@ type Mutation {
         <div class="collapsible-body open">
             <h3>Requires</h3>
             <p>
-                <span class="dep-tag dep-requires">MAT-5: Supplier PO</span> &mdash; credits are linked to supplier purchase orders
+                <span class="dep-tag dep-requires">MAT-5: Supplier PO</span> &mdash; credits link to supplier-type purchase orders + their line items
             </p>
             <p>
-                <span class="dep-tag dep-requires">MAT-7: Inventory Management</span> &mdash; returns create inventory movements
+                <span class="dep-tag dep-requires">MAT-7: Inventory Management</span> &mdash; physical returns reuse the existing outbound <code>InventoryMovement</code>
+            </p>
+            <p>
+                <span class="dep-tag dep-requires">MAT-11: Supplier Invoices / AP</span> &mdash; the home for a credit <em>balance</em> and apply-to-future. Without it a credit has nothing to reconcile against.
+            </p>
+            <p>
+                <span class="dep-tag dep-requires">MAT-12: Committed Cost in JFSS</span> &mdash; the home for a credit&rsquo;s job-cost effect. Without it there is no P&amp;L consumer.
             </p>
 
             <h3>Enables</h3>
-            <p><em>Nothing directly &mdash; terminal spec in the MAT chain.</em></p>
+            <p><em>Nothing directly &mdash; terminal slice in the MAT chain (closes the financial loop MAT-11/MAT-12 open).</em></p>
 
             <h3>Siblings</h3>
-            <p><em>None</em></p>
+            <p><em>MAT-11, MAT-12 &mdash; the financial cluster; candidates to defer as a group.</em></p>
 
             <h3>Parent</h3>
-            <p><span class="dep-tag dep-none">Release 1.34</span></p>
+            <p><span class="dep-tag dep-none">Release 1.33</span></p>
         </div>
     </div>
 
     <div class="uis-footer">
-        MAT-8 &middot; Vendor Credits &amp; Returns &middot; Release 1.34
+        MAT-8 &middot; Vendor Credits &amp; Returns &middot; Release 1.33
     </div>
 </div>
 

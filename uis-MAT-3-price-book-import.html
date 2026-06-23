@@ -121,15 +121,20 @@ pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
             <span class="uis-badge badge-lane">Procurement</span>
             <span class="uis-badge badge-status">Draft</span>
             <span class="uis-badge badge-priority">P1</span>
-            <span class="uis-badge badge-child">Child of Release 1.34</span>
+            <span class="uis-badge badge-child">Child of Release 1.33</span>
         </div>
         <h1 class="uis-h1">Price Book Import</h1>
-        <p class="uis-sub">CSV/Excel import wizard for distributor pricing into ManufacturerProduct + DistributorPrice. Column mapping, preview, validation, and import history.</p>
+        <p class="uis-sub">CSV/Excel import wizard that bulk-loads a distributor&rsquo;s price book into <code>MaterialAttributePrice</code> <strong>source rows</strong> (the MAT-0 per-cell cost grid) &mdash; column mapping, preview, validation, and import history. The data-entry accelerator for the structures MAT-0 + MAT-9 already define.</p>
         <div class="uis-meta">
-            <span><strong>Parent:</strong> Release 1.34</span>
+            <span><strong>Parent:</strong> Release 1.33</span>
             <span><strong>Slice:</strong> MAT-3</span>
             <span><strong>Est:</strong> 5&ndash;6 days</span>
         </div>
+    </div>
+
+    <div style="background:#eff6ff; border:1px solid #bfdbfe; border-radius:10px; padding:14px 18px; margin-bottom:16px; font-size:14px; line-height:1.6; color:#1e3a8a;">
+        <strong>Reconciliation &mdash; retargeted off the dead MAT-0 design.</strong>
+        This spec was written against <code>ManufacturerProduct</code> + <code>DistributorPrice</code>, both <strong>killed</strong> in the MAT-0 collapse. MAT-3 is <em>not</em> a new data model &mdash; it is the <strong>bulk writer for <code>MaterialAttributePrice</code> source rows</strong> (<code>distributorId</code> + <code>manufacturerId</code> + <code>sku</code> + <code>listPrice</code> + <code>discountId</code>), with discounts flowing to MAT-9&rsquo;s <code>Discount</code> and the distributor link gated by MAT-10&rsquo;s <code>MaterialCompany</code>. The only new model is <code>PriceBookImport</code> (an import-job audit log). Direction: <strong>match-or-create</strong> &mdash; an unknown SKU creates the Material/variant + link + source row, not just updates an existing one (create mechanics are the open design question, §4).
     </div>
 
     <div class="uis-toc">
@@ -223,15 +228,19 @@ pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
         <div class="collapsible-body open">
             <h3>In Scope</h3>
             <ul>
-                <li><span class="scope-tag scope-in">IN</span> <code>PriceBookImport</code> Prisma model for tracking import history</li>
-                <li><span class="scope-tag scope-in">IN</span> <code>Material.sku</code> field extension for SKU-based matching</li>
-                <li><span class="scope-tag scope-in">IN</span> Backend import engine: <code>parseFile</code>, <code>mapColumns</code>, <code>validateRows</code>, <code>importRows</code></li>
+                <li><span class="scope-tag scope-in">IN</span> <code>PriceBookImport</code> Prisma model &mdash; import-job audit log (file, distributor, status, row/success/error counts, error log). No <code>instanceId</code>.</li>
+                <li><span class="scope-tag scope-in">IN</span> Backend import engine: <code>parseFile</code>, <code>mapColumns</code>, <code>validateRows</code>, <code>importRows</code> &mdash; writes through the existing <code>MaterialAttributePrice</code> model (the MAT-0 source-row upsert), not a bespoke table</li>
+                <li><span class="scope-tag scope-in">IN</span> <strong>Match-or-create</strong> resolution per row: a row identifies a <code>(material, variant cell, distributor, manufacturer)</code> source row by <code>sku</code>; a known SKU updates its price/discount, an unknown SKU <em>creates</em> the Material/variant + the <code>MaterialCompany</code> distributor link + the source row</li>
+                <li><span class="scope-tag scope-in">IN</span> Discounts in the sheet flow to MAT-9: match-or-create a <code>Discount</code> (buy-side, <code>distributorId</code>) and set the row&rsquo;s <code>discountId</code> &mdash; not a flat percent column</li>
+                <li><span class="scope-tag scope-in">IN</span> Respect the MAT-10 gate &mdash; the chosen distributor (and any manufacturer) is confirmed/created as a <code>MaterialCompany</code> link as part of the import</li>
                 <li><span class="scope-tag scope-in">IN</span> 4-step frontend wizard: Upload &rarr; Map Columns &rarr; Preview &rarr; Import</li>
-                <li><span class="scope-tag scope-in">IN</span> Price comparison view on Supplier detail page</li>
+                <li><span class="scope-tag scope-in">IN</span> Price comparison view on the Distributor (Company) detail page</li>
             </ul>
 
             <h3>Out of Scope</h3>
             <ul>
+                <li><span class="scope-tag scope-out">OUT</span> No <code>Material.sku</code> field &mdash; SKU lives on the MAP house row (MAT-0); matching keys off the source-row / house-row <code>sku</code></li>
+                <li><span class="scope-tag scope-out">OUT</span> No new <code>ManufacturerProduct</code> / <code>DistributorPrice</code> models (dead &mdash; MAT-0 collapse)</li>
                 <li><span class="scope-tag scope-out">OUT</span> EDI / API integration with distributors</li>
                 <li><span class="scope-tag scope-out">OUT</span> Automatic scheduled imports</li>
                 <li><span class="scope-tag scope-out">OUT</span> Export price books</li>
@@ -298,27 +307,45 @@ pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
                         <div style="flex: 1; font-size: 13px; font-weight: 600; color: #0f172a;">Part Number</div>
                         <div style="width: 40px; text-align: center; color: #10b981;">✓</div>
                         <div style="flex: 1;"><div style="background: #dcfce7; border: 1px solid #bbf7d0; border-radius: 5px; padding: 6px 10px; font-size: 12px; color: #166534; font-weight: 600;">SKU ▾</div></div>
-                        <div style="flex: 1; font-size: 12px; color: #64748b;">CRS-FIBER-4IN</div>
+                        <div style="flex: 1; font-size: 12px; color: #64748b;">CRS-FBP-075-150</div>
                     </div>
                     <div style="display: flex; gap: 6px; padding: 10px 0; border-bottom: 1px solid #f1f5f9; align-items: center;">
-                        <div style="flex: 1; font-size: 13px; font-weight: 600; color: #0f172a;">Description</div>
+                        <div style="flex: 1; font-size: 13px; font-weight: 600; color: #0f172a;">Product</div>
                         <div style="width: 40px; text-align: center; color: #10b981;">✓</div>
-                        <div style="flex: 1;"><div style="background: #dcfce7; border: 1px solid #bbf7d0; border-radius: 5px; padding: 6px 10px; font-size: 12px; color: #166534; font-weight: 600;">Product Name ▾</div></div>
-                        <div style="flex: 1; font-size: 12px; color: #64748b;">Fiberglass Batt 4"</div>
+                        <div style="flex: 1;"><div style="background: #dcfce7; border: 1px solid #bbf7d0; border-radius: 5px; padding: 6px 10px; font-size: 12px; color: #166534; font-weight: 600;">Material / Product ▾</div></div>
+                        <div style="flex: 1; font-size: 12px; color: #64748b;">Fiberglass Pipe Insulation</div>
+                    </div>
+                    <div style="display: flex; gap: 6px; padding: 10px 0; border-bottom: 1px solid #f1f5f9; align-items: center;">
+                        <div style="flex: 1; font-size: 13px; font-weight: 600; color: #0f172a;">Pipe Size</div>
+                        <div style="width: 40px; text-align: center; color: #10b981;">✓</div>
+                        <div style="flex: 1;"><div style="background: #dcfce7; border: 1px solid #bbf7d0; border-radius: 5px; padding: 6px 10px; font-size: 12px; color: #166534; font-weight: 600;">Axis &middot; Pipe Size ▾</div></div>
+                        <div style="flex: 1; font-size: 12px; color: #64748b;">3/4"</div>
+                    </div>
+                    <div style="display: flex; gap: 6px; padding: 10px 0; border-bottom: 1px solid #f1f5f9; align-items: center;">
+                        <div style="flex: 1; font-size: 13px; font-weight: 600; color: #0f172a;">Wall Thickness</div>
+                        <div style="width: 40px; text-align: center; color: #10b981;">✓</div>
+                        <div style="flex: 1;"><div style="background: #dcfce7; border: 1px solid #bbf7d0; border-radius: 5px; padding: 6px 10px; font-size: 12px; color: #166534; font-weight: 600;">Axis &middot; Thickness ▾</div></div>
+                        <div style="flex: 1; font-size: 12px; color: #64748b;">1-1/2"</div>
                     </div>
                     <div style="display: flex; gap: 6px; padding: 10px 0; border-bottom: 1px solid #f1f5f9; align-items: center;">
                         <div style="flex: 1; font-size: 13px; font-weight: 600; color: #0f172a;">List Price</div>
                         <div style="width: 40px; text-align: center; color: #10b981;">✓</div>
-                        <div style="flex: 1;"><div style="background: #dcfce7; border: 1px solid #bbf7d0; border-radius: 5px; padding: 6px 10px; font-size: 12px; color: #166534; font-weight: 600;">Unit Price ▾</div></div>
-                        <div style="flex: 1; font-size: 12px; color: #64748b;">$12.50</div>
+                        <div style="flex: 1;"><div style="background: #dcfce7; border: 1px solid #bbf7d0; border-radius: 5px; padding: 6px 10px; font-size: 12px; color: #166534; font-weight: 600;">List Price ▾</div></div>
+                        <div style="flex: 1; font-size: 12px; color: #64748b;">$4.20</div>
+                    </div>
+                    <div style="display: flex; gap: 6px; padding: 10px 0; border-bottom: 1px solid #f1f5f9; align-items: center;">
+                        <div style="flex: 1; font-size: 13px; font-weight: 600; color: #0f172a;">Discount %</div>
+                        <div style="width: 40px; text-align: center; color: #10b981;">✓</div>
+                        <div style="flex: 1;"><div style="background: #dcfce7; border: 1px solid #bbf7d0; border-radius: 5px; padding: 6px 10px; font-size: 12px; color: #166534; font-weight: 600;">Discount &middot; buy-side (MAT-9) ▾</div></div>
+                        <div style="flex: 1; font-size: 12px; color: #64748b;">32%</div>
                     </div>
                     <div style="display: flex; gap: 6px; padding: 10px 0; align-items: center;">
                         <div style="flex: 1; font-size: 13px; font-weight: 600; color: #0f172a;">UOM</div>
                         <div style="width: 40px; text-align: center; color: #f59e0b;">?</div>
-                        <div style="flex: 1;"><div style="background: #fef3c7; border: 1px solid #fde68a; border-radius: 5px; padding: 6px 10px; font-size: 12px; color: #92400e; font-weight: 600;">Select field&hellip; ▾</div></div>
-                        <div style="flex: 1; font-size: 12px; color: #64748b;">SQFT</div>
+                        <div style="flex: 1;"><div style="background: #fef3c7; border: 1px solid #fde68a; border-radius: 5px; padding: 6px 10px; font-size: 12px; color: #92400e; font-weight: 600;">Package Unit ▾</div></div>
+                        <div style="flex: 1; font-size: 12px; color: #64748b;">LF</div>
                     </div>
-                    <p style="margin-top: 12px; font-size: 12px; color: #64748b;">Green = auto-detected match &middot; Yellow = needs manual mapping</p>
+                    <p style="margin-top: 12px; font-size: 12px; color: #64748b;">Green = auto-detected match &middot; Yellow = needs manual mapping. <strong>Product</strong> + the mapped <strong>Axis</strong> columns resolve to the material variant cell (create on unknown); <strong>Discount</strong> match-or-creates a buy-side <code>Discount</code> (MAT-9).</p>
                 </div>
             </div>
 
@@ -357,10 +384,10 @@ pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
                     </div>
                     <div style="display: flex; gap: 6px; padding: 8px 0; border-bottom: 1px solid #f1f5f9; align-items: center;">
                         <div style="width: 40px; font-size: 12px; color: #94a3b8;">1</div>
-                        <div style="flex: 1; font-size: 12px; font-family: monospace; color: #7c3aed;">CRS-FIBER-4IN</div>
-                        <div style="flex: 2; font-size: 12px;">Fiberglass Batt 4&quot;</div>
-                        <div style="flex: 1; text-align: right; font-size: 12px; color: #94a3b8; text-decoration: line-through;">$11.25</div>
-                        <div style="flex: 1; text-align: right; font-size: 12px; font-weight: 700; color: #dc2626;">$12.50</div>
+                        <div style="flex: 1; font-size: 12px; font-family: monospace; color: #7c3aed;">CRS-FBP-075-150</div>
+                        <div style="flex: 2; font-size: 12px;">Fiberglass Pipe Insulation 3/4&quot; &times; 1-1/2&quot;</div>
+                        <div style="flex: 1; text-align: right; font-size: 12px; color: #94a3b8; text-decoration: line-through;">$4.05</div>
+                        <div style="flex: 1; text-align: right; font-size: 12px; font-weight: 700; color: #dc2626;">$4.20</div>
                         <div style="flex: 1;"><span class="mockup-badge" style="background: #fef3c7; color: #92400e;">UPDATED</span></div>
                     </div>
                     <div style="display: flex; gap: 6px; padding: 8px 0; border-bottom: 1px solid #f1f5f9; align-items: center;">
@@ -373,11 +400,11 @@ pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
                     </div>
                     <div style="display: flex; gap: 6px; padding: 8px 0; align-items: center; background: #fef2f2; margin: 0 -24px; padding-left: 24px; padding-right: 24px;">
                         <div style="width: 40px; font-size: 12px; color: #dc2626; font-weight: 700;">847</div>
-                        <div style="flex: 1; font-size: 12px; font-family: monospace; color: #dc2626;">???</div>
-                        <div style="flex: 2; font-size: 12px; color: #dc2626;">Missing SKU</div>
+                        <div style="flex: 1; font-size: 12px; font-family: monospace; color: #dc2626;">CRS-FBP-200</div>
+                        <div style="flex: 2; font-size: 12px; color: #dc2626;">Pipe Insulation 2&quot; &mdash; no Size/Thickness column mapped</div>
                         <div style="flex: 1;"></div>
-                        <div style="flex: 1; text-align: right; font-size: 12px;">$0.00</div>
-                        <div style="flex: 1;"><span class="mockup-badge" style="background: #fee2e2; color: #dc2626;">ERROR</span></div>
+                        <div style="flex: 1; text-align: right; font-size: 12px;">$5.10</div>
+                        <div style="flex: 1;"><span class="mockup-badge" style="background: #fee2e2; color: #dc2626;">SKIPPED</span></div>
                     </div>
                 </div>
             </div>
@@ -426,10 +453,11 @@ pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
             <span class="toggle-icon">&#9660;</span>
         </h2>
         <div class="collapsible-body open">
-            <h3>PriceBookImport</h3>
+            <p>One new model (the audit log) + a write path into the <strong>existing</strong> <code>MaterialAttributePrice</code>. No new pricing tables.</p>
+
+            <h3>PriceBookImport (new &mdash; audit log only)</h3>
             <pre>model PriceBookImport {
   id            String    @id @default(nanoid()) @db.VarChar(21)
-  instanceId    String    @db.VarChar(21)
   distributorId String    @db.VarChar(21)
   fileName      String    @db.VarChar(500)
   status        String    @default("Pending") @db.VarChar(50)
@@ -443,24 +471,39 @@ pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @default(now()) @updatedAt
 
-  Instance      Instance     @relation(fields: [instanceId], references: [id])
-  Distributor   Company      @relation(fields: [distributorId], references: [id])
-  ImportedBy    User         @relation(fields: [importedById], references: [id])
+  Distributor   Company   @relation(fields: [distributorId], references: [id])
+  ImportedBy    User      @relation(fields: [importedById], references: [id])
 
-  @@index([instanceId])
   @@index([distributorId])
   @@index([importedById])
 }</pre>
-            <p style="margin-top: 8px; font-size: 13px; color: #64748b;">Status values: <code>Pending</code>, <code>Processing</code>, <code>Complete</code>, <code>PartialSuccess</code>, <code>Failed</code>.</p>
+            <p style="margin-top: 8px; font-size: 13px; color: #64748b;">Status values: <code>Pending</code>, <code>Processing</code>, <code>Complete</code>, <code>PartialSuccess</code>, <code>Failed</code>. No <code>instanceId</code> (single-instance app).</p>
 
-            <h3>Material.sku Extension</h3>
-            <pre>// Add to existing Material model
-model Material {
-  // ... existing fields ...
-  sku           String?   @db.VarChar(100)
+            <h3>Import target &mdash; <code>MaterialAttributePrice</code> source rows (existing, from MAT-0)</h3>
+            <p>Each price-book row becomes (or updates) a distributor <strong>source row</strong> on the per-cell cost grid. The engine calls the same <code>MaterialAttributePrice</code> upsert MAT-0 built (which already dedups on <code>(materialId, axes, distributorId, manufacturerId)</code> and enforces the <code>MaterialCompany</code> gate). Field mapping:</p>
+            <table class="schema-table">
+                <thead><tr><th>Price-book column</th><th>MAP source-row field</th><th>Notes</th></tr></thead>
+                <tbody>
+                    <tr><td>Part # / SKU</td><td><code>sku</code></td><td>The match key (distributor&rsquo;s orderable SKU)</td></tr>
+                    <tr><td>(wizard dropdown)</td><td><code>distributorId</code></td><td>Chosen once at upload; the whole sheet is one distributor</td></tr>
+                    <tr><td>Manufacturer (if present)</td><td><code>manufacturerId</code></td><td>Else null / single-manufacturer default &mdash; see open question</td></tr>
+                    <tr><td>List Price</td><td><code>listPrice</code></td><td>Net cost resolves via <code>discountId</code> (MAT-9)</td></tr>
+                    <tr><td>Discount (%/amount)</td><td><code>discountId</code></td><td>Match-or-create a buy-side <code>Discount</code> (MAT-9), then FK it</td></tr>
+                    <tr><td>UOM / pack</td><td><code>packageUnit</code> / <code>packageQty</code></td><td>UOM&rarr;cell unit mapping is fuzzy &mdash; see open question</td></tr>
+                    <tr><td>Mfr part # / UPC</td><td><code>manufacturerSku</code> / <code>barcode</code></td><td>Optional reference columns</td></tr>
+                    <tr><td>Lead time / min qty</td><td><code>leadTimeDays</code> / <code>minQty</code></td><td>Optional</td></tr>
+                </tbody>
+            </table>
 
-  @@index([sku])
-}</pre>
+            <div style="background:#faf5ff; border:1px solid #e9d5ff; border-radius:8px; padding:14px 18px; margin:14px 0; font-size:14px; line-height:1.6; color:#6b21a8;">
+                <strong>Open design &mdash; match-or-create mechanics (settle before planning).</strong> A flat price-book row carries SKU + description + price; a MAP source row needs <code>(material, variant cell/axes, distributor, manufacturer)</code>. Match by <code>sku</code> is clean; <strong>create</strong> is the hard part:
+                <ul style="margin:6px 0 0;">
+                    <li><strong>What gets created for an unknown SKU?</strong> A new Material + a variant cell with what axis values? A flat sheet has no axis structure &mdash; do we create a 0-axis (all-null-cell) Material per SKU, or require the operator to pre-create the catalogue and only import prices?</li>
+                    <li><strong>Manufacturer:</strong> a distributor sells many makers&rsquo; versions. If the sheet doesn&rsquo;t name one, is <code>manufacturerId</code> null, or do we ask for a default?</li>
+                    <li><strong>UOM:</strong> the sheet&rsquo;s unit (SQFT, EA, box) maps to <code>packageUnit</code>/<code>packageQty</code>, but reconciling it to the material&rsquo;s own unit is fuzzy.</li>
+                    <li><strong>MaterialCompany link:</strong> creating a source row for a new distributor must also create the <code>MaterialCompany(material, distributor, role=Distributor)</code> link (MAT-10 confirm-then-create), in bulk.</li>
+                </ul>
+            </div>
         </div>
     </div>
 
@@ -490,8 +533,8 @@ model Material {
 
 type PriceBookImportResult {
   import: PriceBookImport!
-  newProducts: Int!
-  updatedPrices: Int!
+  createdSourceRows: Int!     # unknown SKU → new Material/variant + source row
+  updatedSourceRows: Int!     # known SKU → price/discount updated
   errors: [PriceBookImportError!]!
 }
 
@@ -634,12 +677,12 @@ type Mutation {
                     <tr>
                         <td><span class="action-new">NEW</span></td>
                         <td><code>apps/api/prisma/migrations/…_add_price_book_import/migration.sql</code></td>
-                        <td>Create PriceBookImport table + add sku column to Material</td>
+                        <td>Create PriceBookImport table only (no <code>Material.sku</code> &mdash; SKU lives on the MAP row)</td>
                     </tr>
                     <tr>
                         <td><span class="action-new">NEW</span></td>
                         <td><code>apps/api/src/models/PriceBookImport.ts</code></td>
-                        <td>Import engine: parseFile, mapColumns, validateRows, importRows</td>
+                        <td>Import engine: parseFile, mapColumns, validateRows, importRows &mdash; resolves match-or-create and writes via the <code>MaterialAttributePrice</code> model</td>
                     </tr>
                     <tr>
                         <td><span class="action-new">NEW</span></td>
@@ -659,7 +702,7 @@ type Mutation {
                     <tr>
                         <td><span class="action-mod">MOD</span></td>
                         <td><code>apps/api/prisma/schema.prisma</code></td>
-                        <td>Add PriceBookImport model + sku field on Material</td>
+                        <td>Add PriceBookImport model (+ Company/User back-relations). No Material change.</td>
                     </tr>
                     <tr>
                         <td><span class="action-mod">MOD</span></td>
@@ -684,13 +727,14 @@ type Mutation {
                 <li><div class="criteria-check"></div>Column mapping auto-detects common field names (SKU, Description, Price, UOM) with &ge;80% accuracy</li>
                 <li><div class="criteria-check"></div>User can manually override any auto-detected column mapping</li>
                 <li><div class="criteria-check"></div>Preview step shows total row count, validation error count, and price change count</li>
-                <li><div class="criteria-check"></div>Rows with validation errors are highlighted red with error description</li>
-                <li><div class="criteria-check"></div>Successful rows create <code>ManufacturerProduct</code> + <code>DistributorPrice</code> records</li>
-                <li><div class="criteria-check"></div>Duplicate handling supports both "Update Existing" and "Skip" strategies</li>
-                <li><div class="criteria-check"></div>Price comparison shows old price vs new price for existing products</li>
+                <li><div class="criteria-check"></div>Rows with validation errors (e.g. missing SKU) are highlighted red with error description</li>
+                <li><div class="criteria-check"></div>A known SKU <strong>updates</strong> its <code>MaterialAttributePrice</code> source row (<code>listPrice</code>/<code>discountId</code>); an unknown SKU <strong>creates</strong> the Material/variant + <code>MaterialCompany</code> distributor link + source row</li>
+                <li><div class="criteria-check"></div>A discount column match-or-creates a buy-side <code>Discount</code> (MAT-9) and sets the row&rsquo;s <code>discountId</code></li>
+                <li><div class="criteria-check"></div>Source rows are written through the existing <code>MaterialAttributePrice</code> upsert (dedup on cell+source; <code>MaterialCompany</code> gate enforced)</li>
+                <li><div class="criteria-check"></div>Price comparison shows old price vs new price for existing source rows</li>
                 <li><div class="criteria-check"></div>Import history is viewable with row counts, error counts, and timestamps</li>
                 <li><div class="criteria-check"></div>Error log is downloadable after import</li>
-                <li><div class="criteria-check"></div>Permission check: <code>material.create</code> required to initiate import</li>
+                <li><div class="criteria-check"></div>Initiating an import requires the permission governing material-pricing writes (reuse &mdash; no new permission)</li>
             </ul>
         </div>
     </div>
@@ -702,11 +746,18 @@ type Mutation {
             <span class="toggle-icon">&#9660;</span>
         </h2>
         <div class="collapsible-body open">
-            <h3>Requires</h3>
-            <p><span class="dep-tag dep-requires">MAT-0: ManufacturerProduct + DistributorPrice</span></p>
+            <h3>Requires (all done)</h3>
+            <p>
+                <span class="dep-tag dep-requires">MAT-0: MaterialAttributePrice source rows</span>
+                <span class="dep-tag dep-requires">MAT-9: Discount / discountId</span>
+                <span class="dep-tag dep-requires">MAT-10: MaterialCompany gate</span>
+            </p>
 
             <h3>Enables</h3>
-            <p><span class="dep-tag dep-enables">MAT-9: Discount Management (references imported products)</span></p>
+            <p>
+                <span class="dep-tag dep-enables">Fast distributor onboarding (bulk cost load)</span>
+                <span class="dep-tag dep-enables">MAT-5 supplier POs (priced source rows + package qty)</span>
+            </p>
 
             <h3>Siblings</h3>
             <p>
@@ -714,12 +765,12 @@ type Mutation {
             </p>
 
             <h3>Parent</h3>
-            <p><span class="dep-tag dep-none">Release 1.34</span></p>
+            <p><span class="dep-tag dep-none">Release 1.33</span></p>
         </div>
     </div>
 
     <div class="uis-footer">
-        MAT-3 &middot; Price Book Import &middot; Release 1.34
+        MAT-3 &middot; Price Book Import &middot; Release 1.33
     </div>
 </div>
 

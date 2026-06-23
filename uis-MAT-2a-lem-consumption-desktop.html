@@ -120,17 +120,22 @@ pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
         <div class="uis-badges">
             <span class="uis-badge badge-q">MAT-2a</span>
             <span class="uis-badge badge-lane">LEM Reporting</span>
-            <span class="uis-badge badge-status">Draft</span>
+            <span class="uis-badge badge-status">Reconciled</span>
             <span class="uis-badge badge-priority">P0</span>
-            <span class="uis-badge badge-child">Child of Release 1.34</span>
+            <span class="uis-badge badge-child">Child of Release 1.33</span>
         </div>
         <h1 class="uis-h1">LEM Material Consumption &mdash; Desktop</h1>
-        <p class="uis-sub">Daily material consumption tracking completing the LEM trifecta (Labor + Equipment + Material). Desktop entry UI, combined LEM report, and P&amp;L integration.</p>
+        <p class="uis-sub">Promotes the existing <code>WorkOrderMaterialItem</code> into a top-level, approvable pricing record &mdash; the material peer of Timesheet and Equipment Time &mdash; completing the LEM trifecta. Desktop entry UI, combined daily LEM report, and P&amp;L integration.</p>
         <div class="uis-meta">
-            <span><strong>Parent:</strong> Release 1.34</span>
+            <span><strong>Parent:</strong> Release 1.33</span>
             <span><strong>Slice:</strong> MAT-2a</span>
-            <span><strong>Est:</strong> 4&ndash;5 days</span>
+            <span><strong>Est:</strong> 5&ndash;7 days</span>
         </div>
+    </div>
+
+    <div style="background:#eff6ff; border:1px solid #bfdbfe; border-left:4px solid #3b82f6; border-radius:8px; padding:16px 20px; margin-bottom:24px;">
+        <div style="font-size:13px; font-weight:800; color:#1e40af; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:6px;">Reconciled against the live backend</div>
+        <p style="font-size:14px; color:#1e3a8a; line-height:1.6; margin:0;">The original draft proposed a net-new <code>MaterialConsumptionEntry</code> model. The live backend already ships <code>WorkOrderMaterialItem</code> (migration <code>20260409200000_work_order_line_item_tables</code>) &mdash; the material sibling of <code>WorkOrderLaborItem</code> / <code>WorkOrderEquipmentItem</code>, wired into the combined <code>upsertWorkOrderLineItems</code> mutation, and already carrying <code>materialAttributePriceId</code> (the MAT-0 source row). It is dual-mode out of the box: free-text <strong>or</strong> a catalog Material + axes resolving to a specific MAP. This slice <strong>promotes that row into a structured, approvable pricing record</strong> &mdash; the material analogue of <code>EquipmentTimeEntry</code> &mdash; rather than building a parallel model. No <code>MaterialConsumptionEntry</code>.</p>
     </div>
 
     <div class="uis-toc">
@@ -154,7 +159,7 @@ pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
             <span class="toggle-icon">&#9660;</span>
         </h2>
         <div class="collapsible-body open">
-            <p>The &ldquo;M&rdquo; in LEM. Labor tracking is covered by timesheets, Equipment tracking is covered by UIS-15H &mdash; but Material consumption (&ldquo;we used 24 batts of R-30 today&rdquo;) has no native tracking. Customers currently use custom forms as a workaround, losing structured data, cost-code allocation, and any connection to job financials.</p>
+            <p>The &ldquo;M&rdquo; in LEM. Labour tracking is a structured, approvable record (Timesheets); Equipment tracking is too (Equipment Time, UIS-15H) &mdash; but Material consumption (&ldquo;we used 24 batts of R-30 today&rdquo;) only exists as a bare line-item row, with no status, cost codes, or billable value. Customers fall back to custom forms, losing structured data, cost-code allocation, and any connection to job financials. This slice gives Material the same structured-pricing tier as its LEM siblings.</p>
 
             <h3>Customer Evidence</h3>
             <div class="customer-quote">
@@ -228,13 +233,14 @@ pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
         <div class="collapsible-body open">
             <h3>In Scope</h3>
             <ul>
-                <li><span class="scope-tag scope-in">IN</span> <code>MaterialConsumptionEntry</code> Prisma model (no stored cost &mdash; computed downstream)</li>
-                <li><span class="scope-tag scope-in">IN</span> Desktop entry UI on Job detail page (form + table of existing entries)</li>
-                <li><span class="scope-tag scope-in">IN</span> LEM combined report tab joining labor + equipment + material data</li>
-                <li><span class="scope-tag scope-in">IN</span> <code>LEMReportView</code> SQL view aggregating all three LEM dimensions</li>
+                <li><span class="scope-tag scope-in">IN</span> Promote <code>WorkOrderMaterialItem</code> to a structured pricing record: add <code>workDate</code>, <code>status</code> (<code>ApprovalStatus</code>) + submit/approve audit trail, and free-text <code>unitPropertyValueId</code></li>
+                <li><span class="scope-tag scope-in">IN</span> New <code>WorkOrderMaterialItemCostCode</code> join &mdash; per-line, account-item-typed cost coding (mirrors <code>EquipmentTimeEntryCostCode</code>)</li>
+                <li><span class="scope-tag scope-in">IN</span> Extend the existing <code>upsertWorkOrderLineItems</code> material path (carry <code>workDate</code> / <code>status</code> / cost-code splits); add an <code>approveWorkOrderMaterialItems</code> mutation</li>
+                <li><span class="scope-tag scope-in">IN</span> Desktop entry UI on Job / Work Order detail (catalog <strong>XOR</strong> free-text, quantity, cost-code split, status)</li>
+                <li><span class="scope-tag scope-in">IN</span> LEM combined <em>daily</em> report tab, keyed on <code>(job, workDate)</code>, sourced from the three structured-tier records</li>
+                <li><span class="scope-tag scope-in">IN</span> <code>LEMReportView</code> SQL view aggregating the three LEM dimensions by job &amp; work date</li>
                 <li><span class="scope-tag scope-in">IN</span> PDF export of LEM report</li>
-                <li><span class="scope-tag scope-in">IN</span> Material consumption costs in Job Financial Summary (computed downstream from Material catalog or DistributorPrice)</li>
-                <li><span class="scope-tag scope-in">IN</span> Draft / Submitted / Approved workflow status on consumption entries</li>
+                <li><span class="scope-tag scope-in">IN</span> Material consumption cost (stored snapshot) + billable value in the Job Financial Summary</li>
             </ul>
 
             <h3>Out of Scope</h3>
@@ -243,6 +249,7 @@ pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
                 <li><span class="scope-tag scope-out">OUT</span> Inventory deduction on consumption</li>
                 <li><span class="scope-tag scope-out">OUT</span> Offline support</li>
                 <li><span class="scope-tag scope-out">OUT</span> Bulk import of consumption data</li>
+                <li><span class="scope-tag scope-out">OUT</span> Folding the bare <em>unstructured</em> <code>WorkOrderLaborItem</code> / <code>WorkOrderEquipmentItem</code> quick rows into the LEM report &mdash; the report draws labour &amp; equipment from the structured-tier records (Timesheet, Equipment Time)</li>
             </ul>
         </div>
     </div>
@@ -266,15 +273,11 @@ pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
                     Job Detail &mdash; Material Consumption Entry
                 </div>
                 <div class="mockup-body">
-                    <div style="font-weight:700; font-size:15px; margin-bottom:12px;">Log Material Consumption</div>
-                    <div style="display:grid; grid-template-columns:1fr 2fr 1fr 1fr 2fr 2fr; gap:8px; margin-bottom:16px;">
+                    <div style="font-weight:700; font-size:15px; margin-bottom:12px;">Log Material Consumption <span style="font-size:11px; font-weight:600; color:#94a3b8;">&mdash; work date Apr 7</span></div>
+                    <div style="display:grid; grid-template-columns:2fr 1fr 1fr 2fr; gap:8px; margin-bottom:10px;">
                         <div>
-                            <div style="font-size:11px; font-weight:600; color:#64748b; margin-bottom:4px;">Date</div>
-                            <div class="mockup-input">2026-04-07</div>
-                        </div>
-                        <div>
-                            <div style="font-size:11px; font-weight:600; color:#64748b; margin-bottom:4px;">Material</div>
-                            <div class="mockup-input">R-30 Fiberglass Batt &#9662;</div>
+                            <div style="font-size:11px; font-weight:600; color:#64748b; margin-bottom:4px;">Material <span style="color:#3b82f6;">(catalog)</span> or free-text</div>
+                            <div class="mockup-input">R-30 Fiberglass Batt &mdash; 16&quot; &#9662;</div>
                         </div>
                         <div>
                             <div style="font-size:11px; font-weight:600; color:#64748b; margin-bottom:4px;">Quantity</div>
@@ -282,16 +285,15 @@ pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
                         </div>
                         <div>
                             <div style="font-size:11px; font-weight:600; color:#64748b; margin-bottom:4px;">Unit</div>
-                            <div class="mockup-input">batt</div>
+                            <div class="mockup-input" style="background:#f1f5f9;">batt &middot; auto</div>
                         </div>
                         <div>
-                            <div style="font-size:11px; font-weight:600; color:#64748b; margin-bottom:4px;">Cost Code</div>
-                            <div class="mockup-input">07210 &mdash; Insulation &#9662;</div>
+                            <div style="font-size:11px; font-weight:600; color:#64748b; margin-bottom:4px;">Cost Code <span style="color:#94a3b8;">(material)</span></div>
+                            <div class="mockup-input">07210 &mdash; Insulation Material &#9662;</div>
                         </div>
-                        <div>
-                            <div style="font-size:11px; font-weight:600; color:#64748b; margin-bottom:4px;">Notes</div>
-                            <div class="mockup-input">Level 3 west wing</div>
-                        </div>
+                    </div>
+                    <div style="font-size:11px; color:#94a3b8; margin-bottom:14px; line-height:1.5;">
+                        Pick a catalog Material (+ axes &rarr; a specific MAP source row) and <strong>Unit</strong> auto-fills from the Material&rsquo;s unit of measure. For a free-text row, type a description and choose a Unit from the <code>PropertyValue</code> list. Cost codes are account-item-typed &mdash; a material code is distinct from a labour code &mdash; and a single line can be split across several. New rows start <strong>Not&nbsp;Submitted</strong>.
                     </div>
                     <div style="margin-bottom:20px;">
                         <span class="mockup-btn mockup-btn-primary">+ Log Consumption</span>
@@ -314,7 +316,7 @@ pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
                         <div class="mockup-cell">24</div>
                         <div class="mockup-cell">batt</div>
                         <div class="mockup-cell" style="flex:1.5;">07210</div>
-                        <div class="mockup-cell"><span class="mockup-badge" style="background:#fef3c7; color:#92400e;">Draft</span></div>
+                        <div class="mockup-cell"><span class="mockup-badge" style="background:#fef3c7; color:#92400e;">Not Submitted</span></div>
                         <div class="mockup-cell" style="flex:0.5; color:#3b82f6; cursor:pointer;">&#9998;</div>
                     </div>
                     <div class="mockup-row">
@@ -332,7 +334,7 @@ pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
                         <div class="mockup-cell">48</div>
                         <div class="mockup-cell">ea</div>
                         <div class="mockup-cell" style="flex:1.5;">22110</div>
-                        <div class="mockup-cell"><span class="mockup-badge" style="background:#eff6ff; color:#1d4ed8;">Submitted</span></div>
+                        <div class="mockup-cell"><span class="mockup-badge" style="background:#eff6ff; color:#1d4ed8;">In Review</span></div>
                         <div class="mockup-cell" style="flex:0.5; color:#3b82f6; cursor:pointer;">&#9998;</div>
                     </div>
                 </div>
@@ -356,45 +358,42 @@ pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
                             <span class="mockup-btn mockup-btn-primary" style="margin-left:8px;">Export PDF</span>
                         </div>
                     </div>
+                    <div style="font-size:11px; color:#94a3b8; margin-bottom:8px;">Each dimension shows <strong>cost</strong> and <strong>billable</strong>, sourced from the structured-tier records (Timesheet &middot; Equipment Time &middot; <code>WorkOrderMaterialItem</code>), keyed on work date. Bare unstructured WO quick rows are excluded.</div>
                     <div class="mockup-row mockup-header">
                         <div class="mockup-cell" style="flex:0.8;">Date</div>
-                        <div class="mockup-cell">Labor Hrs</div>
-                        <div class="mockup-cell">Labor $</div>
-                        <div class="mockup-cell">Equip Hrs</div>
-                        <div class="mockup-cell">Equip $</div>
+                        <div class="mockup-cell">Labour</div>
+                        <div class="mockup-cell">Equip</div>
                         <div class="mockup-cell">Mat&rsquo;l Qty</div>
-                        <div class="mockup-cell">Mat&rsquo;l $</div>
-                        <div class="mockup-cell" style="font-weight:800;">Daily Total</div>
+                        <div class="mockup-cell">Mat&rsquo;l Cost</div>
+                        <div class="mockup-cell" style="font-weight:800;">Daily Cost</div>
+                        <div class="mockup-cell" style="font-weight:800;">Daily Bill</div>
                     </div>
                     <div class="mockup-row">
                         <div class="mockup-cell" style="flex:0.8;">Apr 7</div>
-                        <div class="mockup-cell">64.0</div>
                         <div class="mockup-cell">$4,480</div>
-                        <div class="mockup-cell">8.0</div>
                         <div class="mockup-cell">$1,200</div>
                         <div class="mockup-cell">24</div>
                         <div class="mockup-cell">$720</div>
                         <div class="mockup-cell" style="font-weight:700;">$6,400</div>
+                        <div class="mockup-cell" style="font-weight:700; color:#10b981;">$8,210</div>
                     </div>
                     <div class="mockup-row">
                         <div class="mockup-cell" style="flex:0.8;">Apr 6</div>
-                        <div class="mockup-cell">72.0</div>
                         <div class="mockup-cell">$5,040</div>
-                        <div class="mockup-cell">10.0</div>
                         <div class="mockup-cell">$1,500</div>
                         <div class="mockup-cell">168</div>
                         <div class="mockup-cell">$2,340</div>
                         <div class="mockup-cell" style="font-weight:700;">$8,880</div>
+                        <div class="mockup-cell" style="font-weight:700; color:#10b981;">$11,420</div>
                     </div>
                     <div class="mockup-row" style="background:#f8fafc; font-weight:700; border-top:2px solid #e2e8f0;">
                         <div class="mockup-cell" style="flex:0.8;">Totals</div>
-                        <div class="mockup-cell">136.0</div>
                         <div class="mockup-cell">$9,520</div>
-                        <div class="mockup-cell">18.0</div>
                         <div class="mockup-cell">$2,700</div>
                         <div class="mockup-cell">192</div>
                         <div class="mockup-cell">$3,060</div>
-                        <div class="mockup-cell" style="font-weight:800; color:#10b981;">$15,280</div>
+                        <div class="mockup-cell" style="font-weight:800;">$15,280</div>
+                        <div class="mockup-cell" style="font-weight:800; color:#10b981;">$19,630</div>
                     </div>
                 </div>
             </div>
@@ -419,13 +418,14 @@ pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
                         <div><strong>Date Range:</strong> Apr 1 &ndash; Apr 7, 2026</div>
                         <div><strong>Prepared By:</strong> John Smith</div>
                     </div>
-                    <div style="font-size:13px; font-weight:700; margin-bottom:8px; color:#0f172a;">Daily Breakdown</div>
+                    <div style="font-size:13px; font-weight:700; margin-bottom:8px; color:#0f172a;">Daily Breakdown <span style="font-size:10px; font-weight:600; color:#94a3b8;">&mdash; cost / billable</span></div>
                     <div class="mockup-row mockup-header" style="font-size:11px;">
                         <div class="mockup-cell" style="flex:0.8;">Date</div>
-                        <div class="mockup-cell">Labor</div>
+                        <div class="mockup-cell">Labour</div>
                         <div class="mockup-cell">Equipment</div>
                         <div class="mockup-cell">Material</div>
-                        <div class="mockup-cell" style="font-weight:800;">Total</div>
+                        <div class="mockup-cell" style="font-weight:800;">Daily Cost</div>
+                        <div class="mockup-cell" style="font-weight:800;">Daily Bill</div>
                     </div>
                     <div class="mockup-row" style="font-size:11px;">
                         <div class="mockup-cell" style="flex:0.8;">Apr 7</div>
@@ -433,6 +433,7 @@ pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
                         <div class="mockup-cell">$1,200</div>
                         <div class="mockup-cell">$720</div>
                         <div class="mockup-cell" style="font-weight:700;">$6,400</div>
+                        <div class="mockup-cell" style="font-weight:700; color:#10b981;">$8,210</div>
                     </div>
                     <div class="mockup-row" style="font-size:11px;">
                         <div class="mockup-cell" style="flex:0.8;">Apr 6</div>
@@ -440,6 +441,15 @@ pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
                         <div class="mockup-cell">$1,500</div>
                         <div class="mockup-cell">$2,340</div>
                         <div class="mockup-cell" style="font-weight:700;">$8,880</div>
+                        <div class="mockup-cell" style="font-weight:700; color:#10b981;">$11,420</div>
+                    </div>
+                    <div class="mockup-row" style="font-size:11px; background:#f8fafc; font-weight:700; border-top:2px solid #e2e8f0;">
+                        <div class="mockup-cell" style="flex:0.8;">Totals</div>
+                        <div class="mockup-cell">$9,520</div>
+                        <div class="mockup-cell">$2,700</div>
+                        <div class="mockup-cell">$3,060</div>
+                        <div class="mockup-cell" style="font-weight:800;">$15,280</div>
+                        <div class="mockup-cell" style="font-weight:800; color:#10b981;">$19,630</div>
                     </div>
                     <div style="border-top:2px solid #0f172a; margin-top:24px; padding-top:24px; display:grid; grid-template-columns:1fr 1fr; gap:24px; font-size:12px;">
                         <div>
@@ -463,71 +473,129 @@ pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
             <span class="toggle-icon">&#9660;</span>
         </h2>
         <div class="collapsible-body open">
-            <h3>MaterialConsumptionEntry</h3>
-            <div style="background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px; padding:12px 16px; margin-bottom:8px; font-size:13px; color:#1e40af;">
-                <strong>Design decision:</strong> No <code>unitCost</code> or <code>total</code> fields stored. Cost is computed downstream from the Material catalog price or DistributorPrice at query time. This avoids stale pricing and keeps the consumption entry purely volumetric.
+            <div style="background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px; padding:14px 18px; margin-bottom:14px; font-size:13px; color:#1e40af; line-height:1.6;">
+                <strong>Locked decisions:</strong>
+                <ul style="margin:6px 0 0; padding-left:18px;">
+                    <li><strong>Stored cost snapshot kept</strong> &mdash; <code>unitPrice</code> / <code>costPrice</code> / <code>total</code> are captured at entry (the price <em>as consumed</em>, not a drifting catalog price), matching the labour &amp; equipment pricing records. <code>total</code> recalculates on create/edit.</li>
+                    <li><strong>Dual-mode, catalog XOR free-text</strong> &mdash; either <code>materialId</code> (+ axes &rarr; <code>materialAttributePriceId</code>, the MAT-0 source row) <em>or</em> a free-text <code>description</code>.</li>
+                    <li><strong>UoM is derived, not duplicated</strong> &mdash; catalog rows resolve unit of measure from <code>Material.UnitPropertyValue</code>; the new <code>unitPropertyValueId</code> is set <em>only</em> on free-text rows where there is no Material to read from.</li>
+                    <li><strong>Cost coding is per-line and account-item-typed</strong> &mdash; a join table referencing material-typed <code>CostCode</code>s, so a material code is never confused with a labour code.</li>
+                </ul>
             </div>
-            <pre>model MaterialConsumptionEntry {
-  id            String    @id @db.VarChar(21)
-  isDeleted     Boolean   @default(false)
-  isArchived    Boolean   @default(false)
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @default(now()) @updatedAt
-  jobId         String    @db.VarChar(21)
-  Job           Job       @relation(fields: [jobId], references: [id])
-  materialId    String?   @db.VarChar(21)
-  Material      Material? @relation(fields: [materialId], references: [id])
-  dateOfWork    DateTime
-  quantity      Decimal   @db.Decimal(10, 2)
-  unitOfMeasure String?   @db.VarChar(50)
-  costCodeId    String?   @db.VarChar(21)
-  notes         String?   @db.Text
-  submittedByUserId String?   @db.VarChar(21)
-  SubmittedBy   User?     @relation(fields: [submittedByUserId], references: [id])
-  status        String    @default("Draft") @db.VarChar(50)
-  @@index([jobId, dateOfWork, isDeleted])
-  @@index([materialId, isDeleted])
+
+            <h3>WorkOrderMaterialItem <span style="font-size:12px; font-weight:600; color:#92400e;">(existing &mdash; extended)</span></h3>
+            <pre>model WorkOrderMaterialItem {
+  id         String   @id @db.VarChar(21)
+  isDeleted  Boolean  @default(false)
+  isArchived Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @default(now()) @updatedAt
+
+  jobId String @db.VarChar(191)
+  Job   Job    @relation(fields: [jobId], references: [id])
+
+  jobScheduleId String?      @db.VarChar(21)
+  JobSchedule   JobSchedule? @relation(fields: [jobScheduleId], references: [id])
+
+  // catalog XOR free-text
+  materialId               String?                 @db.VarChar(21)
+  Material                 Material?               @relation(fields: [materialId], references: [id])
+  materialAttributePriceId String?                 @db.VarChar(21)
+  MaterialAttributePrice   MaterialAttributePrice? @relation(fields: [materialAttributePriceId], references: [id])
+  description              String?                 @db.VarChar(500)
+
+  quantity  Decimal? @db.Decimal(10, 2)
+  unitPrice Decimal? @db.Decimal(10, 2)
+  costPrice Decimal? @db.Decimal(10, 2)
+  total     Decimal? @db.Decimal(10, 2)
+  orderNo   Int      @default(0)
+
+  // --- added by this slice ---------------------------------------------
+  workDate DateTime                                  // daily LEM anchor; mirrors EquipmentTimeEntry.workDate
+
+  unitPropertyValueId String?        @db.VarChar(21) // free-text rows only; null = derive from Material
+  UnitPropertyValue   PropertyValue? @relation(fields: [unitPropertyValueId], references: [id])
+
+  status                   ApprovalStatus @default(NotSubmitted)
+  submittedByUserId        String?        @db.VarChar(21)
+  SubmittedByUser          User?          @relation("WorkOrderMaterialItemSubmitter", fields: [submittedByUserId], references: [id])
+  submittedOnApplicationId String?        @db.VarChar(21)
+  SubmittedOnApplication   Application?   @relation("WorkOrderMaterialItemSubmittedOnApp", fields: [submittedOnApplicationId], references: [id])
+  approvedByUserId         String?        @db.VarChar(21)
+  ApprovedByUser           User?          @relation("WorkOrderMaterialItemApprover", fields: [approvedByUserId], references: [id])
+  approvedOnApplicationId  String?        @db.VarChar(21)
+  ApprovedOnApplication    Application?   @relation("WorkOrderMaterialItemApprovedOnApp", fields: [approvedOnApplicationId], references: [id])
+
+  WorkOrderMaterialItemCostCodes WorkOrderMaterialItemCostCode[]
+  // ---------------------------------------------------------------------
+
+  @@index([jobId, isDeleted])
+  @@index([jobId, workDate, isDeleted])
+  @@index([materialId])
+  @@index([status, isDeleted])
 }</pre>
 
-            <h3>Field Reference</h3>
+            <h3>WorkOrderMaterialItemCostCode <span style="font-size:12px; font-weight:600; color:#166534;">(new)</span></h3>
+            <p style="margin:0 0 6px;">Per-line cost-code split, mirroring <code>EquipmentTimeEntryCostCode</code> / <code>TimeSheetDetailRecordCostCode</code>. <code>EquipmentTimeEntryCostCode</code> splits by <code>approvedDuration</code>; the material analogue splits by <code>quantity</code>.</p>
+            <pre>model WorkOrderMaterialItemCostCode {
+  id         String   @id @db.VarChar(21)
+  isDeleted  Boolean  @default(false)
+  isArchived Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @default(now()) @updatedAt
+
+  workOrderMaterialItemId String                @db.VarChar(21)
+  WorkOrderMaterialItem   WorkOrderMaterialItem @relation(fields: [workOrderMaterialItemId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  costCodeId String   @db.VarChar(21)
+  CostCode   CostCode @relation(fields: [costCodeId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  quantity Decimal? @db.Decimal(10, 2)
+
+  @@index([workOrderMaterialItemId, costCodeId, isDeleted])
+}</pre>
+
+            <h3>Field Reference (added fields)</h3>
             <table class="schema-table">
                 <thead>
                     <tr><th>Field</th><th>Type</th><th>Notes</th></tr>
                 </thead>
                 <tbody>
-                    <tr><td><code>materialId</code></td><td>FK &rarr; Material</td><td>Optional &mdash; allows freetext description when no catalog entry exists</td></tr>
-                    <tr><td><code>dateOfWork</code></td><td>DateTime</td><td>The date the material was consumed (not createdAt)</td></tr>
-                    <tr><td><code>quantity</code></td><td>Decimal(10,2)</td><td>Required. Must be &gt; 0</td></tr>
-                    <tr><td><code>unitOfMeasure</code></td><td>VarChar(50)</td><td>e.g. &ldquo;batt&rdquo;, &ldquo;ft&rdquo;, &ldquo;ea&rdquo;, &ldquo;gal&rdquo; &mdash; auto-populated from Material if linked</td></tr>
-                    <tr><td><code>costCodeId</code></td><td>FK &rarr; CostCode</td><td>Optional cost code allocation</td></tr>
-                    <tr><td><code>submittedById</code></td><td>FK &rarr; User</td><td>Who logged the consumption</td></tr>
-                    <tr><td><code>status</code></td><td>VarChar(50)</td><td>&ldquo;Draft&rdquo; | &ldquo;Submitted&rdquo; | &ldquo;Approved&rdquo;</td></tr>
+                    <tr><td><code>workDate</code></td><td>DateTime</td><td>The date material was consumed &mdash; the daily-report anchor. Independent of <code>jobScheduleId</code> (which is nullable) and <code>createdAt</code>. Mirrors <code>EquipmentTimeEntry.workDate</code></td></tr>
+                    <tr><td><code>status</code></td><td>ApprovalStatus</td><td><code>NotSubmitted</code> | <code>InReview</code> | <code>Approved</code> | <code>Rejected</code> &mdash; the concrete per-row state the daily LEM report keys on (the Job&rsquo;s own <code>statusId</code> is a long-running, multi-day lifecycle and can&rsquo;t anchor a daily report)</td></tr>
+                    <tr><td><code>submittedByUserId</code> / <code>approvedByUserId</code> + <code>…OnApplicationId</code></td><td>FK &rarr; User / Application</td><td>Full submit/approve audit trail, at parity with <code>EquipmentTimeEntry</code></td></tr>
+                    <tr><td><code>unitPropertyValueId</code></td><td>FK &rarr; PropertyValue</td><td>Free-text rows only. Catalog rows leave it null and derive UoM from <code>Material.UnitPropertyValue</code></td></tr>
+                    <tr><td><code>materialAttributePriceId</code></td><td>FK &rarr; MaterialAttributePrice</td><td><em>Existing.</em> The resolved MAT-0 source row (variant + price) when a catalog Material + axes are chosen</td></tr>
                 </tbody>
             </table>
 
             <h3>LEMReportView (SQL View)</h3>
+            <div style="background:#fef3c7; border:1px solid #fde68a; border-radius:8px; padding:10px 14px; margin-bottom:8px; font-size:13px; color:#92400e;">
+                Built from the three <strong>structured-tier</strong> records &mdash; not the bare unstructured <code>WorkOrderLaborItem</code> / <code>WorkOrderEquipmentItem</code> quick rows (which carry no cost codes, billable rates, or status). Keyed on <code>workDate</code>.
+            </div>
             <pre>-- apps/api/prisma/views/LEMReportView.sql
--- Joins labor (timesheets), equipment (equipment logs), and material consumption
--- Aggregated by jobId + dateOfWork
+-- Daily LEM aggregation keyed on (jobId, workDate)
 SELECT
   jobId,
-  dateOfWork,
-  SUM(laborHours)     AS laborHours,
-  SUM(laborCost)      AS laborCost,
-  SUM(equipmentHours) AS equipmentHours,
-  SUM(equipmentCost)  AS equipmentCost,
+  workDate,
+  SUM(laborHours)            AS laborHours,
+  SUM(laborCost)             AS laborCost,
+  SUM(laborBillable)         AS laborBillable,
+  SUM(equipmentHours)        AS equipmentHours,
+  SUM(equipmentCost)         AS equipmentCost,
+  SUM(equipmentBillable)     AS equipmentBillable,
   SUM(materialQty)           AS materialQty,
   SUM(materialCost)          AS materialCost,
   SUM(materialBillableValue) AS materialBillableValue,
-  SUM(laborCost) + SUM(equipmentCost) + SUM(materialCost) AS dailyCostTotal,
+  SUM(laborCost) + SUM(equipmentCost) + SUM(materialCost)             AS dailyCostTotal,
   SUM(laborBillable) + SUM(equipmentBillable) + SUM(materialBillableValue) AS dailyBillableTotal
 FROM (
-  -- Labor CTE from timesheets + TradeLevelRate.billableValue (LEM-1)
-  -- Equipment CTE from equipment logs + equipment billable rates (LEM-2)
-  -- Material CTE from MaterialConsumptionEntry + resolveMaterialSellPrice (LEM-3)
+  -- Labour CTE    — TimeSheet / TimeSheetDetailRecord (Approved); billable via TradeLevelRate (LEM-1)
+  -- Equipment CTE — EquipmentTimeEntry (Approved); billable via equipment rates (LEM-2)
+  -- Material CTE  — WorkOrderMaterialItem (Approved); cost = stored snapshot, billable via resolveMaterialSellPrice (LEM-3)
 ) combined
-GROUP BY jobId, dateOfWork
-ORDER BY dateOfWork DESC;</pre>
+GROUP BY jobId, workDate
+ORDER BY workDate DESC;</pre>
         </div>
     </div>
 
@@ -538,33 +606,61 @@ ORDER BY dateOfWork DESC;</pre>
             <span class="toggle-icon">&#9660;</span>
         </h2>
         <div class="collapsible-body open">
+            <div style="background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px; padding:10px 14px; margin-bottom:12px; font-size:13px; color:#1e40af;">
+                Writes reuse the existing combined <code>upsertWorkOrderLineItems</code> mutation &mdash; this slice extends its material input (adds <code>workDate</code>, <code>status</code>, <code>unitPropertyValueId</code>, cost-code splits). Approval gets a dedicated <code>approveWorkOrderMaterialItems</code> mutation, mirroring the equipment-time approve flow.
+            </div>
+
             <h3>GraphQL Types</h3>
-            <pre>type MaterialConsumptionEntry {
+            <pre>type WorkOrderMaterialItem {
   id: ID!
   jobId: String!
   Job: Job!
+  jobScheduleId: String
+  JobSchedule: JobSchedule
+  workDate: DateTime!
+
   materialId: String
   Material: Material
-  dateOfWork: DateTime!
-  quantity: Float!
-  unitOfMeasure: String
-  costCodeId: String
-  CostCode: CostCode
-  notes: String
-  submittedById: String
-  SubmittedBy: User
-  status: String!
+  materialAttributePriceId: String
+  MaterialAttributePrice: MaterialAttributePrice
+  description: String
+
+  quantity: Float
+  unitPrice: Float
+  costPrice: Float
+  total: Float
+  orderNo: Int!
+
+  unitPropertyValueId: String
+  UnitPropertyValue: PropertyValue          # null for catalog rows — resolve UoM from Material
+
+  status: ApprovalStatus!
+  submittedByUserId: String
+  SubmittedByUser: User
+  approvedByUserId: String
+  ApprovedByUser: User
+
+  WorkOrderMaterialItemCostCodes: [WorkOrderMaterialItemCostCode!]!
   createdAt: DateTime!
   updatedAt: DateTime!
 }
 
+type WorkOrderMaterialItemCostCode {
+  id: ID!
+  costCodeId: String!
+  CostCode: CostCode!
+  quantity: Float
+}
+
 type LEMReportRow {
   jobId: String!
-  dateOfWork: DateTime!
+  workDate: DateTime!
   laborHours: Float!
   laborCost: Float!
+  laborBillable: Float!
   equipmentHours: Float!
   equipmentCost: Float!
+  equipmentBillable: Float!
   materialQty: Float!
   materialCost: Float!
   materialBillableValue: Float!
@@ -573,24 +669,27 @@ type LEMReportRow {
 }</pre>
 
             <h3>Input Types</h3>
-            <pre>input CreateMaterialConsumptionEntryInput {
-  jobId: String!
+            <pre># extends the existing material branch of UpsertWorkOrderLineItemsInput
+input UpsertWorkOrderMaterialItemInput {
+  id: String
+  jobScheduleId: String
+  workDate: DateTime!
   materialId: String
-  dateOfWork: DateTime!
-  quantity: Float!
-  unitOfMeasure: String
-  costCodeId: String
-  notes: String
+  materialAttributePriceId: String
+  description: String
+  quantity: Float
+  unitPrice: Float
+  costPrice: Float
+  unitPropertyValueId: String
+  status: ApprovalStatus
+  orderNo: Int
+  costCodes: [UpsertWorkOrderMaterialItemCostCodeInput!]
 }
 
-input UpdateMaterialConsumptionEntryInput {
-  materialId: String
-  dateOfWork: DateTime
+input UpsertWorkOrderMaterialItemCostCodeInput {
+  id: String
+  costCodeId: String!
   quantity: Float
-  unitOfMeasure: String
-  costCodeId: String
-  notes: String
-  status: String
 }
 
 input LEMReportFilterInput {
@@ -601,29 +700,22 @@ input LEMReportFilterInput {
 
             <h3>Queries</h3>
             <pre>type Query {
-  materialConsumptionEntries(
+  workOrderMaterialItems(
     jobId: String!
     dateFrom: DateTime
     dateTo: DateTime
-  ): [MaterialConsumptionEntry!]!
+  ): [WorkOrderMaterialItem!]!
 
   lemReport(input: LEMReportFilterInput!): [LEMReportRow!]!
 }</pre>
 
             <h3>Mutations</h3>
             <pre>type Mutation {
-  createMaterialConsumptionEntry(
-    input: CreateMaterialConsumptionEntryInput!
-  ): MaterialConsumptionEntry!
+  # existing — material branch extended (workDate / status / cost codes)
+  upsertWorkOrderLineItems(input: UpsertWorkOrderLineItemsInput!): Boolean!
 
-  updateMaterialConsumptionEntry(
-    id: ID!
-    input: UpdateMaterialConsumptionEntryInput!
-  ): MaterialConsumptionEntry!
-
-  deleteMaterialConsumptionEntry(id: ID!): Boolean!
-
-  approveMaterialConsumptionEntries(ids: [ID!]!): [MaterialConsumptionEntry!]!
+  # new — bulk approve, mirrors the equipment-time approve flow
+  approveWorkOrderMaterialItems(ids: [ID!]!): Boolean!
 }</pre>
         </div>
     </div>
@@ -642,11 +734,11 @@ input LEMReportFilterInput {
                 </div>
                 <div class="blast-row">
                     <span class="blast-label">Modified Files</span>
-                    <span class="blast-value">3</span>
+                    <span class="blast-value">6</span>
                 </div>
                 <div class="blast-row">
                     <span class="blast-label">Total Touched</span>
-                    <span class="blast-value">8</span>
+                    <span class="blast-value">11</span>
                 </div>
             </div>
 
@@ -656,44 +748,59 @@ input LEMReportFilterInput {
                 </thead>
                 <tbody>
                     <tr>
-                        <td><span class="action-new">NEW</span></td>
-                        <td><code>apps/api/prisma/migrations/…_add_material_consumption_entry/migration.sql</code></td>
-                        <td>Create MaterialConsumptionEntry table with composite indexes</td>
+                        <td><span class="action-mod">MOD</span></td>
+                        <td><code>apps/api/prisma/schema.prisma</code></td>
+                        <td>Extend <code>WorkOrderMaterialItem</code> (workDate, status + audit, unitPropertyValueId); add <code>WorkOrderMaterialItemCostCode</code>; back-relations on Job, Material, User, Application, PropertyValue, CostCode</td>
                     </tr>
                     <tr>
                         <td><span class="action-new">NEW</span></td>
-                        <td><code>apps/api/prisma/views/LEMReportView.sql</code></td>
-                        <td>SQL view joining timesheets + equipment logs + material consumption by job &amp; date</td>
+                        <td><code>apps/api/prisma/migrations/…_promote_work_order_material_item/migration.sql</code></td>
+                        <td>ALTER <code>WorkOrderMaterialItem</code> (new columns + indexes); CREATE <code>WorkOrderMaterialItemCostCode</code></td>
+                    </tr>
+                    <tr>
+                        <td><span class="action-mod">MOD</span></td>
+                        <td><code>apps/api/src/models/WorkOrderMaterialItem.ts</code></td>
+                        <td>Status transitions, audit stamping, <code>workDate</code>, cost-code child lifecycle; keep <code>recalculateTotal</code> snapshot</td>
                     </tr>
                     <tr>
                         <td><span class="action-new">NEW</span></td>
-                        <td><code>apps/api/src/models/MaterialConsumptionEntry.ts</code></td>
-                        <td>Model: CRUD, status transitions (Draft &rarr; Submitted &rarr; Approved), date range queries</td>
+                        <td><code>apps/api/src/models/WorkOrderMaterialItemCostCode.ts</code></td>
+                        <td>Model for the per-line cost-code split (mirrors <code>EquipmentTimeEntryCostCode</code>)</td>
+                    </tr>
+                    <tr>
+                        <td><span class="action-mod">MOD</span></td>
+                        <td><code>apps/api/src/types/WorkOrder.types.ts</code></td>
+                        <td>Extend <code>IWorkOrderMaterialItem</code>; add <code>IWorkOrderMaterialItemCostCode</code></td>
+                    </tr>
+                    <tr>
+                        <td><span class="action-mod">MOD</span></td>
+                        <td><code>apps/api/src/graphql/models/WorkOrderLineItems.ts</code></td>
+                        <td>Extend material input (workDate / status / unitPropertyValueId); sync cost-code child rows in the upsert</td>
+                    </tr>
+                    <tr>
+                        <td><span class="action-mod">MOD</span></td>
+                        <td><code>apps/api/src/graphql/models/WorkOrderMaterialItem.ts</code></td>
+                        <td>New fields on the type + cost-code resolver; <code>approveWorkOrderMaterialItems</code> mutation; <code>workOrderMaterialItems</code> date-range query</td>
                     </tr>
                     <tr>
                         <td><span class="action-new">NEW</span></td>
-                        <td><code>apps/api/src/graphql/models/MaterialConsumptionEntry.ts</code></td>
-                        <td>GraphQL resolver: types, queries (by jobId/dateRange), mutations (create/update/delete/approve), LEM report query</td>
+                        <td><code>apps/api/prisma/views/LEMReportView.sql</code> + <code>graphql/models/LEMReport.ts</code></td>
+                        <td>Daily view (structured-tier labour + equipment + material by job &amp; workDate) + <code>lemReport</code> resolver</td>
                     </tr>
                     <tr>
                         <td><span class="action-new">NEW</span></td>
                         <td><code>apps/frontend/src/components/Job/MaterialConsumptionTab.tsx</code></td>
-                        <td>Desktop UI: entry form + existing entries table + LEM combined report tab + PDF export trigger</td>
-                    </tr>
-                    <tr>
-                        <td><span class="action-mod">MOD</span></td>
-                        <td><code>apps/api/prisma/schema.prisma</code></td>
-                        <td>Add MaterialConsumptionEntry model + relations on Job, Material, User</td>
+                        <td>Desktop UI: entry form (catalog XOR free-text, cost-code split) + entries table + LEM report tab + PDF export</td>
                     </tr>
                     <tr>
                         <td><span class="action-mod">MOD</span></td>
                         <td><code>apps/api/src/graphql/schema.ts</code></td>
-                        <td>Register MaterialConsumptionEntry resolver (import, typeDef, Query, Mutation)</td>
+                        <td>Register the LEM report resolver + the new mutation/query</td>
                     </tr>
                     <tr>
                         <td><span class="action-mod">MOD</span></td>
                         <td><code>apps/api/src/services/JobFinancialSummaryService.ts</code></td>
-                        <td>Include material consumption costs (computed from catalog/distributor pricing) in Financial Summary totals</td>
+                        <td>Include material consumption (stored cost snapshot + billable value) in Financial Summary totals</td>
                     </tr>
                 </tbody>
             </table>
@@ -708,21 +815,22 @@ input LEMReportFilterInput {
         </h2>
         <div class="collapsible-body open">
             <ul class="criteria-list">
-                <li><div class="criteria-check"></div>A user with <code>materialorder.create</code> permission can log a material consumption entry from the Job detail page</li>
-                <li><div class="criteria-check"></div>The entry form requires <code>dateOfWork</code> and <code>quantity &gt; 0</code>; submission is blocked if either is missing</li>
-                <li><div class="criteria-check"></div>Either <code>materialId</code> (catalog picker) or a freetext description must be provided &mdash; both empty is rejected</li>
-                <li><div class="criteria-check"></div>When a Material is selected from the catalog, <code>unitOfMeasure</code> auto-populates from the Material record</li>
-                <li><div class="criteria-check"></div>New entries default to &ldquo;Draft&rdquo; status</li>
-                <li><div class="criteria-check"></div>Draft entries can be edited or deleted by the submitter; Submitted entries can only be edited by approvers</li>
-                <li><div class="criteria-check"></div>The status workflow supports Draft &rarr; Submitted &rarr; Approved transitions; no backward transitions from Approved</li>
-                <li><div class="criteria-check"></div>The bulk <code>approveMaterialConsumptionEntries</code> mutation transitions multiple entries to Approved in one call</li>
-                <li><div class="criteria-check"></div>No <code>unitCost</code> or <code>total</code> fields are stored on <code>MaterialConsumptionEntry</code> &mdash; costs and billable values are computed downstream</li>
-                <li><div class="criteria-check"></div>The LEM Report tab displays a combined daily view joining labor (timesheets), equipment (equipment logs), and material consumption with both cost and billable values</li>
-                <li><div class="criteria-check"></div>The LEM Report shows <code>materialBillableValue</code> (from LEM-3 cascade) alongside <code>materialCost</code> for materials, matching the cost vs. billable pattern used for labor and equipment</li>
-                <li><div class="criteria-check"></div>The LEM Report supports date range filtering and shows a summary totals row</li>
+                <li><div class="criteria-check"></div>A user with the new <code>WorkOrderMaterialItem:create</code> permission can log a material consumption row from the Job / Work Order detail page (separate from MaterialOrder permissions; this same permission also governs material lines on Work Orders)</li>
+                <li><div class="criteria-check"></div>The entry form requires <code>workDate</code> and <code>quantity &gt; 0</code>; submission is blocked if either is missing</li>
+                <li><div class="criteria-check"></div>Either a catalog Material (resolving to a <code>materialAttributePriceId</code>) <strong>or</strong> a free-text <code>description</code> must be provided &mdash; both empty is rejected</li>
+                <li><div class="criteria-check"></div>Catalog rows derive unit of measure from <code>Material.UnitPropertyValue</code> and leave <code>unitPropertyValueId</code> null; free-text rows require a <code>unitPropertyValueId</code> chosen from the unit <code>PropertyValue</code> list</li>
+                <li><div class="criteria-check"></div>On create/edit, <code>total</code> recalculates from the stored <code>quantity &times; unitPrice</code> snapshot</li>
+                <li><div class="criteria-check"></div>New rows default to <code>NotSubmitted</code>; the status workflow follows the <code>ApprovalStatus</code> enum (<code>NotSubmitted</code> / <code>InReview</code> / <code>Approved</code> / <code>Rejected</code>) at parity with Equipment Time</li>
+                <li><div class="criteria-check"></div>Approving stamps <code>approvedByUserId</code> + <code>approvedOnApplicationId</code>; submitting stamps the submit audit fields</li>
+                <li><div class="criteria-check"></div>The bulk <code>approveWorkOrderMaterialItems</code> mutation transitions multiple rows to <code>Approved</code> in one call</li>
+                <li><div class="criteria-check"></div>A single consumption row can be split across multiple <strong>material-typed</strong> cost codes via <code>WorkOrderMaterialItemCostCode</code>; labour-typed codes are not selectable</li>
+                <li><div class="criteria-check"></div>The LEM Report tab displays a combined <em>daily</em> view keyed on <code>(job, workDate)</code>, sourced from the structured-tier records &mdash; Timesheet (labour), Equipment Time (equipment), and <code>WorkOrderMaterialItem</code> (material) &mdash; with both cost and billable values</li>
+                <li><div class="criteria-check"></div>The bare unstructured <code>WorkOrderLaborItem</code> / <code>WorkOrderEquipmentItem</code> quick rows are <strong>not</strong> double-counted into the LEM Report</li>
+                <li><div class="criteria-check"></div>The LEM Report shows <code>materialBillableValue</code> (LEM-3 cascade) alongside <code>materialCost</code> (stored snapshot), matching the cost vs. billable pattern used for labour and equipment</li>
+                <li><div class="criteria-check"></div>The LEM Report supports date-range filtering and shows a summary totals row</li>
                 <li><div class="criteria-check"></div>The LEM Report can be exported as a formatted PDF with job header, daily breakdown, and signature line</li>
-                <li><div class="criteria-check"></div>Material consumption costs appear in the Job Financial Summary, computed from Material catalog price or DistributorPrice at query time</li>
-                <li><div class="criteria-check"></div>Cost code allocation on consumption entries flows through to cost-code-level budget reports</li>
+                <li><div class="criteria-check"></div>Material consumption (stored cost snapshot + billable value) appears in the Job Financial Summary</li>
+                <li><div class="criteria-check"></div>Cost-code allocation on consumption rows flows through to cost-code-level budget reports</li>
             </ul>
         </div>
     </div>
@@ -736,9 +844,11 @@ input LEMReportFilterInput {
         <div class="collapsible-body open">
             <h3>Requires</h3>
             <p>
-                <a class="dep-tag dep-requires" href="release-1.33-timeline.html#item-LEM-1" target="_top">LEM-1: Labor Billable Rates (1.33)</a>
-                <a class="dep-tag dep-requires" href="release-1.33-timeline.html#item-LEM-2" target="_top">LEM-2: Equipment Billable Rates (1.33)</a>
-                <a class="dep-tag dep-requires" href="release-1.33-timeline.html#item-LEM-3a" target="_top">LEM-3: Material Billable Rates (1.33)</a>
+                <a class="dep-tag dep-requires" href="release-1.33-timeline.html#item-MAT-0" target="_top">MAT-0: Supply Chain Model (MAP source rows) &mdash; done</a>
+                <span class="dep-tag dep-requires">WO Line-Item tables (<code>20260409200000</code>) &mdash; the existing <code>WorkOrder*Item</code> models this slice promotes</span>
+                <a class="dep-tag dep-requires" href="release-1.33-timeline.html#item-LEM-1" target="_top">LEM-1: Labour Billable Rates</a>
+                <a class="dep-tag dep-requires" href="release-1.33-timeline.html#item-LEM-2" target="_top">LEM-2: Equipment Billable Rates</a>
+                <a class="dep-tag dep-requires" href="release-1.33-timeline.html#item-LEM-3a" target="_top">LEM-3: Material Billable Rates</a>
             </p>
 
             <h3>Enables</h3>
@@ -748,17 +858,17 @@ input LEMReportFilterInput {
 
             <h3>Siblings</h3>
             <p>
-                <a class="dep-tag dep-none" href="release-1.34-timeline.html#item-MAT-0" target="_top">MAT-0: Supply Chain Model</a>
-                <a class="dep-tag dep-none" href="release-1.34-timeline.html#item-MAT-1" target="_top">MAT-1: Customer PO Entity</a>
+                <a class="dep-tag dep-none" href="release-1.33-timeline.html#item-MAT-1" target="_top">MAT-1: Customer PO Entity</a>
+                <a class="dep-tag dep-none" href="release-1.33-timeline.html#item-MAT-4" target="_top">MAT-4: Mobile Material Requests</a>
             </p>
 
             <h3>Parent</h3>
-            <p><span class="dep-tag dep-none">Release 1.34</span></p>
+            <p><span class="dep-tag dep-none">Release 1.33</span></p>
         </div>
     </div>
 
     <div class="uis-footer">
-        MAT-2a &middot; LEM Material Consumption &mdash; Desktop &middot; Generated for <span>Release 1.34</span>
+        MAT-2a &middot; LEM Material Consumption &mdash; Desktop &middot; Generated for <span>Release 1.33</span>
     </div>
 </div>
 

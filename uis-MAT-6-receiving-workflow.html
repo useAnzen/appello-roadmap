@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>UIS-MAT-6: Receiving + Three-Way Match</title>
+    <title>UIS-MAT-6: Receiving + Two-Way Match</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
 .in-iframe .top-nav { display: none !important; }
@@ -122,17 +122,28 @@ pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
         <div class="uis-badges">
             <span class="uis-badge badge-q">MAT-6</span>
             <span class="uis-badge badge-lane">Procurement</span>
-            <span class="uis-badge badge-status">Draft</span>
+            <span class="uis-badge badge-status" style="background:#dcfce7; color:#166534;">Reconciled</span>
             <span class="uis-badge badge-priority">P1</span>
-            <span class="uis-badge badge-child">Child of Release 1.34</span>
+            <span class="uis-badge badge-child" style="background:#0f172a;">Child of Release 1.33</span>
         </div>
-        <h1 class="uis-h1">Receiving + Three-Way Match</h1>
-        <p class="uis-sub">Receive deliveries against Supplier POs with partial/complete receipts, quantity matching, back-order tracking, and three-way match (PO vs Received vs Invoiced).</p>
+        <h1 class="uis-h1">Receiving + Two-Way Match</h1>
+        <p class="uis-sub">Receive deliveries against Supplier POs with partial/complete receipts, two-way match (Ordered vs Received), and back-order tracking. PO status auto-advances through the customizable <code>Partially Received</code> &rarr; <code>Received</code> states. The third match leg (Invoiced) and committed-cost roll-up are tracked as separate follow-up slices.</p>
         <div class="uis-meta">
-            <span><strong>Parent:</strong> Release 1.34</span>
+            <span><strong>Parent:</strong> Release 1.33</span>
             <span><strong>Slice:</strong> MAT-6</span>
             <span><strong>Est:</strong> 4&ndash;5 days</span>
         </div>
+    </div>
+
+    <div style="background:#f0fdf4; border:1px solid #bbf7d0; border-radius:12px; padding:18px 24px; margin-bottom:16px;">
+        <div style="font-size:13px; font-weight:700; color:#166534; margin-bottom:8px;">Reconciled against the live schema (repo-2) + the MAT-5 locked design</div>
+        <ul style="margin:0; padding-left:18px; font-size:13px; color:#334155; line-height:1.6;">
+            <li><strong>Status is a PropertyValue, not an enum.</strong> MAT-5 locked PO status as a customizable <code>PropertyValue</code> in the <code>purchase-order-status</code> group, driven by <code>Instance</code> anchors. MAT-6 seeds <code>Partially&nbsp;Received</code> + <code>Received</code> into that group and adds two new anchors &mdash; it does <em>not</em> introduce enum statuses.</li>
+            <li><strong>Permission reuses MAT-5&rsquo;s dedicated <code>supplierPurchaseOrder</code> permission</strong> (resolver-enforced, gated by env <code>RESTRICT_MATERIAL</code>) &mdash; not <code>materialorder.edit</code>.</li>
+            <li><strong>Two-way match only.</strong> No supplier-invoice / AP entity exists in the schema today (only customer-facing <code>JobBill</code>), so the &ldquo;Invoiced&rdquo; leg has no data source. MAT-6 ships Ordered-vs-Received; the third leg moves to <strong>MAT-11 (Supplier Invoices + Three-Way Match)</strong>.</li>
+            <li><strong>Committed cost deferred.</strong> <code>JobFinancialSummaryService</code> has no &ldquo;committed&rdquo; concept (forecast + actuals only; material actuals come from expense line items). The roll-up moves to <strong>MAT-12 (PO Committed Cost in Job P&amp;L)</strong> &mdash; consistent with the MAT-5 deferral.</li>
+            <li><strong>Models follow base conventions.</strong> Both new models extend <code>BaseModel</code> (inherit <code>id/createdAt/updatedAt/isArchived/isDeleted</code>); <code>receivedQty</code>/<code>backOrderQty</code> are computed at query time, not stored columns.</li>
+        </ul>
     </div>
 
     <div class="uis-toc">
@@ -182,13 +193,13 @@ pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
                 </div>
                 <div class="value-card">
                     <div class="v-icon">🔀</div>
-                    <div class="v-title">Three-Way Match</div>
-                    <div class="v-detail">PO qty vs Received qty vs Invoiced qty &mdash; instant visibility into discrepancies before paying.</div>
+                    <div class="v-title">Two-Way Match</div>
+                    <div class="v-detail">Ordered qty vs Received qty per line, with discrepancies flagged. Lays the groundwork for full three-way match once supplier invoices land (MAT-11).</div>
                 </div>
                 <div class="value-card">
                     <div class="v-icon">🔄</div>
                     <div class="v-title">PO Status Auto-Transition</div>
-                    <div class="v-detail">PO status automatically moves through Partially Received &rarr; Fully Received as receipts are logged.</div>
+                    <div class="v-detail">PO status auto-advances through the customizable <code>Partially Received</code> &rarr; <code>Received</code> states (PropertyValues, per-instance) as receipts are logged.</div>
                 </div>
             </div>
 
@@ -227,20 +238,21 @@ pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
         <div class="collapsible-body open">
             <h3>In Scope</h3>
             <ul>
-                <li><span class="scope-tag scope-in">IN</span> <code>PurchaseOrderReceipt</code> + <code>ReceiptLineItem</code> Prisma models</li>
-                <li><span class="scope-tag scope-in">IN</span> Extensions to <code>PurchaseOrderLineItem</code> (<code>receivedQty</code>, <code>backOrderQty</code> &mdash; computed from receipts)</li>
-                <li><span class="scope-tag scope-in">IN</span> Receiving form: select PO, enter received qty per line item</li>
-                <li><span class="scope-tag scope-in">IN</span> Three-way match view on PO detail (PO vs Received vs Invoiced)</li>
-                <li><span class="scope-tag scope-in">IN</span> PO status auto-transitions: <code>PartiallyReceived</code>, <code>FullyReceived</code></li>
-                <li><span class="scope-tag scope-in">IN</span> Committed material costs in Job Financial Summary</li>
+                <li><span class="scope-tag scope-in">IN</span> <code>PurchaseOrderReceipt</code> + <code>ReceiptLineItem</code> Prisma models (both extend <code>BaseModel</code>)</li>
+                <li><span class="scope-tag scope-in">IN</span> <code>receivedQty</code> / <code>backOrderQty</code> on <code>PurchaseOrderLineItem</code> &mdash; <strong>computed at query time</strong> from receipts (not stored columns)</li>
+                <li><span class="scope-tag scope-in">IN</span> Receiving form: select PO, enter received (and damaged) qty per line item</li>
+                <li><span class="scope-tag scope-in">IN</span> Two-way match view on PO detail: <strong>Ordered vs Received</strong> + back-order, with status indicators</li>
+                <li><span class="scope-tag scope-in">IN</span> Two new <code>purchase-order-status</code> <strong>PropertyValues</strong> (<code>Partially Received</code>, <code>Received</code>) + two new <code>Instance</code> anchors; PO status auto-advances via the anchors</li>
                 <li><span class="scope-tag scope-in">IN</span> Receipt history tab on PO detail page</li>
+                <li><span class="scope-tag scope-in">IN</span> Receiving gated by the MAT-5 <code>supplierPurchaseOrder</code> permission (+ env <code>RESTRICT_MATERIAL</code>)</li>
             </ul>
 
             <h3>Out of Scope</h3>
             <ul>
+                <li><span class="scope-tag scope-out">OUT</span> <strong>Three-way match / Invoiced leg</strong> &mdash; no supplier-invoice entity exists yet &rarr; <strong>MAT-11</strong></li>
+                <li><span class="scope-tag scope-out">OUT</span> <strong>Committed material costs in Job Financial Summary</strong> &rarr; <strong>MAT-12</strong> (net-new &ldquo;committed&rdquo; concept in <code>JobFinancialSummaryService</code>)</li>
                 <li><span class="scope-tag scope-out">OUT</span> Mobile receiving</li>
                 <li><span class="scope-tag scope-out">OUT</span> Barcode/QR scanning on receipt</li>
-                <li><span class="scope-tag scope-out">OUT</span> Supplier invoice matching (AP integration)</li>
                 <li><span class="scope-tag scope-out">OUT</span> Automatic inventory creation (MAT-7)</li>
             </ul>
         </div>
@@ -300,42 +312,42 @@ pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
                 </div>
             </div>
 
-            <h3>3.2 &mdash; Three-Way Match View</h3>
+            <h3>3.2 &mdash; Two-Way Match View</h3>
             <div class="mockup-container" id="mockup-2">
                 <div class="mockup-bar">
                     <div class="mockup-dots"><div class="mockup-dot mockup-dot-r"></div><div class="mockup-dot mockup-dot-y"></div><div class="mockup-dot mockup-dot-g"></div></div>
-                    SPO-0001 &mdash; Three-Way Match
+                    SPO-0001 &mdash; Two-Way Match
                 </div>
                 <div class="mockup-body">
                     <div class="mockup-row mockup-header" style="font-size:11px;">
                         <div class="mockup-cell">Material</div>
-                        <div class="mockup-cell" style="flex:0.5;">PO Qty</div>
+                        <div class="mockup-cell" style="flex:0.5;">Ordered</div>
                         <div class="mockup-cell" style="flex:0.5;">Received</div>
-                        <div class="mockup-cell" style="flex:0.5;">Invoiced</div>
+                        <div class="mockup-cell" style="flex:0.5;">Back Order</div>
                         <div class="mockup-cell" style="flex:0.5;">Status</div>
                     </div>
                     <div class="mockup-row">
                         <div class="mockup-cell">3/4" Copper Pipe (10ft)</div>
                         <div class="mockup-cell" style="flex:0.5;">50</div>
                         <div class="mockup-cell" style="flex:0.5;">50</div>
-                        <div class="mockup-cell" style="flex:0.5;">50</div>
-                        <div class="mockup-cell" style="flex:0.5;"><span class="mockup-badge match-green">Matched</span></div>
+                        <div class="mockup-cell" style="flex:0.5; color:#64748b;">0</div>
+                        <div class="mockup-cell" style="flex:0.5;"><span class="mockup-badge match-green">Received</span></div>
                     </div>
                     <div class="mockup-row">
                         <div class="mockup-cell">1" Ball Valve</div>
                         <div class="mockup-cell" style="flex:0.5;">24</div>
                         <div class="mockup-cell" style="flex:0.5;">18</div>
-                        <div class="mockup-cell" style="flex:0.5;">24</div>
-                        <div class="mockup-cell" style="flex:0.5;"><span class="mockup-badge match-red">Discrepancy</span></div>
+                        <div class="mockup-cell" style="flex:0.5; color:#dc2626; font-weight:600;">6</div>
+                        <div class="mockup-cell" style="flex:0.5;"><span class="mockup-badge match-yellow">Back-Ordered</span></div>
                     </div>
                     <div class="mockup-row">
                         <div class="mockup-cell">1/2" Elbow Fitting</div>
                         <div class="mockup-cell" style="flex:0.5;">100</div>
                         <div class="mockup-cell" style="flex:0.5;">80</div>
-                        <div class="mockup-cell" style="flex:0.5;">80</div>
-                        <div class="mockup-cell" style="flex:0.5;"><span class="mockup-badge match-yellow">Partial</span></div>
+                        <div class="mockup-cell" style="flex:0.5; color:#dc2626; font-weight:600;">20</div>
+                        <div class="mockup-cell" style="flex:0.5;"><span class="mockup-badge match-yellow">Back-Ordered</span></div>
                     </div>
-                    <p style="font-size:12px; color:#64748b; margin-top:12px;"><strong>Legend:</strong> <span class="mockup-badge match-green" style="margin:0 4px;">Matched</span> PO = Received = Invoiced &nbsp; <span class="mockup-badge match-yellow" style="margin:0 4px;">Partial</span> Received &lt; PO, Invoiced = Received &nbsp; <span class="mockup-badge match-red" style="margin:0 4px;">Discrepancy</span> Invoiced &ne; Received</p>
+                    <p style="font-size:12px; color:#64748b; margin-top:12px;"><strong>Legend:</strong> <span class="mockup-badge match-green" style="margin:0 4px;">Received</span> Received = Ordered &nbsp; <span class="mockup-badge match-yellow" style="margin:0 4px;">Back-Ordered</span> Received &lt; Ordered. The third column (<strong>Invoiced</strong>) and a <span class="mockup-badge match-red" style="margin:0 4px;">Discrepancy</span> state arrive with supplier invoices in <strong>MAT-11</strong>.</p>
                 </div>
             </div>
 
@@ -380,18 +392,23 @@ pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
             <span class="toggle-icon">&#9660;</span>
         </h2>
         <div class="collapsible-body open">
+            <p style="font-size:13px; color:#64748b; margin-bottom:4px;">Both models extend <code>BaseModel</code> &mdash; <code>id</code>, <code>createdAt</code>, <code>updatedAt</code>, <code>isArchived</code>, and <code>isDeleted</code> are inherited from the base and are shown below for clarity, not redeclared.</p>
             <h3>PurchaseOrderReceipt</h3>
             <pre>model PurchaseOrderReceipt {
-  id              String    @id @db.VarChar(21)
-  isDeleted       Boolean   @default(false)
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @default(now()) @updatedAt
-  purchaseOrderId String    @db.VarChar(21)
-  PurchaseOrder   PurchaseOrder @relation(fields: [purchaseOrderId], references: [id])
-  receivedById    String    @db.VarChar(21)
-  receivedDate    DateTime  @default(now())
-  notes           String?   @db.Text
-  LineItems       ReceiptLineItem[]
+  id                String    @id @db.VarChar(21)
+  isDeleted         Boolean   @default(false)
+  isArchived        Boolean   @default(false)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @default(now()) @updatedAt
+  receiptNumber     String    @db.VarChar(50)   # global RCV-#### sequence (RFI precedent)
+  purchaseOrderId   String    @db.VarChar(21)
+  PurchaseOrder     PurchaseOrder @relation(fields: [purchaseOrderId], references: [id])
+  receivedByUserId  String    @db.VarChar(21)
+  ReceivedBy        User      @relation("PurchaseOrderReceiptReceivedBy", fields: [receivedByUserId], references: [id])
+  receivedDate      DateTime  @default(now())
+  packingSlipNumber String?   @db.VarChar(100)
+  notes             String?   @db.Text
+  LineItems         ReceiptLineItem[]
   @@index([purchaseOrderId, isDeleted])
 }</pre>
 
@@ -399,27 +416,41 @@ pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
             <pre>model ReceiptLineItem {
   id                      String    @id @db.VarChar(21)
   isDeleted               Boolean   @default(false)
+  isArchived              Boolean   @default(false)
   createdAt               DateTime  @default(now())
   updatedAt               DateTime  @default(now()) @updatedAt
   receiptId               String    @db.VarChar(21)
   Receipt                 PurchaseOrderReceipt @relation(fields: [receiptId], references: [id])
   purchaseOrderLineItemId String    @db.VarChar(21)
   PurchaseOrderLineItem   PurchaseOrderLineItem @relation(fields: [purchaseOrderLineItemId], references: [id])
-  quantityReceived        Decimal   @db.Decimal(10, 2)
-  quantityDamaged         Decimal?  @db.Decimal(10, 2)
+  receivedQty             Decimal   @db.Decimal(10, 2)
+  damagedQty              Decimal?  @db.Decimal(10, 2)
   notes                   String?   @db.Text
   @@index([receiptId, isDeleted])
 }</pre>
 
-            <h3>PurchaseOrderLineItem Extensions</h3>
+            <h3>Status: PropertyValue group + Instance anchors</h3>
+            <p>MAT-5 made PO status a customizable <code>PropertyValue</code> in the <code>purchase-order-status</code> group (<code>Draft</code> / <code>Issued</code> / <code>Closed</code> / <code>Cancelled</code>), with lifecycle code resolving target states via <code>Instance</code> anchor FKs (the RFI precedent). MAT-6 extends that &mdash; <strong>no enum statuses</strong>:</p>
+            <ul>
+                <li>Seed two PropertyValues into the same group: <code>Partially Received</code> (slug <code>purchase-order-status-partially-received</code>, <code>workflowState=inprogress</code>) and <code>Received</code> (slug <code>purchase-order-status-received</code>, <code>workflowState=done</code>).</li>
+                <li>Add two <code>Instance</code> anchor FKs: <code>purchaseOrderPartiallyReceivedStatusId</code> and <code>purchaseOrderReceivedStatusId</code> (mirroring MAT-5&rsquo;s <code>purchaseOrderDefaultStatusId</code> / <code>...IssuedStatusId</code> / <code>...CancelledStatusId</code>).</li>
+                <li>Seed in <strong>both</strong> the migration (existing instances) and the new-instance bootstrap (future instances), using the CI-safe SQL convention: ids via <code>LEFT(md5(uuid()), 21)</code> inline; resolve each anchor by the unique <code>slug</code> subquery; <strong>no <code>SET @var</code></strong>.</li>
+            </ul>
+            <pre>UPDATE `Instance` SET
+  `purchaseOrderPartiallyReceivedStatusId` =
+    (SELECT id FROM `PropertyValue` WHERE slug = 'purchase-order-status-partially-received'),
+  `purchaseOrderReceivedStatusId` =
+    (SELECT id FROM `PropertyValue` WHERE slug = 'purchase-order-status-received');</pre>
+
+            <h3>PurchaseOrderLineItem &mdash; computed accessors (no new columns)</h3>
             <table class="schema-table">
                 <thead><tr><th>Field</th><th>Type</th><th>Notes</th></tr></thead>
                 <tbody>
-                    <tr><td><code>receivedQty</code></td><td>Computed</td><td>Sum of <code>ReceiptLineItem.quantityReceived</code> across all receipts for this line</td></tr>
-                    <tr><td><code>backOrderQty</code></td><td>Computed</td><td><code>quantity - receivedQty</code> &mdash; remaining quantity not yet received</td></tr>
+                    <tr><td><code>receivedQty</code></td><td>Computed</td><td>Sum of <code>ReceiptLineItem.receivedQty</code> across all non-deleted receipts for this line</td></tr>
+                    <tr><td><code>backOrderQty</code></td><td>Computed</td><td><code>quantity - &Sigma;(receivedQty &minus; damagedQty)</code> &mdash; good (undamaged) quantity still outstanding</td></tr>
                 </tbody>
             </table>
-            <p style="font-size:12px; color:#64748b; margin-top:4px;">Both <code>receivedQty</code> and <code>backOrderQty</code> are computed at query time from receipt data &mdash; not stored as columns. This avoids drift between receipts and summary fields.</p>
+            <p style="font-size:12px; color:#64748b; margin-top:4px;">Both are <strong>computed at query time</strong> (GraphQL field resolvers), not stored columns &mdash; this avoids drift between receipts and summary fields. <strong>Damaged semantics:</strong> <code>receivedQty</code> is the total physically delivered; <code>damagedQty</code> is the damaged subset. Only good quantity (<code>receivedQty &minus; damagedQty</code>) counts toward fulfilment, so damaged units keep their line on back-order and feed Vendor Credits (MAT-8).</p>
         </div>
     </div>
 
@@ -433,11 +464,13 @@ pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
             <h3>GraphQL Types</h3>
             <pre>type PurchaseOrderReceipt {
   id: ID!
+  receiptNumber: String!
   purchaseOrderId: String!
   PurchaseOrder: PurchaseOrder!
-  receivedById: String!
+  receivedByUserId: String!
   ReceivedBy: User!
   receivedDate: DateTime!
+  packingSlipNumber: String
   notes: String
   LineItems: [ReceiptLineItem!]!
   createdAt: DateTime!
@@ -448,8 +481,8 @@ type ReceiptLineItem {
   receiptId: String!
   purchaseOrderLineItemId: String!
   PurchaseOrderLineItem: PurchaseOrderLineItem!
-  quantityReceived: Float!
-  quantityDamaged: Float
+  receivedQty: Float!
+  damagedQty: Float
   notes: String
 }
 
@@ -462,14 +495,15 @@ extend type PurchaseOrderLineItem {
             <h3>Input Types</h3>
             <pre>input ReceiveItemInput {
   purchaseOrderLineItemId: String!
-  quantityReceived: Float!
-  quantityDamaged: Float
+  receivedQty: Float!
+  damagedQty: Float
   notes: String
 }
 
 input ReceivePurchaseOrderInput {
   purchaseOrderId: String!
   receivedDate: DateTime
+  packingSlipNumber: String
   notes: String
   lineItems: [ReceiveItemInput!]!
 }</pre>
@@ -483,7 +517,7 @@ input ReceivePurchaseOrderInput {
 type Mutation {
   receivePurchaseOrder(input: ReceivePurchaseOrderInput!): PurchaseOrderReceipt!
 }</pre>
-            <p style="font-size:12px; color:#64748b; margin-top:8px;">The <code>receivePurchaseOrder</code> mutation validates that <code>quantityReceived &le; remainingQty</code> per line, creates receipt + line item records in a transaction, and auto-transitions PO status to <code>PartiallyReceived</code> or <code>FullyReceived</code>.</p>
+            <p style="font-size:12px; color:#64748b; margin-top:8px;">The <code>receivePurchaseOrder</code> mutation is gated by the MAT-5 <code>supplierPurchaseOrder</code> permission (resolver-enforced, + env <code>RESTRICT_MATERIAL</code>). In a single transaction it: assigns the next <code>RCV-####</code> number, validates <code>receivedQty &le; (ordered &minus; previouslyReceived)</code> per line, creates the receipt + line items, then recomputes line totals and sets the PO&rsquo;s <code>statusId</code> by resolving the <strong>Instance anchor</strong> &mdash; <code>purchaseOrderReceivedStatusId</code> when every line&rsquo;s good qty meets ordered, else <code>purchaseOrderPartiallyReceivedStatusId</code>. Target states are never matched by label.</p>
         </div>
     </div>
 
@@ -497,15 +531,15 @@ type Mutation {
             <div class="blast-summary">
                 <div class="blast-row">
                     <span class="blast-label">New Files</span>
-                    <span class="blast-value">4</span>
+                    <span class="blast-value">6</span>
                 </div>
                 <div class="blast-row">
                     <span class="blast-label">Modified Files</span>
-                    <span class="blast-value">3</span>
+                    <span class="blast-value">5</span>
                 </div>
                 <div class="blast-row">
                     <span class="blast-label">Total Touched</span>
-                    <span class="blast-value">7</span>
+                    <span class="blast-value">11</span>
                 </div>
             </div>
 
@@ -516,38 +550,58 @@ type Mutation {
                 <tbody>
                     <tr>
                         <td><span class="action-new">NEW</span></td>
-                        <td><code>apps/api/prisma/migrations/…_add_po_receiving/migration.sql</code></td>
-                        <td>Create PurchaseOrderReceipt and ReceiptLineItem tables with indexes</td>
+                        <td><code>apps/api/prisma/migrations/…/migration.sql</code></td>
+                        <td>Create the two receipt tables + indexes; add the two <code>Instance</code> anchor columns; seed the <code>Partially Received</code> + <code>Received</code> PropertyValues and resolve the anchors by slug (CI-safe: inline <code>LEFT(md5(uuid()),21)</code>, no <code>SET @var</code>)</td>
                     </tr>
                     <tr>
                         <td><span class="action-new">NEW</span></td>
                         <td><code>apps/api/src/models/PurchaseOrderReceipt.ts</code></td>
-                        <td>Receipt CRUD, quantity validation, PO status auto-transition logic</td>
+                        <td>Receipt model (extends <code>BaseModel</code>): <code>RCV-####</code> numbering, qty validation, transactional receive, PO status auto-transition via Instance anchors</td>
+                    </tr>
+                    <tr>
+                        <td><span class="action-new">NEW</span></td>
+                        <td><code>apps/api/src/models/ReceiptLineItem.ts</code></td>
+                        <td>Receipt line-item model (extends <code>BaseModel</code>)</td>
                     </tr>
                     <tr>
                         <td><span class="action-new">NEW</span></td>
                         <td><code>apps/api/src/graphql/models/PurchaseOrderReceipt.ts</code></td>
-                        <td>GraphQL resolver: types, queries, receivePurchaseOrder mutation</td>
+                        <td>Resolver: <code>PurchaseOrderReceipt</code> type + receive inputs, queries, <code>receivePurchaseOrder</code> mutation</td>
+                    </tr>
+                    <tr>
+                        <td><span class="action-new">NEW</span></td>
+                        <td><code>apps/api/src/graphql/models/ReceiptLineItem.ts</code></td>
+                        <td>Resolver: <code>ReceiptLineItem</code> type + the <code>extend PurchaseOrderLineItem</code> computed fields (<code>receivedQty</code>/<code>backOrderQty</code>/<code>Receipts</code>)</td>
                     </tr>
                     <tr>
                         <td><span class="action-new">NEW</span></td>
                         <td><code>apps/frontend/src/components/PurchaseOrder/ReceivingForm.tsx</code></td>
-                        <td>Receiving form with per-line quantity inputs and back-order display</td>
+                        <td>Receiving form with per-line received/damaged inputs and back-order display</td>
                     </tr>
                     <tr>
                         <td><span class="action-mod">MOD</span></td>
                         <td><code>apps/api/prisma/schema.prisma</code></td>
-                        <td>Add PurchaseOrderReceipt, ReceiptLineItem models + relations on PurchaseOrder and PurchaseOrderLineItem</td>
+                        <td>Add the two models; the two <code>Instance</code> anchor FKs + their <code>PropertyValue</code> relations; back-relations on <code>PurchaseOrder</code>, <code>PurchaseOrderLineItem</code>, <code>User</code>, <code>PropertyValue</code></td>
+                    </tr>
+                    <tr>
+                        <td><span class="action-mod">MOD</span></td>
+                        <td><code>apps/api/src/graphql/models/PurchaseOrder.ts</code> (MAT-5)</td>
+                        <td>Add the three receiving fields (<code>receivedQty</code>/<code>backOrderQty</code>/<code>Receipts</code>) to the <code>PurchaseOrderLineItem</code> type + its existing resolver &mdash; they belong to that type</td>
                     </tr>
                     <tr>
                         <td><span class="action-mod">MOD</span></td>
                         <td><code>apps/api/src/graphql/schema.ts</code></td>
-                        <td>Register PurchaseOrderReceipt resolver (import, typeDef, Query, Mutation)</td>
+                        <td>Register both new resolvers (one <code>Resolvers</code> per type) + concat typeDefs + the receive Query/Mutation</td>
                     </tr>
                     <tr>
                         <td><span class="action-mod">MOD</span></td>
-                        <td><code>apps/api/src/models/JobFinancialSummaryService.ts</code></td>
-                        <td>Include committed material costs from issued POs in Financial Summary calculations</td>
+                        <td>New-instance bootstrap seed</td>
+                        <td>Seed the two new <code>purchase-order-status</code> PropertyValues + set the two anchors for future instances (mirrors where MAT-5 seeds the group)</td>
+                    </tr>
+                    <tr>
+                        <td><span class="action-mod">MOD</span></td>
+                        <td>Supplier PO detail page (MAT-5)</td>
+                        <td>Add a Receiving tab: two-way match table (Ordered vs Received + back-order) and receipt history list</td>
                     </tr>
                 </tbody>
             </table>
@@ -564,15 +618,15 @@ type Mutation {
             <ul class="criteria-list">
                 <li><div class="criteria-check"></div>A full quantity can be received against a Supplier PO in a single receipt</li>
                 <li><div class="criteria-check"></div>Partial quantities can be received, leaving a back-order balance on remaining lines</li>
-                <li><div class="criteria-check"></div>Back-order quantity is correctly computed as <code>ordered - receivedQty</code></li>
-                <li><div class="criteria-check"></div>PO status auto-transitions to <code>PartiallyReceived</code> when some (but not all) lines are fully received</li>
-                <li><div class="criteria-check"></div>PO status auto-transitions to <code>FullyReceived</code> when all lines reach ordered quantity</li>
-                <li><div class="criteria-check"></div>Three-way match view displays PO qty, received qty, and invoiced qty per line with status indicators</li>
-                <li><div class="criteria-check"></div>Three-way match highlights discrepancies (invoiced &ne; received) with red indicator</li>
-                <li><div class="criteria-check"></div>Receipt history tab on PO detail shows all receipts with date, receiver, item count, and notes</li>
-                <li><div class="criteria-check"></div>Permission check: <code>materialorder.edit</code> required to receive against a PO</li>
-                <li><div class="criteria-check"></div>Validation: received quantity cannot exceed remaining quantity (<code>ordered - previouslyReceived</code>)</li>
-                <li><div class="criteria-check"></div>Committed material costs from issued POs appear in the Job Financial Summary</li>
+                <li><div class="criteria-check"></div>Back-order quantity is correctly computed as <code>ordered &minus; &Sigma;(receivedQty &minus; damagedQty)</code> (damaged units stay on back-order)</li>
+                <li><div class="criteria-check"></div>PO status auto-transitions to the <code>Partially Received</code> PropertyValue (via <code>purchaseOrderPartiallyReceivedStatusId</code>) when some but not all good qty is received</li>
+                <li><div class="criteria-check"></div>PO status auto-transitions to the <code>Received</code> PropertyValue (via <code>purchaseOrderReceivedStatusId</code>) when all lines reach ordered quantity</li>
+                <li><div class="criteria-check"></div>Both new statuses are editable per instance (label/color/order) like any other <code>purchase-order-status</code> PropertyValue</li>
+                <li><div class="criteria-check"></div>Two-way match view displays ordered, received, and back-order qty per line with status indicators</li>
+                <li><div class="criteria-check"></div>Each receipt is assigned a unique global <code>RCV-####</code> number</li>
+                <li><div class="criteria-check"></div>Receipt history tab on PO detail shows all receipts with number, date, receiver, packing slip, and notes</li>
+                <li><div class="criteria-check"></div>Permission check: the <code>supplierPurchaseOrder</code> permission (+ env <code>RESTRICT_MATERIAL</code>) is required to receive against a PO &mdash; not <code>materialorder.edit</code></li>
+                <li><div class="criteria-check"></div>Validation: received quantity cannot exceed remaining quantity (<code>ordered &minus; previouslyReceived</code>)</li>
                 <li><div class="criteria-check"></div>Damaged quantity can be recorded per line item during receiving</li>
             </ul>
         </div>
@@ -587,25 +641,27 @@ type Mutation {
         <div class="collapsible-body open">
             <h3>Requires</h3>
             <p>
-                <a class="dep-tag dep-requires" href="release-1.34-timeline.html#item-MAT-5" target="_top">MAT-5: Supplier Purchase Orders</a>
+                <a class="dep-tag dep-requires" href="release-1.33-timeline.html#item-MAT-5" target="_top">MAT-5: Supplier Purchase Orders</a>
             </p>
 
             <h3>Enables</h3>
             <p>
                 <span class="dep-tag dep-enables">MAT-7: Inventory (receiving feeds stock)</span>
-                <span class="dep-tag dep-enables">MAT-8: Vendor Credits (receipts identify issues)</span>
+                <span class="dep-tag dep-enables">MAT-8: Vendor Credits (damaged/short receipts identify issues)</span>
+                <span class="dep-tag dep-enables">MAT-11: Supplier Invoices + Three-Way Match (adds the Invoiced leg)</span>
+                <span class="dep-tag dep-enables">MAT-12: PO Committed Cost in Job P&amp;L</span>
             </p>
 
             <h3>Siblings</h3>
             <p><em>None</em></p>
 
             <h3>Parent</h3>
-            <p><span class="dep-tag dep-none">Release 1.34</span></p>
+            <p><span class="dep-tag dep-none">Release 1.33</span></p>
         </div>
     </div>
 
     <div class="uis-footer">
-        MAT-6 &middot; Receiving + Three-Way Match &middot; Generated for <span>Release 1.34</span>
+        MAT-6 &middot; Receiving + Two-Way Match &middot; Generated for <span>Release 1.33</span>
     </div>
 </div>
 

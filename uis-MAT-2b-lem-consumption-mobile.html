@@ -119,17 +119,22 @@ pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
         <div class="uis-badges">
             <span class="uis-badge badge-q">MAT-2b</span>
             <span class="uis-badge badge-lane">Mobile</span>
-            <span class="uis-badge badge-status">Draft</span>
+            <span class="uis-badge badge-status">Reconciled</span>
             <span class="uis-badge badge-priority">P1</span>
-            <span class="uis-badge badge-child">Child of Release 1.34</span>
+            <span class="uis-badge badge-child">Child of Release 1.33</span>
         </div>
         <h1 class="uis-h1">LEM Material Consumption &mdash; Mobile</h1>
-        <p class="uis-sub">Stepped mobile form for field workers to log daily material consumption per job, completing the field-to-office consumption reporting loop.</p>
+        <p class="uis-sub">Mobile material-consumption logging for field workers, built by <strong>reusing the existing <code>MaterialItemEditor</code></strong> (the WO create-flow material picker) over the MAT-2a backend. No new backend, no new picker.</p>
         <div class="uis-meta">
-            <span><strong>Parent:</strong> Release 1.34</span>
+            <span><strong>Parent:</strong> Release 1.33</span>
             <span><strong>Slice:</strong> MAT-2b</span>
             <span><strong>Est:</strong> 3&ndash;4 days</span>
         </div>
+    </div>
+
+    <div style="background:#eff6ff; border:1px solid #bfdbfe; border-left:4px solid #3b82f6; border-radius:8px; padding:16px 20px; margin-bottom:24px;">
+        <div style="font-size:13px; font-weight:800; color:#1e40af; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:6px;">Reconciled against the live backend</div>
+        <p style="font-size:14px; color:#1e3a8a; line-height:1.6; margin:0;">The original draft targeted a net-new <code>MaterialConsumptionEntry</code> / <code>createMaterialConsumptionEntry</code> and leaned on offline sync. Reality: consumption rows are <code>WorkOrderMaterialItem</code> (MAT-2a), written through the existing <code>upsertWorkOrderLineItems</code> mutation, and the catalog + variant + pricing UI <strong>already exists</strong> as <code>MaterialItemEditor</code> (<code>packages/ui</code>), wired on mobile via <code>MobileWOMaterialEditor</code> &mdash; the same component the Work Order create flow uses. So MAT-2b is a thin wrapper: reuse that editor, add a work-date picker, a cost-code split, and submit/status wiring, plus a history list and a job-view tab. <strong>No new backend, no new picker.</strong> Offline sync is dropped (siblings don&rsquo;t queue offline); status uses <code>ApprovalStatus</code>, not sync badges.</p>
     </div>
 
     <div class="uis-toc">
@@ -177,9 +182,9 @@ pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
                     <div class="v-detail">Search materials by name from the company catalog &mdash; no manual text entry of material descriptions.</div>
                 </div>
                 <div class="value-card">
-                    <div class="v-icon">📡</div>
-                    <div class="v-title">Offline-Ready</div>
-                    <div class="v-detail">Entries are queued locally and synced when connectivity returns &mdash; job sites often lack reliable signal.</div>
+                    <div class="v-icon">♻️</div>
+                    <div class="v-title">Reuses the WO Picker</div>
+                    <div class="v-detail">The same <code>MaterialItemEditor</code> the Work Order create flow uses &mdash; catalog search, size/thickness variant, and live cost/sell pricing, for free.</div>
                 </div>
                 <div class="value-card">
                     <div class="v-icon">🏷️</div>
@@ -226,19 +231,21 @@ pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
         <div class="collapsible-body open">
             <h3>In Scope</h3>
             <ul>
-                <li><span class="scope-tag scope-in">IN</span> Mobile stepped form: select material, enter quantity, assign cost code, submit</li>
-                <li><span class="scope-tag scope-in">IN</span> Mobile entry list page per job (consumption history)</li>
-                <li><span class="scope-tag scope-in">IN</span> Integration into <code>SimplifiedJobTasks</code> (job site view) as a new task link</li>
-                <li><span class="scope-tag scope-in">IN</span> Uses existing <code>MaterialConsumptionEntry</code> model from MAT-2a</li>
-                <li><span class="scope-tag scope-in">IN</span> Uses <code>ProgressionBar</code> and <code>SelectionSlideup</code> patterns from existing mobile app</li>
+                <li><span class="scope-tag scope-in">IN</span> Mobile consumption form <strong>reusing <code>MaterialItemEditor</code></strong> (catalog search + X/Y variant + live cost/sell pricing + free-text/manual mode), launched as a flyout from a date+job context</li>
+                <li><span class="scope-tag scope-in">IN</span> A <strong>work-date</strong> picker (the daily LEM anchor) wrapping the editor</li>
+                <li><span class="scope-tag scope-in">IN</span> A <strong>cost-code split</strong> section (reuse the equipment cost-code sub-row pattern, scoped to the material account category) writing <code>WorkOrderMaterialItemCostCode</code></li>
+                <li><span class="scope-tag scope-in">IN</span> Submit/status wiring &mdash; submit sets <code>ApprovalStatus = InReview</code> (mirrors equipment-time mobile)</li>
+                <li><span class="scope-tag scope-in">IN</span> Consumption history list per job (status badges, swipe-to-edit)</li>
+                <li><span class="scope-tag scope-in">IN</span> A dedicated <strong>&ldquo;Material&rdquo; tab</strong> in <code>SimplifiedJobTasks</code> (gated on <code>WorkOrderMaterialItem.create</code>)</li>
             </ul>
 
             <h3>Out of Scope</h3>
             <ul>
-                <li><span class="scope-tag scope-out">OUT</span> New Prisma models (uses MAT-2a models exclusively)</li>
-                <li><span class="scope-tag scope-out">OUT</span> Offline sync implementation (checklist item only &mdash; future phase)</li>
-                <li><span class="scope-tag scope-out">OUT</span> Desktop entry UI (covered by MAT-2a)</li>
-                <li><span class="scope-tag scope-out">OUT</span> Inventory deduction / stock level updates</li>
+                <li><span class="scope-tag scope-out">OUT</span> <strong>Any new backend</strong> &mdash; reuses <code>WorkOrderMaterialItem</code> + <code>upsertWorkOrderLineItems</code> from MAT-2a exclusively</li>
+                <li><span class="scope-tag scope-out">OUT</span> <strong>A new material picker</strong> &mdash; reuses <code>MaterialItemEditor</code> / <code>MobileWOMaterialEditor</code></li>
+                <li><span class="scope-tag scope-out">OUT</span> Offline sync / local queueing (siblings don&rsquo;t do it; not this slice)</li>
+                <li><span class="scope-tag scope-out">OUT</span> Approval as the primary mobile action (approval is desktop-primary; mobile approve only if the user holds <code>WorkOrderMaterialItem.approve</code>)</li>
+                <li><span class="scope-tag scope-out">OUT</span> Desktop entry UI (MAT-2a), inventory deduction (MAT-7)</li>
             </ul>
         </div>
     </div>
@@ -251,7 +258,9 @@ pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
         </h2>
         <div class="collapsible-body open">
 
-            <h3>Mobile &mdash; Material Consumption Form (Step 1)</h3>
+            <p style="font-size:13px; color:#64748b; margin-bottom:4px;">The form is a single flyout (mirroring <code>EquipmentTimeEntryForm</code>), not a stepped wizard. Its body is the reused <code>MaterialItemEditor</code> rendered in its card layout &mdash; styling below tracks the real component: a <strong>Materials</strong> header with an <strong>&ldquo;+ Material&rdquo;</strong> add-line menu, then one gray card per row.</p>
+
+            <h3>Mobile &mdash; Material Entry (catalog row)</h3>
             <div class="mockup-container" id="mockup-1">
                 <div class="mockup-bar">
                     <div class="mockup-dots">
@@ -259,59 +268,72 @@ pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
                         <div class="mockup-dot mockup-dot-y"></div>
                         <div class="mockup-dot mockup-dot-g"></div>
                     </div>
-                    Step 1 of 2 &mdash; Select Material
+                    Log Material Consumption
                 </div>
                 <div class="mockup-body" style="max-width: 375px; margin: 0 auto;">
-                    <div style="background: #eff6ff; border-radius: 8px; padding: 8px 12px; margin-bottom: 16px;">
-                        <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
-                            <div style="height: 4px; flex: 1; background: #3b82f6; border-radius: 4px; margin-right: 4px;"></div>
-                            <div style="height: 4px; flex: 1; background: #e2e8f0; border-radius: 4px;"></div>
+                    <div style="margin-bottom: 16px;">
+                        <div style="font-size: 10px; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 4px;">Work Date</div>
+                        <div style="background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 9px 12px; font-size: 13px; color: #0f172a; display: flex; justify-content: space-between; align-items: center;">
+                            <span>📅&nbsp; Apr 7, 2026</span><span style="color: #94a3b8;">▾</span>
                         </div>
-                        <div style="font-size: 11px; color: #3b82f6; font-weight: 600;">Step 1 of 2</div>
+                    </div>
+
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                        <div style="font-size: 14px; font-weight: 700; color: #0f172a;">Materials</div>
+                        <div style="font-size: 12px; font-weight: 600; color: #3b82f6; border: 1px solid #bfdbfe; border-radius: 6px; padding: 4px 10px;">+ Material ▾</div>
+                    </div>
+
+                    <div style="background: #f8fafc; border: 1px solid #e5e7eb; border-radius: 10px; padding: 12px; margin-bottom: 14px;">
+                        <div style="margin-bottom: 10px;">
+                            <div style="font-size: 10px; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 4px;">Material (catalog)</div>
+                            <div style="background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 9px 12px; font-size: 13px; color: #0f172a; display: flex; justify-content: space-between; align-items: center;">
+                                <span>Fiberglass Pipe Insulation</span><span style="color: #94a3b8;">🔍</span>
+                            </div>
+                        </div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px;">
+                            <div>
+                                <div style="font-size: 10px; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 4px;">Pipe Size</div>
+                                <div style="background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 9px 12px; font-size: 13px; color: #0f172a; display: flex; justify-content: space-between; align-items: center;"><span>3/4&quot;</span><span style="color: #94a3b8;">▾</span></div>
+                            </div>
+                            <div>
+                                <div style="font-size: 10px; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 4px;">Wall Thickness</div>
+                                <div style="background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 9px 12px; font-size: 13px; color: #0f172a; display: flex; justify-content: space-between; align-items: center;"><span>1-1/2&quot;</span><span style="color: #94a3b8;">▾</span></div>
+                            </div>
+                        </div>
+                        <div style="display: grid; grid-template-columns: 1fr 0.7fr 1fr 1fr; gap: 8px; align-items: end;">
+                            <div>
+                                <div style="font-size: 10px; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 4px;">Qty</div>
+                                <div style="background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 9px 10px; font-size: 13px; color: #0f172a; text-align: center;">24</div>
+                            </div>
+                            <div>
+                                <div style="font-size: 10px; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 4px;">UoM</div>
+                                <div style="font-size: 12px; color: #6b7280; height: 36px; display: flex; align-items: center;">LF</div>
+                            </div>
+                            <div>
+                                <div style="font-size: 10px; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 4px;">Unit Price</div>
+                                <div style="font-size: 12px; color: #334155; height: 36px; display: flex; align-items: center;">$4.20</div>
+                            </div>
+                            <div style="text-align: right;">
+                                <div style="font-size: 10px; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 4px;">Total</div>
+                                <div style="font-size: 12px; font-weight: 700; color: #0f172a; height: 36px; display: flex; align-items: center; justify-content: flex-end;">$100.80</div>
+                            </div>
+                        </div>
                     </div>
 
                     <div style="margin-bottom: 16px;">
-                        <div class="mockup-input" style="display: flex; align-items: center; gap: 8px; padding: 10px 14px; color: #94a3b8;">
-                            <span style="font-size: 16px;">🔍</span> Search materials...
+                        <div style="font-size: 10px; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 6px;">Cost Code <span style="font-weight: 400; text-transform: none; color: #94a3b8;">(material)</span></div>
+                        <div style="background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 9px 12px; font-size: 13px; color: #334155; display: flex; justify-content: space-between; align-items: center;">
+                            <span>07210 &middot; Insulation Material</span><span style="color: #94a3b8;">▾</span>
                         </div>
+                        <div style="font-size: 11px; color: #3b82f6; font-weight: 600; margin-top: 6px;">+ Split across cost codes</div>
                     </div>
 
-                    <div style="font-size: 12px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">Categories</div>
-                    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 20px;">
-                        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 8px; text-align: center; font-size: 11px; font-weight: 600; color: #334155;">🔧 Pipe &amp; Fittings</div>
-                        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 8px; text-align: center; font-size: 11px; font-weight: 600; color: #334155;">⚡ Electrical</div>
-                        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 8px; text-align: center; font-size: 11px; font-weight: 600; color: #334155;">🧱 Insulation</div>
-                    </div>
-
-                    <div style="font-size: 12px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">Recent Materials</div>
-                    <div style="border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden;">
-                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 14px; border-bottom: 1px solid #f1f5f9;">
-                            <div>
-                                <div style="font-size: 13px; font-weight: 600; color: #0f172a;">3/4" Copper Pipe</div>
-                                <div style="font-size: 11px; color: #64748b;">Pipe &amp; Fittings &middot; $12.50/ft</div>
-                            </div>
-                            <div style="color: #3b82f6; font-size: 18px;">›</div>
-                        </div>
-                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 14px; border-bottom: 1px solid #f1f5f9;">
-                            <div>
-                                <div style="font-size: 13px; font-weight: 600; color: #0f172a;">R-20 Batt Insulation</div>
-                                <div style="font-size: 11px; color: #64748b;">Insulation &middot; $1.85/sqft</div>
-                            </div>
-                            <div style="color: #3b82f6; font-size: 18px;">›</div>
-                        </div>
-                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 14px;">
-                            <div>
-                                <div style="font-size: 13px; font-weight: 600; color: #0f172a;">1/2" PEX Tubing</div>
-                                <div style="font-size: 11px; color: #64748b;">Pipe &amp; Fittings &middot; $0.75/ft</div>
-                            </div>
-                            <div style="color: #3b82f6; font-size: 18px;">›</div>
-                        </div>
-                    </div>
+                    <div class="mockup-btn mockup-btn-success" style="display: block; text-align: center; padding: 13px; font-size: 14px; border-radius: 10px;">Submit &mdash; send for review</div>
                 </div>
             </div>
-            <p style="margin-top: 8px; font-size: 13px; color: #64748b;">Material picker uses <code>SelectionSlideup</code> pattern. Search queries the company material catalog. Category tiles provide quick filtering. Recent materials are sorted by the user's last-used entries on this job.</p>
+            <p style="margin-top: 8px; font-size: 13px; color: #64748b;">One catalog row: a material search (combobox), the X/Y <strong>variant dropdowns</strong> (the row&rsquo;s real attribute names, e.g. <em>Pipe Size</em> + <em>Wall Thickness</em>), and Qty / UoM / Unit&nbsp;Price / Total. <strong>UoM and price are read-only</strong> &mdash; resolved from the catalog via <code>resolveMaterialAttributePrice</code> (sell via <code>resolveMaterialSellPrice</code>). MAT-2b wraps the editor with the work-date picker, the material cost-code split, and a Submit that sets status to <strong>In&nbsp;Review</strong>.</p>
 
-            <h3>Mobile &mdash; Material Consumption Form (Step 2)</h3>
+            <h3>Mobile &mdash; Material Entry (manual / free-text row)</h3>
             <div class="mockup-container" id="mockup-2">
                 <div class="mockup-bar">
                     <div class="mockup-dots">
@@ -319,55 +341,50 @@ pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
                         <div class="mockup-dot mockup-dot-y"></div>
                         <div class="mockup-dot mockup-dot-g"></div>
                     </div>
-                    Step 2 of 2 &mdash; Enter Details
+                    + Material &mdash; add line
                 </div>
                 <div class="mockup-body" style="max-width: 375px; margin: 0 auto;">
-                    <div style="background: #eff6ff; border-radius: 8px; padding: 8px 12px; margin-bottom: 16px;">
-                        <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
-                            <div style="height: 4px; flex: 1; background: #3b82f6; border-radius: 4px; margin-right: 4px;"></div>
-                            <div style="height: 4px; flex: 1; background: #3b82f6; border-radius: 4px;"></div>
-                        </div>
-                        <div style="font-size: 11px; color: #3b82f6; font-weight: 600;">Step 2 of 2</div>
-                    </div>
-
-                    <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px; margin-bottom: 20px;">
-                        <div style="font-size: 11px; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px;">Selected Material</div>
-                        <div style="font-size: 15px; font-weight: 700; color: #0f172a;">3/4" Copper Pipe</div>
-                        <div style="font-size: 12px; color: #64748b;">$12.50 / ft</div>
-                    </div>
-
-                    <div style="margin-bottom: 16px;">
-                        <div style="font-size: 12px; font-weight: 600; color: #334155; margin-bottom: 6px;">Quantity</div>
-                        <div style="display: flex; align-items: center; gap: 12px;">
-                            <div style="background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 8px; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: 700; color: #64748b; cursor: pointer;">&minus;</div>
-                            <div style="flex: 1; text-align: center; font-size: 32px; font-weight: 800; color: #0f172a;">24</div>
-                            <div style="background: #3b82f6; border-radius: 8px; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: 700; color: #fff; cursor: pointer;">+</div>
-                        </div>
-                        <div style="text-align: center; font-size: 12px; color: #64748b; margin-top: 4px;">ft</div>
-                    </div>
-
-                    <div style="margin-bottom: 16px;">
-                        <div style="font-size: 12px; font-weight: 600; color: #334155; margin-bottom: 6px;">Cost Code</div>
-                        <div class="mockup-input" style="display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; color: #334155;">
-                            <span>03-200 &middot; Plumbing Rough-In</span>
-                            <span style="color: #94a3b8;">▾</span>
+                    <div style="display: flex; justify-content: flex-end; margin-bottom: 12px;">
+                        <div style="width: 240px; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; box-shadow: 0 6px 16px rgba(15,23,42,0.08);">
+                            <div style="padding: 10px 12px; border-bottom: 1px solid #f1f5f9;">
+                                <div style="font-size: 13px; font-weight: 600; color: #0f172a;">Material (catalog)</div>
+                                <div style="font-size: 11px; color: #64748b;">Select from material catalog</div>
+                            </div>
+                            <div style="padding: 10px 12px; background: #eff6ff;">
+                                <div style="font-size: 13px; font-weight: 600; color: #1d4ed8;">Manual line</div>
+                                <div style="font-size: 11px; color: #3b82f6;">Enter description and cost manually</div>
+                            </div>
                         </div>
                     </div>
 
-                    <div style="margin-bottom: 20px;">
-                        <div style="font-size: 12px; font-weight: 600; color: #334155; margin-bottom: 6px;">Notes <span style="font-weight: 400; color: #94a3b8;">(optional)</span></div>
-                        <div class="mockup-input" style="min-height: 60px; padding: 10px 14px; color: #94a3b8;">Add notes...</div>
+                    <div style="background: #f8fafc; border: 1px solid #e5e7eb; border-radius: 10px; padding: 12px; margin-bottom: 14px;">
+                        <div style="margin-bottom: 10px;">
+                            <div style="font-size: 10px; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 4px;">Description</div>
+                            <div style="background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 9px 12px; font-size: 13px; color: #0f172a; min-height: 38px;">Spray foam touch-up &mdash; mech room</div>
+                        </div>
+                        <div style="display: grid; grid-template-columns: 1fr 0.9fr 1fr 1fr; gap: 8px; align-items: end;">
+                            <div>
+                                <div style="font-size: 10px; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 4px;">Qty</div>
+                                <div style="background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 9px 10px; font-size: 13px; color: #0f172a; text-align: center;">2</div>
+                            </div>
+                            <div>
+                                <div style="font-size: 10px; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 4px;">Unit</div>
+                                <div style="background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 9px 8px; font-size: 13px; color: #0f172a; display: flex; justify-content: space-between; align-items: center;"><span>can</span><span style="color: #94a3b8;">▾</span></div>
+                            </div>
+                            <div>
+                                <div style="font-size: 10px; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 4px;">Unit Price</div>
+                                <div style="background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 9px 10px; font-size: 13px; color: #0f172a;">$18.00</div>
+                            </div>
+                            <div style="text-align: right;">
+                                <div style="font-size: 10px; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 4px;">Total</div>
+                                <div style="font-size: 12px; font-weight: 700; color: #0f172a; height: 38px; display: flex; align-items: center; justify-content: flex-end;">$36.00</div>
+                            </div>
+                        </div>
                     </div>
-
-                    <div style="background: #f8fafc; border-radius: 8px; padding: 12px 14px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center;">
-                        <span style="font-size: 13px; color: #64748b;">Estimated Cost</span>
-                        <span style="font-size: 16px; font-weight: 800; color: #0f172a;">$300.00</span>
-                    </div>
-
-                    <div class="mockup-btn mockup-btn-success" style="display: block; text-align: center; padding: 14px; font-size: 14px; border-radius: 10px;">Submit Entry</div>
+                    <div style="font-size: 12px; color: #64748b; line-height: 1.5;">The same <strong>&ldquo;+ Material&rdquo;</strong> menu offers <em>Manual line</em> for materials not in the catalog. A manual row swaps the combobox + variant dropdowns for a free-text <strong>Description</strong>, and its <strong>Unit</strong> and <strong>Unit&nbsp;Price</strong> become editable (Unit is a <code>PropertyValue</code> select &rarr; <code>unitPropertyValueId</code>).</div>
                 </div>
             </div>
-            <p style="margin-top: 8px; font-size: 13px; color: #64748b;">Quantity input uses a large tap-friendly stepper. Cost code dropdown uses the job's assigned cost codes. Estimated cost is qty &times; unit cost (read-only). Submit calls <code>createMaterialConsumptionEntry</code>.</p>
+            <p style="margin-top: 8px; font-size: 13px; color: #64748b;">Catalog and manual rows can coexist in one submission; both become <code>WorkOrderMaterialItem</code> rows under the chosen work date.</p>
 
             <h3>Mobile &mdash; Consumption History</h3>
             <div class="mockup-container" id="mockup-3">
@@ -395,7 +412,7 @@ pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
                         <div style="padding: 12px 14px; border-bottom: 1px solid #f1f5f9;">
                             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
                                 <div style="font-size: 13px; font-weight: 600; color: #0f172a;">3/4" Copper Pipe</div>
-                                <span class="mockup-badge" style="background: #dcfce7; color: #166534;">Synced</span>
+                                <span class="mockup-badge" style="background: #dcfce7; color: #166534;">Approved</span>
                             </div>
                             <div style="display: flex; justify-content: space-between; font-size: 11px; color: #64748b;">
                                 <span>Apr 7, 2026 &middot; 24 ft</span>
@@ -405,7 +422,7 @@ pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
                         <div style="padding: 12px 14px; border-bottom: 1px solid #f1f5f9;">
                             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
                                 <div style="font-size: 13px; font-weight: 600; color: #0f172a;">R-20 Batt Insulation</div>
-                                <span class="mockup-badge" style="background: #dcfce7; color: #166534;">Synced</span>
+                                <span class="mockup-badge" style="background: #eff6ff; color: #1d4ed8;">In Review</span>
                             </div>
                             <div style="display: flex; justify-content: space-between; font-size: 11px; color: #64748b;">
                                 <span>Apr 7, 2026 &middot; 150 sqft</span>
@@ -415,7 +432,7 @@ pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
                         <div style="padding: 12px 14px; border-bottom: 1px solid #f1f5f9;">
                             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
                                 <div style="font-size: 13px; font-weight: 600; color: #0f172a;">1/2" PEX Tubing</div>
-                                <span class="mockup-badge" style="background: #fef3c7; color: #92400e;">Pending</span>
+                                <span class="mockup-badge" style="background: #fef3c7; color: #92400e;">Not Submitted</span>
                             </div>
                             <div style="display: flex; justify-content: space-between; font-size: 11px; color: #64748b;">
                                 <span>Apr 6, 2026 &middot; 80 ft</span>
@@ -425,7 +442,7 @@ pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
                         <div style="padding: 12px 14px;">
                             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
                                 <div style="font-size: 13px; font-weight: 600; color: #0f172a;">3" ABS Pipe</div>
-                                <span class="mockup-badge" style="background: #dcfce7; color: #166534;">Synced</span>
+                                <span class="mockup-badge" style="background: #dcfce7; color: #166534;">Approved</span>
                             </div>
                             <div style="display: flex; justify-content: space-between; font-size: 11px; color: #64748b;">
                                 <span>Apr 5, 2026 &middot; 40 ft</span>
@@ -436,7 +453,7 @@ pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
                     <p style="font-size: 11px; color: #94a3b8; text-align: center; margin-top: 12px;">Swipe left on any entry to edit</p>
                 </div>
             </div>
-            <p style="margin-top: 8px; font-size: 13px; color: #64748b;">List displays all consumption entries for the current job. Each row shows date, material name, quantity, and sync status. Date filter narrows the view. Swipe-to-edit opens the stepped form pre-populated with the entry's data.</p>
+            <p style="margin-top: 8px; font-size: 13px; color: #64748b;">List displays all consumption entries for the current job. Each row shows work date, material name, quantity, and approval status. Date filter narrows the view. Swipe-to-edit reopens the entry flyout pre-populated with the row's data.</p>
         </div>
     </div>
 
@@ -447,18 +464,23 @@ pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
             <span class="toggle-icon">&#9660;</span>
         </h2>
         <div class="collapsible-body open">
-            <p>No new Prisma models are introduced. This slice consumes the <code>MaterialConsumptionEntry</code> model defined in MAT-2a. The mobile form maps to the create mutation fields as follows:</p>
+            <p>No new Prisma models. This slice writes <code>WorkOrderMaterialItem</code> (+ its <code>WorkOrderMaterialItemCostCode</code> children) from MAT-2a, via the existing <code>upsertWorkOrderLineItems</code> material branch. Most of the row is produced by <code>MaterialItemEditor</code>&rsquo;s <code>IMaterialRowData</code>; MAT-2b supplies the wrapper fields (<code>workDate</code>, <code>status</code>, cost-code split).</p>
 
-            <h3>Mobile Form &rarr; MaterialConsumptionEntry Field Mapping</h3>
+            <h3>Mobile Form &rarr; WorkOrderMaterialItem Field Mapping</h3>
             <table class="schema-table">
                 <thead>
                     <tr><th>Mobile Form Field</th><th>Model Field</th><th>Source</th></tr>
                 </thead>
                 <tbody>
                     <tr>
-                        <td>Material Picker selection</td>
-                        <td><code>materialId</code></td>
-                        <td>SelectionSlideup &rarr; Material.id</td>
+                        <td>Material + variant (editor)</td>
+                        <td><code>materialId</code>, <code>materialAttributePriceId</code></td>
+                        <td><code>MaterialItemEditor</code> &rarr; material + X/Y axis &rarr; resolved MAP source row</td>
+                    </tr>
+                    <tr>
+                        <td>Free-text / manual row</td>
+                        <td><code>description</code></td>
+                        <td><code>MaterialItemEditor</code> blank mode (no catalog match)</td>
                     </tr>
                     <tr>
                         <td>Quantity stepper</td>
@@ -466,34 +488,34 @@ pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
                         <td>User input (Decimal, must be &gt; 0)</td>
                     </tr>
                     <tr>
+                        <td>Price (editor)</td>
+                        <td><code>unitPrice</code> / <code>costPrice</code> / <code>total</code></td>
+                        <td>Editor: catalog &rarr; <code>resolveMaterialAttributePrice</code> / <code>resolveMaterialSellPrice</code>; free-text &rarr; manual; <code>total = qty &times; unitPrice</code></td>
+                    </tr>
+                    <tr>
                         <td>Unit (display only)</td>
-                        <td><code>unit</code></td>
-                        <td>Auto-populated from Material.unit</td>
+                        <td><code>unitPropertyValueId</code></td>
+                        <td>Catalog rows derive UoM from <code>Material.UnitPropertyValue</code> (null here); free-text rows set a unit <code>PropertyValue</code></td>
                     </tr>
                     <tr>
-                        <td>Cost Code dropdown</td>
-                        <td><code>costCodeId</code></td>
-                        <td>Job's assigned cost codes</td>
+                        <td>Cost-code split rows</td>
+                        <td><code>WorkOrderMaterialItemCostCode[]</code></td>
+                        <td>Material-typed cost codes for the job; one or many (split by quantity)</td>
                     </tr>
                     <tr>
-                        <td>Notes textarea</td>
-                        <td><code>notes</code></td>
-                        <td>User input (optional, VARCHAR 500)</td>
+                        <td>Work-date picker</td>
+                        <td><code>workDate</code></td>
+                        <td>Defaults to today; the daily LEM anchor</td>
+                    </tr>
+                    <tr>
+                        <td>Submit action</td>
+                        <td><code>status</code> + <code>submittedByUserId</code></td>
+                        <td>Submit &rarr; <code>InReview</code>; submitter stamped from the authenticated user</td>
                     </tr>
                     <tr>
                         <td>(auto)</td>
                         <td><code>jobId</code></td>
                         <td>Current job context from route params</td>
-                    </tr>
-                    <tr>
-                        <td>(auto)</td>
-                        <td><code>date</code></td>
-                        <td>Defaults to today, user can override</td>
-                    </tr>
-                    <tr>
-                        <td>(auto)</td>
-                        <td><code>createdById</code></td>
-                        <td>Authenticated user.id</td>
                     </tr>
                 </tbody>
             </table>
@@ -507,63 +529,32 @@ pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
             <span class="toggle-icon">&#9660;</span>
         </h2>
         <div class="collapsible-body open">
-            <p>No new API additions. The mobile app consumes the queries and mutations defined in MAT-2a.</p>
+            <p>No new API additions. The mobile app consumes the MAT-2a surface and the catalog/pricing queries <code>MaterialItemEditor</code> already uses. Status flows through the upsert input (submit sets <code>InReview</code>), so no dedicated submit mutation is required.</p>
 
-            <h3>Consumed Mutations</h3>
-            <pre>mutation CreateMaterialConsumptionEntry(
-  $input: CreateMaterialConsumptionEntryInput!
-) {
-  createMaterialConsumptionEntry(input: $input) {
-    id
-    materialId
-    quantity
-    unit
-    costCodeId
-    notes
-    date
-    createdAt
-  }
-}</pre>
+            <h3>Consumed Mutation (write)</h3>
+            <pre>mutation UpsertWorkOrderLineItems($input: UpsertWorkOrderLineItemsInput!) {
+  upsertWorkOrderLineItems(input: $input)   # materialItems[] branch
+}
+# each material item carries: workDate, materialId | description,
+# materialAttributePriceId, quantity, unitPrice, unitPropertyValueId,
+# status (InReview on submit), costCodes[]</pre>
 
-            <h3>Consumed Queries</h3>
-            <pre>query MaterialConsumptionEntries($jobId: String!) {
-  materialConsumptionEntries(jobId: $jobId) {
-    id
-    materialId
-    quantity
-    unit
-    costCodeId
-    notes
-    date
-    createdAt
-    Material {
-      id
-      name
-      unitCost
-      unit
-    }
-    CostCode {
-      id
-      code
-      name
-    }
+            <h3>Consumed Queries (read)</h3>
+            <pre># history list for the job (date-range filterable — MAT-2a)
+query WorkOrderMaterialItems($jobId: String!, $dateFrom: DateTime, $dateTo: DateTime) {
+  workOrderMaterialItems(jobId: $jobId, dateFrom: $dateFrom, dateTo: $dateTo) {
+    id workDate quantity unitPrice total status description
+    Material { id name }
+    MaterialAttributePrice { id }
+    WorkOrderMaterialItemCostCodes { costCodeId quantity }
   }
 }
 
-query Materials($options: GetListOptions) {
-  materials(options: $options) {
-    data {
-      ... on Material {
-        id
-        name
-        unitCost
-        unit
-        category
-      }
-    }
-  }
-}</pre>
-            <p style="margin-top: 12px; font-size: 13px; color: #64748b;">The <code>materials</code> query powers the material picker (Step 1). The <code>materialConsumptionEntries</code> query powers the history list page. The <code>createMaterialConsumptionEntry</code> mutation is called on form submit.</p>
+# powering MaterialItemEditor (already used by MobileWOMaterialEditor):
+#   resolveMaterialAttributePrice(...)   -> variant cost (MAP source row)
+#   resolveMaterialSellPrice(...)        -> billable
+#   material catalog search + X/Y axis value queries</pre>
+            <p style="margin-top: 12px; font-size: 13px; color: #64748b;"><code>MaterialItemEditor</code> brings its own catalog-search + price-resolution queries (reused verbatim). The <code>workOrderMaterialItems</code> query powers the history list. <code>upsertWorkOrderLineItems</code> is called on submit; bulk <code>approveWorkOrderMaterialItems</code> is available only where the user holds the approve permission.</p>
         </div>
     </div>
 
@@ -585,7 +576,7 @@ query Materials($options: GetListOptions) {
                 </div>
                 <div class="blast-row">
                     <span class="blast-label">Total Touched</span>
-                    <span class="blast-value">4</span>
+                    <span class="blast-value">4 (+ reused components, 0 new)</span>
                 </div>
             </div>
 
@@ -596,26 +587,29 @@ query Materials($options: GetListOptions) {
                 <tbody>
                     <tr>
                         <td><span class="action-new">NEW</span></td>
-                        <td><code>apps/mobile/src/components/MaterialConsumption/MobileMaterialConsumptionForm.tsx</code></td>
-                        <td>Stepped form component: Step 1 (material picker with search + categories) and Step 2 (quantity, cost code, notes, submit). Uses ProgressionBar and SelectionSlideup patterns.</td>
+                        <td><code>apps/mobile/src/components/MaterialConsumption/MaterialConsumptionForm.tsx</code></td>
+                        <td>Flyout form (mirrors <code>EquipmentTimeEntryForm</code>): work-date + <strong>reused <code>MaterialItemEditor</code></strong> rows + cost-code split (reuse <code>EquipmentCostCodeSubRow</code> pattern) + Submit &rarr; <code>upsertWorkOrderLineItems</code> (status <code>InReview</code>).</td>
                     </tr>
                     <tr>
                         <td><span class="action-new">NEW</span></td>
-                        <td><code>apps/mobile/src/pages/job-sites/[id]/material-consumption/new.tsx</code></td>
-                        <td>Page wrapper for the stepped creation form. Extracts jobId from route params, passes to form component.</td>
+                        <td><code>apps/mobile/src/components/MaterialConsumption/MaterialConsumptionTab.tsx</code></td>
+                        <td>Tab content for the job view: history list (date filter, status badges, swipe-to-edit) + &ldquo;Add Entry&rdquo; opening the flyout form. Reads <code>workOrderMaterialItems</code>.</td>
                     </tr>
                     <tr>
                         <td><span class="action-new">NEW</span></td>
-                        <td><code>apps/mobile/src/pages/job-sites/[id]/material-consumption/index.tsx</code></td>
-                        <td>List page showing all consumption entries for the job. Date filter, entry cards with swipe-to-edit, sync status badges.</td>
+                        <td><code>apps/mobile/src/components/MaterialConsumption/operations.ts</code></td>
+                        <td>The GraphQL docs the tab/form use (reuse <code>MobileWOMaterialEditor</code>&rsquo;s price queries; add the <code>workOrderMaterialItems</code> list query).</td>
                     </tr>
                     <tr>
                         <td><span class="action-mod">MOD</span></td>
-                        <td><code>apps/mobile/src/components/SimplifiedJobTasks/SimplifiedJobTasks.tsx</code></td>
-                        <td>Add "Material Consumption" task link that navigates to the consumption list page for the current job.</td>
+                        <td><code>apps/mobile/src/components/JobViews/SimplifiedJobTasks.tsx</code></td>
+                        <td>Add a <strong>&ldquo;Material&rdquo; tab</strong> <code>{id,label,content,permission}</code> (gated on <code>WorkOrderMaterialItem.create</code>) rendering <code>MaterialConsumptionTab</code>.</td>
                     </tr>
                 </tbody>
             </table>
+            <div style="background:#f0fdf4; border:1px solid #bbf7d0; border-radius:8px; padding:12px 16px; margin-top:12px; font-size:13px; color:#166534;">
+                <strong>Reused, not built:</strong> <code>MaterialItemEditor</code> (<code>packages/ui</code>) + <code>MobileWOMaterialEditor</code> wrapper (catalog/variant/pricing), <code>EquipmentCostCodeSubRow</code> (cost-code allocation), the <code>useFlyout</code> / <code>FlyoutVersionEnum.VERTICAL</code> form pattern, and the entire MAT-2a backend.
+            </div>
         </div>
     </div>
 
@@ -627,19 +621,17 @@ query Materials($options: GetListOptions) {
         </h2>
         <div class="collapsible-body open">
             <ul class="criteria-list">
-                <li><div class="criteria-check"></div>Stepped form completes: Step 1 (select material) &rarr; Step 2 (enter qty, cost code, notes) &rarr; Submit &rarr; confirmation</li>
-                <li><div class="criteria-check"></div>Material picker searches the company material catalog by name with results updating as the user types</li>
-                <li><div class="criteria-check"></div>Category tiles in the picker filter materials by their category field</li>
-                <li><div class="criteria-check"></div>Quantity input validates &gt; 0; form cannot be submitted with zero or negative quantity</li>
-                <li><div class="criteria-check"></div>Cost code dropdown is optional and shows only cost codes assigned to the current job</li>
-                <li><div class="criteria-check"></div>Unit display (ft, sqft, each, etc.) is auto-populated from the selected material and is read-only</li>
-                <li><div class="criteria-check"></div>Estimated cost (qty &times; unit cost) updates in real time as quantity changes</li>
-                <li><div class="criteria-check"></div>Submitted entries appear in the consumption history list page for the job</li>
-                <li><div class="criteria-check"></div>Entries created on mobile sync to the desktop LEM report (visible in MAT-2a consumption table)</li>
-                <li><div class="criteria-check"></div>Permission gate: only users with <code>materialorder.create</code> permission can access the form</li>
-                <li><div class="criteria-check"></div>Offline behavior: entry is queued locally when no network connection, with a "Pending" badge shown in the list</li>
-                <li><div class="criteria-check"></div>Swipe-to-edit on the history list opens the form pre-populated with that entry's data</li>
-                <li><div class="criteria-check"></div>"Material Consumption" link appears in SimplifiedJobTasks and navigates to the list page</li>
+                <li><div class="criteria-check"></div>The form reuses <code>MaterialItemEditor</code>: catalog search, picking a material then its X/Y variant resolves the exact MAP price (cost + sell), and a free-text/manual row is supported</li>
+                <li><div class="criteria-check"></div>A <code>workDate</code> is required (defaults to today) and anchors the entry in the daily LEM report</li>
+                <li><div class="criteria-check"></div>Quantity validates &gt; 0; the line cannot be submitted with zero or negative quantity</li>
+                <li><div class="criteria-check"></div>The cost-code picker shows only material-typed codes for the job; a line can split across several, writing <code>WorkOrderMaterialItemCostCode</code> rows</li>
+                <li><div class="criteria-check"></div>Estimated cost (qty &times; unit price) updates live as quantity changes (from <code>MaterialItemEditor</code>)</li>
+                <li><div class="criteria-check"></div>Submit writes via <code>upsertWorkOrderLineItems</code> and sets <code>status = InReview</code>, stamping the submitter; it does <strong>not</strong> auto-approve</li>
+                <li><div class="criteria-check"></div>Submitted entries appear in the per-job history list <em>and</em> in the desktop MAT-2a table / daily LEM report (same model)</li>
+                <li><div class="criteria-check"></div>History rows show <code>ApprovalStatus</code> badges (Not Submitted / In Review / Approved / Rejected) &mdash; not sync state</li>
+                <li><div class="criteria-check"></div>Swipe-to-edit opens the flyout pre-populated with the entry&rsquo;s data</li>
+                <li><div class="criteria-check"></div>Permission: the &ldquo;Material&rdquo; tab + form require <code>WorkOrderMaterialItem.create</code>; mobile approve appears only with <code>WorkOrderMaterialItem.approve</code></li>
+                <li><div class="criteria-check"></div>The &ldquo;Material&rdquo; tab appears in <code>SimplifiedJobTasks</code> and renders the history + entry flyout</li>
             </ul>
         </div>
     </div>
@@ -652,21 +644,24 @@ query Materials($options: GetListOptions) {
         </h2>
         <div class="collapsible-body open">
             <h3>Requires</h3>
-            <p><span class="dep-tag dep-requires">MAT-2a: LEM Material Consumption &mdash; Desktop (model + API)</span></p>
+            <p>
+                <a class="dep-tag dep-requires" href="release-1.33-timeline.html#item-MAT-2a" target="_top">MAT-2a: LEM Material Consumption &mdash; Desktop (the entire backend + permission)</a>
+                <span class="dep-tag dep-requires">Reuses <code>MaterialItemEditor</code> / <code>MobileWOMaterialEditor</code> + <code>EquipmentCostCodeSubRow</code> (existing)</span>
+            </p>
 
             <h3>Enables</h3>
-            <p><span style="font-size: 13px; color: #64748b;">Nothing directly &mdash; this is a mobile consumption front-end for an existing API.</span></p>
+            <p><span style="font-size: 13px; color: #64748b;">Closes the field-to-office consumption loop &mdash; feeds the same daily LEM report MAT-2a builds.</span></p>
 
             <h3>Siblings</h3>
-            <p><span style="font-size: 13px; color: #64748b;">None</span></p>
+            <p><span style="font-size: 13px; color: #64748b;">Mirrors the mobile Timesheet / Equipment-Time entry flows.</span></p>
 
             <h3>Parent</h3>
-            <p><span class="dep-tag dep-none">Release 1.34</span></p>
+            <p><span class="dep-tag dep-none">Release 1.33</span></p>
         </div>
     </div>
 
     <div class="uis-footer">
-        MAT-2b &middot; LEM Material Consumption &mdash; Mobile &middot; Release 1.34
+        MAT-2b &middot; LEM Material Consumption &mdash; Mobile &middot; Release 1.33
     </div>
 </div>
 

@@ -244,7 +244,8 @@ pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
             <h3>In Scope</h3>
             <ul>
                 <li><span class="scope-tag scope-in">IN</span> Add <code>type</code> enum (<code>CustomerPO</code>&nbsp;|&nbsp;<code>SupplierPO</code>, system discriminator) + a <strong>customizable</strong> <code>statusId</code> &rarr; <code>PropertyValue</code> (like <code>jobStatusId</code>; default values <code>Draft</code>&nbsp;&rarr;&nbsp;<code>Issued</code>&nbsp;&rarr;&nbsp;<code>Closed</code>&nbsp;/&nbsp;<code>Cancelled</code> seeded per instance) to the shared <code>PurchaseOrder</code>; migration defaults existing rows to <code>type=CustomerPO</code></li>
-                <li><span class="scope-tag scope-in">IN</span> Supplier-specific columns: <code>deliveryLocationId</code> (FK &rarr; <code>Location</code>), <code>shippingMethod</code>, <code>expectedDeliveryDate</code> (supplier <code>companyId</code> / <code>contactId</code> / <code>issuedDate</code> / <code>amount</code> / <code>terms</code> reuse MAT-1's columns)</li>
+                <li><span class="scope-tag scope-in">IN</span> Supplier-specific columns: <code>deliveryLocationId</code> (FK &rarr; <code>Location</code>), <code>shippingMethod</code>, <code>plannedOrderDate</code>, <code>expectedDeliveryDate</code> (supplier <code>companyId</code> / <code>contactId</code> / <code>issuedDate</code> / <code>amount</code> / <code>terms</code> reuse MAT-1's columns; <code>issuedDate</code> doubles as the actual-order date)</li>
+                <li><span class="scope-tag scope-in">IN</span> Per-line <code>expectedDeliveryDate</code> on <code>PurchaseOrderLineItem</code> &mdash; an optional per-item promised date for split shipments / back-orders (materials on one PO often land on different days). Captures the delivery-planning dates contractors use for manpower planning; the schedule/calendar roll-up is a deferred follow-up (see Out of Scope)</li>
                 <li><span class="scope-tag scope-in">IN</span> New <code>PurchaseOrderLineItem</code> child table (mirrors <code>WorkOrderMaterialItem</code>: catalog XOR free-text, <code>materialAttributePriceId</code>, stored cost snapshot, <code>recalculateTotal</code>)</li>
                 <li><span class="scope-tag scope-in">IN</span> <code>SPO-####</code> auto-numbering for Supplier POs (global sequence, <code>RFI-##</code> precedent); customer <code>poNumber</code> stays user-entered</li>
                 <li><span class="scope-tag scope-in">IN</span> Combined upsert mutation (header + line items, delete-unlisted / create-or-edit sync &mdash; <code>upsertWorkOrderLineItems</code> precedent)</li>
@@ -261,6 +262,7 @@ pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
             <ul>
                 <li><span class="scope-tag scope-out">OUT</span> <strong>Committed-cost roll-up into the Job Financial Summary</strong> &mdash; no "committed" concept exists in <code>JobFinancialSummaryService</code> today; split to a follow-up MAT task</li>
                 <li><span class="scope-tag scope-out">OUT</span> <strong>Receiving + Partially/Fully-Received statuses</strong> &mdash; those statuses and the receipt flow are MAT-6</li>
+                <li><span class="scope-tag scope-out">OUT</span> <strong>Delivery-date roll-up into the job schedule / calendar</strong> &mdash; the planning dates are captured here, but surfacing expected/actual delivery on the schedule (for material-driven manpower planning) is a follow-up slice tied into the existing calendar work</li>
                 <li><span class="scope-tag scope-out">OUT</span> Emailing the PDF as an <strong>attachment</strong> (anti-spam &mdash; link-to-download only)</li>
                 <li><span class="scope-tag scope-out">OUT</span> Auto-PO generation from material requests (grouping MAT-4 requests into POs)</li>
                 <li><span class="scope-tag scope-out">OUT</span> EDI/API transmission to suppliers; PO approval workflow; mobile PO creation</li>
@@ -312,7 +314,11 @@ pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
                     <div style="margin:12px 0;"><span class="mockup-btn mockup-btn-outline">+ Add Item from Catalog</span> <span style="font-size:11px; color:#94a3b8;">unit price pre-fills from supply-chain cost &mdash; editable</span></div>
                     <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:16px;">
                         <div><div style="font-size:11px; font-weight:600; color:#64748b; margin-bottom:4px;">Delivery Location</div><div class="mockup-input" style="width:100%;">Select location&hellip; <span style="color:#cbd5e1;">(saved address)</span></div></div>
-                        <div><div style="font-size:11px; font-weight:600; color:#64748b; margin-bottom:4px;">Expected Delivery</div><div class="mockup-input" style="width:100%;">2026-05-15</div></div>
+                        <div><div style="font-size:11px; font-weight:600; color:#64748b; margin-bottom:4px;">Shipping Method</div><div class="mockup-input" style="width:100%;">Freight</div></div>
+                    </div>
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:12px;">
+                        <div><div style="font-size:11px; font-weight:600; color:#64748b; margin-bottom:4px;">Planned Order Date</div><div class="mockup-input" style="width:100%;">2026-05-01 <span style="color:#cbd5e1;">(when to cut the PO)</span></div></div>
+                        <div><div style="font-size:11px; font-weight:600; color:#64748b; margin-bottom:4px;">Expected Delivery</div><div class="mockup-input" style="width:100%;">2026-05-15 <span style="color:#cbd5e1;">(per-line override on back-orders)</span></div></div>
                     </div>
                     <div style="margin-top:12px;"><div style="font-size:11px; font-weight:600; color:#64748b; margin-bottom:4px;">Notes / Terms</div><div class="mockup-input" style="width:100%; min-height:40px;">Net 30. Deliver to loading dock.</div></div>
                     <div style="margin-top:16px; display:flex; gap:8px; justify-content:flex-end;">
@@ -479,7 +485,8 @@ pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
                     <tr><td><code>statusId</code></td><td><code>String? @db.VarChar(21)</code></td><td>FK &rarr; <code>PropertyValue</code> (<code>@relation("purchaseOrderStatus")</code>) &mdash; <strong>customizable per instance</strong>, exactly like <code>jobStatusId</code>. Default values seeded (<code>Draft</code>/<code>Issued</code>/<code>Closed</code>/<code>Cancelled</code>, group <code>propertyName="purchase-order-status"</code>). Supplier POs only (null for customer POs). <code>Received</code> values are MAT-6.</td></tr>
                     <tr><td><code>deliveryLocationId</code></td><td><code>String? @db.VarChar(21)</code></td><td>FK &rarr; <code>Location</code> (the structured-address model used by Company / Job / Contact) &mdash; the job-site or warehouse delivery address</td></tr>
                     <tr><td><code>shippingMethod</code></td><td><code>String? @db.VarChar(100)</code></td><td>e.g. &ldquo;Will Call&rdquo;, &ldquo;Freight&rdquo;, &ldquo;Courier&rdquo;</td></tr>
-                    <tr><td><code>expectedDeliveryDate</code></td><td><code>DateTime?</code></td><td>Requested or promised delivery date</td></tr>
+                    <tr><td><code>plannedOrderDate</code></td><td><code>DateTime?</code></td><td>Target date to cut the PO (planning intent, set before issue). Pairs with <code>issuedDate</code> (the actual order date) so procurement can track order timeliness &mdash; the planned-vs-actual order date.</td></tr>
+                    <tr><td><code>expectedDeliveryDate</code></td><td><code>DateTime?</code></td><td>Order-level planned received date (the promised delivery for the PO as a whole). Per-item overrides live on the line item for split / back-ordered deliveries.</td></tr>
                     <tr><td><code>PurchaseOrderLineItems</code></td><td><code>PurchaseOrderLineItem[]</code></td><td>New back-relation (below)</td></tr>
                 </tbody>
             </table>
@@ -498,10 +505,14 @@ pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
                     <tr><td><code>quantity</code></td><td><code>Decimal?</code></td><td>Ordered quantity</td></tr>
                     <tr><td><code>unitPrice</code></td><td><code>Decimal? @db.Decimal(10, 2)</code></td><td>Cost per unit, locked at PO time (pre-filled from <code>bestAvailableCost</code> &minus; MAT-9 discount, editable)</td></tr>
                     <tr><td><code>total</code></td><td><code>Decimal? @db.Decimal(10, 2)</code></td><td>Computed <code>quantity &times; unitPrice</code> via <code>afterCreate</code>/<code>afterEdit</code> &rarr; <code>recalculateTotal</code></td></tr>
+                    <tr><td><code>expectedDeliveryDate</code></td><td><code>DateTime?</code></td><td>Optional per-item promised delivery date; overrides the PO-level <code>expectedDeliveryDate</code> for split shipments / back-orders. Feeds material-availability scheduling (roll-up deferred).</td></tr>
                     <tr><td><code>orderNo</code></td><td><code>Int @default(0)</code></td><td>Row ordering within the PO</td></tr>
                 </tbody>
             </table>
             <p style="font-size:12px; color:#64748b; margin-top:4px;">No <code>costPrice</code>/<code>unitPrice</code> split as on <code>WorkOrderMaterialItem</code> &mdash; a PO line <em>is</em> the buy price, so one <code>unitPrice</code> (cost) suffices. <code>instanceId</code> intentionally omitted (single-instance app).</p>
+
+            <h3>Delivery-planning dates</h3>
+            <p>These columns capture the planned-vs-actual procurement dates contractors use to drive manpower planning &mdash; project schedules hinge on material availability (e.g. JPW plans crews off a table of planned/actual order and received dates). Four dates form the picture: <strong>planned order</strong> (<code>plannedOrderDate</code>) &rarr; <strong>actual order</strong> (<code>issuedDate</code>) &rarr; <strong>planned received</strong> (<code>expectedDeliveryDate</code>, order-level with per-line overrides) &rarr; <strong>actual received</strong> (the receipt date, MAT-6). MAT-5/MAT-6 <em>capture</em> these dates; surfacing them on the job schedule / calendar for crew planning is a deferred follow-up (analogous to the committed-cost roll-up).</p>
 
             <h3>Numbering</h3>
             <p><code>SPO-####</code> for Supplier POs &mdash; a <strong>global</strong> sequence (company-wide procurement docs, not job-scoped). Generated on create with the <code>RFI-##</code> precedent: <code>SELECT MAX(CAST(SUBSTRING(poNumber, 5) AS UNSIGNED)) &hellip; WHERE type = 'SupplierPO' AND poNumber REGEXP '^SPO-[0-9]+$'</code>, then <code>SPO-${padStart(4)}</code>. Customer <code>poNumber</code> remains user-entered.</p>
@@ -524,6 +535,7 @@ pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
   deliveryLocationId: String
   DeliveryLocation: Location
   shippingMethod: String
+  plannedOrderDate: DateTime
   expectedDeliveryDate: DateTime
   PurchaseOrderLineItems: [PurchaseOrderLineItem!]
 }
@@ -539,6 +551,7 @@ type PurchaseOrderLineItem {
   quantity: Float
   unitPrice: Float
   total: Float
+  expectedDeliveryDate: DateTime
   orderNo: Int
 }</pre>
 
@@ -553,7 +566,8 @@ type PurchaseOrderLineItem {
   issuedDate: DateTime
   deliveryLocationId: String       # FK → Location
   shippingMethod: String
-  expectedDeliveryDate: DateTime
+  plannedOrderDate: DateTime       # planning intent — target date to cut the PO
+  expectedDeliveryDate: DateTime   # order-level planned received date
   terms: String
   description: String
   lineItems: [SupplierPOLineItemInput!]!
@@ -566,6 +580,7 @@ input SupplierPOLineItemInput {
   description: String             # XOR catalog
   quantity: Float!
   unitPrice: Float                # omitted → resolved from bestAvailableCost
+  expectedDeliveryDate: DateTime  # optional per-item override for split / back-ordered lines
   orderNo: Int
 }</pre>
 
@@ -642,7 +657,7 @@ extend type Mutation {
                     <tr>
                         <td><span class="action-mod">MOD</span></td>
                         <td><code>apps/api/prisma/schema.prisma</code></td>
-                        <td>Add <code>type</code> enum + <code>statusId</code> (FK&rarr;PropertyValue) + 3 supplier cols + relations to PurchaseOrder; 3 Instance status-anchor FKs; PropertyValue back-relations; define PurchaseOrderLineItem</td>
+                        <td>Add <code>type</code> enum + <code>statusId</code> (FK&rarr;PropertyValue) + supplier cols (incl. <code>plannedOrderDate</code> / <code>expectedDeliveryDate</code>) + relations to PurchaseOrder; 3 Instance status-anchor FKs; PropertyValue back-relations; define PurchaseOrderLineItem (incl. per-line <code>expectedDeliveryDate</code>)</td>
                     </tr>
                     <tr>
                         <td><span class="action-mod">MOD</span></td>
@@ -701,6 +716,7 @@ extend type Mutation {
                 <li><div class="criteria-check"></div>PDF generates through <code>pdf-export</code> with company logo, PO number, supplier + ship-to address blocks, itemized table, subtotal/tax/total, terms, signature line; downloadable via the Download button</li>
                 <li><div class="criteria-check"></div>"Send to supplier" emails a JWT <strong>download link</strong> (no attachment) to the supplier contact; the public token route streams the PDF; expired links can be refreshed</li>
                 <li><div class="criteria-check"></div>A dedicated <code>supplierPurchaseOrder</code> permission is enforced at the resolver for create/edit/issue; <code>PurchaseOrder</code> is NOT added to <code>permissionsByReferenceModel</code> (customer-PO passthrough preserved); surfaces gated by env <code>RESTRICT_MATERIAL</code></li>
+                <li><div class="criteria-check"></div>The PO captures <code>plannedOrderDate</code> (planning intent) alongside <code>issuedDate</code> (actual order); line items accept an optional per-item <code>expectedDeliveryDate</code> that overrides the PO-level date for split / back-ordered deliveries</li>
                 <li><div class="criteria-check"></div>Validation: supplier required, &ge;1 line item, quantity &gt; 0, catalog XOR free-text per line</li>
                 <li><div class="criteria-check"></div>PO list page filters to <code>type=SupplierPO</code> with status + supplier filters; detail page shows line items with subtotal and grand total</li>
                 <li><div class="criteria-check"></div>Supplier PO tab on the Company detail page lists that supplier&rsquo;s POs (reuses <code>purchaseOrdersForCompany</code>, filtered to <code>SupplierPO</code>)</li>

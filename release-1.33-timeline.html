@@ -781,7 +781,7 @@ h1 { font-size: 30px; font-weight: 800; color: #0f172a; margin: 0 0 8px; letter-
             <span class="phase-planning-banner">IN PLANNING</span>
         </h2>
         <p class="phase-desc"><strong>Pulled forward into 1.33 &mdash; now in planning.</strong> Builds the database models, GraphQL resolvers, and services for the material supply chain. Each MAT spec is being reviewed against the live <code>Release-v1.33.0</code> schema and rewritten into a dev-grade plan, one item at a time in dependency order. Grounding against the real schema has already surfaced significant reconciliation work the original specs assumed away: an existing <code>MaterialOrder</code> request system (now <em>reused</em> by MAT-4), an existing polymorphic <code>PurchaseOrder</code> reference model that collides by name with the first-class PO that MAT-1/MAT-5 want, and the already-shipped LEM-3a material pricing cascade that MAT-0/MAT-9 must slot a distributor cost tier beneath. <strong>MAT-10 (Material&rarr;Company FK, <a href="#phase-7-rival-followups" style="color:#3b82f6;font-weight:600;">Phase 7</a>) is the gating prerequisite.</strong></p>
-        <p class="phase-desc" style="margin-top:8px;">Working order: <strong>MAT-10 &rarr; MAT-0 &rarr; MAT-1 / MAT-9 &rarr; MAT-5 &rarr; MAT-6 &rarr; MAT-7 &rarr; MAT-11 / MAT-12 &rarr; MAT-8</strong>, with MAT-2a/2b, MAT-3, and MAT-4 slotting in parallel off the foundation. <strong>MAT-8 (Vendor Credits) was resequenced to the end:</strong> it captures a credit balance but has no consumer until AP (MAT-11) and committed cost (MAT-12) exist, so it ships as the terminus that closes their loop rather than a write-only record built first. The financial cluster (MAT-8/11/12) is a candidate to <strong>defer as a group</strong> while inventory/material settles &mdash; pending confirmation. Each row links its reviewed spec and dev-grade plan as the item is completed. <strong>Note:</strong> MAT-0 was hardened into a <strong>collapsed model</strong> &mdash; per-source cost on the existing <code>MaterialAttributePrice</code> grid, with <strong>no <code>ManufacturerProduct</code>/<code>DistributorPrice</code> models</strong>. Downstream items that referenced those entities (MAT-5, MAT-3, MAT-2a) must reconcile to MAT-0 source rows when hardened &mdash; do not build against the dead entities. <strong>MAT-9 is done</strong> &mdash; resolved by extending the existing <code>Discount</code>/<code>DiscountAssignment</code> system for buy-side (not a new model), which reopened MAT-0 to swap the source row&rsquo;s flat <code>discountPercent</code> for a <code>discountId</code> FK. <strong>MAT-4 is done</strong> &mdash; resolved by <strong>reusing the existing <code>MaterialOrder</code> engine</strong> (a field request <em>is</em> a MaterialOrder in a <em>Requested</em> status) plus a flat <code>MaterialOrderLineItem</code> catalog/free-text line; the structured spec-grid wrong-spec guard is deferred to a future slice. <strong>MAT-6 is reconciled</strong> &mdash; ships as <strong>two-way match</strong> (Ordered vs Received) + back-order, with status as new <code>purchase-order-status</code> PropertyValues driven by Instance anchors (reusing the MAT-5 pattern). Its two cut pieces are tracked as new slices so they aren&rsquo;t lost: <strong>MAT-11</strong> (Supplier Invoices &mdash; the Invoiced leg / true three-way match, blocked on a net-new AP entity) and <strong>MAT-12</strong> (PO committed cost into <code>JobFinancialSummaryService</code>).</p>
+        <p class="phase-desc" style="margin-top:8px;">Rows are ordered by <strong>business priority</strong> (set June 23): <strong>MAT-10 &rarr; MAT-13 &rarr; MAT-0 &rarr; MAT-9 &rarr; MAT-7 &rarr; MAT-4 &rarr; MAT-2a &rarr; MAT-2b &rarr; MAT-5 &rarr; MAT-6 &rarr; MAT-1</strong>, then deferred (MAT-3) and the financial cluster (MAT-11 / MAT-12 / MAT-8, a candidate to defer as a group). This order is also <strong>dependency-valid</strong> &mdash; every item&rsquo;s real prerequisites sit above it. Per-row notes carry each item&rsquo;s reconciled design and link its spec + dev-grade plan.</p>
 
         <div class="header-row">
             <span></span>
@@ -803,6 +803,16 @@ h1 { font-size: 30px; font-weight: 800; color: #0f172a; margin: 0 0 8px; letter-
                 </div>
                 <div class="item-detail"></div>
             </div>
+            <div class="item-row planning no-expand">
+                <div class="item-header">
+                    <span class="item-chevron">&#9654;</span>
+                    <span class="item-id">MAT-13</span>
+                    <span class="item-name"><span class="planning-banner">PLANNING</span><span class="db-chip" title="Database changes — Chris review required">DB</span>Link <code>MaterialGroup</code> &rarr; <code>AccountItem</code> &mdash; associate each material group with an account item so consumed-material costs roll up to the correct financial account in job actuals. <strong>New ticket;</strong> spec/plan TBD.</span>
+                    <span class="item-est">TBD</span>
+                    <span class="item-status"><span class="status-tag status-planning">PLANNING</span></span>
+                    <span class="item-dep">Independent (||)</span>
+                </div>
+            </div>
             <div class="item-row planning" data-spec="uis-MAT-0-supply-chain-model.html" data-plan="plans/MAT-0-supply-chain-model.html" data-mockup="mockups/MAT-0-material-pricing.html">
                 <div class="item-header">
                     <span class="item-chevron">&#9654;</span>
@@ -811,17 +821,6 @@ h1 { font-size: 30px; font-weight: 800; color: #0f172a; margin: 0 0 8px; letter-
                     <span class="item-est">1 day</span>
                     <span class="item-status"><span class="status-tag status-planning">PLANNING</span></span>
                     <span class="item-dep">LEM-3a</span>
-                </div>
-                <div class="item-detail"></div>
-            </div>
-            <div class="item-row planning" data-spec="uis-MAT-1-customer-po-entity.html" data-plan="plans/MAT-1-customer-po-entity.html">
-                <div class="item-header">
-                    <span class="item-chevron">&#9654;</span>
-                    <span class="item-id">MAT-1</span>
-                    <span class="item-name"><span class="planning-banner">PLANNING</span>Customer PO Entity &mdash; PurchaseOrder + PurchaseOrderLineItem models</span>
-                    <span class="item-est">1 day</span>
-                    <span class="item-status"><span class="status-tag status-planning">PLANNING</span></span>
-                    <span class="item-dep">MAT-0</span>
                 </div>
                 <div class="item-detail"></div>
             </div>
@@ -836,6 +835,17 @@ h1 { font-size: 30px; font-weight: 800; color: #0f172a; margin: 0 0 8px; letter-
                 </div>
                 <div class="item-detail"></div>
             </div>
+            <div class="item-row planning" data-spec="uis-MAT-7-inventory-management.html" data-plan="plans/MAT-7-inventory-management.html">
+                <div class="item-header">
+                    <span class="item-chevron">&#9654;</span>
+                    <span class="item-id">MAT-7</span>
+                    <span class="item-name"><span class="planning-banner">PLANNING</span>Inventory &mdash; InventoryLocation + InventoryLevel + InventoryMovement models (Shopify-aligned). Stands alone (hangs off Material/Equipment/Location); stock can be adjusted/received manually. MAT-6 is only a <strong>soft seam</strong> (receiving auto-creates an inbound movement when present).</span>
+                    <span class="item-est">8&ndash;10 days</span>
+                    <span class="item-status"><span class="status-tag status-planning">PLANNING</span></span>
+                    <span class="item-dep">Independent (MAT-6 soft seam)</span>
+                </div>
+                <div class="item-detail"></div>
+            </div>
             <div class="item-row planning" data-spec="uis-MAT-4-mobile-material-requests.html" data-plan="plans/MAT-4-mobile-material-requests.html">
                 <div class="item-header">
                     <span class="item-chevron">&#9654;</span>
@@ -844,17 +854,6 @@ h1 { font-size: 30px; font-weight: 800; color: #0f172a; margin: 0 0 8px; letter-
                     <span class="item-est">4&ndash;6 days</span>
                     <span class="item-status"><span class="status-tag status-planning">PLANNING</span></span>
                     <span class="item-dep">Independent (||)</span>
-                </div>
-                <div class="item-detail"></div>
-            </div>
-            <div class="item-row deferred" data-spec="uis-MAT-3-price-book-import.html" data-plan="plans/MAT-3-price-book-import.html">
-                <div class="item-header">
-                    <span class="item-chevron">&#9654;</span>
-                    <span class="item-id">MAT-3</span>
-                    <span class="item-name"><span class="deferred-banner">DEFERRED</span>Price Book Import &mdash; <strong>deferred: importing via MCP tooling is working well for now</strong>, so the in-app importer isn&rsquo;t needed yet. Spec/plan kept (reconciled to collapsed MAT-0: writes <code>MaterialAttributePrice</code> source rows, discounts &rarr; MAT-9, distributor link gated by MAT-10) &mdash; revive when self-serve bulk load is wanted.</span>
-                    <span class="item-est">5&ndash;6 days (when revived)</span>
-                    <span class="item-status"><span class="status-tag status-deferred">DEFERRED</span></span>
-                    <span class="item-dep">MAT-0, MAT-9, MAT-10 (||)</span>
                 </div>
                 <div class="item-detail"></div>
             </div>
@@ -884,10 +883,10 @@ h1 { font-size: 30px; font-weight: 800; color: #0f172a; margin: 0 0 8px; letter-
                 <div class="item-header">
                     <span class="item-chevron">&#9654;</span>
                     <span class="item-id">MAT-5</span>
-                    <span class="item-name"><span class="planning-banner">PLANNING</span>Supplier PO &mdash; add <code>type</code>/<code>status</code> + new <code>PurchaseOrderLineItem</code> on MAT-1&rsquo;s shared <code>PurchaseOrder</code> (<code>SPO-####</code>, line FKs the <code>MaterialAttributePrice</code> source row). HTML/PSPDFKit PDF + JWT download-link (no attachment); dedicated resolver-enforced permission. Committed-cost roll-up deferred.</span>
+                    <span class="item-name"><span class="planning-banner">PLANNING</span>Supplier PO &mdash; add <code>type</code>/<code>status</code> + new <code>PurchaseOrderLineItem</code> on the <strong>existing</strong> shared <code>PurchaseOrder</code> model (<code>SPO-####</code>, line FKs the <code>MaterialAttributePrice</code> source row). HTML/PSPDFKit PDF + JWT download-link (no attachment); dedicated resolver-enforced permission. Committed-cost roll-up deferred. Parallel to MAT-1 (both enrich the same existing model).</span>
                     <span class="item-est">7&ndash;9 days</span>
                     <span class="item-status"><span class="status-tag status-planning">PLANNING</span></span>
-                    <span class="item-dep">MAT-1 (MAT-0/9/10 soft)</span>
+                    <span class="item-dep">existing PurchaseOrder (MAT-1 &#8741;; MAT-0/9/10 soft)</span>
                 </div>
                 <div class="item-detail"></div>
             </div>
@@ -902,14 +901,25 @@ h1 { font-size: 30px; font-weight: 800; color: #0f172a; margin: 0 0 8px; letter-
                 </div>
                 <div class="item-detail"></div>
             </div>
-            <div class="item-row planning" data-spec="uis-MAT-7-inventory-management.html" data-plan="plans/MAT-7-inventory-management.html">
+            <div class="item-row planning" data-spec="uis-MAT-1-customer-po-entity.html" data-plan="plans/MAT-1-customer-po-entity.html">
                 <div class="item-header">
                     <span class="item-chevron">&#9654;</span>
-                    <span class="item-id">MAT-7</span>
-                    <span class="item-name"><span class="planning-banner">PLANNING</span>Inventory &mdash; InventoryLocation + InventoryLevel + InventoryMovement models (Shopify-aligned)</span>
-                    <span class="item-est">8&ndash;10 days</span>
+                    <span class="item-id">MAT-1</span>
+                    <span class="item-name"><span class="planning-banner">PLANNING</span>Customer PO &mdash; <strong>enrich the existing <code>PurchaseOrder</code></strong>: add customer metadata fields (company/contact/issued date/amount), a detail page, and a Company PO tab. No new core model. Parallel to MAT-5.</span>
+                    <span class="item-est">1 day</span>
                     <span class="item-status"><span class="status-tag status-planning">PLANNING</span></span>
-                    <span class="item-dep">MAT-6</span>
+                    <span class="item-dep">Independent</span>
+                </div>
+                <div class="item-detail"></div>
+            </div>
+            <div class="item-row deferred" data-spec="uis-MAT-3-price-book-import.html" data-plan="plans/MAT-3-price-book-import.html">
+                <div class="item-header">
+                    <span class="item-chevron">&#9654;</span>
+                    <span class="item-id">MAT-3</span>
+                    <span class="item-name"><span class="deferred-banner">DEFERRED</span>Price Book Import &mdash; <strong>deferred: importing via MCP tooling is working well for now</strong>, so the in-app importer isn&rsquo;t needed yet. Spec/plan kept (reconciled to collapsed MAT-0: writes <code>MaterialAttributePrice</code> source rows, discounts &rarr; MAT-9, distributor link gated by MAT-10) &mdash; revive when self-serve bulk load is wanted.</span>
+                    <span class="item-est">5&ndash;6 days (when revived)</span>
+                    <span class="item-status"><span class="status-tag status-deferred">DEFERRED</span></span>
+                    <span class="item-dep">MAT-0, MAT-9, MAT-10 (||)</span>
                 </div>
                 <div class="item-detail"></div>
             </div>

@@ -156,7 +156,72 @@ td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
     <div>Files</div><div><code>apps/api/prisma/schema.prisma</code></div>
     <div>Validate</div><div><code>pnpm run prisma:validate</code> passes.</div>
 </div>
-<p>Add the three model blocks verbatim from the spec&rsquo;s &sect;4 (<code>InventoryLocation</code>, <code>InventoryLevel</code>, <code>InventoryMovement</code>). Then add the back-relations &mdash; Prisma requires the other side of every named relation:</p>
+<p>Add the three model blocks below. <code>InventoryLocation</code> &mdash; a stocking location; its own model (not folded into <code>Location</code>) with a <strong>required</strong> <code>Location</code> for the geocoded address (stock is always somewhere, even a van has a home base), a <code>typeId</code> <code>PropertyValue</code> category (plain category, no Instance anchors), and notes via <code>NoteReferences</code> (no freetext column).</p>
+<pre><code>model InventoryLocation {
+  id            String    @id @db.VarChar(21)
+  isDeleted     Boolean   @default(false)
+  isArchived    Boolean   @default(false)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @default(now()) @updatedAt
+  name          String    @db.VarChar(255)
+  typeId        String?   @db.VarChar(21)
+  Type          PropertyValue? @relation("inventoryLocationType", fields: [typeId], references: [id])
+  locationId    String    @db.VarChar(21)        // required — the geocoded address
+  Location      Location  @relation(fields: [locationId], references: [id])
+  InventoryLevels InventoryLevel[]
+  FromMovements InventoryMovement[] @relation("InventoryMovementFromLocation")
+  ToMovements   InventoryMovement[] @relation("InventoryMovementToLocation")
+  @@index([isDeleted])
+  @@index([typeId])
+  @@index([locationId])
+}</code></pre>
+<p><code>InventoryLevel</code> &mdash; the per-location balance (Shopify&rsquo;s <code>InventoryLevel</code>). One row per <code>(inventoryLocation, thing)</code> enforced by the <code>@@unique</code>; this is HOW per-location stock is tracked (2000@A / 1000@B / 2000@C = three rows, total = their sum). Polymorphic <code>referenceModel</code>+<code>referenceId</code> = the stocked thing (<code>Material</code> now, <code>Equipment</code> later). <code>quantityOnHand</code> is the stored running balance the ledger keeps in sync; <code>quantityAvailable</code> is computed at query time (Step 8).</p>
+<pre><code>model InventoryLevel {
+  id                 String    @id @db.VarChar(21)
+  isDeleted          Boolean   @default(false)
+  isArchived         Boolean   @default(false)
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @default(now()) @updatedAt
+  inventoryLocationId String   @db.VarChar(21)
+  InventoryLocation  InventoryLocation @relation(fields: [inventoryLocationId], references: [id])
+  referenceModel     String        // "Material" now; "Equipment" later
+  referenceId        String    @db.VarChar(21)
+  ReferenceModel     ReferenceModel @relation(fields: [referenceModel], references: [model])
+  quantityOnHand     Decimal   @db.Decimal(10, 2) @default(0)
+  minQuantity        Decimal?  @db.Decimal(10, 2)
+  maxQuantity        Decimal?  @db.Decimal(10, 2)
+  unitCost           Decimal?  @db.Decimal(10, 2)   // weighted average cost at this location
+  // quantityAvailable is computed at query time; sell price resolves via the LEM-3 cascade
+  @@unique([inventoryLocationId, referenceModel, referenceId])
+  @@index([inventoryLocationId, isDeleted])
+  @@index([referenceModel, referenceId])
+}</code></pre>
+<p><code>InventoryMovement</code> &mdash; append-only ledger line: &ldquo;move <code>quantity</code> of <em>thing</em> from A to B.&rdquo; References the two <strong>locations</strong> directly + the thing. Receive = <code>to</code> only; Checkout = <code>from</code> only; Transfer = both (<code>from</code> &ne; <code>to</code>); Adjustment = one side. Both location columns are <strong>nullable</strong> (every type nulls at least one side); per-type requiredness, &ldquo;at least one set,&rdquo; and <code>quantity &gt; 0</code> (direction = which side is populated, not a signed number) are enforced at the <strong>model layer</strong> (Step 6), not as DB constraints.</p>
+<pre><code>model InventoryMovement {
+  id                   String    @id @db.VarChar(21)
+  isDeleted            Boolean   @default(false)
+  isArchived           Boolean   @default(false)
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @default(now()) @updatedAt
+  type                 String    @db.VarChar(50)
+  referenceModel       String        // the thing moved: "Material" | "Equipment"
+  referenceId          String    @db.VarChar(21)
+  ReferenceModel       ReferenceModel @relation(fields: [referenceModel], references: [model])
+  quantity             Decimal   @db.Decimal(10, 2)
+  fromInventoryLocationId String? @db.VarChar(21)
+  toInventoryLocationId  String? @db.VarChar(21)
+  FromLocation         InventoryLocation? @relation("InventoryMovementFromLocation", fields: [fromInventoryLocationId], references: [id])
+  ToLocation           InventoryLocation? @relation("InventoryMovementToLocation", fields: [toInventoryLocationId], references: [id])
+  jobId                String?   @db.VarChar(21)
+  costCodeId           String?   @db.VarChar(21)
+  performedByUserId    String    @db.VarChar(21)
+  PerformedBy          User      @relation("InventoryMovementPerformedBy", fields: [performedByUserId], references: [id])
+  @@index([referenceModel, referenceId])
+  @@index([fromInventoryLocationId, isDeleted])
+  @@index([toInventoryLocationId, isDeleted])
+  @@index([jobId])
+}</code></pre>
+<p>Then add the back-relations &mdash; Prisma requires the other side of every named relation:</p>
 <pre><code>// on model Location (:849)
   InventoryLocations  InventoryLocation[]
 

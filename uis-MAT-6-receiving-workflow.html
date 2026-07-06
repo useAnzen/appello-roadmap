@@ -243,6 +243,7 @@ pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
                 <li><span class="scope-tag scope-in">IN</span> Receiving form: select PO, enter received (and damaged) qty per line item</li>
                 <li><span class="scope-tag scope-in">IN</span> Two-way match view on PO detail: <strong>Ordered vs Received</strong> + back-order, with status indicators</li>
                 <li><span class="scope-tag scope-in">IN</span> Two new <code>purchase-order-status</code> <strong>PropertyValues</strong> (<code>Partially Received</code>, <code>Received</code>) + two new <code>Instance</code> anchors; PO status auto-advances via the anchors</li>
+                <li><span class="scope-tag scope-in">IN</span> Optional revised delivery ETA per line when receiving a partial shipment &mdash; updates the line item's <code>expectedDeliveryDate</code> (MAT-5) so the back-ordered remainder carries a real date instead of a free-text note. Completes the actual-received leg of the delivery-planning dates</li>
                 <li><span class="scope-tag scope-in">IN</span> Receipt history tab on PO detail page</li>
                 <li><span class="scope-tag scope-in">IN</span> Receiving gated by the MAT-5 <code>supplierPurchaseOrder</code> permission (+ env <code>RESTRICT_MATERIAL</code>)</li>
             </ul>
@@ -497,6 +498,7 @@ extend type PurchaseOrderLineItem {
   purchaseOrderLineItemId: String!
   receivedQty: Float!
   damagedQty: Float
+  expectedDeliveryDate: DateTime   # optional revised ETA for the back-ordered remainder; updates the line item
   notes: String
 }
 
@@ -517,7 +519,8 @@ input ReceivePurchaseOrderInput {
 type Mutation {
   receivePurchaseOrder(input: ReceivePurchaseOrderInput!): PurchaseOrderReceipt!
 }</pre>
-            <p style="font-size:12px; color:#64748b; margin-top:8px;">The <code>receivePurchaseOrder</code> mutation is gated by the MAT-5 <code>supplierPurchaseOrder</code> permission (resolver-enforced, + env <code>RESTRICT_MATERIAL</code>). In a single transaction it: assigns the next <code>RCV-####</code> number, validates <code>receivedQty &le; (ordered &minus; previouslyReceived)</code> per line, creates the receipt + line items, then recomputes line totals and sets the PO&rsquo;s <code>statusId</code> by resolving the <strong>Instance anchor</strong> &mdash; <code>purchaseOrderReceivedStatusId</code> when every line&rsquo;s good qty meets ordered, else <code>purchaseOrderPartiallyReceivedStatusId</code>. Target states are never matched by label.</p>
+            <p style="font-size:12px; color:#64748b; margin-top:8px;">The <code>receivePurchaseOrder</code> mutation is gated by the MAT-5 <code>supplierPurchaseOrder</code> permission (resolver-enforced, + env <code>RESTRICT_MATERIAL</code>). In a single transaction it: assigns the next <code>RCV-####</code> number, validates <code>receivedQty &le; (ordered &minus; previouslyReceived)</code> per line, creates the receipt + line items, then recomputes line totals and sets the PO&rsquo;s <code>statusId</code> by resolving the <strong>Instance anchor</strong> &mdash; <code>purchaseOrderReceivedStatusId</code> when every line&rsquo;s good qty meets ordered, else <code>purchaseOrderPartiallyReceivedStatusId</code>. Target states are never matched by label. When a line supplies <code>expectedDeliveryDate</code>, the mutation also updates that line item&rsquo;s <code>expectedDeliveryDate</code> so the back-ordered remainder carries a live ETA.</p>
+            <p style="font-size:12px; color:#64748b; margin-top:8px;">The receipt <code>receivedDate</code> is the <strong>actual received date</strong> &mdash; the fourth of the delivery-planning dates introduced in MAT-5 (planned order &rarr; actual order &rarr; planned received &rarr; actual received). Together these let contractors track material availability for manpower planning; surfacing them on the schedule / calendar is a deferred follow-up.</p>
         </div>
     </div>
 
@@ -628,6 +631,7 @@ type Mutation {
                 <li><div class="criteria-check"></div>Permission check: the <code>supplierPurchaseOrder</code> permission (+ env <code>RESTRICT_MATERIAL</code>) is required to receive against a PO &mdash; not <code>materialorder.edit</code></li>
                 <li><div class="criteria-check"></div>Validation: received quantity cannot exceed remaining quantity (<code>ordered &minus; previouslyReceived</code>)</li>
                 <li><div class="criteria-check"></div>Damaged quantity can be recorded per line item during receiving</li>
+                <li><div class="criteria-check"></div>A revised delivery ETA can be recorded per line when receiving a partial shipment; it updates the line item's <code>expectedDeliveryDate</code> so the back-ordered remainder carries a real date</li>
             </ul>
         </div>
     </div>

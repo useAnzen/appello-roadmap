@@ -494,16 +494,17 @@ model PurchaseOrderAssignment {
     companyId   String?   @db.VarChar(21)     // NEW — the customer who issued the PO
     contactId   String?   @db.VarChar(21)     // NEW
     issuedDate  DateTime?                      // NEW
+    dueDate     DateTime?                      // NEW — payment due date (pairs with issuedDate + terms)
     amount      Decimal?  @db.Decimal(10, 2)   // NEW
-    terms       String?   @db.Text             // NEW
-    description String?   @db.Text             // NEW
+    terms       String?   @db.Text             // NEW — WYSIWYG rich text (HTML)
+    description String?   @db.Text             // NEW — WYSIWYG rich text (HTML)
 
     Company     Company?  @relation(fields: [companyId], references: [id])   // NEW
     Contact     Contact?  @relation(fields: [contactId], references: [id])   // NEW
 
     @@index([companyId])                       // NEW
 }</pre>
-            <p style="font-size:13px; color:#64748b;">No <code>instanceId</code> (Appello is single-instance). No <code>type</code> / <code>status</code> / line items / auto-numbering &mdash; all deferred to MAT-5. The reciprocal <code>PurchaseOrders</code> relation arrays are added to <code>Company</code> and <code>Contact</code>.</p>
+            <p style="font-size:13px; color:#64748b;">No <code>instanceId</code> (Appello is single-instance). No <code>type</code> / <code>status</code> / line items / auto-numbering &mdash; all deferred to MAT-5. The reciprocal <code>PurchaseOrders</code> relation arrays are added to <code>Company</code> and <code>Contact</code>. <code>terms</code> and <code>description</code> render as <strong>WYSIWYG rich text</strong>, so they use <code>@db.Text</code> sized for HTML markup (upgrade to <code>@db.LongText</code> if large bodies are expected), never <code>VarChar</code>.</p>
 
             <h3>Files &mdash; reuse <code>Asset</code> / <code>AssetReference</code> (no schema change)</h3>
             <p>The existing polymorphic file join attaches any asset to any record via a plain string table name &mdash; the same shape as <code>PurchaseOrderAssignment</code>. Attaching the signed PO PDF is one <code>AssetReference</code> row:</p>
@@ -545,6 +546,7 @@ model AssetReference {
     contactId: String
     Contact: Contact
     issuedDate: DateTime
+    dueDate: DateTime
     amount: Float
     terms: String
     description: String
@@ -561,6 +563,7 @@ input CustomerPurchaseOrderInput {
     contactId: String
     jobId: String            # optional — assigns the PO to a Job on create
     issuedDate: DateTime
+    dueDate: DateTime
     amount: Float
     terms: String
     description: String

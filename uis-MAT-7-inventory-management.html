@@ -243,10 +243,12 @@ pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
                 <li><span class="scope-tag scope-in">IN</span> <code>quantityOnHand</code> (stored, from the ledger) + computed <code>quantityAvailable</code> (on-hand &minus; open MAT-4 reservations)</li>
                 <li><span class="scope-tag scope-in">IN</span> <code>Note</code> + <code>NoteReferences</code> on locations and movements (threaded comments + assets)</li>
                 <li><span class="scope-tag scope-in">IN</span> <code>ReferenceModel</code> seed rows for the three new models (enables notes/tags/audit)</li>
-                <li><span class="scope-tag scope-in">IN</span> Receiving auto-creates inventory (from MAT-6 Supplier PO Receiving)</li>
+                <li><span class="scope-tag scope-in">IN</span> <strong>Manual receive with cost</strong> &mdash; a standalone <code>receiveInventory</code> (quantity + <code>unitCost</code>) that creates a <code>Receive</code> movement, increments the level, and recomputes the level&rsquo;s weighted-average <code>unitCost</code>. This is the phase-1 stock-in path (no PO required); MAT-6 PO receiving later calls the <em>same</em> model method to auto-create inventory</li>
                 <li><span class="scope-tag scope-in">IN</span> Job checkout with cost code assignment</li>
+                <li><span class="scope-tag scope-in">IN</span> <strong>Return unused material from a job</strong> &mdash; a <code>returnFromJob</code> (inverse of checkout) that creates a <code>JobReturn</code> movement, increments the level, and records <code>jobId</code>/<code>costCodeId</code> so <code>JobFinancialSummaryService</code> credits the job&rsquo;s material cost (distinct from the MAT-8 vendor-credit <code>Return</code>)</li>
                 <li><span class="scope-tag scope-in">IN</span> Transfer between locations</li>
-                <li><span class="scope-tag scope-in">IN</span> Physical count adjustment</li>
+                <li><span class="scope-tag scope-in">IN</span> Physical count adjustment (quantity)</li>
+                <li><span class="scope-tag scope-in">IN</span> <strong>Average-cost adjustment</strong> &mdash; edit <code>InventoryLevel.unitCost</code> (market-price fluctuation) via <code>upsertInventoryLevel</code>, written as an audited cost-change entry, separate from quantity count adjustments</li>
                 <li><span class="scope-tag scope-in">IN</span> Min/max alert thresholds per item per location</li>
                 <li><span class="scope-tag scope-in">IN</span> Stock levels dashboard page</li>
                 <li><span class="scope-tag scope-in">IN</span> Location detail page</li>
@@ -513,10 +515,11 @@ pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
             <table class="schema-table">
                 <thead><tr><th>Constant</th><th>Description</th></tr></thead>
                 <tbody>
-                    <tr><td><code>Receive</code></td><td>Inbound from supplier PO receiving (auto-created by MAT-6)</td></tr>
+                    <tr><td><code>Receive</code></td><td>Inbound &mdash; manual receive with unit cost (<code>receiveInventory</code>), or auto-created by MAT-6 PO receiving</td></tr>
                     <tr><td><code>Checkout</code></td><td>Outbound to a job with cost code assignment</td></tr>
+                    <tr><td><code>JobReturn</code></td><td>Inbound &mdash; unused material returned from a job to stock (inverse of Checkout); records <code>jobId</code>/<code>costCodeId</code></td></tr>
                     <tr><td><code>Transfer</code></td><td>Movement between two inventory locations</td></tr>
-                    <tr><td><code>Adjustment</code></td><td>Physical count correction (positive or negative)</td></tr>
+                    <tr><td><code>Adjustment</code></td><td>Physical count correction (positive or negative) &mdash; quantity only</td></tr>
                     <tr><td><code>Return</code></td><td>Inbound from a vendor credit return (MAT-8)</td></tr>
                 </tbody>
             </table>
@@ -640,6 +643,25 @@ input AdjustmentInput {
   referenceId: String!
   quantity: Float!
   note: String             # required for adjustments — reason for the count correction
+}
+
+input ReceiveInput {
+  inventoryLocationId: String!
+  referenceModel: String!
+  referenceId: String!
+  quantity: Float!
+  unitCost: Float!         # blended into the level's weighted-average unitCost
+  note: String
+}
+
+input JobReturnInput {
+  inventoryLocationId: String!   # destination stock location
+  referenceModel: String!
+  referenceId: String!
+  quantity: Float!
+  jobId: String!                 # the job the material is returned from
+  costCodeId: String             # credited in JobFinancialSummaryService
+  note: String
 }</pre>
 
             <h3>Queries &amp; Mutations</h3>
@@ -656,7 +678,9 @@ type Mutation {
   updateInventoryLocation(input: UpdateInventoryLocationInput!): InventoryLocation!
   deleteInventoryLocation(id: ID!): Boolean!
   upsertInventoryLevel(input: UpsertInventoryLevelInput!): InventoryLevel!
+  receiveInventory(input: ReceiveInput!): InventoryMovement!
   checkoutToJob(input: CheckoutInput!): InventoryMovement!
+  returnFromJob(input: JobReturnInput!): InventoryMovement!
   transferBetweenLocations(input: TransferInput!): InventoryMovement!
   adjustInventory(input: AdjustmentInput!): InventoryMovement!
 }</pre>
@@ -916,8 +940,11 @@ type Mutation {
         </h2>
         <div class="collapsible-body open">
             <ul class="criteria-list">
+                <li><div class="criteria-check"></div>A standalone <code>receiveInventory</code> (quantity + <code>unitCost</code>) creates a <code>Receive</code> movement, increments the level, and recomputes the weighted-average <code>unitCost</code> = ((oldQty &times; oldCost) + (recvQty &times; recvCost)) / (oldQty + recvQty), guarding divide-by-zero from a zero starting balance; MAT-6 PO receiving reuses this same model method</li>
                 <li><div class="criteria-check"></div>Receiving a supplier PO (MAT-6) auto-creates an <code>InventoryMovement</code> of type <code>Receive</code> and updates stock at the destination location</li>
                 <li><div class="criteria-check"></div>Checkout deducts quantity from the source location and creates a <code>Checkout</code> movement linked to a job and cost code</li>
+                <li><div class="criteria-check"></div>A <code>returnFromJob</code> creates a <code>JobReturn</code> movement, increments the destination-location level, and records <code>jobId</code>/<code>costCodeId</code> so the job&rsquo;s material cost is credited in <code>JobFinancialSummaryService</code>; it does not change the level&rsquo;s <code>unitCost</code></li>
+                <li><div class="criteria-check"></div>Adjusting <code>InventoryLevel.unitCost</code> (market fluctuation) is recorded as an audited cost-change entry, separate from quantity count adjustments</li>
                 <li><div class="criteria-check"></div>Transfer creates one movement with both <code>fromInventoryLocationId</code> and <code>toInventoryLocationId</code> set, decrementing the source <code>InventoryLevel</code> and incrementing the destination</li>
                 <li><div class="criteria-check"></div>Physical count adjustment creates an <code>Adjustment</code> movement (positive <code>quantity</code>; <code>to</code> set to increase, <code>from</code> set to decrease) and updates the level&rsquo;s <code>quantityOnHand</code></li>
                 <li><div class="criteria-check"></div>Model-layer validation enforces per-type from/to requiredness: at least one side set, both set &amp; distinct for transfers, <code>quantity &gt; 0</code></li>
